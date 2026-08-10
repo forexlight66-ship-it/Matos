@@ -147,7 +147,9 @@ export function useDeriv() {
     ws.connect();
 
     const checkConnection = setInterval(() => {
-      if (ws.isReady && token) {
+      // Use the public connection-state method instead of accessing
+      // the DerivWebSocket's private isReady implementation detail.
+      if (ws.isConnected() && token) {
         ws.authorize(token);
         clearInterval(checkConnection);
         setIsConnected(true);
