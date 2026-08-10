@@ -15,7 +15,7 @@ export class DerivWebSocket {
 
   connect() {
     if (this.ws?.readyState === WebSocket.OPEN) return;
-    
+
     this.ws = new WebSocket(this.url);
     this.ws.onopen = () => {
       console.log('[DerivWS] Connected');
@@ -63,6 +63,11 @@ export class DerivWebSocket {
     this.ws.send(JSON.stringify(payload));
   }
 
+  /** Public connection-state check. Keeps the internal isReady flag private. */
+  isConnected(): boolean {
+    return this.isReady && this.ws?.readyState === WebSocket.OPEN;
+  }
+
   subscribe(msgType: string, handler: MessageHandler) {
     if (!this.handlers.has(msgType)) this.handlers.set(msgType, new Set());
     this.handlers.get(msgType)!.add(handler);
@@ -71,6 +76,9 @@ export class DerivWebSocket {
   unsubscribe(msgType: string, handler: MessageHandler) {
     if (this.handlers.has(msgType)) {
       this.handlers.get(msgType)!.delete(handler);
+      if (this.handlers.get(msgType)!.size === 0) {
+        this.handlers.delete(msgType);
+      }
     }
   }
 
