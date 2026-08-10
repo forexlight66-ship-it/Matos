@@ -2,8 +2,9 @@
 
 import { randomBytes, createHash } from 'crypto';
 
-const DERIV_OAUTH_AUTHORIZE = 'https://oauth.deriv.com/oauth/authorize';
-const DERIV_OAUTH_TOKEN = 'https://oauth.deriv.com/oauth/token';
+// Current Deriv OAuth 2.0 endpoints.
+const DERIV_OAUTH_AUTHORIZE = 'https://auth.deriv.com/oauth2/auth';
+const DERIV_OAUTH_TOKEN = 'https://auth.deriv.com/oauth2/token';
 
 export function generateCodeVerifier(): string {
   return randomBytes(32).toString('base64url');
@@ -24,20 +25,22 @@ export function getAuthorizeUrl(
   state: string
 ): string {
   const params = new URLSearchParams({
+    response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'read trade',
-    code_challenge_method: 'S256',
+    // The current OAuth application permissions use named scopes.
+    // The dashboard needs trading/account access; request only what is needed.
+    scope: 'trade',
+    state,
     code_challenge: codeChallenge,
-    state: state,
+    code_challenge_method: 'S256',
   });
+
   return `${DERIV_OAUTH_AUTHORIZE}?${params.toString()}`;
 }
 
 export async function exchangeCode(
   clientId: string,
-  clientSecret: string,
   redirectUri: string,
   code: string,
   codeVerifier: string
@@ -45,9 +48,8 @@ export async function exchangeCode(
   const params = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: clientId,
-    client_secret: clientSecret,
+    code,
     redirect_uri: redirectUri,
-    code: code,
     code_verifier: codeVerifier,
   });
 
@@ -57,14 +59,23 @@ export async function exchangeCode(
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: params.toString(),
+    cache: 'no-store',
   });
 
+  const data = await response.json().catch(() => null);
+
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OAuth token exchange failed: ${error}`);
+    throw new Error(
+      `OAuth token exchange failed (${response.status}): ${
+        data?.error_description || data?.error || JSON.stringify(data) || 'Unknown error'
+      }`
+    );
   }
 
-  const data = await response.json();
+  if (!data?.access_token) {
+    throw new Error('OAuth token exchange succeeded but no access_token was returned');
+  }
+
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
