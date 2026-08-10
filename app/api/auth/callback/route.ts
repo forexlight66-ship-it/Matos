@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
   const storedState = request.cookies.get('oauth_state')?.value;
   if (!storedState || state !== storedState) {
+    console.error('[OAuth] State validation failed');
     return NextResponse.json({ error: 'Invalid state parameter' }, { status: 400 });
   }
 
@@ -35,15 +36,22 @@ export async function GET(request: NextRequest) {
   }
 
   const clientId = process.env.DERIV_APP_ID;
-  const redirectUri = process.env.DERIV_REDIRECT_URI;
-
-  if (!clientId || !redirectUri) {
-    console.error('[OAuth] Missing DERIV_APP_ID or DERIV_REDIRECT_URI');
+  if (!clientId) {
+    console.error('[OAuth] Missing DERIV_APP_ID');
     return NextResponse.json(
       { error: 'OAuth server configuration is incomplete' },
       { status: 500 }
     );
   }
+
+  // Use the exact redirect URI that was used to start this OAuth flow.
+  // This is critical because OAuth requires an exact redirect_uri match.
+  const redirectUri =
+    request.cookies.get('oauth_redirect_uri')?.value ||
+    process.env.DERIV_REDIRECT_URI?.trim() ||
+    `${request.nextUrl.origin}/api/auth/callback`;
+
+  console.log('[OAuth] Processing callback', { redirectUri });
 
   try {
     const { access_token, refresh_token } = await exchangeCode(
@@ -54,7 +62,7 @@ export async function GET(request: NextRequest) {
     );
 
     const response = NextResponse.redirect(new URL('/', request.url));
-    const secure = process.env.NODE_ENV === 'production';
+    const secure = request.nextUrl.protocol === 'https:';
 
     response.cookies.set('deriv_access_token', access_token, {
       httpOnly: true,
@@ -76,9 +84,13 @@ export async function GET(request: NextRequest) {
 
     response.cookies.delete('oauth_verifier');
     response.cookies.delete('oauth_state');
+    response.cookies.delete('oauth_redirect_uri');
+
     return response;
   } catch (error) {
     console.error('[OAuth] Callback/token exchange failed:', error);
-    return NextResponse.redirect(new URL('/?auth_error=oauth_exchange_failed', request.url));
+    return NextResponse.redirect(
+      new URL('/?auth_error=oauth_exchange_failed', request.url)
+    );
   }
 }
