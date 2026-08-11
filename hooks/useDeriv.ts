@@ -64,38 +64,38 @@ export function useDeriv() {
 
   useEffect(() => {
     let cancelled = false;
-    let checkConnection: ReturnType<typeof setInterval> | null = null;
+    let connectionCheck: ReturnType<typeof setInterval> | null = null;
 
     const start = async () => {
       try {
-        // The OAuth access token is stored HttpOnly. It must never be read
-        // with document.cookie. Ask the same-origin authenticated endpoint
-        // for the short-lived token needed by the browser WebSocket.
-        const tokenResponse = await fetch('/api/auth/token', {
+        // The OAuth access token stays in the HttpOnly server cookie. The
+        // server exchanges it for a short-lived, OTP-authenticated WebSocket
+        // URL; the browser never sends an OAuth token to `authorize`.
+        const response = await fetch('/api/deriv/ws-url?account_type=demo', {
           cache: 'no-store',
           credentials: 'same-origin',
         });
 
-        if (!tokenResponse.ok) {
-          throw new Error('No authenticated Deriv session. Please log in again.');
-        }
-
-        const session = await tokenResponse.json();
-        const token = session.accessToken;
-
-        if (!token) {
-          throw new Error('Authenticated session has no Deriv access token.');
+        const session = await response.json().catch(() => null);
+        if (!response.ok || !session?.wsUrl) {
+          throw new Error(
+            session?.error || `Unable to create Deriv WebSocket session (${response.status})`
+          );
         }
 
         if (cancelled) return;
 
-        const appId = process.env.NEXT_PUBLIC_DERIV_APP_ID || process.env.DERIV_APP_ID || '1089';
-        const ws = new DerivWebSocket(appId);
+        const ws = new DerivWebSocket(session.wsUrl);
         wsRef.current = ws;
 
         ws.subscribe('*', (data) => {
           if (data.error) {
-            setError(data.error.message || 'Unknown Deriv error');
+            const message = data.error.message || 'Unknown Deriv error';
+            console.error('[Deriv] WebSocket error:', data.error);
+            setError(message);
+            if (data.error.code === 'AuthorizationRequired') {
+              setIsAuthorized(false);
+            }
           }
         });
 
@@ -105,19 +105,6 @@ export function useDeriv() {
 
         ws.subscribe('tick', (data) => {
           if (data.tick) setTick(data.tick);
-        });
-
-        ws.subscribe('authorize', (data) => {
-          if (data.authorize) {
-            setIsAuthorized(true);
-            setError(null);
-            ws.subscribeBalance();
-            ws.subscribeTicks('R_100');
-            ws.getProfitTable({ limit: 20, offset: 0, sort: 'DESC' });
-          } else if (data.error) {
-            setError(data.error.message || 'Deriv authorization failed');
-            setIsAuthorized(false);
-          }
         });
 
         ws.subscribe('transaction', (data) => {
@@ -140,11 +127,12 @@ export function useDeriv() {
               payout: data.proposal.payout,
               stake: data.proposal.stake,
               contract_type: data.proposal.contract_type,
-              symbol: data.proposal.symbol,
+              symbol: data.proposal.symbol || data.proposal.underlying_symbol,
               duration: data.proposal.duration,
               duration_unit: data.proposal.duration_unit,
               barrier: data.proposal.barrier,
             });
+            setError(null);
           }
         });
 
@@ -160,14 +148,20 @@ export function useDeriv() {
 
         ws.connect();
 
-        checkConnection = setInterval(() => {
+        connectionCheck = setInterval(() => {
           if (cancelled) return;
-          if (ws.isConnected()) {
-            ws.authorize(token);
-            setIsConnected(true);
-            if (checkConnection) {
-              clearInterval(checkConnection);
-              checkConnection = null;
+
+          const connected = ws.isConnected();
+          setIsConnected(connected);
+          setIsAuthorized(connected);
+
+          if (connected) {
+            ws.subscribeBalance();
+            ws.subscribeTicks('R_100');
+            ws.getProfitTable({ limit: 20, offset: 0, sort: 'DESC' });
+            if (connectionCheck) {
+              clearInterval(connectionCheck);
+              connectionCheck = null;
             }
           }
         }, 250);
@@ -175,7 +169,11 @@ export function useDeriv() {
         if (!cancelled) {
           setIsConnected(false);
           setIsAuthorized(false);
-          setError(err instanceof Error ? err.message : 'Unable to initialize Deriv connection');
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Unable to initialize Deriv connection'
+          );
         }
       }
     };
@@ -184,20 +182,32 @@ export function useDeriv() {
 
     return () => {
       cancelled = true;
-      if (checkConnection) clearInterval(checkConnection);
+      if (connectionCheck) clearInterval(connectionCheck);
       wsRef.current?.disconnect();
       wsRef.current = null;
     };
   }, []);
 
-  const fetchProfitTable = useCallback((options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC' }) => {
-    setLoadingProfit(true);
-    wsRef.current?.getProfitTable({ description: 1, ...options });
-  }, []);
+  const fetchProfitTable = useCallback(
+    (options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC' }) => {
+      setLoadingProfit(true);
+      wsRef.current?.getProfitTable({ description: 1, ...options });
+    },
+    []
+  );
 
-  const getProposal = useCallback((symbol: string, contractType: string, amount: number, duration: number) => {
-    wsRef.current?.getProposal(symbol, contractType, amount, duration);
-  }, []);
+  const getProposal = useCallback(
+    (
+      symbol: string,
+      contractType: string,
+      amount: number,
+      duration: number,
+      barrier: number = 5
+    ) => {
+      wsRef.current?.getProposal(symbol, contractType, amount, duration, barrier);
+    },
+    []
+  );
 
   const buy = useCallback((proposalId: string, price: number) => {
     setBuying(true);
