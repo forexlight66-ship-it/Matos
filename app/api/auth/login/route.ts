@@ -1,10 +1,27 @@
 // app/api/auth/login/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateCodeVerifier, generateCodeChallenge, generateState, getAuthorizeUrl } from '@/lib/oauth';
+import {
+  generateCodeVerifier,
+  generateCodeChallenge,
+  generateState,
+  getAuthorizeUrl,
+} from '@/lib/oauth';
+
+/**
+ * Build the callback URL from the public URL that the user actually opened.
+ *
+ * Do not use DERIV_REDIRECT_URI here: a stale value such as
+ * https://localhost:10000/... can send a production user to the wrong host.
+ * Deriv requires the redirect_uri used here to exactly match a URI registered
+ * in the OAuth application.
+ */
+function getCallbackUrl(request: NextRequest): string {
+  return new URL('/api/auth/callback', request.nextUrl.origin).toString();
+}
 
 export async function GET(request: NextRequest) {
-  const clientId = process.env.DERIV_APP_ID;
+  const clientId = process.env.DERIV_APP_ID?.trim();
 
   if (!clientId) {
     console.error('[OAuth] Missing DERIV_APP_ID');
@@ -14,11 +31,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Always derive the callback from the actual public host that received
-  // the login request. This prevents stale Render URLs from breaking OAuth
-  // when the Render service URL changes.
-  const configuredRedirectUri = process.env.DERIV_REDIRECT_URI?.trim();
-  const redirectUri = configuredRedirectUri || `${request.nextUrl.origin}/api/auth/callback`;
+  // Always use the public origin of the current request. This prevents a
+  // stale localhost/old Render URL from being sent to Deriv in production.
+  const redirectUri = getCallbackUrl(request);
 
   const verifier = generateCodeVerifier();
   const challenge = generateCodeChallenge(verifier);
@@ -35,32 +50,20 @@ export async function GET(request: NextRequest) {
   );
 
   const secure = request.nextUrl.protocol === 'https:';
-
-  response.cookies.set('oauth_verifier', verifier, {
+  const cookieOptions = {
     httpOnly: true,
     secure,
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/',
     maxAge: 600,
-  });
+  };
 
-  response.cookies.set('oauth_state', state, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 600,
-  });
+  response.cookies.set('oauth_verifier', verifier, cookieOptions);
+  response.cookies.set('oauth_state', state, cookieOptions);
 
-  // Keep the exact redirect URI used for authorization so the callback
-  // exchanges the code with the identical URI required by OAuth.
-  response.cookies.set('oauth_redirect_uri', redirectUri, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 600,
-  });
+  // Persist the exact URI used in the authorization request so the callback
+  // sends the identical URI to the token endpoint.
+  response.cookies.set('oauth_redirect_uri', redirectUri, cookieOptions);
 
   return response;
 }
