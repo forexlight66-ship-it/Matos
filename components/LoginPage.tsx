@@ -5,6 +5,8 @@
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSelector from './LanguageSelector';
 
+const DERIV_SIGNUP_URL = 'https://track.deriv.com/_xhgntjGPYQ7xidYl18iLj2Nd7ZgqdRLk/1/';
+
 export default function LoginPage() {
   const { t } = useLanguage();
 
@@ -22,12 +24,26 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <p className="text-gray-600">{t('loginSubtitle')}</p>
         </div>
+
         <button
           onClick={handleLogin}
           className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200"
         >
           🔐 {t('loginWithDeriv')}
         </button>
+
+        <div className="mt-5 text-center">
+          <p className="text-sm text-gray-500">Don't have a Deriv account?</p>
+          <a
+            href={DERIV_SIGNUP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-2 text-sm font-semibold text-green-600 hover:text-green-700 hover:underline"
+          >
+            Create a Deriv account
+          </a>
+        </div>
+
         <p className="text-xs text-gray-400 mt-4 text-center">{t('loginDisclaimer')}</p>
       </div>
     </div>
