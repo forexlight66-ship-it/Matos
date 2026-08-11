@@ -2,54 +2,62 @@
 
 type MessageHandler = (data: any) => void;
 
+/**
+ * Deriv Options WebSocket client.
+ *
+ * OAuth2 tokens are not sent with `authorize` on the legacy websocket.
+ * The authenticated URL must first be created server-side with the OAuth
+ * Bearer token + Options OTP endpoint. This class therefore accepts the
+ * ready-to-use OTP WebSocket URL and treats an open socket as authorized.
+ */
 export class DerivWebSocket {
   private ws: WebSocket | null = null;
   private url: string;
   private handlers: Map<string, Set<MessageHandler>> = new Map();
   private isReady = false;
-  private reconnectTimer: NodeJS.Timeout | null = null;
 
-  constructor(appId: string = '1089') {
-    this.url = `wss://ws.derivws.com/websockets/v3?app_id=${appId}`;
+  constructor(wsUrl: string) {
+    this.url = wsUrl;
   }
 
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (
+      this.ws?.readyState === WebSocket.OPEN ||
+      this.ws?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
 
     this.ws = new WebSocket(this.url);
+
     this.ws.onopen = () => {
-      console.log('[DerivWS] Connected');
+      console.log('[DerivWS] Authenticated WebSocket connected');
       this.isReady = true;
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
     };
+
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         const msgType = data.msg_type;
+
         if (msgType && this.handlers.has(msgType)) {
-          for (const fn of this.handlers.get(msgType)!) {
-            fn(data);
-          }
+          for (const fn of this.handlers.get(msgType)!) fn(data);
         }
+
         if (this.handlers.has('*')) {
-          for (const fn of this.handlers.get('*')!) {
-            fn(data);
-          }
+          for (const fn of this.handlers.get('*')!) fn(data);
         }
-      } catch (e) {
-        console.error('[DerivWS] Parse error:', e);
+      } catch (error) {
+        console.error('[DerivWS] Parse error:', error);
       }
     };
+
     this.ws.onclose = () => {
       console.log('[DerivWS] Disconnected');
       this.isReady = false;
-      if (!this.reconnectTimer) {
-        this.reconnectTimer = setTimeout(() => this.connect(), 3000);
-      }
+      this.ws = null;
     };
+
     this.ws.onerror = (error) => {
       console.error('[DerivWS] Error:', error);
     };
@@ -63,9 +71,13 @@ export class DerivWebSocket {
     this.ws.send(JSON.stringify(payload));
   }
 
-  /** Public connection-state check. Keeps the internal isReady flag private. */
   isConnected(): boolean {
     return this.isReady && this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  /** OTP-authenticated sockets are already authorized when they open. */
+  isAuthorized(): boolean {
+    return this.isConnected();
   }
 
   subscribe(msgType: string, handler: MessageHandler) {
@@ -74,16 +86,10 @@ export class DerivWebSocket {
   }
 
   unsubscribe(msgType: string, handler: MessageHandler) {
-    if (this.handlers.has(msgType)) {
-      this.handlers.get(msgType)!.delete(handler);
-      if (this.handlers.get(msgType)!.size === 0) {
-        this.handlers.delete(msgType);
-      }
-    }
-  }
-
-  authorize(token: string) {
-    this.send({ authorize: token });
+    const handlers = this.handlers.get(msgType);
+    if (!handlers) return;
+    handlers.delete(handler);
+    if (handlers.size === 0) this.handlers.delete(msgType);
   }
 
   subscribeBalance() {
@@ -94,12 +100,23 @@ export class DerivWebSocket {
     this.send({ ticks: symbol, subscribe: 1 });
   }
 
-  getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
+  getProfitTable(options?: {
+    limit?: number;
+    offset?: number;
+    sort?: 'ASC' | 'DESC';
+    description?: 0 | 1;
+  }) {
     this.send({ profit_table: 1, description: 1, ...options });
   }
 
-  getProposal(symbol: string, contractType: string, amount: number, duration: number) {
-    this.send({
+  getProposal(
+    symbol: string,
+    contractType: string,
+    amount: number,
+    duration: number,
+    barrier?: number
+  ) {
+    const payload: Record<string, any> = {
       proposal: 1,
       amount,
       basis: 'stake',
@@ -107,8 +124,11 @@ export class DerivWebSocket {
       currency: 'USD',
       duration,
       duration_unit: 's',
-      symbol,
-    });
+      underlying_symbol: symbol,
+    };
+
+    if (barrier !== undefined) payload.barrier = String(barrier);
+    this.send(payload);
   }
 
   buyContract(proposalId: string, price: number) {
@@ -116,14 +136,10 @@ export class DerivWebSocket {
   }
 
   sellContract(contractId: number) {
-    this.send({ sell: contractId });
+    this.send({ sell: contractId, price: 0 });
   }
 
   disconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
