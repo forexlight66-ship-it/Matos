@@ -10,41 +10,42 @@ const DERIV_SIGNUP_URL = 'https://track.deriv.com/_xhgntjGPYQ7xidYl18iLj2Nd7Zgqd
 export default function LoginPage() {
   const { t } = useLanguage();
 
-  const handleLogin = () => {
-    window.location.href = '/api/auth/login';
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">{t('title')}</h1>
+    <div className="matos-auth">
+      <div className="auth-card">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
           <LanguageSelector />
         </div>
-        <div className="text-center mb-8">
-          <p className="text-gray-600">{t('loginSubtitle')}</p>
+
+        <div className="auth-brand">
+          <div className="brand-mark">M</div>
+          <div>
+            <h1 className="auth-title">Moz<span style={{ color: 'var(--blue)' }}>Hyper</span></h1>
+            <div style={{ color: 'var(--t3)', fontSize: 9, letterSpacing: '.08em' }}>DIGITS TRADING</div>
+          </div>
         </div>
 
+        <p className="auth-subtitle">
+          {t('loginSubtitle') || 'Entre com a sua conta Deriv para abrir o painel de negociação.'}
+        </p>
+
         <button
-          onClick={handleLogin}
-          className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200"
+          onClick={() => { window.location.href = '/api/auth/login'; }}
+          className="auth-btn"
         >
-          🔐 {t('loginWithDeriv')}
+          🔐 {t('loginWithDeriv') || 'Entrar com Deriv'}
         </button>
 
-        <div className="mt-5 text-center">
-          <p className="text-sm text-gray-500">Don't have a Deriv account?</p>
-          <a
-            href={DERIV_SIGNUP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-2 text-sm font-semibold text-green-600 hover:text-green-700 hover:underline"
-          >
-            Create a Deriv account
+        <div className="signup">
+          <p>Não tem uma conta Deriv?</p>
+          <a href={DERIV_SIGNUP_URL} target="_blank" rel="noopener noreferrer">
+            Criar conta Deriv →
           </a>
         </div>
 
-        <p className="text-xs text-gray-400 mt-4 text-center">{t('loginDisclaimer')}</p>
+        <div className="auth-note">
+          {t('loginDisclaimer') || 'A autenticação é feita pela Deriv. O MozHyper não recebe a sua palavra-passe.'}
+        </div>
       </div>
     </div>
   );
