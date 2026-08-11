@@ -8,9 +8,7 @@ export class DerivWebSocket {
   private handlers: Map<string, Set<MessageHandler>> = new Map();
   private isReady = false;
 
-  constructor(wsUrl: string) {
-    this.url = wsUrl;
-  }
+  constructor(wsUrl: string) { this.url = wsUrl; }
 
   connect() {
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
@@ -20,15 +18,9 @@ export class DerivWebSocket {
       try {
         const data = JSON.parse(event.data);
         const msgType = data.msg_type;
-        if (msgType && this.handlers.has(msgType)) {
-          for (const fn of this.handlers.get(msgType)!) fn(data);
-        }
-        if (this.handlers.has('*')) {
-          for (const fn of this.handlers.get('*')!) fn(data);
-        }
-      } catch (error) {
-        console.error('[DerivWS] Parse error:', error);
-      }
+        if (msgType && this.handlers.has(msgType)) for (const fn of this.handlers.get(msgType)!) fn(data);
+        if (this.handlers.has('*')) for (const fn of this.handlers.get('*')!) fn(data);
+      } catch (error) { console.error('[DerivWS] Parse error:', error); }
     };
     this.ws.onclose = () => { this.isReady = false; this.ws = null; };
     this.ws.onerror = (error) => console.error('[DerivWS] Error:', error);
@@ -55,7 +47,11 @@ export class DerivWebSocket {
   }
 
   subscribeBalance() { this.send({ balance: 1, subscribe: 1 }); }
-  subscribeTicks(symbol = 'R_100') { this.send({ ticks: symbol, subscribe: 1 }); }
+
+  subscribeTicks(symbol = 'R_100') {
+    this.send({ forget_all: 'ticks' });
+    this.send({ ticks: symbol, subscribe: 1 });
+  }
 
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
     this.send({ profit_table: 1, description: 1, ...options });
@@ -72,9 +68,7 @@ export class DerivWebSocket {
       duration_unit: 't',
       underlying_symbol: symbol,
     };
-    if (barrier !== undefined && (contractType === 'DIGITMATCH' || contractType === 'DIGITDIFF')) {
-      payload.barrier = String(barrier);
-    }
+    if (barrier !== undefined) payload.barrier = String(barrier);
     this.send(payload);
   }
 
