@@ -2,9 +2,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDeriv } from '@/hooks/useDeriv';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 const CONTRACT_TYPES = {
   OVER: 'DIGITOVER',
@@ -15,131 +14,240 @@ const CONTRACT_TYPES = {
 
 type ContractChoice = keyof typeof CONTRACT_TYPES;
 
+const SYMBOLS: Record<string, string> = {
+  R_100: 'Volatility 100 Index',
+  R_50: 'Volatility 50 Index',
+  R_10: 'Volatility 10 Index',
+  '1HZ100V': 'Volatility 100 (1s) Index',
+};
+
+const PROBS = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
+
 export default function DigitsGame() {
-  const { tick, proposal, buying, getProposal, buy, isAuthorized, isConnected } = useDeriv();
-  const { t } = useLanguage();
-  const [contractType, setContractType] = useState<ContractChoice>('OVER');
+  const {
+    balance,
+    tick,
+    proposal,
+    buying,
+    getProposal,
+    buy,
+    subscribeTicks,
+    isAuthorized,
+    isConnected,
+    error,
+    profitTransactions,
+  } = useDeriv();
+
+  const [contractType, setContractType] = useState<ContractChoice>('MATCH');
   const [amount, setAmount] = useState(10);
-  const [duration, setDuration] = useState(60);
+  const [duration, setDuration] = useState(5);
   const [digit, setDigit] = useState(5);
   const [symbol, setSymbol] = useState('R_100');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [predictionOpen, setPredictionOpen] = useState(false);
+
+  useEffect(() => {
+    if (isConnected) subscribeTicks(symbol);
+  }, [symbol, isConnected, subscribeTicks]);
 
   useEffect(() => {
     if (isAuthorized && isConnected) {
-      const contract = CONTRACT_TYPES[contractType];
-      getProposal(symbol, contract, amount, duration, digit);
+      getProposal(symbol, CONTRACT_TYPES[contractType], amount, duration, digit);
     }
   }, [contractType, amount, duration, digit, symbol, isAuthorized, isConnected, getProposal]);
 
-  const handleBuy = () => {
-    if (proposal) buy(proposal.id, proposal.ask_price);
+  const accountType = balance?.loginid?.startsWith('CR') ? 'REAL' : 'DEMO';
+  const balanceText = balance ? `${Number(balance.balance).toFixed(2)} ${balance.currency}` : '—';
+  const priceText = tick ? Number(tick.quote).toFixed(2) : '—';
+  const lastDigit = tick ? String(tick.quote).replace(/\D/g, '').slice(-1) || '—' : '—';
+  const selectedContract = contractType === 'MATCH' ? 'Matches' : contractType === 'DIFFERS' ? 'Differs' : contractType === 'OVER' ? 'Over' : 'Under';
+
+  const totalPnl = useMemo(
+    () => profitTransactions.reduce((sum, tx) => sum + Number(tx.profit_loss || 0), 0),
+    [profitTransactions]
+  );
+
+  const lastOperation = profitTransactions[0];
+  const lastPnl = Number(lastOperation?.profit_loss || 0);
+  const lastOperationTime = lastOperation
+    ? new Date((lastOperation.sell_time || lastOperation.purchase_time) * 1000).toLocaleTimeString()
+    : '—';
+
+  const history = profitTransactions.slice(0, 12);
+
+  const placeTrade = () => {
+    if (proposal && isAuthorized) buy(proposal.id, proposal.ask_price);
+  };
+
+  const setStake = (value: number) => setAmount(value);
+
+  const openCashier = () => {
+    window.open('https://app.deriv.com/cashier', '_blank', 'noopener,noreferrer');
+  };
+
+  const selectPrediction = (value: ContractChoice) => {
+    setContractType(value);
+    setPredictionOpen(false);
+  };
+
+  const scrollTutorial = () => {
+    document.getElementById('tutorial')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="card mb-6">
-      <h2 className="text-xl font-bold mb-4">{t('digitsTrading')}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">{t('symbol')}</label>
-          <select
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-          >
-            <option value="R_100">{t('volatility')} 100</option>
-            <option value="R_50">{t('volatility')} 50</option>
-            <option value="R_10">{t('volatility')} 10</option>
-            <option value="1HZ10V">1HZ10V</option>
-          </select>
+    <div className="matos-screen">
+      <div className="matos-top">
+        <div className="brand">
+          <div className="avatar">M</div>
+          <div className="brand-name">Moz<span>Hyper</span></div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">{t('contractType')}</label>
-          <select
-            value={contractType}
-            onChange={(e) => setContractType(e.target.value as ContractChoice)}
-            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-          >
-            <option value="OVER">{t('over')}</option>
-            <option value="UNDER">{t('under')}</option>
-            <option value="MATCH">{t('match')}</option>
-            <option value="DIFFERS">{t('differs')}</option>
-          </select>
+        <button className="logout" onClick={() => { window.location.href = '/api/auth/logout'; }}>Sair</button>
+      </div>
+
+      <div className="balance-card">
+        <div className="brand">
+          <div className="brand-mark">M</div>
+          <div>
+            <div className="brand-name">Moz<span>Hyper</span></div>
+            <div style={{ color: 'var(--t3)', fontSize: 9 }}>DIGITS TRADING</div>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">{t('amount')}</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-            min="1"
-            step="1"
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
+        <div className="menu-wrap">
+          <button className="menu-btn" onClick={() => setMenuOpen(v => !v)}>•••</button>
+          {menuOpen && (
+            <div className="menu">
+              <button onClick={openCashier}>↓ Abrir depósito</button>
+              <button onClick={openCashier}>↑ Abrir levantamento</button>
+            </div>
+          )}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">{t('duration')}</label>
-          <input
-            type="number"
-            value={duration}
-            onChange={(e) => setDuration(parseInt(e.target.value) || 60)}
-            min="5"
-            step="5"
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
+      </div>
+
+      <div className="stats">
+        <div className="stat">
+          <div className="stat-label">Saldo</div>
+          <div className="stat-value">{balanceText}</div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">{t('digit')}</label>
-          <input
-            type="number"
-            value={digit}
-            onChange={(e) => {
-              const val = parseInt(e.target.value);
-              if (!isNaN(val) && val >= 0 && val <= 9) setDigit(val);
-            }}
-            min="0"
-            max="9"
-            step="1"
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">{t('currentPrice')}</label>
-          <div className="mt-1 block w-full py-2 px-3 bg-gray-50 rounded-md border border-gray-200">
-            {tick ? tick.quote : t('waitingTick')}
+        <div className="stat-divider" />
+        <div className="stat">
+          <div className="stat-label">Lucro/Prejuízo</div>
+          <div className={`stat-value ${totalPnl >= 0 ? 'profit' : ''}`}>
+            {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}
           </div>
         </div>
       </div>
 
-      {proposal && (
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="font-semibold text-blue-800">{t('proposalQuote')}</h3>
-          <div className="grid grid-cols-3 gap-4 mt-2">
-            <div>
-              <span className="text-sm text-gray-500">{t('askPrice')}:</span>
-              <span className="ml-2 font-medium">{proposal.ask_price}</span>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500">{t('payout')}:</span>
-              <span className="ml-2 font-medium">{proposal.payout}</span>
-            </div>
-            <div>
-              <span className="text-sm text-gray-500">{t('stake')}:</span>
-              <span className="ml-2 font-medium">{proposal.stake}</span>
-            </div>
-          </div>
-          <button
-            onClick={handleBuy}
-            disabled={buying || !isAuthorized}
-            className="mt-4 w-full md:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {buying ? t('buying') : `${t('buy')} ${contractType} ${proposal.ask_price} USD`}
-          </button>
+      <div className="control-row">
+        <div>
+          <div className="control-label">Tipo de Conta</div>
+          <div className="control-pill real">{accountType} <span>⟳</span></div>
         </div>
-      )}
+        <div>
+          <div className="control-label">Tipo de Previsão</div>
+          <div className="control-pill" onClick={() => setPredictionOpen(v => !v)}>
+            {selectedContract} <span>⌄</span>
+            {predictionOpen && (
+              <div className="select-menu" onClick={e => e.stopPropagation()}>
+                <button onClick={() => selectPrediction('MATCH')}>Matches</button>
+                <button onClick={() => selectPrediction('DIFFERS')}>Differs</button>
+                <button onClick={() => selectPrediction('OVER')}>Over</button>
+                <button onClick={() => selectPrediction('UNDER')}>Under</button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div>
+          <div className="control-label">Vídeo Aula</div>
+          <button className="control-pill video" onClick={scrollTutorial}>▶ <span>ⓘ</span></button>
+        </div>
+      </div>
 
-      {!isAuthorized && (
-        <p className="mt-4 text-red-600 text-sm">{t('unauthorizedWarning')}</p>
-      )}
+      <div className="last-op">
+        <div className="last-op-head">
+          <span className="history-label" style={{ margin: 0 }}>Última operação fechada</span>
+          <span className="last-op-time">{lastOperationTime}</span>
+        </div>
+        <div className="last-op-grid">
+          <div className="last-op-cell"><span>Tipo</span><span>{lastOperation?.contract_type || '—'}</span></div>
+          <div className="last-op-cell"><span>Tick Final</span><span>{lastDigit}</span></div>
+          <div className="last-op-cell"><span>Preço</span><span>{lastOperation ? Number(lastOperation.buy_price).toFixed(2) : '—'}</span></div>
+          <div className="last-op-cell"><span>Resultado</span><span className={lastPnl >= 0 ? 'profit' : ''}>{lastOperation ? `${lastPnl >= 0 ? '+' : ''}${lastPnl.toFixed(2)}` : '—'}</span></div>
+        </div>
+      </div>
+
+      <div className="dial">
+        <div className="dial-ring" />
+        {PROBS.map((prob, i) => {
+          const angle = (i / 10) * Math.PI * 2 - Math.PI / 2;
+          const x = 124 + 95 * Math.cos(angle);
+          const y = 124 + 95 * Math.sin(angle);
+          return (
+            <button
+              key={i}
+              className={`digit ${i === digit ? 'active' : ''}`}
+              style={{ left: x, top: y, transform: 'translate(-50%,-50%)' }}
+              onClick={() => setDigit(i)}
+            >
+              <span className="n">{i}</span>
+              <span className="p">{prob.toFixed(1)}%</span>
+            </button>
+          );
+        })}
+        <div className="dial-center">
+          <div className="dial-price">{priceText.slice(0, -1)}<span className="last">{lastDigit}</span></div>
+          <div className="dial-label">último dígito</div>
+        </div>
+      </div>
+
+      <div className="dial-caption">Previsão selecionada: <b>{digit}</b> · toque num número no anel</div>
+
+      <div className="toggle">
+        <div className={`toggle-glider ${contractType === 'DIFFERS' ? 'right' : ''}`} />
+        <button className={contractType === 'MATCH' ? 'active' : ''} onClick={() => setContractType('MATCH')}>Matches</button>
+        <button className={contractType === 'DIFFERS' ? 'active' : ''} onClick={() => setContractType('DIFFERS')}>Differs</button>
+      </div>
+
+      <div className="section-label">Aposta <span>saldo: {balance ? Number(balance.balance).toFixed(2) : '—'}</span></div>
+      <div className="stake"><span>USD</span>{amount.toFixed(2)}</div>
+      <div className="chip-row">
+        {[10, 20, 50, 100].map(value => (
+          <button key={value} className={`chip ${amount === value ? 'active' : ''}`} onClick={() => setStake(value)}>{value}</button>
+        ))}
+      </div>
+
+      <div className="section-label">Duração <span>ticks</span></div>
+      <div className="duration-row">
+        {[1, 5, 10].map(value => (
+          <button key={value} className={`duration ${duration === value ? 'active' : ''}`} onClick={() => setDuration(value)}>{value}</button>
+        ))}
+      </div>
+
+      {error && <div className="error-box">⚠️ {error}</div>}
+
+      <button className="cta" onClick={placeTrade} disabled={!proposal || !isAuthorized || buying}>
+        {buying ? '⏳ A comprar...' : '🎯 Colocar previsão'}
+        {proposal && <small> · ganho pot. +{Number(proposal.payout - proposal.ask_price).toFixed(2)}</small>}
+      </button>
+
+      {!isAuthorized && <div className="error-box" style={{ marginTop: 10, marginBottom: 0 }}>⚠️ Não autorizado. Verifique a sessão Deriv.</div>}
+
+      <div className="history-label">Histórico recente</div>
+      <div className="history">
+        {history.length === 0 && <span style={{ color: 'var(--t3)', fontSize: 10 }}>Aguardando operações...</span>}
+        {history.map(tx => {
+          const pnl = Number(tx.profit_loss || 0);
+          const code = tx.contract_type === 'DIGITMATCH' ? 'M' : tx.contract_type === 'DIGITDIFF' ? 'D' : tx.contract_type === 'DIGITOVER' ? 'O' : 'U';
+          return <div key={tx.contract_id} className={`history-chip ${pnl >= 0 ? 'win' : 'loss'}`}><div>{code}</div><div>{pnl >= 0 ? '✓' : '✕'}</div></div>;
+        })}
+      </div>
+
+      <div className="market">
+        <span>📈</span>
+        <span className="market-name">{SYMBOLS[symbol]}</span>
+        <span className="live">{isConnected ? 'AO VIVO' : 'OFFLINE'}</span>
+      </div>
+
+      <div className="footer-note">Powered by Deriv · Jogue com responsabilidade</div>
     </div>
   );
 }
