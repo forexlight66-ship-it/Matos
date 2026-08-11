@@ -7,16 +7,18 @@ import { useDeriv } from '@/hooks/useDeriv';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const CONTRACT_TYPES = {
-  'OVER': 'DIGITOVER',
-  'UNDER': 'DIGITUNDER',
-  'MATCH': 'DIGITMATCH',
-  'DIFFERS': 'DIGITDIFF',
-};
+  OVER: 'DIGITOVER',
+  UNDER: 'DIGITUNDER',
+  MATCH: 'DIGITMATCH',
+  DIFFERS: 'DIGITDIFF',
+} as const;
+
+type ContractChoice = keyof typeof CONTRACT_TYPES;
 
 export default function DigitsGame() {
   const { tick, proposal, buying, getProposal, buy, isAuthorized, isConnected } = useDeriv();
   const { t } = useLanguage();
-  const [contractType, setContractType] = useState<'OVER' | 'UNDER' | 'MATCH' | 'DIFFERS'>('OVER');
+  const [contractType, setContractType] = useState<ContractChoice>('OVER');
   const [amount, setAmount] = useState(10);
   const [duration, setDuration] = useState(60);
   const [digit, setDigit] = useState(5);
@@ -25,14 +27,12 @@ export default function DigitsGame() {
   useEffect(() => {
     if (isAuthorized && isConnected) {
       const contract = CONTRACT_TYPES[contractType];
-      getProposal(symbol, contract, amount, duration);
+      getProposal(symbol, contract, amount, duration, digit);
     }
-  }, [contractType, amount, duration, symbol, isAuthorized, isConnected, getProposal]);
+  }, [contractType, amount, duration, digit, symbol, isAuthorized, isConnected, getProposal]);
 
   const handleBuy = () => {
-    if (proposal) {
-      buy(proposal.id, proposal.ask_price);
-    }
+    if (proposal) buy(proposal.id, proposal.ask_price);
   };
 
   return (
@@ -56,7 +56,7 @@ export default function DigitsGame() {
           <label className="block text-sm font-medium text-gray-700">{t('contractType')}</label>
           <select
             value={contractType}
-            onChange={(e) => setContractType(e.target.value as any)}
+            onChange={(e) => setContractType(e.target.value as ContractChoice)}
             className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
           >
             <option value="OVER">{t('over')}</option>
