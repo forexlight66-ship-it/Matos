@@ -25,9 +25,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // A callback URL opened manually, or a malformed provider redirect, does
-  // not contain an authorization code. Send the user back to the app instead
-  // of leaving them on a confusing JSON error page.
   if (!code || !state) {
     console.error('[OAuth] Callback missing code/state', {
       hasCode: Boolean(code),
@@ -55,7 +52,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const clientId = process.env.DERIV_APP_ID;
+  const clientId = process.env.DERIV_APP_ID?.trim();
   if (!clientId) {
     console.error('[OAuth] Missing DERIV_APP_ID');
     return NextResponse.json(
@@ -64,12 +61,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Use the exact redirect URI used when the OAuth flow started. This must
-  // remain identical for the authorization and token exchange requests.
-  const redirectUri =
-    request.cookies.get('oauth_redirect_uri')?.value ||
-    process.env.DERIV_REDIRECT_URI?.trim() ||
-    `${request.nextUrl.origin}/api/auth/callback`;
+  // The login route stores the exact redirect URI used in the authorization
+  // request. Reuse that exact value for the code exchange; OAuth requires an
+  // exact match between authorization and token requests.
+  const redirectUri = request.cookies.get('oauth_redirect_uri')?.value;
+  if (!redirectUri) {
+    console.error('[OAuth] Missing stored redirect URI');
+    return NextResponse.redirect(
+      new URL('/?auth_error=missing_oauth_redirect_uri', request.url)
+    );
+  }
 
   console.log('[OAuth] Processing callback', {
     redirectUri,
