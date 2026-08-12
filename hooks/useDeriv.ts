@@ -25,9 +25,14 @@ export function useDeriv() {
   const [loadingProfit, setLoadingProfit] = useState(false);
   const [buying, setBuying] = useState(false);
 
+  const refreshProfitTable = useCallback(() => {
+    wsRef.current?.getProfitTable({ limit: 20, offset: 0, sort: 'DESC', description: 1 });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let connectionCheck: ReturnType<typeof setInterval> | null = null;
+    let profitRefresh: ReturnType<typeof setInterval> | null = null;
 
     const start = async () => {
       try {
@@ -38,17 +43,36 @@ export function useDeriv() {
 
         const ws = new DerivWebSocket(session.wsUrl);
         wsRef.current = ws;
+
         ws.subscribe('*', (data) => {
           if (data.error) {
             const message = data.error.message || 'Unknown Deriv error';
             console.error('[Deriv] WebSocket error:', data.error);
             setError(message);
             if (data.error.code === 'AuthorizationRequired') setIsAuthorized(false);
+            return;
+          }
+          if (data.msg_type === 'authorize') {
+            setIsAuthorized(Boolean(data.authorize));
           }
         });
-        ws.subscribe('balance', (data) => { if (data.balance) setBalance(data.balance); });
-        ws.subscribe('tick', (data) => { if (data.tick) setTick(data.tick); });
-        ws.subscribe('transaction', (data) => { if (data.transaction) setTransaction(data.transaction); });
+
+        ws.subscribe('balance', (data) => {
+          if (data.balance) setBalance(data.balance);
+        });
+
+        ws.subscribe('tick', (data) => {
+          if (data.tick) setTick(data.tick);
+        });
+
+        ws.subscribe('transaction', (data) => {
+          if (data.transaction) {
+            setTransaction(data.transaction);
+            // A completed contract changes the balance and profit table.
+            refreshProfitTable();
+          }
+        });
+
         ws.subscribe('profit_table', (data) => {
           if (data.profit_table) {
             setProfitTransactions(data.profit_table.transactions || []);
@@ -56,6 +80,7 @@ export function useDeriv() {
             setLoadingProfit(false);
           }
         });
+
         ws.subscribe('proposal', (data) => {
           if (data.proposal) {
             setProposal({
@@ -72,27 +97,35 @@ export function useDeriv() {
             setError(null);
           }
         });
+
         ws.subscribe('buy', (data) => {
           if (data.buy) {
             setBuying(false);
-            ws.subscribeBalance();
-            setTimeout(() => ws.getProfitTable({ limit: 20, offset: 0, sort: 'DESC' }), 1000);
+            // Do not subscribe to balance again: balance is already a live subscription.
+            refreshProfitTable();
           }
         });
 
         ws.connect();
+
         connectionCheck = setInterval(() => {
           if (cancelled) return;
           const connected = ws.isConnected();
           setIsConnected(connected);
-          setIsAuthorized(ws.isAuthorized());
+          // The OTP WebSocket URL is already authenticated by Deriv.
+          setIsAuthorized(connected);
           if (connected) {
             ws.subscribeBalance();
             ws.subscribeTicks('R_100');
-            ws.getProfitTable({ limit: 20, offset: 0, sort: 'DESC' });
+            refreshProfitTable();
             if (connectionCheck) { clearInterval(connectionCheck); connectionCheck = null; }
           }
         }, 250);
+
+        // Keep the closed-operation/P&L card fresh, especially after short digit contracts close.
+        profitRefresh = setInterval(() => {
+          if (!cancelled && ws.isConnected()) refreshProfitTable();
+        }, 2000);
       } catch (err) {
         if (!cancelled) {
           setIsConnected(false);
@@ -106,10 +139,11 @@ export function useDeriv() {
     return () => {
       cancelled = true;
       if (connectionCheck) clearInterval(connectionCheck);
+      if (profitRefresh) clearInterval(profitRefresh);
       wsRef.current?.disconnect();
       wsRef.current = null;
     };
-  }, []);
+  }, [refreshProfitTable]);
 
   const subscribeTicks = useCallback((symbol: string) => {
     wsRef.current?.subscribeTicks(symbol);
