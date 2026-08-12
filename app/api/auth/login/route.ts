@@ -8,30 +8,16 @@ import {
   getAuthorizeUrl,
 } from '@/lib/oauth';
 
-// IMPORTANT: OAuth redirect URIs must be identical to the URI registered in
-// the Deriv application. In production we deliberately do NOT derive this
-// from request.nextUrl.origin or a possibly stale environment variable.
-const PRODUCTION_CALLBACK_URL =
-  'https://matos-1n.onrender.com/api/auth/callback';
+// Production is always the public Render URL. Never derive the OAuth
+// callback from request.nextUrl.origin because that can accidentally create
+// a localhost:10000 redirect URI.
+const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
+const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
 
-function getCallbackUrl(request: NextRequest): string {
-  if (process.env.NODE_ENV === 'production') {
-    return PRODUCTION_CALLBACK_URL;
-  }
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-  // Local development may use an explicit callback URL when configured.
-  const configuredRedirect = process.env.DERIV_REDIRECT_URL?.trim();
-  if (configuredRedirect) return configuredRedirect;
-
-  const configuredAppUrl = process.env.APP_URL?.trim();
-  if (configuredAppUrl) {
-    return `${configuredAppUrl.replace(/\/+$/, '')}/api/auth/callback`;
-  }
-
-  return new URL('/api/auth/callback', request.nextUrl.origin).toString();
-}
-
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const clientId = process.env.DERIV_APP_ID?.trim();
 
   if (!clientId) {
@@ -42,19 +28,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const redirectUri = getCallbackUrl(request);
-
-  // Production must NEVER start an OAuth flow with localhost.
-  if (
-    process.env.NODE_ENV === 'production' &&
-    !redirectUri.startsWith('https://matos-1n.onrender.com/api/auth/callback')
-  ) {
-    console.error('[OAuth] Invalid production callback URL:', redirectUri);
-    return NextResponse.json(
-      { error: 'Invalid production OAuth callback configuration' },
-      { status: 500 }
-    );
-  }
+  // IMPORTANT: production OAuth MUST use this exact URI. Do not use
+  // DERIV_REDIRECT_URL, APP_URL, request.nextUrl.origin, localhost, or any
+  // browser-provided value here.
+  const redirectUri = PRODUCTION_CALLBACK_URL;
 
   const verifier = generateCodeVerifier();
   const challenge = generateCodeChallenge(verifier);
@@ -63,25 +40,39 @@ export async function GET(request: NextRequest) {
   console.log('[OAuth] Starting login', {
     clientId,
     redirectUri,
-    environment: process.env.NODE_ENV,
+    nodeEnv: process.env.NODE_ENV,
   });
 
   const response = NextResponse.redirect(
-    getAuthorizeUrl(clientId, redirectUri, challenge, state)
+    getAuthorizeUrl(clientId, redirectUri, challenge, state),
+    { status: 302 }
   );
 
-  const secure = request.nextUrl.protocol === 'https:';
-  const cookieOptions = {
+  // OAuth cookies belong to the public Render origin. Secure must be true
+  // because the application is HTTPS in production.
+  response.cookies.set('oauth_verifier', verifier, {
     httpOnly: true,
-    secure,
-    sameSite: 'lax' as const,
+    secure: true,
+    sameSite: 'lax',
     path: '/',
     maxAge: 600,
-  };
+  });
 
-  response.cookies.set('oauth_verifier', verifier, cookieOptions);
-  response.cookies.set('oauth_state', state, cookieOptions);
-  response.cookies.set('oauth_redirect_uri', redirectUri, cookieOptions);
+  response.cookies.set('oauth_state', state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 600,
+  });
+
+  response.cookies.set('oauth_redirect_uri', redirectUri, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 600,
+  });
 
   return response;
 }
