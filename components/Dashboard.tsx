@@ -4,7 +4,6 @@
 
 import TutorialSection from './TutorialSection';
 import DigitsGame from './DigitsGame';
-import ProfitTable from './ProfitTable';
 
 export default function Dashboard() {
   return (
@@ -16,10 +15,6 @@ export default function Dashboard() {
 
         <div id="tutorial" className="mt-4">
           <TutorialSection />
-        </div>
-
-        <div className="mt-4">
-          <ProfitTable />
         </div>
       </div>
     </div>
