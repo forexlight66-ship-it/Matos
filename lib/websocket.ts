@@ -9,6 +9,7 @@ export class DerivWebSocket {
   private isReady = false;
   private balanceSubscribed = false;
   private tickSubscriptions = new Set<string>();
+  private contractSubscriptions = new Set<number>();
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
@@ -19,6 +20,7 @@ export class DerivWebSocket {
       this.isReady = true;
       this.balanceSubscribed = false;
       this.tickSubscriptions.clear();
+      this.contractSubscriptions.clear();
     };
     this.ws.onmessage = (event) => {
       try {
@@ -39,13 +41,15 @@ export class DerivWebSocket {
       this.ws = null;
       this.balanceSubscribed = false;
       this.tickSubscriptions.clear();
+      this.contractSubscriptions.clear();
     };
     this.ws.onerror = (error) => console.error('[DerivWS] Error:', error);
   }
 
   send(payload: any) {
-    if (!this.isReady || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.isReady || !this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify(payload));
+    return true;
   }
 
   isConnected(): boolean { return this.isReady && this.ws?.readyState === WebSocket.OPEN; }
@@ -65,18 +69,25 @@ export class DerivWebSocket {
 
   subscribeBalance() {
     if (this.balanceSubscribed) return;
-    this.send({ balance: 1, subscribe: 1 });
-    this.balanceSubscribed = true;
+    if (this.send({ balance: 1, subscribe: 1 })) this.balanceSubscribed = true;
   }
 
   subscribeTicks(symbol = 'R_100') {
     if (this.tickSubscriptions.has(symbol)) return;
-    this.send({ ticks: symbol, subscribe: 1 });
-    this.tickSubscriptions.add(symbol);
+    if (this.send({ ticks: symbol, subscribe: 1 })) this.tickSubscriptions.add(symbol);
+  }
+
+  // Live contract stream. This replaces rapid profit_table polling while a
+  // short Digit contract is running and gives the UI the exact close result.
+  subscribeContract(contractId: number) {
+    if (!Number.isFinite(contractId) || contractId <= 0 || this.contractSubscriptions.has(contractId)) return;
+    if (this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 })) {
+      this.contractSubscriptions.add(contractId);
+    }
   }
 
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
-    this.send({ profit_table: 1, description: 1, ...options });
+    this.send({ profit_table: 1, ...options });
   }
 
   getProposal(symbol: string, contractType: string, amount: number, duration: number, barrier?: number) {
@@ -94,8 +105,8 @@ export class DerivWebSocket {
     this.send(payload);
   }
 
-  buyContract(proposalId: string, price: number) { this.send({ buy: proposalId, price }); }
-  sellContract(contractId: number) { this.send({ sell: contractId, price: 0 }); }
+  buyContract(proposalId: string, price: number) { return this.send({ buy: proposalId, price }); }
+  sellContract(contractId: number) { return this.send({ sell: contractId, price: 0 }); }
 
   disconnect() {
     if (this.ws) this.ws.close();
@@ -103,5 +114,6 @@ export class DerivWebSocket {
     this.isReady = false;
     this.balanceSubscribed = false;
     this.tickSubscriptions.clear();
+    this.contractSubscriptions.clear();
   }
 }
