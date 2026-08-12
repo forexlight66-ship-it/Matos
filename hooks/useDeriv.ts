@@ -15,6 +15,10 @@ export function useDeriv() {
   const wsRef = useRef<DerivWebSocket | null>(null);
   const activeContractRef = useRef<number | null>(null);
   const latestProposalReqRef = useRef<number | null>(null);
+  // Keep locally confirmed closed contracts so a later profit_table response
+  // cannot temporarily overwrite them with an older/stale server snapshot.
+  const closedContractsRef = useRef<Map<number, ProfitTransaction>>(new Map());
+
   const [balance, setBalance] = useState<Balance | null>(null);
   const [tick, setTick] = useState<Tick | null>(null);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
@@ -26,6 +30,21 @@ export function useDeriv() {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loadingProfit, setLoadingProfit] = useState(false);
   const [buying, setBuying] = useState(false);
+
+  const mergeProfitTransactions = useCallback((incoming: ProfitTransaction[]) => {
+    // Store every confirmed closed contract locally for this dashboard session.
+    for (const tx of incoming) {
+      const id = Number(tx.contract_id);
+      if (Number.isFinite(id) && id > 0) closedContractsRef.current.set(id, tx);
+    }
+
+    const merged = Array.from(closedContractsRef.current.values())
+      .sort((a, b) => Number(b.sell_time ?? b.purchase_time) - Number(a.sell_time ?? a.purchase_time))
+      .slice(0, 50);
+
+    setProfitTransactions(merged);
+    setProfitCount(merged.length);
+  }, []);
 
   const refreshProfitTable = useCallback(() => {
     wsRef.current?.getProfitTable({ limit: 50, offset: 0, sort: 'DESC', description: 1 });
@@ -59,12 +78,6 @@ export function useDeriv() {
 
         if (cancelled) return;
 
-        // IMPORTANT:
-        // /api/deriv/ws-url returns an OTP-authenticated WebSocket URL.
-        // The new Options WebSocket API does NOT send an `authorize` message
-        // after connection. Authentication is already performed by the OTP
-        // embedded in the URL. Therefore we must not wait for an `authorize`
-        // response to mark the account as authorized.
         const ws = new DerivWebSocket(session.wsUrl);
         wsRef.current = ws;
 
@@ -92,8 +105,6 @@ export function useDeriv() {
           }
         });
 
-        // Kept only for compatibility with older Deriv responses. The current
-        // OTP-authenticated Options WebSocket does not require this message.
         ws.subscribe('authorize', (data) => {
           if (data.authorize) setIsAuthorized(true);
         });
@@ -112,8 +123,9 @@ export function useDeriv() {
 
         ws.subscribe('profit_table', (data) => {
           if (data.profit_table) {
-            setProfitTransactions(data.profit_table.transactions || []);
-            setProfitCount(data.profit_table.count || 0);
+            // NEVER replace the dashboard history with a stale/partial table.
+            // Merge it with locally confirmed closed contracts instead.
+            mergeProfitTransactions(data.profit_table.transactions || []);
             setLoadingProfit(false);
           }
         });
@@ -145,11 +157,13 @@ export function useDeriv() {
               exit_tick: c.exit_tick ?? null,
             };
 
-            setProfitTransactions(prev => [closed, ...prev.filter(x => x.contract_id !== contractId)].slice(0, 50));
-            setProfitCount(prev => Math.max(prev, 1));
+            // Add the final result immediately and keep it in memory so the
+            // following profit_table refresh cannot make it disappear.
+            mergeProfitTransactions([closed]);
             setLoadingProfit(false);
             activeContractRef.current = null;
             latestProposalReqRef.current = null;
+
             window.setTimeout(() => {
               if (!cancelled) refreshProfitThrottled();
             }, 2000);
@@ -198,8 +212,6 @@ export function useDeriv() {
           setIsConnected(connected);
 
           if (connected) {
-            // The URL was created by the server with Deriv's OTP endpoint,
-            // so a successfully opened socket is already authenticated.
             setIsAuthorized(true);
             setError(prev => prev === 'Not authorized' ? null : prev);
 
@@ -238,7 +250,7 @@ export function useDeriv() {
       activeContractRef.current = null;
       latestProposalReqRef.current = null;
     };
-  }, [refreshProfitTable]);
+  }, [refreshProfitTable, mergeProfitTransactions]);
 
   const subscribeTicks = useCallback((symbol: string) => wsRef.current?.subscribeTicks(symbol), []);
 
