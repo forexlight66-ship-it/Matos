@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCode } from '@/lib/oauth';
 
+const PRODUCTION_CALLBACK_URL =
+  'https://matos-1n.onrender.com/api/auth/callback';
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
@@ -10,69 +13,54 @@ export async function GET(request: NextRequest) {
   const oauthError = searchParams.get('error');
   const oauthErrorDescription = searchParams.get('error_description');
 
-  // OAuth providers may return an error instead of code/state when the user
-  // cancels or authorization fails. Never present this as a server crash.
   if (oauthError) {
     console.error('[OAuth] Deriv authorization error:', {
       error: oauthError,
       description: oauthErrorDescription,
     });
     return NextResponse.redirect(
-      new URL(
-        `/?auth_error=${encodeURIComponent(oauthErrorDescription || oauthError)}`,
-        request.url
-      )
+      new URL(`/?auth_error=${encodeURIComponent(oauthErrorDescription || oauthError)}`, request.url)
     );
   }
 
   if (!code || !state) {
-    console.error('[OAuth] Callback missing code/state', {
-      hasCode: Boolean(code),
-      hasState: Boolean(state),
-      callbackUrl: request.nextUrl.origin + request.nextUrl.pathname,
-    });
-    return NextResponse.redirect(
-      new URL('/?auth_error=missing_oauth_parameters', request.url)
-    );
+    console.error('[OAuth] Callback missing code/state');
+    return NextResponse.redirect(new URL('/?auth_error=missing_oauth_parameters', request.url));
   }
 
   const storedState = request.cookies.get('oauth_state')?.value;
   if (!storedState || state !== storedState) {
     console.error('[OAuth] State validation failed');
-    return NextResponse.redirect(
-      new URL('/?auth_error=invalid_oauth_state', request.url)
-    );
+    return NextResponse.redirect(new URL('/?auth_error=invalid_oauth_state', request.url));
   }
 
   const verifier = request.cookies.get('oauth_verifier')?.value;
   if (!verifier) {
     console.error('[OAuth] PKCE verifier missing');
-    return NextResponse.redirect(
-      new URL('/?auth_error=missing_oauth_verifier', request.url)
-    );
+    return NextResponse.redirect(new URL('/?auth_error=missing_oauth_verifier', request.url));
   }
 
   const clientId = process.env.DERIV_APP_ID?.trim();
   if (!clientId) {
     console.error('[OAuth] Missing DERIV_APP_ID');
-    return NextResponse.json(
-      { error: 'OAuth server configuration is incomplete' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'OAuth server configuration is incomplete' }, { status: 500 });
   }
 
-  // The login route stores the exact redirect URI used in the authorization
-  // request. Reuse that exact value for the code exchange; OAuth requires an
-  // exact match between authorization and token requests.
-  const redirectUri = request.cookies.get('oauth_redirect_uri')?.value;
-  if (!redirectUri) {
-    console.error('[OAuth] Missing stored redirect URI');
-    return NextResponse.redirect(
-      new URL('/?auth_error=missing_oauth_redirect_uri', request.url)
-    );
+  // IMPORTANT: never take redirect_uri from a browser cookie. In production
+  // it must be the exact registered Deriv callback URL, otherwise an old
+  // localhost cookie can cause the token exchange to fail.
+  const redirectUri =
+    process.env.NODE_ENV === 'production'
+      ? PRODUCTION_CALLBACK_URL
+      : (process.env.DERIV_REDIRECT_URL?.trim() ||
+         new URL('/api/auth/callback', request.nextUrl.origin).toString());
+
+  if (process.env.NODE_ENV === 'production' && redirectUri !== PRODUCTION_CALLBACK_URL) {
+    console.error('[OAuth] Invalid production callback URL:', redirectUri);
+    return NextResponse.json({ error: 'Invalid production OAuth callback configuration' }, { status: 500 });
   }
 
-  console.log('[OAuth] Processing callback', {
+  console.log('[OAuth] Exchanging authorization code', {
     redirectUri,
     origin: request.nextUrl.origin,
   });
@@ -113,8 +101,6 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('[OAuth] Callback/token exchange failed:', error);
-    return NextResponse.redirect(
-      new URL('/?auth_error=oauth_exchange_failed', request.url)
-    );
+    return NextResponse.redirect(new URL('/?auth_error=oauth_exchange_failed', request.url));
   }
 }
