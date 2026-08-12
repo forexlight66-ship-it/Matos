@@ -59,17 +59,24 @@ export function useDeriv() {
           if (data.error) {
             const message = data.error.message || 'Unknown Deriv error';
             console.error('[Deriv] WebSocket error:', data.error);
-            // Rate limiting profit_table must not break trading/UI state.
+
+            // Never let profit_table rate limiting break the trading screen.
             if (data.error.code === 'RateLimit' || /rate.?limit/i.test(message)) {
               setLoadingProfit(false);
               return;
             }
-            // A stale contract can disappear from profit_table immediately after
-            // purchase. It is not a fatal WebSocket/session error.
+
+            // The history endpoint can briefly say that a just-created contract
+            // is unknown. The live contract stream is the source of truth.
             if (/unknown contract/i.test(message) && data.echo_req?.profit_table) {
               setLoadingProfit(false);
               return;
             }
+
+            // If buy itself failed, release the button immediately instead of
+            // leaving the user stuck on "A comprar...".
+            if (data.echo_req?.buy) setBuying(false);
+
             setError(message);
             if (data.error.code === 'AuthorizationRequired') setIsAuthorized(false);
             return;
@@ -99,15 +106,15 @@ export function useDeriv() {
           }
         });
 
-        // This is the authoritative live result for a just-bought contract.
-        // It updates P/L immediately when the 5-tick contract closes.
+        // Live result for the active contract. This is what updates P/L and the
+        // last closed operation immediately after the 5-tick contract settles.
         ws.subscribe('proposal_open_contract', (data) => {
           const c = data.proposal_open_contract;
           if (!c) return;
 
           const contractId = Number(c.contract_id);
-          const buyPrice = Number(c.buy_price || c.buy_price === 0 ? c.buy_price : 0);
-          const payout = Number(c.payout || 0);
+          const buyPrice = Number(c.buy_price ?? 0);
+          const payout = Number(c.payout ?? 0);
           const profitLoss = Number(c.profit_loss ?? (c.is_sold ? payout - buyPrice : 0));
           const purchaseTime = Number(c.purchase_time || Math.floor(Date.now() / 1000));
           const sellTime = c.sell_time ? Number(c.sell_time) : null;
@@ -124,12 +131,14 @@ export function useDeriv() {
               longcode: c.longcode,
               profit_loss: profitLoss,
             };
+
             setProfitTransactions(prev => [closed, ...prev.filter(x => x.contract_id !== contractId)].slice(0, 20));
             setProfitCount(prev => Math.max(prev, 1));
             setLoadingProfit(false);
 
-            // Refresh the historical table once after closure, but never in a
-            // tight loop. The live contract data above is what drives the UI.
+            // Refresh the historical table once after settlement, with a
+            // throttle. The live result above remains available even if the
+            // historical endpoint is rate-limited.
             window.setTimeout(() => {
               if (!cancelled) refreshProfitThrottled();
             }, 1500);
@@ -160,8 +169,8 @@ export function useDeriv() {
             if (Number.isFinite(contractId) && contractId > 0) {
               ws.subscribeContract(contractId);
             }
-            // Do not call profit_table immediately after buying: Deriv may
-            // briefly report the new contract as unknown and rate-limit repeats.
+            // Do not call profit_table immediately after buying. The contract
+            // may not yet be indexed by that endpoint.
           }
         });
 
