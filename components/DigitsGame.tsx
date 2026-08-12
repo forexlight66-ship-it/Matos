@@ -22,6 +22,7 @@ const SYMBOLS: Record<string, string> = {
 };
 
 const PROBS = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
+const MIN_STAKE = 0.50;
 
 export default function DigitsGame() {
   const {
@@ -39,10 +40,9 @@ export default function DigitsGame() {
   } = useDeriv();
 
   const [contractType, setContractType] = useState<ContractChoice>('MATCH');
-  const [amount, setAmount] = useState(10);
-  const [duration, setDuration] = useState(5);
-  const [digit, setDigit] = useState(5);
+  const [amount, setAmount] = useState(MIN_STAKE);
   const [symbol, setSymbol] = useState('R_100');
+  const [digit, setDigit] = useState(5);
   const [menuOpen, setMenuOpen] = useState(false);
   const [predictionOpen, setPredictionOpen] = useState(false);
 
@@ -52,9 +52,9 @@ export default function DigitsGame() {
 
   useEffect(() => {
     if (isAuthorized && isConnected) {
-      getProposal(symbol, CONTRACT_TYPES[contractType], amount, duration, digit);
+      getProposal(symbol, CONTRACT_TYPES[contractType], Math.max(MIN_STAKE, amount), 5, digit);
     }
-  }, [contractType, amount, duration, digit, symbol, isAuthorized, isConnected, getProposal]);
+  }, [contractType, amount, digit, symbol, isAuthorized, isConnected, getProposal]);
 
   const accountType = balance?.loginid?.startsWith('CR') ? 'REAL' : 'DEMO';
   const balanceText = balance ? `${Number(balance.balance).toFixed(2)} ${balance.currency}` : '—';
@@ -76,10 +76,12 @@ export default function DigitsGame() {
   const history = profitTransactions.slice(0, 12);
 
   const placeTrade = () => {
-    if (proposal && isAuthorized) buy(proposal.id, proposal.ask_price);
+    if (proposal && isAuthorized && Number(proposal.ask_price) >= MIN_STAKE) {
+      buy(proposal.id, proposal.ask_price);
+    }
   };
 
-  const setStake = (value: number) => setAmount(value);
+  const setStake = (value: number) => setAmount(Math.max(MIN_STAKE, value));
 
   const openCashier = () => {
     window.open('https://app.deriv.com/cashier', '_blank', 'noopener,noreferrer');
@@ -101,25 +103,17 @@ export default function DigitsGame() {
           <div className="avatar">M</div>
           <div className="brand-name">Moz<span>Hyper</span></div>
         </div>
-        <button className="logout" onClick={() => { window.location.href = '/api/auth/logout'; }}>Sair</button>
-      </div>
-
-      <div className="balance-card">
-        <div className="brand">
-          <div className="brand-mark">M</div>
-          <div>
-            <div className="brand-name">Moz<span>Hyper</span></div>
-            <div style={{ color: 'var(--t3)', fontSize: 9 }}>DIGITS TRADING</div>
+        <div className="top-actions">
+          <div className="menu-wrap">
+            <button className="menu-btn" aria-label="Depósito e levantamento" onClick={() => setMenuOpen(v => !v)}>•••</button>
+            {menuOpen && (
+              <div className="menu">
+                <button onClick={() => { openCashier(); setMenuOpen(false); }}>↓ Depositar</button>
+                <button onClick={() => { openCashier(); setMenuOpen(false); }}>↑ Levantar</button>
+              </div>
+            )}
           </div>
-        </div>
-        <div className="menu-wrap">
-          <button className="menu-btn" onClick={() => setMenuOpen(v => !v)}>•••</button>
-          {menuOpen && (
-            <div className="menu">
-              <button onClick={openCashier}>↓ Abrir depósito</button>
-              <button onClick={openCashier}>↑ Abrir levantamento</button>
-            </div>
-          )}
+          <button className="logout" onClick={() => { window.location.href = '/api/auth/logout'; }}>Sair</button>
         </div>
       </div>
 
@@ -169,7 +163,7 @@ export default function DigitsGame() {
         </div>
         <div className="last-op-grid">
           <div className="last-op-cell"><span>Tipo</span><span>{lastOperation?.contract_type || '—'}</span></div>
-          <div className="last-op-cell"><span>Tick Final</span><span>{lastDigit}</span></div>
+          <div className="last-op-cell"><span>Tick Final</span><span>{lastOperation?.sell_time ? lastDigit : '—'}</span></div>
           <div className="last-op-cell"><span>Preço</span><span>{lastOperation ? Number(lastOperation.buy_price).toFixed(2) : '—'}</span></div>
           <div className="last-op-cell"><span>Resultado</span><span className={lastPnl >= 0 ? 'profit' : ''}>{lastOperation ? `${lastPnl >= 0 ? '+' : ''}${lastPnl.toFixed(2)}` : '—'}</span></div>
         </div>
@@ -185,7 +179,7 @@ export default function DigitsGame() {
             <button
               key={i}
               className={`digit ${i === digit ? 'active' : ''}`}
-              style={{ left: x, top: y, transform: 'translate(-50%,-50%)' }}
+              style={{ left: x, top: y }}
               onClick={() => setDigit(i)}
             >
               <span className="n">{i}</span>
@@ -201,25 +195,17 @@ export default function DigitsGame() {
 
       <div className="dial-caption">Previsão selecionada: <b>{digit}</b> · toque num número no anel</div>
 
-      <div className="toggle">
-        <div className={`toggle-glider ${contractType === 'DIFFERS' ? 'right' : ''}`} />
-        <button className={contractType === 'MATCH' ? 'active' : ''} onClick={() => setContractType('MATCH')}>Matches</button>
-        <button className={contractType === 'DIFFERS' ? 'active' : ''} onClick={() => setContractType('DIFFERS')}>Differs</button>
-      </div>
-
-      <div className="section-label">Aposta <span>saldo: {balance ? Number(balance.balance).toFixed(2) : '—'}</span></div>
+      <div className="section-label">Aposta <span>mínimo: $0.50</span></div>
       <div className="stake"><span>USD</span>{amount.toFixed(2)}</div>
       <div className="chip-row">
-        {[10, 20, 50, 100].map(value => (
-          <button key={value} className={`chip ${amount === value ? 'active' : ''}`} onClick={() => setStake(value)}>{value}</button>
+        {[0.5, 1, 5, 10].map(value => (
+          <button key={value} className={`chip ${amount === value ? 'active' : ''}`} onClick={() => setStake(value)}>{value.toFixed(2)}</button>
         ))}
       </div>
 
       <div className="section-label">Duração <span>ticks</span></div>
       <div className="duration-row">
-        {[1, 5, 10].map(value => (
-          <button key={value} className={`duration ${duration === value ? 'active' : ''}`} onClick={() => setDuration(value)}>{value}</button>
-        ))}
+        <div className="duration active">5 ticks</div>
       </div>
 
       {error && <div className="error-box">⚠️ {error}</div>}
