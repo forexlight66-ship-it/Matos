@@ -10,6 +10,7 @@ export class DerivWebSocket {
   private balanceSubscribed = false;
   private tickSubscriptions = new Set<string>();
   private contractSubscriptions = new Set<number>();
+  private proposalRequestId = 1000;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
@@ -77,8 +78,6 @@ export class DerivWebSocket {
     if (this.send({ ticks: symbol, subscribe: 1 })) this.tickSubscriptions.add(symbol);
   }
 
-  // Live contract stream. This replaces rapid profit_table polling while a
-  // short Digit contract is running and gives the UI the exact close result.
   subscribeContract(contractId: number) {
     if (!Number.isFinite(contractId) || contractId <= 0 || this.contractSubscriptions.has(contractId)) return;
     if (this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 })) {
@@ -91,8 +90,10 @@ export class DerivWebSocket {
   }
 
   getProposal(symbol: string, contractType: string, amount: number, duration: number, barrier?: number) {
+    const req_id = ++this.proposalRequestId;
     const payload: Record<string, any> = {
       proposal: 1,
+      req_id,
       amount,
       basis: 'stake',
       contract_type: contractType,
@@ -101,8 +102,11 @@ export class DerivWebSocket {
       duration_unit: 't',
       underlying_symbol: symbol,
     };
-    if (barrier !== undefined) payload.barrier = String(barrier);
+    if (barrier !== undefined && (contractType === 'DIGITMATCH' || contractType === 'DIGITDIFF' || contractType === 'DIGITOVER' || contractType === 'DIGITUNDER')) {
+      payload.barrier = String(barrier);
+    }
     this.send(payload);
+    return req_id;
   }
 
   buyContract(proposalId: string, price: number) { return this.send({ buy: proposalId, price }); }
