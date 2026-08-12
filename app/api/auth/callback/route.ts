@@ -3,8 +3,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCode } from '@/lib/oauth';
 
-const PRODUCTION_CALLBACK_URL =
-  'https://matos-1n.onrender.com/api/auth/callback';
+const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
+const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -13,56 +16,57 @@ export async function GET(request: NextRequest) {
   const oauthError = searchParams.get('error');
   const oauthErrorDescription = searchParams.get('error_description');
 
+  // Never redirect OAuth failures to request.url-derived localhost. The user
+  // must always return to the public application URL.
+  const appUrl = PRODUCTION_APP_URL;
+  const errorRedirect = (reason: string) =>
+    NextResponse.redirect(
+      `${appUrl}/?auth_error=${encodeURIComponent(reason)}`,
+      { status: 302 }
+    );
+
   if (oauthError) {
     console.error('[OAuth] Deriv authorization error:', {
       error: oauthError,
       description: oauthErrorDescription,
     });
-    return NextResponse.redirect(
-      new URL(`/?auth_error=${encodeURIComponent(oauthErrorDescription || oauthError)}`, request.url)
-    );
+    return errorRedirect(oauthErrorDescription || oauthError);
   }
 
   if (!code || !state) {
     console.error('[OAuth] Callback missing code/state');
-    return NextResponse.redirect(new URL('/?auth_error=missing_oauth_parameters', request.url));
+    return errorRedirect('missing_oauth_parameters');
   }
 
   const storedState = request.cookies.get('oauth_state')?.value;
   if (!storedState || state !== storedState) {
     console.error('[OAuth] State validation failed');
-    return NextResponse.redirect(new URL('/?auth_error=invalid_oauth_state', request.url));
+    return errorRedirect('invalid_oauth_state');
   }
 
   const verifier = request.cookies.get('oauth_verifier')?.value;
   if (!verifier) {
     console.error('[OAuth] PKCE verifier missing');
-    return NextResponse.redirect(new URL('/?auth_error=missing_oauth_verifier', request.url));
+    return errorRedirect('missing_oauth_verifier');
   }
 
   const clientId = process.env.DERIV_APP_ID?.trim();
   if (!clientId) {
     console.error('[OAuth] Missing DERIV_APP_ID');
-    return NextResponse.json({ error: 'OAuth server configuration is incomplete' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'OAuth server configuration is incomplete' },
+      { status: 500 }
+    );
   }
 
-  // IMPORTANT: never take redirect_uri from a browser cookie. In production
-  // it must be the exact registered Deriv callback URL, otherwise an old
-  // localhost cookie can cause the token exchange to fail.
-  const redirectUri =
-    process.env.NODE_ENV === 'production'
-      ? PRODUCTION_CALLBACK_URL
-      : (process.env.DERIV_REDIRECT_URL?.trim() ||
-         new URL('/api/auth/callback', request.nextUrl.origin).toString());
-
-  if (process.env.NODE_ENV === 'production' && redirectUri !== PRODUCTION_CALLBACK_URL) {
-    console.error('[OAuth] Invalid production callback URL:', redirectUri);
-    return NextResponse.json({ error: 'Invalid production OAuth callback configuration' }, { status: 500 });
-  }
+  // IMPORTANT: this MUST exactly match the URI registered in the Deriv app.
+  // Do not read redirect_uri from a cookie, request origin, or environment
+  // variable. This prevents stale localhost:10000 values from being used.
+  const redirectUri = PRODUCTION_CALLBACK_URL;
 
   console.log('[OAuth] Exchanging authorization code', {
     redirectUri,
-    origin: request.nextUrl.origin,
+    requestOrigin: request.nextUrl.origin,
   });
 
   try {
@@ -73,12 +77,11 @@ export async function GET(request: NextRequest) {
       verifier
     );
 
-    const response = NextResponse.redirect(new URL('/', request.url));
-    const secure = request.nextUrl.protocol === 'https:';
+    const response = NextResponse.redirect(appUrl + '/', { status: 302 });
 
     response.cookies.set('deriv_access_token', access_token, {
       httpOnly: true,
-      secure,
+      secure: true,
       sameSite: 'lax',
       path: '/',
       maxAge: 3600,
@@ -87,7 +90,7 @@ export async function GET(request: NextRequest) {
     if (refresh_token) {
       response.cookies.set('deriv_refresh_token', refresh_token, {
         httpOnly: true,
-        secure,
+        secure: true,
         sameSite: 'lax',
         path: '/',
         maxAge: 60 * 60 * 24 * 30,
@@ -101,6 +104,14 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('[OAuth] Callback/token exchange failed:', error);
-    return NextResponse.redirect(new URL('/?auth_error=oauth_exchange_failed', request.url));
+
+    // Keep the real failure in Render logs, but give the browser a useful
+    // stable error without exposing OAuth credentials or token data.
+    const message = error instanceof Error ? error.message : String(error);
+    const safeReason = message
+      .replace(/https?:\/\/[^\s]+/gi, '[url]')
+      .slice(0, 220);
+
+    return errorRedirect(`oauth_exchange_failed:${safeReason}`);
   }
 }
