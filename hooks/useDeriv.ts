@@ -13,6 +13,7 @@ interface Proposal { id: string; ask_price: number; payout: number; stake: numbe
 
 export function useDeriv() {
   const wsRef = useRef<DerivWebSocket | null>(null);
+  const activeContractRef = useRef<number | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [tick, setTick] = useState<Tick | null>(null);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
@@ -26,9 +27,7 @@ export function useDeriv() {
   const [buying, setBuying] = useState(false);
 
   const refreshProfitTable = useCallback(() => {
-    // profit_table is deliberately used sparingly. Deriv rate-limits this
-    // endpoint, so active contracts are tracked through proposal_open_contract.
-    wsRef.current?.getProfitTable({ limit: 20, offset: 0, sort: 'DESC', description: 1 });
+    wsRef.current?.getProfitTable({ limit: 50, offset: 0, sort: 'DESC', description: 1 });
   }, []);
 
   useEffect(() => {
@@ -39,7 +38,7 @@ export function useDeriv() {
 
     const refreshProfitThrottled = (force = false) => {
       const now = Date.now();
-      if (!force && now - lastProfitRefresh < 5000) return;
+      if (!force && now - lastProfitRefresh < 8000) return;
       lastProfitRefresh = now;
       setLoadingProfit(true);
       refreshProfitTable();
@@ -56,47 +55,27 @@ export function useDeriv() {
         wsRef.current = ws;
 
         ws.subscribe('*', (data) => {
-          if (data.error) {
-            const message = data.error.message || 'Unknown Deriv error';
-            console.error('[Deriv] WebSocket error:', data.error);
+          if (!data.error) return;
+          const message = data.error.message || 'Unknown Deriv error';
+          console.error('[Deriv] WebSocket error:', data.error);
 
-            // Never let profit_table rate limiting break the trading screen.
-            if (data.error.code === 'RateLimit' || /rate.?limit/i.test(message)) {
-              setLoadingProfit(false);
-              return;
-            }
-
-            // The history endpoint can briefly say that a just-created contract
-            // is unknown. The live contract stream is the source of truth.
-            if (/unknown contract/i.test(message) && data.echo_req?.profit_table) {
-              setLoadingProfit(false);
-              return;
-            }
-
-            // If buy itself failed, release the button immediately instead of
-            // leaving the user stuck on "A comprar...".
-            if (data.echo_req?.buy) setBuying(false);
-
-            setError(message);
-            if (data.error.code === 'AuthorizationRequired') setIsAuthorized(false);
+          if (data.error.code === 'RateLimit' || /rate.?limit/i.test(message)) {
+            setLoadingProfit(false);
             return;
           }
-          if (data.msg_type === 'authorize') {
-            setIsAuthorized(Boolean(data.authorize));
+          if (/unknown contract/i.test(message) && (data.echo_req?.profit_table || data.echo_req?.proposal_open_contract)) {
+            setLoadingProfit(false);
+            return;
           }
+          if (data.echo_req?.buy) setBuying(false);
+          setError(message);
+          if (data.error.code === 'AuthorizationRequired') setIsAuthorized(false);
         });
 
-        ws.subscribe('balance', (data) => {
-          if (data.balance) setBalance(data.balance);
-        });
-
-        ws.subscribe('tick', (data) => {
-          if (data.tick) setTick(data.tick);
-        });
-
-        ws.subscribe('transaction', (data) => {
-          if (data.transaction) setTransaction(data.transaction);
-        });
+        ws.subscribe('authorize', (data) => setIsAuthorized(Boolean(data.authorize)));
+        ws.subscribe('balance', (data) => { if (data.balance) setBalance(data.balance); });
+        ws.subscribe('tick', (data) => { if (data.tick) setTick(data.tick); });
+        ws.subscribe('transaction', (data) => { if (data.transaction) setTransaction(data.transaction); });
 
         ws.subscribe('profit_table', (data) => {
           if (data.profit_table) {
@@ -106,13 +85,13 @@ export function useDeriv() {
           }
         });
 
-        // Live result for the active contract. This is what updates P/L and the
-        // last closed operation immediately after the 5-tick contract settles.
         ws.subscribe('proposal_open_contract', (data) => {
           const c = data.proposal_open_contract;
           if (!c) return;
-
           const contractId = Number(c.contract_id);
+          if (!Number.isFinite(contractId) || contractId <= 0) return;
+          if (activeContractRef.current !== contractId) return;
+
           const buyPrice = Number(c.buy_price ?? 0);
           const payout = Number(c.payout ?? 0);
           const profitLoss = Number(c.profit_loss ?? (c.is_sold ? payout - buyPrice : 0));
@@ -132,45 +111,39 @@ export function useDeriv() {
               profit_loss: profitLoss,
             };
 
-            setProfitTransactions(prev => [closed, ...prev.filter(x => x.contract_id !== contractId)].slice(0, 20));
+            setProfitTransactions(prev => [closed, ...prev.filter(x => x.contract_id !== contractId)].slice(0, 50));
             setProfitCount(prev => Math.max(prev, 1));
             setLoadingProfit(false);
+            activeContractRef.current = null;
 
-            // Refresh the historical table once after settlement, with a
-            // throttle. The live result above remains available even if the
-            // historical endpoint is rate-limited.
-            window.setTimeout(() => {
-              if (!cancelled) refreshProfitThrottled();
-            }, 1500);
+            window.setTimeout(() => { if (!cancelled) refreshProfitThrottled(); }, 2000);
           }
         });
 
         ws.subscribe('proposal', (data) => {
-          if (data.proposal) {
-            setProposal({
-              id: data.proposal.id,
-              ask_price: data.proposal.ask_price,
-              payout: data.proposal.payout,
-              stake: data.proposal.stake,
-              contract_type: data.proposal.contract_type,
-              symbol: data.proposal.symbol || data.proposal.underlying_symbol,
-              duration: data.proposal.duration,
-              duration_unit: data.proposal.duration_unit,
-              barrier: data.proposal.barrier,
-            });
-            setError(null);
-          }
+          if (!data.proposal || activeContractRef.current !== null) return;
+          setProposal({
+            id: data.proposal.id,
+            ask_price: Number(data.proposal.ask_price),
+            payout: Number(data.proposal.payout),
+            stake: Number(data.proposal.stake),
+            contract_type: data.proposal.contract_type,
+            symbol: data.proposal.symbol || data.proposal.underlying_symbol,
+            duration: Number(data.proposal.duration),
+            duration_unit: data.proposal.duration_unit,
+            barrier: data.proposal.barrier,
+          });
+          setError(null);
         });
 
         ws.subscribe('buy', (data) => {
-          if (data.buy) {
-            setBuying(false);
-            const contractId = Number(data.buy.contract_id);
-            if (Number.isFinite(contractId) && contractId > 0) {
-              ws.subscribeContract(contractId);
-            }
-            // Do not call profit_table immediately after buying. The contract
-            // may not yet be indexed by that endpoint.
+          if (!data.buy) return;
+          setBuying(false);
+          const contractId = Number(data.buy.contract_id);
+          if (Number.isFinite(contractId) && contractId > 0) {
+            activeContractRef.current = contractId;
+            setProposal(null); // Never reuse a proposal after it has been bought.
+            ws.subscribeContract(contractId);
           }
         });
 
@@ -180,7 +153,6 @@ export function useDeriv() {
           if (cancelled) return;
           const connected = ws.isConnected();
           setIsConnected(connected);
-          setIsAuthorized(connected);
           if (connected) {
             ws.subscribeBalance();
             ws.subscribeTicks('R_100');
@@ -206,12 +178,11 @@ export function useDeriv() {
       if (connectionCheck) clearInterval(connectionCheck);
       wsRef.current?.disconnect();
       wsRef.current = null;
+      activeContractRef.current = null;
     };
   }, [refreshProfitTable]);
 
-  const subscribeTicks = useCallback((symbol: string) => {
-    wsRef.current?.subscribeTicks(symbol);
-  }, []);
+  const subscribeTicks = useCallback((symbol: string) => wsRef.current?.subscribeTicks(symbol), []);
 
   const fetchProfitTable = useCallback((options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC' }) => {
     setLoadingProfit(true);
@@ -219,16 +190,19 @@ export function useDeriv() {
   }, []);
 
   const getProposal = useCallback((symbol: string, contractType: string, amount: number, duration: number, barrier = 5) => {
+    if (activeContractRef.current !== null) return;
+    setError(null);
     wsRef.current?.getProposal(symbol, contractType, Math.max(0.5, amount), duration, barrier);
   }, []);
 
   const buy = useCallback((proposalId: string, price: number) => {
+    if (!proposalId || buying || activeContractRef.current !== null) return;
     setBuying(true);
     const sent = wsRef.current?.buyContract(proposalId, price);
     if (!sent) setBuying(false);
-  }, []);
+  }, [buying]);
 
-  const sell = useCallback((contractId: number) => { wsRef.current?.sellContract(contractId); }, []);
+  const sell = useCallback((contractId: number) => wsRef.current?.sellContract(contractId), []);
 
   return { balance, tick, transaction, isConnected, isAuthorized, error, profitTransactions, profitCount, proposal, loadingProfit, buying, subscribeTicks, fetchProfitTable, getProposal, buy, sell };
 }
