@@ -7,22 +7,39 @@ export class DerivWebSocket {
   private url: string;
   private handlers: Map<string, Set<MessageHandler>> = new Map();
   private isReady = false;
+  private balanceSubscribed = false;
+  private tickSubscriptions = new Set<string>();
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
   connect() {
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
     this.ws = new WebSocket(this.url);
-    this.ws.onopen = () => { this.isReady = true; };
+    this.ws.onopen = () => {
+      this.isReady = true;
+      this.balanceSubscribed = false;
+      this.tickSubscriptions.clear();
+    };
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         const msgType = data.msg_type;
-        if (msgType && this.handlers.has(msgType)) for (const fn of this.handlers.get(msgType)!) fn(data);
-        if (this.handlers.has('*')) for (const fn of this.handlers.get('*')!) fn(data);
-      } catch (error) { console.error('[DerivWS] Parse error:', error); }
+        if (msgType && this.handlers.has(msgType)) {
+          for (const fn of this.handlers.get(msgType)!) fn(data);
+        }
+        if (this.handlers.has('*')) {
+          for (const fn of this.handlers.get('*')!) fn(data);
+        }
+      } catch (error) {
+        console.error('[DerivWS] Parse error:', error);
+      }
     };
-    this.ws.onclose = () => { this.isReady = false; this.ws = null; };
+    this.ws.onclose = () => {
+      this.isReady = false;
+      this.ws = null;
+      this.balanceSubscribed = false;
+      this.tickSubscriptions.clear();
+    };
     this.ws.onerror = (error) => console.error('[DerivWS] Error:', error);
   }
 
@@ -46,11 +63,16 @@ export class DerivWebSocket {
     if (handlers.size === 0) this.handlers.delete(msgType);
   }
 
-  subscribeBalance() { this.send({ balance: 1, subscribe: 1 }); }
+  subscribeBalance() {
+    if (this.balanceSubscribed) return;
+    this.send({ balance: 1, subscribe: 1 });
+    this.balanceSubscribed = true;
+  }
 
   subscribeTicks(symbol = 'R_100') {
-    this.send({ forget_all: 'ticks' });
+    if (this.tickSubscriptions.has(symbol)) return;
     this.send({ ticks: symbol, subscribe: 1 });
+    this.tickSubscriptions.add(symbol);
   }
 
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
@@ -79,5 +101,7 @@ export class DerivWebSocket {
     if (this.ws) this.ws.close();
     this.ws = null;
     this.isReady = false;
+    this.balanceSubscribed = false;
+    this.tickSubscriptions.clear();
   }
 }
