@@ -14,6 +14,7 @@ interface Proposal { id: string; ask_price: number; payout: number; stake: numbe
 export function useDeriv() {
   const wsRef = useRef<DerivWebSocket | null>(null);
   const activeContractRef = useRef<number | null>(null);
+  const latestProposalReqRef = useRef<number | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [tick, setTick] = useState<Tick | null>(null);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
@@ -58,15 +59,8 @@ export function useDeriv() {
           if (!data.error) return;
           const message = data.error.message || 'Unknown Deriv error';
           console.error('[Deriv] WebSocket error:', data.error);
-
-          if (data.error.code === 'RateLimit' || /rate.?limit/i.test(message)) {
-            setLoadingProfit(false);
-            return;
-          }
-          if (/unknown contract/i.test(message) && (data.echo_req?.profit_table || data.echo_req?.proposal_open_contract)) {
-            setLoadingProfit(false);
-            return;
-          }
+          if (data.error.code === 'RateLimit' || /rate.?limit/i.test(message)) { setLoadingProfit(false); return; }
+          if (/unknown contract/i.test(message) && (data.echo_req?.profit_table || data.echo_req?.proposal_open_contract)) { setLoadingProfit(false); return; }
           if (data.echo_req?.buy) setBuying(false);
           setError(message);
           if (data.error.code === 'AuthorizationRequired') setIsAuthorized(false);
@@ -89,8 +83,7 @@ export function useDeriv() {
           const c = data.proposal_open_contract;
           if (!c) return;
           const contractId = Number(c.contract_id);
-          if (!Number.isFinite(contractId) || contractId <= 0) return;
-          if (activeContractRef.current !== contractId) return;
+          if (!Number.isFinite(contractId) || contractId <= 0 || activeContractRef.current !== contractId) return;
 
           const buyPrice = Number(c.buy_price ?? 0);
           const payout = Number(c.payout ?? 0);
@@ -110,18 +103,19 @@ export function useDeriv() {
               longcode: c.longcode,
               profit_loss: profitLoss,
             };
-
             setProfitTransactions(prev => [closed, ...prev.filter(x => x.contract_id !== contractId)].slice(0, 50));
             setProfitCount(prev => Math.max(prev, 1));
             setLoadingProfit(false);
             activeContractRef.current = null;
-
+            latestProposalReqRef.current = null;
             window.setTimeout(() => { if (!cancelled) refreshProfitThrottled(); }, 2000);
           }
         });
 
         ws.subscribe('proposal', (data) => {
           if (!data.proposal || activeContractRef.current !== null) return;
+          const responseReqId = Number(data.req_id ?? data.echo_req?.req_id);
+          if (latestProposalReqRef.current !== null && responseReqId !== latestProposalReqRef.current) return;
           setProposal({
             id: data.proposal.id,
             ask_price: Number(data.proposal.ask_price),
@@ -142,7 +136,8 @@ export function useDeriv() {
           const contractId = Number(data.buy.contract_id);
           if (Number.isFinite(contractId) && contractId > 0) {
             activeContractRef.current = contractId;
-            setProposal(null); // Never reuse a proposal after it has been bought.
+            latestProposalReqRef.current = null;
+            setProposal(null);
             ws.subscribeContract(contractId);
           }
         });
@@ -156,10 +151,7 @@ export function useDeriv() {
           if (connected) {
             ws.subscribeBalance();
             ws.subscribeTicks('R_100');
-            if (!initialProfitLoaded) {
-              initialProfitLoaded = true;
-              refreshProfitThrottled(true);
-            }
+            if (!initialProfitLoaded) { initialProfitLoaded = true; refreshProfitThrottled(true); }
             if (connectionCheck) { clearInterval(connectionCheck); connectionCheck = null; }
           }
         }, 250);
@@ -179,6 +171,7 @@ export function useDeriv() {
       wsRef.current?.disconnect();
       wsRef.current = null;
       activeContractRef.current = null;
+      latestProposalReqRef.current = null;
     };
   }, [refreshProfitTable]);
 
@@ -192,7 +185,8 @@ export function useDeriv() {
   const getProposal = useCallback((symbol: string, contractType: string, amount: number, duration: number, barrier = 5) => {
     if (activeContractRef.current !== null) return;
     setError(null);
-    wsRef.current?.getProposal(symbol, contractType, Math.max(0.5, amount), duration, barrier);
+    const reqId = wsRef.current?.getProposal(symbol, contractType, Math.max(0.5, amount), duration, barrier);
+    if (reqId !== undefined) latestProposalReqRef.current = reqId;
   }, []);
 
   const buy = useCallback((proposalId: string, price: number) => {
