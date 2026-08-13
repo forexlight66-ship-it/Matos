@@ -5,227 +5,30 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 type Language = 'en' | 'pt' | 'es';
-
-interface Translations {
-  [key: string]: string;
-}
+interface Translations { [key: string]: string; }
 
 const translations: Record<Language, Translations> = {
   en: {
-    title: 'Deriv Digits Dashboard',
-    connection: 'Connection',
-    status: 'Status',
-    connected: 'Connected',
-    disconnected: 'Disconnected',
-    authorized: 'Authorized',
-    notAuthorized: 'Not Authorized',
-    balance: 'Balance',
-    lastTick: 'Last Tick',
-    digitsTrading: 'Digits Trading',
-    symbol: 'Symbol',
-    contractType: 'Contract Type',
-    amount: 'Amount (USD)',
-    duration: 'Duration (seconds)',
-    digit: 'Digit (0-9)',
-    currentPrice: 'Current Price',
-    proposalQuote: 'Proposal Quote',
-    askPrice: 'Ask Price',
-    payout: 'Payout',
-    stake: 'Stake',
-    buy: 'Buy',
-    buying: 'Buying...',
-    profitTable: 'Profit Table',
-    contractId: 'Contract ID',
-    type: 'Type',
-    buyPrice: 'Buy Price',
-    sellPrice: 'Sell Price',
-    profitLoss: 'Profit/Loss',
-    purchaseTime: 'Purchase Time',
-    total: 'Total',
-    transactions: 'transactions',
-    page: 'Page',
-    previous: 'Previous',
-    next: 'Next',
-    noTransactions: 'No transactions found.',
-    loading: 'Loading...',
-    error: 'Error',
-    tokenMissing: 'No API token found. Please set NEXT_PUBLIC_DERIV_TOKEN',
-    over: 'Over',
-    under: 'Under',
-    match: 'Match',
-    differs: 'Differs',
-    volatility: 'Volatility',
-    open: 'Open',
-    waitingTick: 'Waiting for tick...',
-    waitingBalance: 'Loading...',
-    unauthorizedWarning: '⚠️ Not authorized. Please check your token.',
-    loginSubtitle: 'Sign in with your Deriv account to start trading.',
-    loginWithDeriv: 'Login with Deriv',
-    loginDisclaimer: 'Your credentials are securely handled via OAuth 2.0.',
-    logout: 'Logout',
-    tutorialTitle: 'How to trade Digits – Video Tutorial',
-    video: 'Video',
-    guide: 'Written Guide',
-    guideTitle: 'Step-by-Step Guide',
-    step1: '1. Choose a symbol (e.g., Volatility 100).',
-    step2: '2. Select a contract type: Over, Under, Match, or Differs.',
-    step3: '3. Set your investment amount and duration.',
-    step4: '4. Pick your target digit (0-9).',
-    step5: '5. Click "Buy" to open the contract.',
+    title:'Deriv Digits Dashboard', connection:'Connection', status:'Status', connected:'Connected', disconnected:'Disconnected', authorized:'Authorized', notAuthorized:'Not Authorized', balance:'Balance', lastTick:'Last Tick', digitsTrading:'Digits Trading', symbol:'Symbol', contractType:'Contract Type', amount:'Amount (USD)', duration:'Duration (seconds)', digit:'Digit (0-9)', currentPrice:'Current Price', proposalQuote:'Proposal Quote', askPrice:'Ask Price', payout:'Payout', stake:'Stake', buy:'Buy', buying:'Buying...', profitTable:'Profit Table', contractId:'Contract ID', type:'Type', buyPrice:'Buy Price', sellPrice:'Sell Price', profitLoss:'Profit/Loss', purchaseTime:'Purchase Time', total:'Total', transactions:'transactions', page:'Page', previous:'Previous', next:'Next', noTransactions:'No transactions found.', loading:'Loading...', error:'Error', tokenMissing:'No API token found. Please set NEXT_PUBLIC_DERIV_TOKEN', over:'Over', under:'Under', match:'Match', differs:'Differs', volatility:'Volatility', open:'Open', waitingTick:'Waiting for tick...', waitingBalance:'Loading...', unauthorizedWarning:'⚠️ Not authorized. Please check your token.', loginSubtitle:'Sign in with your Deriv account to start trading.', loginWithDeriv:'Login with Deriv', loginDisclaimer:'Your credentials are securely handled via OAuth 2.0.', logout:'Logout', tutorialTitle:'How to trade Digits – Video Tutorial', video:'Video', guide:'Written Guide', guideTitle:'Step-by-Step Guide', step1:'1. Choose a symbol (e.g., Volatility 100).', step2:'2. Select a contract type: Over, Under, Match, or Differs.', step3:'3. Set your investment amount and duration.', step4:'4. Pick your target digit (0-9).', step5:'5. Click "Buy" to open the contract.'
   },
   pt: {
-    title: 'Painel Deriv Digits',
-    connection: 'Conexão',
-    status: 'Status',
-    connected: 'Conectado',
-    disconnected: 'Desconectado',
-    authorized: 'Autorizado',
-    notAuthorized: 'Não autorizado',
-    balance: 'Saldo',
-    lastTick: 'Último Tick',
-    digitsTrading: 'Negociação de Dígitos',
-    symbol: 'Símbolo',
-    contractType: 'Tipo de Contrato',
-    amount: 'Valor (USD)',
-    duration: 'Duração (segundos)',
-    digit: 'Dígito (0-9)',
-    currentPrice: 'Preço Atual',
-    proposalQuote: 'Cotação da Proposta',
-    askPrice: 'Preço de Venda',
-    payout: 'Pagamento',
-    stake: 'Aposta',
-    buy: 'Comprar',
-    buying: 'Comprando...',
-    profitTable: 'Tabela de Lucros',
-    contractId: 'ID do Contrato',
-    type: 'Tipo',
-    buyPrice: 'Preço de Compra',
-    sellPrice: 'Preço de Venda',
-    profitLoss: 'Lucro/Perda',
-    purchaseTime: 'Hora da Compra',
-    total: 'Total',
-    transactions: 'transações',
-    page: 'Página',
-    previous: 'Anterior',
-    next: 'Próximo',
-    noTransactions: 'Nenhuma transação encontrada.',
-    loading: 'Carregando...',
-    error: 'Erro',
-    tokenMissing: 'Token de API não encontrado. Defina NEXT_PUBLIC_DERIV_TOKEN',
-    over: 'Acima',
-    under: 'Abaixo',
-    match: 'Igual',
-    differs: 'Diferente',
-    volatility: 'Volatilidade',
-    open: 'Aberto',
-    waitingTick: 'Aguardando tick...',
-    waitingBalance: 'Carregando...',
-    unauthorizedWarning: '⚠️ Não autorizado. Verifique seu token.',
-    loginSubtitle: 'Entre com sua conta Deriv para começar a negociar.',
-    loginWithDeriv: 'Entrar com Deriv',
-    loginDisclaimer: 'Suas credenciais são tratadas com segurança via OAuth 2.0.',
-    logout: 'Sair',
-    tutorialTitle: 'Como negociar Dígitos – Vídeo Tutorial',
-    video: 'Vídeo',
-    guide: 'Guia Escrito',
-    guideTitle: 'Guia Passo a Passo',
-    step1: '1. Escolha um símbolo (ex: Volatilidade 100).',
-    step2: '2. Selecione o tipo de contrato: Acima, Abaixo, Igual ou Diferente.',
-    step3: '3. Defina o valor do investimento e a duração.',
-    step4: '4. Escolha o dígito alvo (0-9).',
-    step5: '5. Clique em "Comprar" para abrir o contrato.',
+    title:'Painel Deriv Digits', connection:'Conexão', status:'Estado', connected:'Conectado', disconnected:'Desconectado', authorized:'Autorizado', notAuthorized:'Não autorizado', balance:'Saldo', lastTick:'Último Tick', digitsTrading:'Negociação de Dígitos', symbol:'Símbolo', contractType:'Tipo de Contrato', amount:'Valor (USD)', duration:'Duração (segundos)', digit:'Dígito (0-9)', currentPrice:'Preço Atual', proposalQuote:'Cotação da Proposta', askPrice:'Preço de Venda', payout:'Pagamento', stake:'Aposta', buy:'Comprar', buying:'Comprando...', profitTable:'Tabela de Lucros', contractId:'ID do Contrato', type:'Tipo', buyPrice:'Preço de Compra', sellPrice:'Preço de Venda', profitLoss:'Lucro/Perda', purchaseTime:'Hora da Compra', total:'Total', transactions:'transações', page:'Página', previous:'Anterior', next:'Próximo', noTransactions:'Nenhuma transação encontrada.', loading:'Carregando...', error:'Erro', tokenMissing:'Token de API não encontrado. Defina NEXT_PUBLIC_DERIV_TOKEN', over:'Acima', under:'Abaixo', match:'Igual', differs:'Diferente', volatility:'Volatilidade', open:'Aberto', waitingTick:'Aguardando tick...', waitingBalance:'Carregando...', unauthorizedWarning:'⚠️ Não autorizado. Verifique seu token.', loginSubtitle:'Entre com a sua conta Deriv para começar a negociar.', loginWithDeriv:'Entrar com Deriv', loginDisclaimer:'As suas credenciais são tratadas com segurança através do OAuth 2.0.', logout:'Sair', tutorialTitle:'Como negociar Dígitos – Vídeo Tutorial', video:'Vídeo', guide:'Guia Escrito', guideTitle:'Guia Passo a Passo', step1:'1. Escolha um símbolo (ex: Volatilidade 100).', step2:'2. Selecione o tipo de contrato: Acima, Abaixo, Igual ou Diferente.', step3:'3. Defina o valor do investimento e a duração.', step4:'4. Escolha o dígito alvo (0-9).', step5:'5. Clique em "Comprar" para abrir o contrato.'
   },
   es: {
-    title: 'Panel Deriv Digits',
-    connection: 'Conexión',
-    status: 'Estado',
-    connected: 'Conectado',
-    disconnected: 'Desconectado',
-    authorized: 'Autorizado',
-    notAuthorized: 'No autorizado',
-    balance: 'Saldo',
-    lastTick: 'Último Tick',
-    digitsTrading: 'Negociación de Dígitos',
-    symbol: 'Símbolo',
-    contractType: 'Tipo de Contrato',
-    amount: 'Cantidad (USD)',
-    duration: 'Duración (segundos)',
-    digit: 'Dígito (0-9)',
-    currentPrice: 'Precio Actual',
-    proposalQuote: 'Cotización de Propuesta',
-    askPrice: 'Precio de Venta',
-    payout: 'Pago',
-    stake: 'Apuesta',
-    buy: 'Comprar',
-    buying: 'Comprando...',
-    profitTable: 'Tabla de Ganancias',
-    contractId: 'ID del Contrato',
-    type: 'Tipo',
-    buyPrice: 'Precio de Compra',
-    sellPrice: 'Precio de Venta',
-    profitLoss: 'Ganancia/Pérdida',
-    purchaseTime: 'Hora de Compra',
-    total: 'Total',
-    transactions: 'transacciones',
-    page: 'Página',
-    previous: 'Anterior',
-    next: 'Siguiente',
-    noTransactions: 'No se encontraron transacciones.',
-    loading: 'Cargando...',
-    error: 'Error',
-    tokenMissing: 'Token de API no encontrado. Establece NEXT_PUBLIC_DERIV_TOKEN',
-    over: 'Superior',
-    under: 'Inferior',
-    match: 'Igual',
-    differs: 'Diferente',
-    volatility: 'Volatilidad',
-    open: 'Abierto',
-    waitingTick: 'Esperando tick...',
-    waitingBalance: 'Cargando...',
-    unauthorizedWarning: '⚠️ No autorizado. Verifica tu token.',
-    loginSubtitle: 'Inicia sesión con tu cuenta Deriv para empezar a operar.',
-    loginWithDeriv: 'Iniciar sesión con Deriv',
-    loginDisclaimer: 'Tus credenciales se manejan de forma segura mediante OAuth 2.0.',
-    logout: 'Cerrar sesión',
-    tutorialTitle: 'Cómo operar Dígitos – Video Tutorial',
-    video: 'Video',
-    guide: 'Guía Escrita',
-    guideTitle: 'Guía Paso a Paso',
-    step1: '1. Elige un símbolo (ej: Volatilidad 100).',
-    step2: '2. Selecciona el tipo de contrato: Superior, Inferior, Igual o Diferente.',
-    step3: '3. Establece el monto de inversión y la duración.',
-    step4: '4. Elige el dígito objetivo (0-9).',
-    step5: '5. Haz clic en "Comprar" para abrir el contrato.',
-  },
+    title:'Panel Deriv Digits', connection:'Conexión', status:'Estado', connected:'Conectado', disconnected:'Desconectado', authorized:'Autorizado', notAuthorized:'No autorizado', balance:'Saldo', lastTick:'Último Tick', digitsTrading:'Negociación de Dígitos', symbol:'Símbolo', contractType:'Tipo de Contrato', amount:'Cantidad (USD)', duration:'Duración (segundos)', digit:'Dígito (0-9)', currentPrice:'Precio Actual', proposalQuote:'Cotización de Propuesta', askPrice:'Precio de Venta', payout:'Pago', stake:'Apuesta', buy:'Comprar', buying:'Comprando...', profitTable:'Tabla de Ganancias', contractId:'ID del Contrato', type:'Tipo', buyPrice:'Precio de Compra', sellPrice:'Precio de Venta', profitLoss:'Ganancia/Pérdida', purchaseTime:'Hora de Compra', total:'Total', transactions:'transacciones', page:'Página', previous:'Anterior', next:'Siguiente', noTransactions:'No se encontraron transacciones.', loading:'Cargando...', error:'Error', tokenMissing:'Token de API no encontrado. Establece NEXT_PUBLIC_DERIV_TOKEN', over:'Superior', under:'Inferior', match:'Igual', differs:'Diferente', volatility:'Volatilidad', open:'Abierto', waitingTick:'Esperando tick...', waitingBalance:'Cargando...', unauthorizedWarning:'⚠️ No autorizado. Verifica tu token.', loginSubtitle:'Inicia sesión con tu cuenta Deriv para comenzar a operar.', loginWithDeriv:'Iniciar sesión con Deriv', loginDisclaimer:'Tus credenciales se gestionan de forma segura mediante OAuth 2.0.', logout:'Cerrar sesión', tutorialTitle:'Cómo operar Dígitos – Video Tutorial', video:'Video', guide:'Guía Escrita', guideTitle:'Guía Paso a Paso', step1:'1. Elige un símbolo (ej: Volatilidad 100).', step2:'2. Selecciona el tipo de contrato: Superior, Inferior, Igual o Diferente.', step3:'3. Establece el monto de inversión y la duración.', step4:'4. Elige el dígito objetivo (0-9).', step5:'5. Haz clic en "Comprar" para abrir el contrato.'
+  }
 };
 
-const LanguageContext = createContext<{
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
-}>({
-  language: 'en',
-  setLanguage: () => {},
-  t: (key) => key,
-});
+const LanguageContext = createContext<{language:Language;setLanguage:(lang:Language)=>void;t:(key:string)=>string}>({ language:'pt', setLanguage:()=>{}, t:key=>key });
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en');
-
-  useEffect(() => {
-    const stored = localStorage.getItem('lang') as Language;
-    if (stored && ['en', 'pt', 'es'].includes(stored)) {
-      setLanguage(stored);
-    }
-  }, []);
-
-  const t = (key: string) => translations[language][key] || key;
-
-  return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
-  );
+export function LanguageProvider({children}:{children:ReactNode}) {
+  const [language,setLanguageState] = useState<Language>('pt');
+  useEffect(()=>{
+    const stored=localStorage.getItem('lang') as Language;
+    if(stored && ['en','pt','es'].includes(stored)) setLanguageState(stored);
+  },[]);
+  const setLanguage=(lang:Language)=>{ setLanguageState(lang); localStorage.setItem('lang',lang); };
+  const t=(key:string)=>translations[language][key] || key;
+  return <LanguageContext.Provider value={{language,setLanguage,t}}>{children}</LanguageContext.Provider>;
 }
-
-export const useLanguage = () => useContext(LanguageContext);
+export const useLanguage=()=>useContext(LanguageContext);
