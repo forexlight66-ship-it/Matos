@@ -10,11 +10,15 @@ interface ProfitTransaction { contract_id: number; buy_price: number; sell_price
 interface Proposal { id: string; ask_price: number; payout: number; stake: number; contract_type: string; symbol: string; duration: number; duration_unit: string; barrier?: number; }
 
 function calculateProfitLoss(tx: Partial<ProfitTransaction>): number {
+  // Deriv's explicit profit_loss is authoritative at contract settlement.
+  // Do not replace it with sell_price - buy_price: for expired digit contracts
+  // sell_price can represent a different value than the actual P/L.
+  const explicit = Number(tx.profit_loss);
+  if (Number.isFinite(explicit)) return explicit;
   const buyPrice = Number(tx.buy_price);
   const sellPrice = Number(tx.sell_price);
   if (Number.isFinite(buyPrice) && Number.isFinite(sellPrice)) return sellPrice - buyPrice;
-  const explicit = Number(tx.profit_loss);
-  return Number.isFinite(explicit) ? explicit : 0;
+  return 0;
 }
 
 export function useDeriv() {
@@ -40,11 +44,31 @@ export function useDeriv() {
       const id=Number(tx.contract_id);
       const purchaseTime=Number(tx.purchase_time ?? 0);
       if(!Number.isFinite(id)||id<=0||!purchaseTime||purchaseTime<sessionStartedAtRef.current) continue;
-      const normalized:ProfitTransaction={...tx,contract_id:id,buy_price:Number(tx.buy_price??0),sell_price:tx.sell_price==null?null:Number(tx.sell_price),payout:Number(tx.payout??0),profit_loss:calculateProfitLoss(tx)};
+
+      const previous=closedContractsRef.current.get(id);
+      // Merge instead of replacing. profit_table can arrive after the live
+      // proposal_open_contract and omit exit_tick/other settlement fields.
+      const mergedRaw:Partial<ProfitTransaction>={...previous,...tx};
+      const normalized:ProfitTransaction={
+        contract_id:id,
+        buy_price:Number(mergedRaw.buy_price??0),
+        sell_price:mergedRaw.sell_price==null?null:Number(mergedRaw.sell_price),
+        payout:Number(mergedRaw.payout??0),
+        purchase_time:Number(mergedRaw.purchase_time??purchaseTime),
+        sell_time:mergedRaw.sell_time==null?null:Number(mergedRaw.sell_time),
+        contract_type:String(mergedRaw.contract_type??''),
+        longcode:mergedRaw.longcode,
+        profit_loss:calculateProfitLoss(mergedRaw),
+        exit_tick:mergedRaw.exit_tick??null,
+      };
       closedContractsRef.current.set(id,normalized);
     }
-    const merged=Array.from(closedContractsRef.current.values()).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time)).slice(0,50);
-    setProfitTransactions(merged);setProfitCount(merged.length);
+
+    const merged=Array.from(closedContractsRef.current.values())
+      .sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time))
+      .slice(0,50);
+    setProfitTransactions(merged);
+    setProfitCount(merged.length);
   },[]);
 
   const refreshProfitTable=useCallback(()=>{wsRef.current?.getProfitTable({limit:50,offset:0,sort:'DESC',description:1})},[]);
@@ -69,7 +93,11 @@ export function useDeriv() {
         ws.subscribe('proposal_open_contract',data=>{
           const c=data.proposal_open_contract;if(!c)return;const contractId=Number(c.contract_id);if(!Number.isFinite(contractId)||contractId<=0||activeContractRef.current!==contractId)return;
           const buyPrice=Number(c.buy_price??0);const sellPrice=c.sell_price==null?null:Number(c.sell_price);const payout=Number(c.payout??0);const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss});const purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000));const sellTime=c.sell_time?Number(c.sell_time):null;
-          if(c.is_sold||c.status==='won'||c.status==='lost'){mergeProfitTransactions([{contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null}]);setLoadingProfit(false);activeContractRef.current=null;latestProposalReqRef.current=null;window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},2000)}
+          if(c.is_sold||c.status==='won'||c.status==='lost'){
+            mergeProfitTransactions([{contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null}]);
+            setLoadingProfit(false);activeContractRef.current=null;latestProposalReqRef.current=null;
+            window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},2000);
+          }
         });
         ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current!==null&&responseReqId!==latestProposalReqRef.current)return;setProposal({id:data.proposal.id,ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:data.proposal.contract_type,symbol:data.proposal.symbol||data.proposal.underlying_symbol,duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier});setError(null)});
         ws.subscribe('buy',data=>{if(!data.buy)return;setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){activeContractRef.current=contractId;latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});
