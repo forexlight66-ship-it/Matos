@@ -3,14 +3,14 @@
 'use client';
 
 import TutorialSection from './TutorialSection';
-import DigitsGameV2 from './DigitsGameV2';
+import DigitsGameV3 from './DigitsGameV3';
 
 export default function Dashboard() {
   return (
     <div className="matos-page">
       <div className="matos-shell">
         <div className="matos-phone">
-          <DigitsGameV2 />
+          <DigitsGameV3 />
         </div>
 
         <div id="tutorial" className="mt-4">
