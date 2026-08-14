@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: matos-dashboard
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
