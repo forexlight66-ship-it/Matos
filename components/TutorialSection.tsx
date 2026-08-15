@@ -16,11 +16,15 @@ export default function TutorialSection() {
   return (
     <div className="card mb-6" id="tutorial-section">
       <h2 className="text-xl font-bold mb-4 flex items-center gap-2">🎓 {t('tutorialTitle')}</h2>
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button onClick={() => setShowVideo(true)} className={`px-3 py-1 rounded font-bold ${showVideo ? 'tutorial-video-active' : 'bg-gray-200'}`}>📺 {t('videoTutorial')}</button>
-        <button onClick={() => setShowVideo(false)} className={`px-3 py-1 rounded ${!showVideo ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>📖 {language === 'pt' ? 'Guia Escrito' : language === 'es' ? 'Guía Escrita' : 'Written Guide'}</button>
+      <div className="flex flex-wrap gap-2 mb-4 tutorial-tabs">
+        <button onClick={() => setShowVideo(true)} className={`tutorial-tab ${showVideo ? 'tutorial-video-active' : 'bg-gray-200'}`}>📺 {t('videoTutorial')}</button>
+        <button onClick={() => setShowVideo(false)} className={`tutorial-tab ${!showVideo ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>📖 {language === 'pt' ? 'Guia Escrito' : language === 'es' ? 'Guía Escrita' : 'Written Guide'}</button>
       </div>
-      <style jsx>{`.tutorial-video-active{position:relative;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:#dc2626;overflow:hidden;min-width:120px}.tutorial-video-active::after{content:'';position:absolute;left:0;right:0;bottom:0;height:4px;background:#ef4444}`}</style>
+      <style jsx>{`
+        .tutorial-tab{position:relative;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;padding:7px 14px;border-radius:8px;font-weight:700}
+        .tutorial-video-active{color:#fff;background:#dc2626}
+        .tutorial-video-active::after{content:'';position:absolute;left:0;right:0;bottom:0;width:100%;height:4px;background:#ef4444}
+      `}</style>
       {showVideo ? (
         <div className="w-full rounded-lg overflow-hidden shadow">
           <iframe src={videoUrl} title="MozHyper Digits Tutorial" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen onLoad={setVideoVolume} className="w-full aspect-video" />
