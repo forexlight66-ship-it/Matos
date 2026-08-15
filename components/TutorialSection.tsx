@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { SyntheticEvent } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function TutorialSection() {
@@ -8,7 +9,7 @@ export default function TutorialSection() {
   const [showVideo, setShowVideo] = useState(true);
   const videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ?enablejsapi=1&playsinline=1&rel=0';
 
-  const setVideoVolume = (event: React.SyntheticEvent<HTMLIFrameElement>) => {
+  const setVideoVolume = (event: SyntheticEvent<HTMLIFrameElement>) => {
     try { event.currentTarget.contentWindow?.postMessage(JSON.stringify({ event:'command', func:'setVolume', args:[100] }), '*'); } catch {}
   };
 
