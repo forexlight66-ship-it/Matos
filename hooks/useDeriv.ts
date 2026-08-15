@@ -71,7 +71,7 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
     let cancelled=false; let connectionCheck:ReturnType<typeof setInterval>|null=null; let initialProfitLoaded=false; let lastProfitRefresh=0;
     sessionStartedAtRef.current=Math.floor(Date.now()/1000);
     closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setBalance(null);setProposal(null);setError(null);setBuying(false);
-    const refreshProfitThrottled=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<8000)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
+    const refreshProfitThrottled=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<1500)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
     const start=async()=>{
       try{
         const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);
@@ -89,7 +89,7 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
           if(c.is_sold||c.status==='won'||c.status==='lost'){
             mergeProfitTransactions([{contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null}]);
             setLoadingProfit(false);activeContractRef.current=null;latestProposalReqRef.current=null;
-            window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},2000);
+            window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},500);
           }
         });
         ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current!==null&&responseReqId!==latestProposalReqRef.current)return;setProposal({id:data.proposal.id,ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:data.proposal.contract_type,symbol:data.proposal.symbol||data.proposal.underlying_symbol,duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier});setError(null)});
