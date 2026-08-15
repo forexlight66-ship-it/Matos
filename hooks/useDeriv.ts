@@ -6,13 +6,10 @@ import { DerivWebSocket } from '@/lib/websocket';
 interface Balance { balance: number; currency: string; loginid?: string; }
 interface Tick { symbol: string; quote: number; epoch: number; }
 interface Transaction { id: number; action: string; amount: number; currency: string; contract_id?: number; }
-interface ProfitTransaction { contract_id: number; buy_price: number; sell_price: number | null; payout: number; purchase_time: number; sell_time: number | null; contract_type: string; longcode?: string; profit_loss?: number; exit_tick?: number | string | null; }
+interface ProfitTransaction { contract_id: number; buy_price: number; sell_price: number | null; payout: number; purchase_time: number; sell_time: number | null; contract_type: string; longcode?: string; profit_loss?: number; exit_tick?: number | string | null; exit_spot?: number | string | null; }
 interface Proposal { id: string; ask_price: number; payout: number; stake: number; contract_type: string; symbol: string; duration: number; duration_unit: string; barrier?: number; }
 
 function calculateProfitLoss(tx: Partial<ProfitTransaction>): number {
-  // Deriv's explicit profit_loss is authoritative at contract settlement.
-  // Do not replace it with sell_price - buy_price: for expired digit contracts
-  // sell_price can represent a different value than the actual P/L.
   const explicit = Number(tx.profit_loss);
   if (Number.isFinite(explicit)) return explicit;
   const buyPrice = Number(tx.buy_price);
@@ -44,10 +41,7 @@ export function useDeriv() {
       const id=Number(tx.contract_id);
       const purchaseTime=Number(tx.purchase_time ?? 0);
       if(!Number.isFinite(id)||id<=0||!purchaseTime||purchaseTime<sessionStartedAtRef.current) continue;
-
       const previous=closedContractsRef.current.get(id);
-      // Merge instead of replacing. profit_table can arrive after the live
-      // proposal_open_contract and omit exit_tick/other settlement fields.
       const mergedRaw:Partial<ProfitTransaction>={...previous,...tx};
       const normalized:ProfitTransaction={
         contract_id:id,
@@ -60,10 +54,10 @@ export function useDeriv() {
         longcode:mergedRaw.longcode,
         profit_loss:calculateProfitLoss(mergedRaw),
         exit_tick:mergedRaw.exit_tick??null,
+        exit_spot:mergedRaw.exit_spot??null,
       };
       closedContractsRef.current.set(id,normalized);
     }
-
     const merged=Array.from(closedContractsRef.current.values())
       .sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time))
       .slice(0,50);
@@ -77,7 +71,6 @@ export function useDeriv() {
     let cancelled=false; let connectionCheck:ReturnType<typeof setInterval>|null=null; let initialProfitLoaded=false; let lastProfitRefresh=0;
     sessionStartedAtRef.current=Math.floor(Date.now()/1000);
     closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);
-
     const refreshProfitThrottled=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<8000)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
     const start=async()=>{
       try{
@@ -94,7 +87,7 @@ export function useDeriv() {
           const c=data.proposal_open_contract;if(!c)return;const contractId=Number(c.contract_id);if(!Number.isFinite(contractId)||contractId<=0||activeContractRef.current!==contractId)return;
           const buyPrice=Number(c.buy_price??0);const sellPrice=c.sell_price==null?null:Number(c.sell_price);const payout=Number(c.payout??0);const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss});const purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000));const sellTime=c.sell_time?Number(c.sell_time):null;
           if(c.is_sold||c.status==='won'||c.status==='lost'){
-            mergeProfitTransactions([{contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null}]);
+            mergeProfitTransactions([{contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null}]);
             setLoadingProfit(false);activeContractRef.current=null;latestProposalReqRef.current=null;
             window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},2000);
           }
