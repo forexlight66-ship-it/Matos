@@ -18,7 +18,7 @@ function calculateProfitLoss(tx: Partial<ProfitTransaction>): number {
   return 0;
 }
 
-export function useDeriv() {
+export function useDeriv(accountType:'demo'|'real'='demo') {
   const wsRef = useRef<DerivWebSocket | null>(null);
   const activeContractRef = useRef<number | null>(null);
   const latestProposalReqRef = useRef<number | null>(null);
@@ -70,11 +70,11 @@ export function useDeriv() {
   useEffect(()=>{
     let cancelled=false; let connectionCheck:ReturnType<typeof setInterval>|null=null; let initialProfitLoaded=false; let lastProfitRefresh=0;
     sessionStartedAtRef.current=Math.floor(Date.now()/1000);
-    closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);
+    closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setBalance(null);setProposal(null);setError(null);setBuying(false);
     const refreshProfitThrottled=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<8000)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
     const start=async()=>{
       try{
-        const response=await fetch('/api/deriv/ws-url?account_type=demo',{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);
+        const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);
         if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return;
         const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
         ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy)setBuying(false);setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
@@ -100,7 +100,7 @@ export function useDeriv() {
     };
     start();
     return()=>{cancelled=true;if(connectionCheck)clearInterval(connectionCheck);wsRef.current?.disconnect();wsRef.current=null;activeContractRef.current=null;latestProposalReqRef.current=null;closedContractsRef.current.clear()};
-  },[refreshProfitTable,mergeProfitTransactions]);
+  },[accountType,refreshProfitTable,mergeProfitTransactions]);
 
   const subscribeTicks=useCallback((symbol:string)=>wsRef.current?.subscribeTicks(symbol),[]);
   const fetchProfitTable=useCallback((options?:{limit?:number;offset?:number;sort?:'ASC'|'DESC'})=>{setLoadingProfit(true);wsRef.current?.getProfitTable({description:1,...options})},[]);
