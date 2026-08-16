@@ -26,7 +26,7 @@ export default function ProbabilitySampling100() {
   const [digits, setDigits] = useState<number[]>([]);
   const [selected, setSelected] = useState(5);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const { tick } = useDeriv('demo');
+  const { tick, subscribeTicks } = useDeriv('demo');
 
   useEffect(() => setMounted(true), []);
 
@@ -61,6 +61,7 @@ export default function ProbabilitySampling100() {
   }, []);
 
   useEffect(() => {
+    subscribeTicks(symbol);
     setDigits([]);
     const update = () => setRect(document.querySelector('.dial')?.getBoundingClientRect() || null);
     update();
@@ -68,7 +69,7 @@ export default function ProbabilitySampling100() {
     window.addEventListener('scroll', update, true);
     const timer = window.setInterval(update, 500);
     return () => { window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true); window.clearInterval(timer); };
-  }, [symbol]);
+  }, [symbol, subscribeTicks]);
 
   useEffect(() => {
     const raw = tick?.quote;
