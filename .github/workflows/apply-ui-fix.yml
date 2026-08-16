@@ -1,0 +1,54 @@
+name: Apply UI fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-ui-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply requested UI changes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('components/DigitsGameV3.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          old_css = ".goals-btn{position:absolute;right:0;left:auto;top:50%;transform:translateY(-50%);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--s2);color:var(--t1);font-weight:800;font-size:11px;white-space:nowrap;z-index:5}.goals-panel{position:absolute;right:0;left:auto;top:calc(50% + 40px);"
+          new_css = ".goals-btn{position:absolute;right:-88px;left:auto;top:50%;transform:translateY(-50%);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--s2);color:var(--t1);font-weight:800;font-size:11px;white-space:nowrap;z-index:5}.goals-panel{position:absolute;right:-88px;left:auto;top:calc(50% + 40px);"
+          if old_css not in text:
+              raise SystemExit('Expected goals positioning CSS was not found; aborting safely.')
+          text = text.replace(old_css, new_css, 1)
+
+          old_top = '<div className="top-actions"><div className="menu-wrap">'
+          new_top = '<div className="top-actions"><button className="theme-toggle" aria-label={theme===\'dark\'?\'Light mode\':\'Dark mode\'} title={theme===\'dark\'?\'Light mode\':\'Dark mode\'} onClick={()=>setTheme(v=>v===\'dark\'?\'light\':\'dark\')}>{theme===\'dark\'?\'☀\':\'☾\'}</button><div className="menu-wrap">'
+          if old_top not in text:
+              raise SystemExit('Expected top-actions markup was not found; aborting safely.')
+          text = text.replace(old_top, new_top, 1)
+
+          old_style = ".result-popup{position:relative;width:min(320px,calc(100% - 32px));"
+          new_style = ".theme-toggle{height:34px;min-width:38px;padding:0 9px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:var(--s2);color:var(--t1);font-size:17px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}.theme-toggle:active{transform:scale(.96)}.result-popup{position:relative;width:min(320px,calc(100% - 32px));"
+          if old_style not in text:
+              raise SystemExit('Expected result popup CSS anchor was not found; aborting safely.')
+          text = text.replace(old_style, new_style, 1)
+
+          path.write_text(text, encoding='utf-8')
+      - name: Commit source change and remove one-shot patch workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/DigitsGameV3.tsx .github/workflows/apply-ui-fix.yml
+          git rm .github/workflows/apply-ui-fix.yml
+          git commit -m "Fix goals position and add dark light toggle"
+          git push
