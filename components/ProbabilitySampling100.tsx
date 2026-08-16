@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDeriv } from '@/hooks/useDeriv';
 
@@ -26,7 +26,6 @@ export default function ProbabilitySampling100() {
   const [digits, setDigits] = useState<number[]>([]);
   const [selected, setSelected] = useState(5);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const dialRef = useRef<Element | null>(null);
   const { tick } = useDeriv('demo');
 
   useEffect(() => setMounted(true), []);
@@ -34,7 +33,7 @@ export default function ProbabilitySampling100() {
   useEffect(() => {
     const chooseDefault = () => {
       const current = document.querySelector('.symbol-select')?.textContent?.trim() || '';
-      if (current === 'Volatility 100 Index') {
+      if (current.includes('Volatility 100 Index') && !current.includes('(1s)')) {
         const selector = document.querySelector('.symbol-select') as HTMLButtonElement | null;
         selector?.click();
         const option = Array.from(document.querySelectorAll('.symbol-menu button')).find(
@@ -50,11 +49,8 @@ export default function ProbabilitySampling100() {
   useEffect(() => {
     const readSymbol = () => {
       const label = document.querySelector('.symbol-select')?.textContent?.trim() || '';
-      const next = SYMBOL_BY_LABEL[label];
-      if (next) {
-        setSymbol((old) => old === next ? old : next);
-        setDigits([]);
-      }
+      const next = Object.entries(SYMBOL_BY_LABEL).find(([name]) => label.includes(name))?.[1];
+      if (next) setSymbol((old) => old === next ? old : next);
     };
     readSymbol();
     const observer = new MutationObserver(readSymbol);
@@ -65,17 +61,14 @@ export default function ProbabilitySampling100() {
   }, []);
 
   useEffect(() => {
-    const update = () => {
-      const dial = document.querySelector('.dial');
-      dialRef.current = dial;
-      setRect(dial?.getBoundingClientRect() || null);
-    };
+    setDigits([]);
+    const update = () => setRect(document.querySelector('.dial')?.getBoundingClientRect() || null);
     update();
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
     const timer = window.setInterval(update, 500);
     return () => { window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true); window.clearInterval(timer); };
-  }, []);
+  }, [symbol]);
 
   useEffect(() => {
     const raw = tick?.quote;
