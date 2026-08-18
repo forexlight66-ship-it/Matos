@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import TutorialSection from './TutorialSection';
 import DigitsGameV3 from './DigitsGameV3';
 import AutoBot from './AutoBot';
+import AutoBotEnhancements from './AutoBotEnhancements';
 
 export default function Dashboard() {
   const [mode,setMode]=useState<'manual'|'robot'>('manual');
@@ -35,6 +36,7 @@ export default function Dashboard() {
             <button className={mode==='manual'?'active':''} onClick={()=>setMode('manual')}>Manual</button>
             <button className={mode==='robot'?'active robo':''} onClick={()=>setMode('robot')}>🤖 Robô</button>
           </div>
+          <AutoBotEnhancements />
           {mode==='manual' ? <DigitsGameV3 /> : <AutoBot />}
         </div>
 
