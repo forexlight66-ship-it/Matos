@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import TutorialSection from './TutorialSection';
 import DigitsGameV3 from './DigitsGameV3';
-import AutoBot from './AutoBot';
+import AutoBotV2 from './AutoBotV2';
 import AutoBotEnhancements from './AutoBotEnhancements';
 
 export default function Dashboard() {
@@ -32,7 +32,7 @@ export default function Dashboard() {
           <button className={mode==='robot'?'active robo':''} onClick={()=>{setMode('robot');setMenu(false)}}>🤖 Robô</button>
         </div>
         <AutoBotEnhancements />
-        {mode==='manual'?<DigitsGameV3/>:<AutoBot/>}
+        {mode==='manual'?<DigitsGameV3/>:<AutoBotV2/>}
       </div>
       <div id="tutorial" className="mt-4"><TutorialSection/></div>
     </div>
