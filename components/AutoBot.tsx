@@ -12,6 +12,8 @@ const SYMBOLS: Record<string, string> = {
 const SYMBOL_OPTIONS = ['R_10','R_25','R_50','R_75','R_100','1HZ10V','1HZ25V','1HZ50V','1HZ75V','1HZ100V'];
 const USD_TO_MZN = 68;
 const PHASE_STAKES = { INITIAL: 1, SOROS: 1.95, MG1: 2, MG2: 4.1, MG3: 8.4 } as const;
+const ENTRY_BASELINE_PCT = 11;
+const STRENGTH_TRIGGER_PCT = 60;
 type Phase = keyof typeof PHASE_STAKES | 'STOP';
 type Signal = { contract: Contract; pct10: number; reason: string };
 
@@ -29,10 +31,10 @@ function buildSignal(ticks: number[]): Signal | null {
   const a = ticks.slice(-10);
   const even = pct(a, d => d % 2 === 0);
   const over = pct(a, d => d > 4);
-  if (even >= 60) return { contract: 'EVEN', pct10: Math.round(even), reason: `PAR · 10T ${Math.round(even)}%` };
-  if (100 - even >= 60) return { contract: 'ODD', pct10: Math.round(100 - even), reason: `ÍMPAR · 10T ${Math.round(100 - even)}%` };
-  if (over >= 60) return { contract: 'OVER', pct10: Math.round(over), reason: `ACIMA 4 · 10T ${Math.round(over)}%` };
-  if (100 - over >= 60) return { contract: 'UNDER', pct10: Math.round(100 - over), reason: `ABAIXO 5 · 10T ${Math.round(100 - over)}%` };
+  if (even >= STRENGTH_TRIGGER_PCT && even >= ENTRY_BASELINE_PCT) return { contract: 'EVEN', pct10: Math.round(even), reason: `PAR · 10T ${Math.round(even)}%` };
+  if (100 - even >= STRENGTH_TRIGGER_PCT && 100 - even >= ENTRY_BASELINE_PCT) return { contract: 'ODD', pct10: Math.round(100 - even), reason: `ÍMPAR · 10T ${Math.round(100 - even)}%` };
+  if (over >= STRENGTH_TRIGGER_PCT && over >= ENTRY_BASELINE_PCT) return { contract: 'OVER', pct10: Math.round(over), reason: `ACIMA 4 · 10T ${Math.round(over)}%` };
+  if (100 - over >= STRENGTH_TRIGGER_PCT && 100 - over >= ENTRY_BASELINE_PCT) return { contract: 'UNDER', pct10: Math.round(100 - over), reason: `ABAIXO 5 · 10T ${Math.round(100 - over)}%` };
   return null;
 }
 
@@ -73,7 +75,7 @@ function DigitCandles({ ticks }: { ticks: number[] }) {
 }
 
 function BotWorker({ symbol, accountType, lossLimitMzn, targetMzn, baseStake, setSharedActivity }: { symbol: string; accountType: 'demo' | 'real'; lossLimitMzn: number; targetMzn: number; baseStake: number; setSharedActivity: (s: string) => void }) {
-  const { tick, proposal, buy, buying, getProposal, subscribeTicks, isAuthorized, isConnected, profitTransactions, contractClosedSeq } = useDeriv(accountType);
+  const { tick, proposal, buy, buying, activeContractId, getProposal, subscribeTicks, isAuthorized, isConnected, profitTransactions, contractClosedSeq } = useDeriv(accountType);
   const [running, setRunning] = useState(false), [ticks, setTicks] = useState<number[]>([]), [signal, setSignal] = useState<Signal | null>(null), [phase, setPhase] = useState<Phase>('INITIAL'), [started, setStarted] = useState<number | null>(null), [losses, setLosses] = useState(0), [targetPopup, setTargetPopup] = useState(false), [activity, setActivity] = useState<string[]>([]), [lastClosedSeq, setLastClosedSeq] = useState(0);
   const lastEpoch = useRef<number | null>(null);
   const lastTradeTickEpoch = useRef<number | null>(null);
@@ -94,16 +96,14 @@ function BotWorker({ symbol, accountType, lossLimitMzn, targetMzn, baseStake, se
   const stake = baseStake * phaseMultiplier;
   const add = (s: string) => { const x = `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${s}`; setActivity(v => [x, ...v].slice(0, 8)); setSharedActivity(`${SYMBOLS[symbol]}: ${s}`); };
 
-  // A closure is an explicit event. This is the equivalent of Deriv Bot's
-  // "Trade Again": unlock the next analysis only after the previous contract ended.
+  // Unlock the next analysis only from the explicit contract-closed event.
   useEffect(() => {
     if (!started || contractClosedSeq === lastClosedSeq) return;
     setLastClosedSeq(contractClosedSeq);
     requested.current = false;
     proposalRequestedAt.current = null;
-    if (proposal) return;
     add('Contrato fechado · nova análise desbloqueada');
-  }, [contractClosedSeq, started, lastClosedSeq, proposal]);
+  }, [contractClosedSeq, started, lastClosedSeq]);
 
   useEffect(() => {
     const tx = profitTransactions[0];
@@ -128,23 +128,22 @@ function BotWorker({ symbol, accountType, lossLimitMzn, targetMzn, baseStake, se
     else if (sessionProfit <= -lossLimitMzn / USD_TO_MZN) { setRunning(false); requested.current = false; setPhase('STOP'); add(`STOP LOSS ${(sessionProfit * USD_TO_MZN).toFixed(0)} MT`); tone('loss'); }
   }, [running, sessionProfit, targetMzn, lossLimitMzn]);
 
-  // Recovery timeout: a proposal request can never keep the bot locked forever.
+  // A proposal request may time out, but an open contract must never be unlocked by this timer.
   useEffect(() => {
     if (!running || !requested.current || !proposalRequestedAt.current) return;
     const timer = window.setInterval(() => {
-      if (proposalRequestedAt.current && Date.now() - proposalRequestedAt.current > 7000 && !proposal && !buying) {
+      if (proposalRequestedAt.current && Date.now() - proposalRequestedAt.current > 7000 && !proposal && !buying && activeContractId === null) {
         requested.current = false;
         proposalRequestedAt.current = null;
         add('Timeout da proposta · repetir análise');
       }
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [running, proposal, buying]);
+  }, [running, proposal, buying, activeContractId]);
 
-  // Main trading state machine. A new order requires a NEW tick after the
-  // previous contract, so the same 10-tick snapshot can never be bought twice.
+  // Main state machine: one request at a time, and no new request while a contract is open.
   useEffect(() => {
-    if (!running || !isAuthorized || !isConnected || buying || proposal || !signal || requested.current) return;
+    if (!running || !isAuthorized || !isConnected || buying || proposal || activeContractId !== null || !signal || requested.current) return;
     const epoch = Number(tick?.epoch);
     if (!epoch || (lastTradeTickEpoch.current !== null && epoch <= lastTradeTickEpoch.current)) return;
     requested.current = true;
@@ -153,14 +152,15 @@ function BotWorker({ symbol, accountType, lossLimitMzn, targetMzn, baseStake, se
     add(`SINAL ${signal.contract} · 10T ${signal.pct10}%`);
     const sent = getProposal(symbol, CONTRACT_TYPES[signal.contract], stake, 1, signal.contract === 'OVER' ? 4 : signal.contract === 'UNDER' ? 5 : 0);
     if (!sent) { requested.current = false; proposalRequestedAt.current = null; }
-  }, [running, isAuthorized, isConnected, buying, proposal, signal, symbol, getProposal, stake, tick?.epoch]);
+  }, [running, isAuthorized, isConnected, buying, proposal, activeContractId, signal, symbol, getProposal, stake, tick?.epoch]);
 
   useEffect(() => {
-    if (!running || !proposal || buying) return;
+    if (!running || !proposal || buying || activeContractId !== null) return;
     buy(proposal.id, proposal.ask_price);
+    // Keep requested=true until Deriv confirms the buy and then until the contract closes.
+    // This prevents a second proposal from being requested in the gap between buy() and buy confirmation.
     proposalRequestedAt.current = null;
-    requested.current = false;
-  }, [proposal, running, buying, buy]);
+  }, [proposal, running, buying, activeContractId, buy]);
 
   const start = () => {
     if (!isAuthorized || !isConnected) return;
@@ -204,4 +204,3 @@ export default function AutoBot() {
     {shared && <div className="shared-activity">{shared}</div>}
   </div>;
 }
-` }
