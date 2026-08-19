@@ -3,184 +3,39 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDeriv } from '@/hooks/useDeriv';
 
-type Contract = 'EVEN' | 'ODD' | 'OVER' | 'UNDER';
-const CONTRACT_TYPES: Record<Contract,string> = { EVEN:'DIGITEVEN', ODD:'DIGITODD', OVER:'DIGITOVER', UNDER:'DIGITUNDER' };
-const SYMBOLS: Record<string,string> = {
-  '1HZ100V':'Volatility 100 (1s) Index', R_100:'Volatility 100 Index', R_50:'Volatility 50 Index',
-  R_75:'Volatility 75 Index', '1HZ50V':'Volatility 50 (1s) Index'
-};
-const USD_TO_MZN = 68;
-const INITIAL_STAKE_USD = 1.00;
-const SOROS_STAKE_USD = 1.95;
-const MG1_USD = 2.00;
-const MG2_USD = 4.10;
-const MG3_USD = 8.40;
+type Contract='EVEN'|'ODD'|'OVER'|'UNDER';
+const CONTRACT_TYPES:Record<Contract,string>={EVEN:'DIGITEVEN',ODD:'DIGITODD',OVER:'DIGITOVER',UNDER:'DIGITUNDER'};
+const SYMBOLS:Record<string,string>={R_10:'Volatility 10 Index',R_25:'Volatility 25 Index',R_50:'Volatility 50 Index',R_75:'Volatility 75 Index',R_100:'Volatility 100 Index','1HZ10V':'Volatility 10 (1s) Index','1HZ25V':'Volatility 25 (1s) Index','1HZ50V':'Volatility 50 (1s) Index','1HZ75V':'Volatility 75 (1s) Index','1HZ100V':'Volatility 100 (1s) Index'};
+const DEFAULT_SYMBOLS=['R_10','R_25','R_50','R_75','R_100'];
+const USD_TO_MZN=68;
+const PHASE_STAKES={INITIAL:1,SOROS:1.95,MG1:2,MG2:4.1,MG3:8.4} as const;
+type Phase=keyof typeof PHASE_STAKES|'STOP';
+type Signal={contract:Contract;pct100:number;pct20:number;reason:string};
+function digit(v:number|string|undefined|null){if(v==null)return null;const s=String(v).replace(/\D/g,'');return s?Number(s.slice(-1)):null}
+function pct(t:number[],pred:(d:number)=>boolean){const a=t.map(digit).filter((x):x is number=>x!==null);return a.length?a.filter(pred).length/a.length*100:0}
+function buildSignal(ticks:number[]):Signal|null{if(ticks.length<20)return null;const a=ticks.slice(-100),m=ticks.slice(-20);const e100=pct(a,d=>d%2===0),e20=pct(m,d=>d%2===0),o100=pct(a,d=>d>4),o20=pct(m,d=>d>4);if(e20>=60&&e100>49)return{contract:'EVEN',pct100:Math.round(e100),pct20:Math.round(e20),reason:`PAR · 100T ${Math.round(e100)}% > 49% · 20T ${Math.round(e20)}%`};if(100-e20>=60&&100-e100>49)return{contract:'ODD',pct100:Math.round(100-e100),pct20:Math.round(100-e20),reason:`ÍMPAR · 100T ${Math.round(100-e100)}% > 49% · 20T ${Math.round(100-e20)}%`};if(o20>=60&&o100>49)return{contract:'OVER',pct100:Math.round(o100),pct20:Math.round(o20),reason:`ACIMA 4 · 100T ${Math.round(o100)}% > 49% · 20T ${Math.round(o20)}%`};if(100-o20>=60&&100-o100>49)return{contract:'UNDER',pct100:Math.round(100-o100),pct20:Math.round(100-o20),reason:`ABAIXO 5 · 100T ${Math.round(100-o100)}% > 49% · 20T ${Math.round(100-o20)}%`};return null}
+function tone(kind:'win'|'loss'|'target'){try{const C=window.AudioContext||(window as any).webkitAudioContext;if(!C)return;const c=new C();const g=c.createGain();g.gain.value=.35;g.connect(c.destination);const notes=kind==='target'?[523,659,784,1047]:kind==='win'?[659,784,988]:[247,196,147];notes.forEach((f,i)=>{const o=c.createOscillator(),x=c.createGain();o.type=kind==='loss'?'triangle':'sine';o.frequency.value=f;const t=c.currentTime+i*.09;x.gain.setValueAtTime(.0001,t);x.gain.exponentialRampToValueAtTime(.7,t+.02);x.gain.exponentialRampToValueAtTime(.0001,t+.14);o.connect(x);x.connect(g);o.start(t);o.stop(t+.16)});setTimeout(()=>c.close(),700)}catch{}}
 
-type Signal = { name:string; contract:Contract; barrier:number; pct100:number; pct20:number; hit:number; reason:string };
-
-type AudioWindow = Window & { webkitAudioContext?: typeof AudioContext };
-let audioCtx: AudioContext|null = null;
-let audioMaster: GainNode|null = null;
-function playTone(kind:'win'|'loss'|'target'){
-  try{
-    const AC=window.AudioContext||(window as AudioWindow).webkitAudioContext; if(!AC)return;
-    if(!audioCtx) audioCtx=new AC();
-    if(audioCtx.state==='suspended') void audioCtx.resume();
-    if(!audioMaster){audioMaster=audioCtx.createGain();audioMaster.gain.value=0.9;audioMaster.connect(audioCtx.destination)}
-    const notes=kind==='target'?[523,659,784,1047]:kind==='win'?[659,784,988]:[247,196,147];
-    const now=audioCtx.currentTime;
-    notes.forEach((freq,i)=>{const o=audioCtx!.createOscillator();const g=audioCtx!.createGain();o.type=kind==='loss'?'triangle':'sine';o.frequency.value=freq;const t=now+i*.09;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(kind==='target'?.34:.25,t+.018);g.gain.exponentialRampToValueAtTime(.0001,t+.14);o.connect(g);g.connect(audioMaster!);o.start(t);o.stop(t+.16)});
-  }catch{}
+function BotWorker({symbol,lossLimitMzn,targetMzn,baseStake,setSharedActivity}:{symbol:string;lossLimitMzn:number;targetMzn:number;baseStake:number;setSharedActivity:(s:string)=>void}){
+ const {tick,proposal,buy,buying,getProposal,subscribeTicks,isAuthorized,isConnected,profitTransactions}=useDeriv('demo');
+ const [running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[signal,setSignal]=useState<Signal|null>(null),[phase,setPhase]=useState<Phase>('INITIAL'),[started,setStarted]=useState<number|null>(null),[losses,setLosses]=useState(0),[targetPopup,setTargetPopup]=useState(false),[activity,setActivity]=useState<string[]>([]);
+ const lastEpoch=useRef<number|null>(null),lastContract=useRef<number|null>(null),requested=useRef(false);
+ useEffect(()=>{if(isConnected)subscribeTicks(symbol)},[isConnected,symbol,subscribeTicks]);
+ useEffect(()=>{if(tick?.epoch&&tick.epoch!==lastEpoch.current){lastEpoch.current=tick.epoch;setTicks(v=>[...v.slice(-99),Number(tick.quote)])}},[tick]);
+ useEffect(()=>setSignal(buildSignal(ticks)),[ticks]);
+ const sessionProfit=useMemo(()=>started?profitTransactions.filter(x=>Number(x.purchase_time)>=started).reduce((s,x)=>s+Number(x.profit_loss||0),0):0,[profitTransactions,started]);
+ const stake=phase==='STOP'?baseStake:phase==='INITIAL'?baseStake:PHASE_STAKES[phase];
+ const add=(s:string)=>{const x=`${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${s}`;setActivity(v=>[x,...v].slice(0,8));setSharedActivity(`${symbol}: ${s}`)};
+ useEffect(()=>{const tx=profitTransactions[0];if(!tx?.contract_id||tx.contract_id===lastContract.current||!started||Number(tx.purchase_time)<started)return;lastContract.current=tx.contract_id;const p=Number(tx.profit_loss||0);if(p>=0){setLosses(0);tone('win');add(`WIN +${(p*USD_TO_MZN).toFixed(0)} MT`);setPhase(phase==='INITIAL'?'SOROS':'INITIAL')}else{const n=losses+1;setLosses(n);tone('loss');add(`LOSS ${(p*USD_TO_MZN).toFixed(0)} MT`);if(phase==='INITIAL'||phase==='SOROS')setPhase('MG1');else if(phase==='MG1')setPhase('MG2');else if(phase==='MG2')setPhase('MG3');else{setPhase('STOP');setRunning(false);add('STOP LOSS — 3 recuperações')}}},[profitTransactions,started,phase,losses]);
+ useEffect(()=>{if(!running)return;if(sessionProfit>=targetMzn/USD_TO_MZN){setRunning(false);setTargetPopup(true);add(`META +${(sessionProfit*USD_TO_MZN).toFixed(0)} MT`);tone('target')}else if(sessionProfit<=-lossLimitMzn/USD_TO_MZN){setRunning(false);setPhase('STOP');add(`STOP LOSS ${(sessionProfit*USD_TO_MZN).toFixed(0)} MT`);tone('loss')}},[running,sessionProfit,targetMzn,lossLimitMzn]);
+ useEffect(()=>{if(!running||!isAuthorized||!isConnected||buying||proposal||!signal||requested.current)return;requested.current=true;add(`SINAL ${signal.contract} · 100T ${signal.pct100}% / 20T ${signal.pct20}%`);getProposal(symbol,CONTRACT_TYPES[signal.contract],stake,1,signal.contract==='OVER'?4:signal.contract==='UNDER'?5:0)},[running,isAuthorized,isConnected,buying,proposal,signal,symbol,getProposal,stake]);
+ useEffect(()=>{if(running&&proposal&&!buying){buy(proposal.id,proposal.ask_price);requested.current=false}},[proposal,running,buying,buy]);
+ const start=()=>{if(!isAuthorized||!isConnected)return;setStarted(Math.floor(Date.now()/1000));setTicks([]);setLosses(0);setPhase('INITIAL');setTargetPopup(false);setRunning(true);lastContract.current=null;requested.current=false;setActivity([]);add('Robô iniciado')};
+ const stop=()=>{setRunning(false);add('Robô parado')};
+ const dist=Array.from({length:10},(_,i)=>ticks.length?Math.round(pct(ticks.slice(-100),d=>d===i)):0);
+ const phaseLabel=phase==='STOP'?'STOP LOSS':phase==='INITIAL'?`Inicial · $${baseStake.toFixed(2)}`:phase==='SOROS'?`Soros N2 · $${PHASE_STAKES.SOROS.toFixed(2)}`:`Martingale ${phase.replace('MG','')} · $${PHASE_STAKES[phase].toFixed(2)}`;
+ return <div className="bot-worker">{targetPopup&&<div className="target-popup"><b>🎯 Meta atingida</b><span>+{(sessionProfit*USD_TO_MZN).toFixed(0)} MT</span><button onClick={()=>setTargetPopup(false)}>×</button></div>}<div className="auto-status-card"><div className="luxury-bot-icon"><span>◈</span></div><div className="digit-ticker">{dist.map((p,i)=><div key={i} className="digit-stat"><b>{i}</b><span>{p}%</span></div>)}</div><div className="auto-status-row"><div><div className="auto-label">{SYMBOLS[symbol]}</div><div className={`auto-status ${running?'on':'off'}`}>{running?'Em execução':'Parado'}</div></div><button className={`auto-switch ${running?'on':''}`} onClick={running?stop:start}><span/></button></div><div className="auto-sub">100 ticks: panorama · 20 ticks: gatilho · {isConnected?'Ligado':'A ligar'}</div></div><div className="auto-metrics"><div><b>{ticks.length}/100</b><span>Ticks</span></div><div><b>{signal?`${signal.pct20}%`:'—'}</b><span>Força</span></div><div><b className={sessionProfit>=0?'up':'down'}>{sessionProfit>=0?'+':''}{(sessionProfit*USD_TO_MZN).toFixed(0)} MT</b><span>Resultado</span></div><div><b>{losses} L</b><span>Perdas</span></div></div><div className="auto-section-title">Estratégia <small>{signal?signal.reason:'Aguardando sinal'}</small></div><div className="auto-strategy"><strong>{signal?`${signal.contract==='EVEN'?'PAR':signal.contract==='ODD'?'ÍMPAR':signal.contract==='OVER'?'ACIMA':'ABAIXO'}`:'Filtro 100T + 20T'}</strong><em>{signal?'SINAL':'AGUARDAR'}</em></div><div className="profit-table"><div className="profit-head"><span>Hora</span><span>Resultado</span><span>MT</span></div>{profitTransactions.slice(0,6).map((x:any)=><div className="profit-row" key={x.contract_id}><span>{new Date(Number(x.sell_time||x.purchase_time)*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span>{Number(x.profit_loss)>=0?'WIN':'LOSS'}</span><strong className={Number(x.profit_loss)>=0?'up':'down'}>{Number(x.profit_loss)>=0?'+':''}{(Number(x.profit_loss)*USD_TO_MZN).toFixed(0)}</strong></div>)}{!profitTransactions.length&&<div className="profit-empty">Sem operações ainda</div>}</div><div className="auto-section-title">Gestão de risco <small>MT</small></div><div className="stake-control"><span>Stake inicial</span><button onClick={()=>{}}>−</button><b>${baseStake.toFixed(2)}</b><button onClick={()=>{}}>+</button></div><div className="auto-risk"><label>Stop loss diário <b>{lossLimitMzn.toFixed(0)} MT</b></label><label>Meta diária <b>{targetMzn.toFixed(0)} MT</b></label></div><div className="phase-current"><span>Fase actual</span><b>{phaseLabel}</b></div><div className="auto-section-title">Registo de actividades <small>ao vivo</small></div><div className="auto-log">{activity.length?activity.map((x,i)=><div key={i}>{x}</div>):'Aguardando atividade do robô…'}</div></div>;
 }
 
-function digit(value:number|string|undefined|null){
-  if(value===undefined||value===null)return null;
-  const s=String(value).replace(/\D/g,''); return s?Number(s.slice(-1)):null;
-}
-function pctFor(ticks:number[], predicate:(d:number)=>boolean){
-  const valid=ticks.map(digit).filter((d):d is number=>d!==null); if(!valid.length)return 0;
-  return valid.filter(predicate).length/valid.length*100;
-}
-function buildSignal(ticks:number[]):Signal|null{
-  if(ticks.length<20)return null;
-  const w100=ticks.slice(-100), w20=ticks.slice(-20);
-  const even100=pctFor(w100,d=>d%2===0), even20=pctFor(w20,d=>d%2===0);
-  const over100=pctFor(w100,d=>d>4), over20=pctFor(w20,d=>d>4);
-  const evenDir=even100>=50?'EVEN':'ODD';
-  const microEvenDir=even20>=50?'EVEN':'ODD';
-  const overDir=over100>=50?'OVER':'UNDER';
-  const microOverDir=over20>=50?'OVER':'UNDER';
-  if(evenDir===microEvenDir && Math.max(even100,100-even100)>=55 && Math.max(even20,100-even20)>=55){
-    const hit=Math.round((evenDir==='EVEN'?Math.min(even100,even20):Math.min(100-even100,100-even20)));
-    return {name:'Cruzamento de Médias de Ticks — Par/Ímpar',contract:evenDir,pct100:Math.round(evenDir==='EVEN'?even100:100-even100),pct20:Math.round(evenDir==='EVEN'?even20:100-even20),hit,barrier:0,reason:`100 ticks ${Math.round(evenDir==='EVEN'?even100:100-even100)}% · 20 ticks ${Math.round(evenDir==='EVEN'?even20:100-even20)}%`};
-  }
-  if(overDir===microOverDir && Math.max(over100,100-over100)>=55 && Math.max(over20,100-over20)>=55){
-    const hit=Math.round(overDir==='OVER'?Math.min(over100,over20):Math.min(100-over100,100-over20));
-    return {name:'Cruzamento de Médias de Ticks — Over/Under',contract:overDir,pct100:Math.round(overDir==='OVER'?over100:100-over100),pct20:Math.round(overDir==='OVER'?over20:100-over20),hit,barrier:overDir==='OVER'?4:5,reason:`100 ticks ${Math.round(overDir==='OVER'?over100:100-over100)}% · 20 ticks ${Math.round(overDir==='OVER'?over20:100-over20)}%`};
-  }
-  return null;
-}
-
-export default function AutoBot(){
-  const [accountType,setAccountType]=useState<'demo'|'real'>('demo');
-  const {balance,tick,proposal,buy,buying,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions}=useDeriv(accountType);
-  const [symbol,setSymbol]=useState('1HZ100V');
-  const [running,setRunning]=useState(false);
-  const [ticks,setTicks]=useState<number[]>([]);
-  const [signal,setSignal]=useState<Signal|null>(null);
-  const [lossLimitMzn,setLossLimitMzn]=useState(2040);
-  const [targetMzn,setTargetMzn]=useState(3400);
-  const [sessionPnl,setSessionPnl]=useState(0);
-  const [startedAt,setStartedAt]=useState<number|null>(null);
-  const [lossStreak,setLossStreak]=useState(0);
-  const [phase,setPhase]=useState<'INITIAL'|'SOROS'|'MG1'|'MG2'|'MG3'|'STOP'>('INITIAL');
-  const [targetPopup,setTargetPopup]=useState(false);
-  const [targetAmount,setTargetAmount]=useState(0);
-  const [activity,setActivity]=useState<string[]>([]);
-  const lastTick=useRef<number|null>(null);
-  const lastContract=useRef<number|null>(null);
-  const lastRequested=useRef(false);
-
-  const targetUsd=targetMzn/USD_TO_MZN;
-  const lossLimitUsd=lossLimitMzn/USD_TO_MZN;
-  const stakeUsd=phase==='SOROS'?SOROS_STAKE_USD:phase==='MG1'?MG1_USD:phase==='MG2'?MG2_USD:phase==='MG3'?MG3_USD:INITIAL_STAKE_USD;
-
-  useEffect(()=>{if(isConnected)subscribeTicks(symbol)},[isConnected,symbol,subscribeTicks]);
-  useEffect(()=>{if(!tick?.epoch||lastTick.current===tick.epoch)return;lastTick.current=tick.epoch;setTicks(v=>[...v.slice(-99),Number(tick.quote)])},[tick]);
-  useEffect(()=>{const s=buildSignal(ticks);setSignal(s)},[ticks]);
-
-  const sessionProfit=useMemo(()=>{
-    if(!startedAt)return 0;
-    return profitTransactions.filter(tx=>Number(tx.purchase_time)>=startedAt).reduce((sum,tx)=>sum+Number(tx.profit_loss??0),0);
-  },[profitTransactions,startedAt]);
-  useEffect(()=>setSessionPnl(sessionProfit),[sessionProfit]);
-
-  const addActivity=(text:string)=>setActivity(v=>[`${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · ${text}`,...v].slice(0,12));
-
-  useEffect(()=>{
-    if(!isAuthorized||!isConnected||buying||!profitTransactions.length)return;
-    const tx=profitTransactions[0]; if(tx.contract_id===lastContract.current)return;
-    if(startedAt&&Number(tx.purchase_time)<startedAt)return;
-    lastContract.current=tx.contract_id;
-    const pnl=Number(tx.profit_loss??0);
-    if(pnl>=0){
-      setLossStreak(0); playTone('win'); addActivity(`WIN +${(pnl*USD_TO_MZN).toFixed(0)} MT`);
-      if(phase==='INITIAL') setPhase('SOROS'); else if(phase==='SOROS') setPhase('INITIAL'); else setPhase('INITIAL');
-    }else{
-      const nextLoss=lossStreak+1; setLossStreak(nextLoss); playTone('loss'); addActivity(`LOSS ${(pnl*USD_TO_MZN).toFixed(0)} MT`);
-      if(phase==='INITIAL'||phase==='SOROS') setPhase('MG1');
-      else if(phase==='MG1') setPhase('MG2');
-      else if(phase==='MG2') setPhase('MG3');
-      else if(phase==='MG3'){setPhase('STOP');setRunning(false);addActivity('STOP LOSS — 3 recuperações perdidas')}
-    }
-  },[profitTransactions,isAuthorized,isConnected,buying,startedAt,phase,lossStreak]);
-
-  useEffect(()=>{
-    if(!running)return;
-    if(sessionProfit>=targetUsd){setRunning(false);setTargetAmount(sessionProfit);setTargetPopup(true);addActivity(`META ATINGIDA +${(sessionProfit*USD_TO_MZN).toFixed(0)} MT`);playTone('target');return}
-    if(sessionProfit<=-lossLimitUsd){setRunning(false);setPhase('STOP');addActivity(`STOP LOSS ${(sessionProfit*USD_TO_MZN).toFixed(0)} MT`);playTone('loss')}
-  },[running,sessionProfit,targetUsd,lossLimitUsd]);
-
-  useEffect(()=>{
-    if(!running||!isAuthorized||!isConnected||buying||proposal||!signal||lastRequested.current)return;
-    lastRequested.current=true;
-    addActivity(`Sinal: ${signal.contract==='EVEN'?'PAR':signal.contract==='ODD'?'ÍMPAR':signal.contract==='OVER'?'ACIMA':'ABAIXO'} · 100T ${signal.pct100}% / 20T ${signal.pct20}%`);
-    getProposal(symbol,CONTRACT_TYPES[signal.contract],stakeUsd,1,signal.barrier);
-  },[running,isAuthorized,isConnected,buying,proposal,signal,symbol,getProposal,stakeUsd]);
-
-  useEffect(()=>{
-    if(!running||!proposal||buying)return;
-    buy(proposal.id,proposal.ask_price); lastRequested.current=false;
-  },[proposal,running,buying,buy]);
-  useEffect(()=>{if(!proposal)lastRequested.current=false},[proposal]);
-
-  const start=()=>{
-    if(!isAuthorized||!isConnected)return;
-    setStartedAt(Math.floor(Date.now()/1000));setSessionPnl(0);setLossStreak(0);setPhase('INITIAL');setTargetPopup(false);setRunning(true);lastContract.current=null;lastRequested.current=false;setActivity([]);addActivity('Robô iniciado — filtro 100T + 20T');
-  };
-  const stop=()=>{setRunning(false);addActivity('Robô parado pelo utilizador')};
-  const balanceMzn=balance?Number(balance.balance)*USD_TO_MZN:0;
-  const phaseLabel={INITIAL:'Soros Nível 1 — $1.00',SOROS:'Soros Nível 2 — $1.95',MG1:'Martingale 1 — $2.00',MG2:'Martingale 2 — $4.10',MG3:'Martingale 3 — $8.40',STOP:'STOP LOSS'}[phase];
-  const history=profitTransactions.slice(0,10);
-
-  return <div className="auto-bot">
-    {targetPopup&&<div className="target-popup" role="alert"><div className="target-icon">✓</div><div><strong>Meta atingida</strong><span>Atingiu sua meta de +{targetAmount.toFixed(2)} USD · +{(targetAmount*USD_TO_MZN).toFixed(0)} MT</span></div><button onClick={()=>setTargetPopup(false)}>×</button></div>}
-    <div className="auto-status-card">
-      <div className="luxury-bot-icon"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="43"/><path d="M25 66V48M40 66V36M55 66V51M70 66V27"/><path d="M21 73H75"/></svg></div>
-      <div className="auto-status-row"><div><div className="auto-label">ESTADO DO ROBÔ</div><div className={`auto-status ${running?'on':'off'}`}>{running?'Em execução':'Parado'}</div></div><button className={`auto-switch ${running?'on':''}`} onClick={running?stop:start}><span/></button></div>
-      <div className="auto-sub">{isConnected?'Ligado à Deriv':'A ligar à Deriv'} · {accountType==='real'?'Conta Real':'Conta Demo'} · Saldo {balanceMzn.toFixed(0)} MT</div>
-    </div>
-
-    <div className="auto-metrics"><div><b>{ticks.length}/100</b><span>Ticks</span></div><div><b>{signal?`${signal.hit}%`:'—'}</b><span>Confiança</span></div><div><b className={sessionPnl>=0?'up':'down'}>{sessionPnl>=0?'+':''}{(sessionPnl*USD_TO_MZN).toFixed(0)} MT</b><span>Resultado</span></div><div><b>{lossStreak} L</b><span>Perdas</span></div></div>
-
-    <div className="auto-section-title">Estratégia <small>micro-tendência</small></div>
-    <div className="auto-strategy"><div><strong>{signal?.name||'Aguardando concordância'}</strong><span>{signal?.reason||'O robô só entra quando os últimos 100 ticks e 20 ticks apontam na mesma direção.'}</span></div><em>{signal?'SINAL':'AGUARDAR'}</em></div>
-    <div className="microtrend-card"><div><span>100 TICKS</span><b>{signal?`${signal.pct100}%`:'—'}</b></div><div className="micro-arrow">↔</div><div><span>20 TICKS</span><b>{signal?`${signal.pct20}%`:'—'}</b></div></div>
-
-    <div className="auto-section-title">Registo de actividades <small>ao vivo</small></div>
-    <div className="auto-log activity-log">{activity.length?activity.map((x,i)=><div key={i}>{x}</div>):<div>Aguardando atividade do robô…</div>}</div>
-
-    <div className="auto-section-title">Gestão de risco <small>em MT</small></div>
-    <div className="auto-risk">
-      <label>Stop loss diário <input type="number" min="68" step="68" value={lossLimitMzn} onChange={e=>setLossLimitMzn(Math.max(68,Number(e.target.value)||2040))}/> MT</label>
-      <label>Meta diária <input type="number" min="68" step="68" value={targetMzn} onChange={e=>setTargetMzn(Math.max(68,Number(e.target.value)||3400))}/> MT</label>
-    </div>
-
-    <div className="risk-sequence"><div className="risk-seq-title">Plano Soros + Martingale</div>
-      <div className="risk-seq-row"><b>Soros Nível 1</b><span>$1.00</span><small>Win → $1.95 · Loss → MG1</small></div>
-      <div className="risk-seq-row"><b>Soros Nível 2</b><span>$1.95</span><small>Win → reseta $1.00 · Loss → MG1</small></div>
-      <div className="risk-seq-row"><b>Martingale 1</b><span>$2.00</span><small>Win → reseta · Loss → MG2</small></div>
-      <div className="risk-seq-row"><b>Martingale 2</b><span>$4.10</span><small>Win → reseta · Loss → MG3</small></div>
-      <div className="risk-seq-row"><b>Martingale 3</b><span>$8.40</span><small>Última recuperação → STOP</small></div>
-      <div className="risk-current">Fase atual: <strong>{phaseLabel}</strong> · Entrada <strong>${stakeUsd.toFixed(2)}</strong></div>
-    </div>
-
-    <div className="auto-section-title">Profit table <small>histórico</small></div>
-    <div className="profit-table"><div className="profit-head"><span>Hora</span><span>Resultado</span><span>MT</span></div>{history.length?history.map((tx:any,i:number)=>{const p=Number(tx.profit_loss??0);return <div className="profit-row" key={tx.contract_id||i}><span>{new Date(Number(tx.purchase_time||0)*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span><span>{p>=0?'WIN':'LOSS'}</span><strong className={p>=0?'up':'down'}>{p>=0?'+':''}{(p*USD_TO_MZN).toFixed(0)}</strong></div>}):<div className="profit-empty">Sem operações nesta sessão.</div>}</div>
-
-    <div className="auto-controls"><label>Tipo de conta<select value={accountType} onChange={e=>setAccountType(e.target.value as 'demo'|'real')}><option value="demo">Demo</option><option value="real">Real</option></select></label><label>Symbol<select value={symbol} onChange={e=>setSymbol(e.target.value)}>{Object.entries(SYMBOLS).map(([v,n])=><option key={v} value={v}>{n}</option>)}</select></label></div>
-    {error&&<div className="auto-error">{error}</div>}
-    <button className={`auto-cta ${running?'stop':''}`} onClick={running?stop:start}>{running?'Parar robô':'Iniciar robô'}</button>
-    <div className="auto-note">Matches e Differs não são utilizados. Entrada apenas com concordância 100T + 20T.</div>
-  </div>;
+export default function AutoBot(){const [symbols]=useState(DEFAULT_SYMBOLS),[lossLimitMzn]=useState(2040),[targetMzn]=useState(3400),[stake,setStake]=useState(1),[shared,setShared]=useState('');const changeStake=(d:number)=>setStake(v=>Math.min(10,Math.max(.35,Math.round((v+d)*100)/100)));return <div className="auto-bot"><style jsx global>{`.auto-bot{padding:14px}.bot-worker{background:var(--s1);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:12px;margin-bottom:14px;box-shadow:0 12px 30px rgba(0,0,0,.12)}.auto-status-card{background:linear-gradient(180deg,#101a30,#0b1120);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:13px;position:relative;overflow:hidden}.luxury-bot-icon{width:54px;height:54px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;border:1px solid #3b82f6aa;background:radial-gradient(circle,#17294b,#080c16);box-shadow:0 0 24px #3b82f644;animation:botSpin 7s linear infinite}.luxury-bot-icon span{font-size:28px;color:#f2a93b;text-shadow:0 0 10px #f2a93b}.digit-ticker{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin:4px 0 12px}.digit-stat{text-align:center;padding:4px 1px;border-radius:7px;background:rgba(255,255,255,.04)}.digit-stat b{display:block;font-size:9px;color:var(--t1)}.digit-stat span{display:block;font:700 8px 'JetBrains Mono';color:#3b82f6}.auto-status-row{display:flex;align-items:center;justify-content:space-between}.auto-label{font-size:9px;color:var(--t3);text-transform:uppercase}.auto-status{font:700 14px 'Space Grotesk';margin-top:2px}.auto-status.on{color:#34d399}.auto-status.off{color:#f87171}.auto-switch{width:48px;height:28px;border:0;border-radius:20px;background:#39445a;padding:3px;cursor:pointer}.auto-switch span{display:block;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}.auto-switch.on{background:#34d399}.auto-switch.on span{transform:translateX(20px)}.auto-sub{font-size:8px;color:var(--t3);margin-top:8px}.auto-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:8px 0}.auto-metrics>div{padding:8px 3px;text-align:center;background:var(--s2);border-radius:9px}.auto-metrics b{display:block;font:800 11px 'JetBrains Mono'}.auto-metrics span{font-size:7px;color:var(--t3)}.up{color:#34d399}.down{color:#f87171}.auto-section-title{margin:13px 1px 7px;font:700 11px 'Space Grotesk';color:var(--t2)}.auto-section-title small{float:right;color:var(--t3);font:500 8px Inter}.auto-strategy{display:flex;justify-content:space-between;align-items:center;padding:11px;border-radius:11px;background:var(--s2);border:1px solid rgba(255,255,255,.06)}.auto-strategy strong{font-size:11px}.auto-strategy em{font-style:normal;font-size:8px;color:#34d399}.profit-table{margin-top:7px;overflow:hidden;border-radius:11px;border:1px solid rgba(255,255,255,.07)}.profit-head,.profit-row{display:grid;grid-template-columns:1fr 1fr .7fr;gap:5px;padding:7px 9px;font-size:8px}.profit-head{background:var(--s2);color:var(--t3);text-transform:uppercase;font-weight:800}.profit-row{border-top:1px solid rgba(255,255,255,.05);color:var(--t2)}.profit-row strong{font-family:'JetBrains Mono'}.profit-empty{text-align:center;padding:12px;color:var(--t3);font-size:8px}.stake-control{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;background:var(--s2);border-radius:11px}.stake-control button{width:30px;height:30px;border:0;border-radius:8px;background:var(--s3);color:var(--t1);font-size:20px;cursor:pointer}.stake-control b{min-width:64px;text-align:center;font:800 13px 'JetBrains Mono'}.auto-risk{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.auto-risk label{padding:9px;background:var(--s2);border-radius:9px;font-size:8px;color:var(--t3)}.auto-risk b{display:block;margin-top:3px;color:var(--t1);font-size:10px}.phase-current{margin-top:7px;padding:10px;border-radius:10px;background:linear-gradient(90deg,#18243b,#101827);display:flex;justify-content:space-between;gap:8px;font-size:8px;color:var(--t3)}.phase-current b{color:#f2a93b;font-size:9px}.auto-log{padding:9px;border-radius:10px;background:#070a12;color:var(--t2);font:8px 'JetBrains Mono';line-height:1.6}.target-popup{position:fixed;z-index:1000;left:50%;top:18px;transform:translateX(-50%);width:min(330px,calc(100vw - 28px));padding:12px;border-radius:13px;background:#102b27;border:1px solid #34d39988;box-shadow:0 15px 40px #0008}.target-popup span{margin-left:8px;color:#34d399;font-weight:800}.target-popup button{float:right;border:0;background:none;color:#fff;font-size:18px}@keyframes botSpin{to{transform:rotate(360deg)}}`}</style><div className="auto-section-title">Robô multi-índices <small>100T + 20T</small></div><div className="auto-strategy"><span>10 / 25 / 50 / 75 / 100</span><em>SIMULTÂNEO</em></div><div className="stake-control" style={{marginTop:8}}><span style={{fontSize:9,color:'var(--t3)'}}>Stake inicial</span><button onClick={()=>changeStake(-.1)}>−</button><b>${stake.toFixed(2)}</b><button onClick={()=>changeStake(.1)}>+</button></div>{symbols.map(s=><BotWorker key={s} symbol={s} lossLimitMzn={lossLimitMzn} targetMzn={targetMzn} baseStake={stake} setSharedActivity={setShared}/>)}{shared&&<div className="auto-log" style={{marginTop:4}}>Última actividade: {shared}</div>}</div>;
 }
