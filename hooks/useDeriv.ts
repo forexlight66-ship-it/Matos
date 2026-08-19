@@ -35,6 +35,7 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   const [proposal,setProposal]=useState<Proposal|null>(null);
   const [loadingProfit,setLoadingProfit]=useState(false);
   const [buying,setBuying]=useState(false);
+  const [contractClosedSeq,setContractClosedSeq]=useState(0);
 
   const mergeProfitTransactions=useCallback((incoming:ProfitTransaction[])=>{
     for(const tx of incoming){
@@ -57,14 +58,14 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   useEffect(()=>{
     let cancelled=false; let connectionCheck:ReturnType<typeof setInterval>|null=null; let initialProfitLoaded=false; let lastProfitRefresh=0;
     sessionStartedAtRef.current=Math.floor(Date.now()/1000);
-    closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setBalance(null);setProposal(null);setError(null);setBuying(false);
+    closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setBalance(null);setProposal(null);setError(null);setBuying(false);setContractClosedSeq(0);
     const refreshProfitThrottled=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<1500)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
     const start=async()=>{
       try{
         const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);
         if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return;
         const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
-        ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy)setBuying(false);setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
+        ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy){setBuying(false);setProposal(null);activeContractRef.current=null;latestProposalReqRef.current=null;}setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
         ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});
         ws.subscribe('balance',data=>{if(data.balance)setBalance(data.balance)});
         ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});
@@ -75,11 +76,12 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
           const buyPrice=Number(c.buy_price??0);const sellPrice=c.sell_price==null?null:Number(c.sell_price);const payout=Number(c.payout??0);const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss});const purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000));const sellTime=c.sell_time?Number(c.sell_time):null;
           if(c.is_sold||c.status==='won'||c.status==='lost'){
             mergeProfitTransactions([{contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null}]);
-            setLoadingProfit(false);activeContractRef.current=null;latestProposalReqRef.current=null;
-            // Wake the AutoBot's signal effect after every closed contract.
-            // Without a new dependency change, an unchanged signal could leave
-            // the proposal loop waiting forever after the first operation.
-            setTick(prev=>prev ? {...prev, epoch: prev.epoch + 0.0001} : prev);
+            setLoadingProfit(false);
+            activeContractRef.current=null;
+            latestProposalReqRef.current=null;
+            setProposal(null);
+            setBuying(false);
+            setContractClosedSeq(v=>v+1);
             window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},500);
           }
         });
@@ -95,8 +97,8 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
 
   const subscribeTicks=useCallback((symbol:string)=>wsRef.current?.subscribeTicks(symbol),[]);
   const fetchProfitTable=useCallback((options?:{limit?:number;offset?:number;sort?:'ASC'|'DESC'})=>{setLoadingProfit(true);wsRef.current?.getProfitTable({description:1,...options})},[]);
-  const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=5)=>{if(activeContractRef.current!==null)return;setError(null);const reqId=wsRef.current?.getProposal(symbol,contractType,Math.max(.5,amount),duration,barrier);if(reqId!==undefined)latestProposalReqRef.current=reqId},[]);
-  const buy=useCallback((proposalId:string,price:number)=>{if(!proposalId||buying||activeContractRef.current!==null)return;setBuying(true);const sent=wsRef.current?.buyContract(proposalId,price);if(!sent)setBuying(false)},[buying]);
+  const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=5)=>{if(activeContractRef.current!==null)return false;setProposal(null);setError(null);const reqId=wsRef.current?.getProposal(symbol,contractType,Math.max(.5,amount),duration,barrier);if(reqId!==undefined)latestProposalReqRef.current=reqId;return reqId!==undefined},[]);
+  const buy=useCallback((proposalId:string,price:number)=>{if(!proposalId||buying||activeContractRef.current!==null)return false;setBuying(true);const sent=wsRef.current?.buyContract(proposalId,price);if(!sent)setBuying(false);return !!sent},[buying]);
   const sell=useCallback((contractId:number)=>wsRef.current?.sellContract(contractId),[]);
-  return {balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,subscribeTicks,fetchProfitTable,getProposal,buy,sell};
+  return {balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,contractClosedSeq,subscribeTicks,fetchProfitTable,getProposal,buy,sell};
 }
