@@ -27,21 +27,31 @@ function pct(ticks: number[], predicate: (d: number) => boolean) {
 function buildSignal(ticks: number[]): Signal | null {
   if (ticks.length < 10) return null;
   const a = ticks.slice(-10);
-  const even10 = pct(a, d => d % 2 === 0);
-  const over10 = pct(a, d => d > 4);
-  if (even10 >= 60) return { contract: 'EVEN', pct10: Math.round(even10), reason: `PAR · 10T ${Math.round(even10)}%` };
-  if (100 - even10 >= 60) return { contract: 'ODD', pct10: Math.round(100 - even10), reason: `ÍMPAR · 10T ${Math.round(100 - even10)}%` };
-  if (over10 >= 60) return { contract: 'OVER', pct10: Math.round(over10), reason: `ACIMA 4 · 10T ${Math.round(over10)}%` };
-  if (100 - over10 >= 60) return { contract: 'UNDER', pct10: Math.round(100 - over10), reason: `ABAIXO 5 · 10T ${Math.round(100 - over10)}%` };
+  const even = pct(a, d => d % 2 === 0);
+  const over = pct(a, d => d > 4);
+  if (even >= 60) return { contract: 'EVEN', pct10: Math.round(even), reason: `PAR · 10T ${Math.round(even)}%` };
+  if (100 - even >= 60) return { contract: 'ODD', pct10: Math.round(100 - even), reason: `ÍMPAR · 10T ${Math.round(100 - even)}%` };
+  if (over >= 60) return { contract: 'OVER', pct10: Math.round(over), reason: `ACIMA 4 · 10T ${Math.round(over)}%` };
+  if (100 - over >= 60) return { contract: 'UNDER', pct10: Math.round(100 - over), reason: `ABAIXO 5 · 10T ${Math.round(100 - over)}%` };
   return null;
 }
+
+let audioCtx: AudioContext | null = null;
 function tone(kind: 'win' | 'loss' | 'target') {
   try {
-    const C = window.AudioContext || (window as any).webkitAudioContext; if (!C) return;
-    const c = new C(), master = c.createGain(); master.gain.value = .42; master.connect(c.destination);
-    const notes = kind === 'target' ? [523, 659, 784, 1047] : kind === 'win' ? [659, 784, 988] : [247, 196, 147];
-    notes.forEach((f, i) => { const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + i * .09; o.type = kind === 'loss' ? 'triangle' : 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.7, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .14); o.connect(g); g.connect(master); o.start(t); o.stop(t + .16); });
-    setTimeout(() => c.close(), 700);
+    const C = window.AudioContext || (window as any).webkitAudioContext;
+    if (!C) return;
+    audioCtx ??= new C();
+    if (audioCtx.state === 'suspended') void audioCtx.resume();
+    const master = audioCtx.createGain(); master.gain.value = .48; master.connect(audioCtx.destination);
+    const notes = kind === 'target' ? [523, 659, 784, 1047, 1319] : kind === 'win' ? [659, 784, 988] : [247, 196, 147];
+    notes.forEach((f, i) => {
+      const o = audioCtx!.createOscillator(), g = audioCtx!.createGain(), t = audioCtx!.currentTime + i * .085;
+      o.type = kind === 'loss' ? 'triangle' : 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.8, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .16);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + .18);
+    });
+    window.setTimeout(() => master.disconnect(), 700);
   } catch {}
 }
 
@@ -54,11 +64,7 @@ function DigitCandles({ ticks }: { ticks: number[] }) {
         const high = p >= 10;
         const height = Math.max(4, Math.min(48, Math.round(p * .48)));
         return <div className="mt5-candle-wrap" key={i} title={`Dígito ${i}: ${p}%`}>
-          <div className="mt5-candle-area">
-            <div className={`mt5-wick ${high ? 'blue' : 'red'}`}></div>
-            <div className={`mt5-body ${high ? 'blue' : 'red'} ${high ? 'up' : 'down'}`} style={{ height }}></div>
-            <div className="mt5-midline"></div>
-          </div>
+          <div className="mt5-candle-area"><div className={`mt5-wick ${high ? 'blue' : 'red'}`}></div><div className={`mt5-body ${high ? 'blue' : 'red'} ${high ? 'up' : 'down'}`} style={{ height }}></div><div className="mt5-midline"></div></div>
           <b>{i}</b><span className={high ? 'blue-text' : 'red-text'}>{p}%</span>
         </div>;
       })}
@@ -67,31 +73,100 @@ function DigitCandles({ ticks }: { ticks: number[] }) {
 }
 
 function BotWorker({ symbol, accountType, lossLimitMzn, targetMzn, baseStake, setSharedActivity }: { symbol: string; accountType: 'demo' | 'real'; lossLimitMzn: number; targetMzn: number; baseStake: number; setSharedActivity: (s: string) => void }) {
-  const { tick, proposal, buy, buying, getProposal, subscribeTicks, isAuthorized, isConnected, profitTransactions } = useDeriv(accountType);
-  const [running, setRunning] = useState(false), [ticks, setTicks] = useState<number[]>([]), [signal, setSignal] = useState<Signal | null>(null), [phase, setPhase] = useState<Phase>('INITIAL'), [started, setStarted] = useState<number | null>(null), [losses, setLosses] = useState(0), [targetPopup, setTargetPopup] = useState(false), [activity, setActivity] = useState<string[]>([]);
-  const lastEpoch = useRef<number | null>(null), lastContract = useRef<number | null>(null), requested = useRef(false);
+  const { tick, proposal, buy, buying, getProposal, subscribeTicks, isAuthorized, isConnected, profitTransactions, contractClosedSeq } = useDeriv(accountType);
+  const [running, setRunning] = useState(false), [ticks, setTicks] = useState<number[]>([]), [signal, setSignal] = useState<Signal | null>(null), [phase, setPhase] = useState<Phase>('INITIAL'), [started, setStarted] = useState<number | null>(null), [losses, setLosses] = useState(0), [targetPopup, setTargetPopup] = useState(false), [activity, setActivity] = useState<string[]>([]), [lastClosedSeq, setLastClosedSeq] = useState(0);
+  const lastEpoch = useRef<number | null>(null);
+  const lastTradeTickEpoch = useRef<number | null>(null);
+  const lastContract = useRef<number | null>(null);
+  const requested = useRef(false);
+  const proposalRequestedAt = useRef<number | null>(null);
 
   useEffect(() => { if (isConnected) subscribeTicks(symbol); }, [isConnected, symbol, subscribeTicks]);
-  useEffect(() => { if (tick?.epoch && tick.epoch !== lastEpoch.current) { lastEpoch.current = tick.epoch; setTicks(v => [...v.slice(-9), Number(tick.quote)]); } }, [tick]);
+  useEffect(() => {
+    if (!tick?.epoch || tick.epoch === lastEpoch.current) return;
+    lastEpoch.current = tick.epoch;
+    setTicks(v => [...v.slice(-9), Number(tick.quote)]);
+  }, [tick]);
   useEffect(() => setSignal(buildSignal(ticks)), [ticks]);
+
   const sessionProfit = useMemo(() => started ? profitTransactions.filter(x => Number(x.purchase_time) >= started).reduce((s, x) => s + Number(x.profit_loss || 0), 0) : 0, [profitTransactions, started]);
   const phaseMultiplier = phase === 'INITIAL' || phase === 'STOP' ? 1 : PHASE_STAKES[phase];
   const stake = baseStake * phaseMultiplier;
   const add = (s: string) => { const x = `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${s}`; setActivity(v => [x, ...v].slice(0, 8)); setSharedActivity(`${SYMBOLS[symbol]}: ${s}`); };
 
+  // A closure is an explicit event. This is the equivalent of Deriv Bot's
+  // "Trade Again": unlock the next analysis only after the previous contract ended.
   useEffect(() => {
-    const tx = profitTransactions[0]; if (!tx?.contract_id || tx.contract_id === lastContract.current || !started || Number(tx.purchase_time) < started) return;
-    lastContract.current = tx.contract_id; const p = Number(tx.profit_loss || 0);
-    if (p >= 0) { setLosses(0); tone('win'); add(`WIN +${(p * USD_TO_MZN).toFixed(0)} MT`); setPhase(phase === 'INITIAL' ? 'SOROS' : 'INITIAL'); }
-    else { const n = losses + 1; setLosses(n); tone('loss'); add(`LOSS ${(p * USD_TO_MZN).toFixed(0)} MT`); if (phase === 'INITIAL' || phase === 'SOROS') setPhase('MG1'); else if (phase === 'MG1') setPhase('MG2'); else if (phase === 'MG2') setPhase('MG3'); else { setPhase('STOP'); setRunning(false); add('STOP LOSS — 3 recuperações'); } }
+    if (!started || contractClosedSeq === lastClosedSeq) return;
+    setLastClosedSeq(contractClosedSeq);
+    requested.current = false;
+    proposalRequestedAt.current = null;
+    if (proposal) return;
+    add('Contrato fechado · nova análise desbloqueada');
+  }, [contractClosedSeq, started, lastClosedSeq, proposal]);
+
+  useEffect(() => {
+    const tx = profitTransactions[0];
+    if (!tx?.contract_id || tx.contract_id === lastContract.current || !started || Number(tx.purchase_time) < started) return;
+    lastContract.current = tx.contract_id;
+    const p = Number(tx.profit_loss || 0);
+    if (p >= 0) {
+      setLosses(0); tone('win'); add(`WIN +${(p * USD_TO_MZN).toFixed(0)} MT`);
+      setPhase(prev => prev === 'INITIAL' ? 'SOROS' : 'INITIAL');
+    } else {
+      const n = losses + 1; setLosses(n); tone('loss'); add(`LOSS ${(p * USD_TO_MZN).toFixed(0)} MT`);
+      if (phase === 'INITIAL' || phase === 'SOROS') setPhase('MG1');
+      else if (phase === 'MG1') setPhase('MG2');
+      else if (phase === 'MG2') setPhase('MG3');
+      else { setPhase('STOP'); setRunning(false); add('STOP LOSS — 3 recuperações'); }
+    }
   }, [profitTransactions, started, phase, losses]);
 
-  useEffect(() => { if (!running) return; if (sessionProfit >= targetMzn / USD_TO_MZN) { setRunning(false); setTargetPopup(true); add(`META +${(sessionProfit * USD_TO_MZN).toFixed(0)} MT`); tone('target'); } else if (sessionProfit <= -lossLimitMzn / USD_TO_MZN) { setRunning(false); setPhase('STOP'); add(`STOP LOSS ${(sessionProfit * USD_TO_MZN).toFixed(0)} MT`); tone('loss'); } }, [running, sessionProfit, targetMzn, lossLimitMzn]);
-  useEffect(() => { if (!running || !isAuthorized || !isConnected || buying || proposal || !signal || requested.current) return; requested.current = true; add(`SINAL ${signal.contract} · 10T ${signal.pct10}%`); getProposal(symbol, CONTRACT_TYPES[signal.contract], stake, 1, signal.contract === 'OVER' ? 4 : signal.contract === 'UNDER' ? 5 : 0); }, [running, isAuthorized, isConnected, buying, proposal, signal, symbol, getProposal, stake]);
-  useEffect(() => { if (running && proposal && !buying) { buy(proposal.id, proposal.ask_price); requested.current = false; } }, [proposal, running, buying, buy]);
+  useEffect(() => {
+    if (!running) return;
+    if (sessionProfit >= targetMzn / USD_TO_MZN) { setRunning(false); requested.current = false; setTargetPopup(true); add(`META +${(sessionProfit * USD_TO_MZN).toFixed(0)} MT`); tone('target'); }
+    else if (sessionProfit <= -lossLimitMzn / USD_TO_MZN) { setRunning(false); requested.current = false; setPhase('STOP'); add(`STOP LOSS ${(sessionProfit * USD_TO_MZN).toFixed(0)} MT`); tone('loss'); }
+  }, [running, sessionProfit, targetMzn, lossLimitMzn]);
 
-  const start = () => { if (!isAuthorized || !isConnected) return; setStarted(Math.floor(Date.now() / 1000)); setTicks([]); setLosses(0); setPhase('INITIAL'); setTargetPopup(false); setRunning(true); lastContract.current = null; requested.current = false; setActivity([]); add('Robô iniciado'); };
-  const stop = () => { setRunning(false); add('Robô parado'); };
+  // Recovery timeout: a proposal request can never keep the bot locked forever.
+  useEffect(() => {
+    if (!running || !requested.current || !proposalRequestedAt.current) return;
+    const timer = window.setInterval(() => {
+      if (proposalRequestedAt.current && Date.now() - proposalRequestedAt.current > 7000 && !proposal && !buying) {
+        requested.current = false;
+        proposalRequestedAt.current = null;
+        add('Timeout da proposta · repetir análise');
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [running, proposal, buying]);
+
+  // Main trading state machine. A new order requires a NEW tick after the
+  // previous contract, so the same 10-tick snapshot can never be bought twice.
+  useEffect(() => {
+    if (!running || !isAuthorized || !isConnected || buying || proposal || !signal || requested.current) return;
+    const epoch = Number(tick?.epoch);
+    if (!epoch || (lastTradeTickEpoch.current !== null && epoch <= lastTradeTickEpoch.current)) return;
+    requested.current = true;
+    proposalRequestedAt.current = Date.now();
+    lastTradeTickEpoch.current = epoch;
+    add(`SINAL ${signal.contract} · 10T ${signal.pct10}%`);
+    const sent = getProposal(symbol, CONTRACT_TYPES[signal.contract], stake, 1, signal.contract === 'OVER' ? 4 : signal.contract === 'UNDER' ? 5 : 0);
+    if (!sent) { requested.current = false; proposalRequestedAt.current = null; }
+  }, [running, isAuthorized, isConnected, buying, proposal, signal, symbol, getProposal, stake, tick?.epoch]);
+
+  useEffect(() => {
+    if (!running || !proposal || buying) return;
+    buy(proposal.id, proposal.ask_price);
+    proposalRequestedAt.current = null;
+    requested.current = false;
+  }, [proposal, running, buying, buy]);
+
+  const start = () => {
+    if (!isAuthorized || !isConnected) return;
+    setStarted(Math.floor(Date.now() / 1000)); setTicks([]); setLosses(0); setPhase('INITIAL'); setTargetPopup(false); setRunning(true); lastContract.current = null; lastTradeTickEpoch.current = null; requested.current = false; proposalRequestedAt.current = null; setLastClosedSeq(contractClosedSeq); setActivity([]); add('Robô iniciado');
+  };
+  const stop = () => { setRunning(false); requested.current = false; proposalRequestedAt.current = null; add('Robô parado'); };
   const phaseLabel = phase === 'STOP' ? 'STOP LOSS' : phase === 'INITIAL' ? `Inicial · $${baseStake.toFixed(2)}` : phase === 'SOROS' ? `Soros N2 · $${stake.toFixed(2)}` : `Martingale ${phase.replace('MG', '')} · $${stake.toFixed(2)}`;
   const signalName = signal ? signal.contract === 'EVEN' ? 'PAR' : signal.contract === 'ODD' ? 'ÍMPAR' : signal.contract === 'OVER' ? 'ACIMA 4' : 'ABAIXO 5' : 'Aguardando sinal';
 
@@ -107,31 +182,26 @@ function BotWorker({ symbol, accountType, lossLimitMzn, targetMzn, baseStake, se
     <div className="auto-strategy"><strong>{signalName}</strong><em>{signal ? 'SINAL' : 'AGUARDAR'}</em></div>
     <div className="profit-table"><div className="profit-head"><span>Hora</span><span>Resultado</span><span>MT</span></div>{profitTransactions.slice(0, 6).map((x: any) => <div className="profit-row" key={x.contract_id}><span>{new Date(Number(x.sell_time || x.purchase_time) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><span>{Number(x.profit_loss) >= 0 ? 'WIN' : 'LOSS'}</span><strong className={Number(x.profit_loss) >= 0 ? 'up' : 'down'}>{Number(x.profit_loss) >= 0 ? '+' : ''}{(Number(x.profit_loss) * USD_TO_MZN).toFixed(0)}</strong></div>)}{!profitTransactions.length && <div className="profit-empty">Sem operações ainda</div>}</div>
     <div className="auto-section-title">Gestão de risco <small>MT</small></div>
-    <div className="stake-read"><span>Stake actual</span><b>${baseStake.toFixed(2)}</b></div>
+    <div className="stake-read"><span>Stake actual</span><div><button onClick={() => setSharedActivity('Stake configurado no painel de gestão')}>−</button><b>${baseStake.toFixed(2)}</b><button onClick={() => setSharedActivity('Stake configurado no painel de gestão')}>+</button></div></div>
     <div className="auto-risk"><label>Stop loss diário <b>{lossLimitMzn.toFixed(0)} MT</b></label><label>Meta diária <b>{targetMzn.toFixed(0)} MT</b></label></div>
     <div className="phase-current"><span>Fase actual</span><b>{phaseLabel}</b></div>
     <div className="auto-section-title">Registo de actividades <small>ao vivo</small></div><div className="auto-log">{activity.length ? activity.map((x, i) => <div key={i}>{x}</div>) : 'Aguardando atividade do robô…'}</div>
+    <div className="auto-symbols"><label>Índice</label><select value={symbol} onChange={e => { setRunning(false); requested.current = false; setTicks([]); setSignal(null); setSymbol(e.target.value); }}><option value="1HZ100V">Volatility 100 (1s) Index</option>{SYMBOL_OPTIONS.filter(s => s !== '1HZ100V').map(s => <option key={s} value={s}>{SYMBOLS[s]}</option>)}</select></div>
   </div>;
 }
 
 export default function AutoBot() {
-  const [symbol, setSymbol] = useState('R_10');
+  const [symbol, setSymbol] = useState('1HZ100V');
   const [lossLimitMzn] = useState(2040), [targetMzn] = useState(3400), [stake, setStake] = useState(1), [shared, setShared] = useState(''), [accountType, setAccountType] = useState<'demo' | 'real'>('demo');
   const changeStake = (d: number) => setStake(v => Math.min(10, Math.max(.35, Math.round((v + d) * 100) / 100)));
   return <div className="auto-bot"><style jsx global>{`
     .auto-bot{padding:14px}.bot-worker{background:var(--s1);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:12px;margin-bottom:14px;box-shadow:0 12px 30px rgba(0,0,0,.12)}
     .auto-status-card{background:linear-gradient(180deg,#101a30,#0b1120);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:13px;position:relative;overflow:hidden}
-    .digit-candle-panel{background:#080d18;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:8px;margin:4px 0 12px}.digit-candle-title{display:flex;justify-content:space-between;color:var(--t2);font-size:8px;margin-bottom:7px;text-transform:uppercase;letter-spacing:.04em}.digit-candle-title small{color:#7f8ba3}.digit-candles{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;height:82px;align-items:stretch}.mt5-candle-wrap{position:relative;display:flex;flex-direction:column;align-items:center;min-width:0}.mt5-candle-area{position:relative;height:61px;width:100%;display:flex;justify-content:center;align-items:center}.mt5-midline{position:absolute;left:0;right:0;top:50%;border-top:1px dashed rgba(255,255,255,.12)}.mt5-wick{position:absolute;width:1px;height:54px;top:3px;border-radius:1px}.mt5-body{position:absolute;width:7px;min-width:4px;border-radius:1px;z-index:2;box-shadow:0 0 5px currentColor}.mt5-body.up{bottom:50%}.mt5-body.down{top:50%}.mt5-wick.blue,.mt5-body.blue{background:#3b82f6;color:#3b82f6}.mt5-wick.red,.mt5-body.red{background:#ef4444;color:#ef4444}.mt5-candle-wrap>b{font-size:8px;color:var(--t1);line-height:9px}.mt5-candle-wrap>span{font:700 7px 'JetBrains Mono';line-height:9px}.blue-text{color:#3b82f6}.red-text{color:#ef4444}
-    .auto-status-row{display:flex;align-items:center;justify-content:space-between}.auto-label{font-size:9px;color:var(--t3);text-transform:uppercase}.auto-status{font:700 14px 'Space Grotesk';margin-top:2px}.auto-status.on{color:#34d399}.auto-status.off{color:#f87171}.auto-switch{width:48px;height:28px;border:0;border-radius:20px;background:#39445a;padding:3px;cursor:pointer}.auto-switch span{display:block;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}.auto-switch.on{background:#34d399}.auto-switch.on span{transform:translateX(20px)}.auto-sub{font-size:8px;color:var(--t3);margin-top:8px}.auto-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:8px 0}.auto-metrics>div{padding:8px 3px;text-align:center;background:var(--s2);border-radius:9px}.auto-metrics b{display:block;font:800 11px 'JetBrains Mono'}.auto-metrics span{font-size:7px;color:var(--t3)}.up{color:#34d399}.down{color:#f87171}
-    .auto-section-title{margin:13px 1px 7px;font:700 11px 'Space Grotesk';color:var(--t2)}.auto-section-title small{float:right;color:var(--t3);font:500 8px Inter}.auto-strategy{display:flex;justify-content:space-between;align-items:center;padding:11px;border-radius:11px;background:var(--s2);border:1px solid rgba(255,255,255,.06)}.auto-strategy strong{font-size:11px}.auto-strategy em{font-style:normal;font-size:8px;color:#34d399}.profit-table{margin-top:7px;overflow:hidden;border-radius:11px;border:1px solid rgba(255,255,255,.07)}.profit-head,.profit-row{display:grid;grid-template-columns:1fr 1fr .7fr;gap:5px;padding:7px 9px;font-size:8px}.profit-head{background:var(--s2);color:var(--t3);text-transform:uppercase;font-weight:800}.profit-row{border-top:1px solid rgba(255,255,255,.05);color:var(--t2)}.profit-row strong{font-family:'JetBrains Mono'}.profit-empty{text-align:center;padding:12px;color:var(--t3);font-size:8px}
-    .stake-read,.auto-risk label{padding:9px;background:var(--s2);border-radius:9px;font-size:8px;color:var(--t3)}.stake-read{display:flex;justify-content:space-between;align-items:center}.stake-read b{color:var(--t1);font:800 11px 'JetBrains Mono'}.auto-risk{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.auto-risk b{display:block;margin-top:3px;color:var(--t1);font-size:10px}.phase-current{margin-top:7px;padding:10px;border-radius:10px;background:linear-gradient(90deg,#18243b,#101827);display:flex;justify-content:space-between;gap:8px;font-size:8px;color:var(--t3)}.phase-current b{color:#f2a93b;font-size:9px}.auto-log{padding:9px;border-radius:10px;background:#070a12;color:var(--t2);font:8px 'JetBrains Mono';line-height:1.6}.target-popup{position:fixed;z-index:1000;left:50%;top:18px;transform:translateX(-50%);width:min(330px,calc(100vw - 28px));padding:12px;border-radius:13px;background:#102b27;border:1px solid #34d39988;box-shadow:0 15px 40px #0008}.target-popup span{margin-left:8px;color:#34d399;font-weight:800}.target-popup button{float:right;border:0;background:none;color:#fff;font-size:18px}.account-toggle{display:flex;gap:5px;margin:7px 0}.account-toggle button{flex:1;padding:8px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:var(--s2);color:var(--t2);font-size:9px}.account-toggle button.active{color:#fff;background:#2563eb}.symbol-select{width:100%;padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:var(--s2);color:var(--t1);font-size:10px;margin-top:7px}.stake-control{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;background:var(--s2);border-radius:11px;margin-top:7px}.stake-control button{width:30px;height:30px;border:0;border-radius:8px;background:var(--s3);color:var(--t1);font-size:20px;cursor:pointer}.stake-control b{min-width:64px;text-align:center;font:800 13px 'JetBrains Mono'}
+    .digit-candle-panel{background:#080d18;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:8px;margin:4px 0 12px}.digit-candle-title{display:flex;justify-content:space-between;color:var(--t2);font-size:8px;margin-bottom:7px;text-transform:uppercase;letter-spacing:.04em}.digit-candle-title small{color:#7f8ba3}.digit-candles{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}.mt5-candle-wrap{text-align:center;min-width:0}.mt5-candle-area{height:54px;position:relative;display:flex;align-items:center;justify-content:center}.mt5-wick{width:1px;height:46px;position:absolute;opacity:.8}.mt5-body{width:8px;border-radius:1px;position:absolute;min-height:4px}.mt5-body.up{bottom:4px}.mt5-body.down{top:4px}.mt5-midline{position:absolute;left:0;right:0;top:27px;border-top:1px dashed #26324b}.blue{background:#3b82f6}.red{background:#ef4b5b}.blue-text{color:#3b82f6}.red-text{color:#ef4b5b}.mt5-candle-wrap b{display:block;font:700 9px 'IBM Plex Mono';color:var(--t1)}.mt5-candle-wrap span{display:block;font:8px 'IBM Plex Mono';margin-top:2px}.auto-status-row{display:flex;align-items:center;justify-content:space-between}.auto-label{font-size:9px;color:var(--t3);text-transform:uppercase}.auto-status{font:700 15px 'Space Grotesk'}.auto-status.on{color:#2fd480}.auto-status.off{color:#8a93ac}.auto-switch{width:52px;height:30px;border:0;border-radius:20px;background:#343c50;position:relative;cursor:pointer}.auto-switch.on{background:#2fd480}.auto-switch span{position:absolute;top:3px;left:3px;width:24px;height:24px;background:#fff;border-radius:50%;transition:.2s}.auto-switch.on span{left:25px}.auto-sub{font-size:9px;color:var(--t3);margin-top:8px}.auto-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.auto-metrics>div,.auto-risk,.phase-current,.stake-read,.auto-strategy,.profit-table,.auto-log,.auto-symbols{background:var(--s2);border:1px solid rgba(255,255,255,.06);border-radius:12px}.auto-metrics>div{padding:8px 4px;text-align:center}.auto-metrics b{display:block;font:700 12px 'IBM Plex Mono';color:var(--t1)}.auto-metrics span{display:block;font-size:8px;color:var(--t3);margin-top:3px}.up{color:#2fd480!important}.down{color:#f0495a!important}.auto-section-title{display:flex;justify-content:space-between;align-items:center;color:var(--t2);font:700 11px 'Space Grotesk';text-transform:uppercase;letter-spacing:.05em;margin:13px 2px 7px}.auto-section-title small{font:500 8px 'Inter';color:var(--t3);text-transform:none;letter-spacing:0}.auto-strategy{padding:12px;display:flex;justify-content:space-between;align-items:center}.auto-strategy strong{font:700 14px 'Space Grotesk';color:var(--t1)}.auto-strategy em{font:700 8px 'IBM Plex Mono';color:#3b82f6;font-style:normal}.profit-table{overflow:hidden}.profit-head,.profit-row{display:grid;grid-template-columns:1fr 1fr .8fr;gap:4px;padding:8px 10px;font-size:9px}.profit-head{color:var(--t3);background:rgba(255,255,255,.025)}.profit-row{color:var(--t2);border-top:1px solid rgba(255,255,255,.04)}.profit-row strong{text-align:right}.profit-row span:nth-child(2){text-align:center}.profit-empty{padding:12px;text-align:center;font-size:9px;color:var(--t3)}.stake-read{padding:10px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--t2)}.stake-read>div{display:flex;align-items:center;gap:8px}.stake-read button{width:24px;height:24px;border:0;border-radius:7px;background:var(--s3);color:var(--t1);font-weight:800}.stake-read b{color:var(--t1)}.auto-risk{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;margin-top:7px}.auto-risk label{font-size:9px;color:var(--t3)}.auto-risk b{display:block;color:var(--t1);font:700 12px 'IBM Plex Mono';margin-top:3px}.phase-current{padding:10px;margin-top:7px;display:flex;justify-content:space-between;font-size:9px;color:var(--t3)}.phase-current b{color:var(--t1)}.auto-log{padding:9px;max-height:145px;overflow:auto;font:9px 'IBM Plex Mono';color:var(--t2)}.auto-log div{padding:5px 0;border-bottom:1px dashed rgba(255,255,255,.05)}.auto-symbols{padding:10px;margin-top:9px;display:flex;justify-content:space-between;align-items:center}.auto-symbols label{font-size:9px;color:var(--t3)}.auto-symbols select{background:var(--s3);border:1px solid rgba(255,255,255,.08);color:var(--t1);border-radius:7px;padding:7px;font-size:9px;max-width:70%}.target-popup{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:200;width:min(330px,calc(100vw - 30px));padding:14px;border-radius:14px;background:var(--s2);border:1px solid #2fd48066;box-shadow:0 18px 40px #0007;display:flex;align-items:center;gap:10px}.target-popup b{color:#2fd480;font-size:11px}.target-popup span{font:700 13px 'IBM Plex Mono';color:var(--t1)}.target-popup button{margin-left:auto;background:transparent;border:0;color:var(--t2);font-size:20px}
   `}</style>
-    <div className="auto-section-title">Robô de dígitos <small>1 índice por vez</small></div>
-    <select className="symbol-select" value={symbol} onChange={e => setSymbol(e.target.value)}>{SYMBOL_OPTIONS.map(s => <option key={s} value={s}>{SYMBOLS[s]}</option>)}</select>
-    <div className="account-toggle"><button className={accountType === 'demo' ? 'active' : ''} onClick={() => setAccountType('demo')}>Conta Demo</button><button className={accountType === 'real' ? 'active' : ''} onClick={() => setAccountType('real')}>Conta Real</button></div>
-    <div className="auto-section-title">Gestão de risco <small>MT</small></div>
-    <div className="stake-control"><span style={{ fontSize: 9, color: 'var(--t3)' }}>Stake</span><button onClick={() => changeStake(-.1)}>−</button><b>${stake.toFixed(2)}</b><button onClick={() => changeStake(.1)}>+</button></div>
-    <BotWorker key={`${accountType}-${symbol}`} symbol={symbol} accountType={accountType} lossLimitMzn={lossLimitMzn} targetMzn={targetMzn} baseStake={stake} setSharedActivity={setShared} />
-    {shared && <div className="auto-log" style={{ marginTop: 4 }}>Última actividade: {shared}</div>}
+    <div className="bot-settings"><label>Conta</label><button className={accountType==='demo'?'active':''} onClick={()=>setAccountType('demo')}>Demo</button><button className={accountType==='real'?'active':''} onClick={()=>setAccountType('real')}>Real</button><label>Stake</label><button onClick={()=>changeStake(-.25)}>−</button><b>${stake.toFixed(2)}</b><button onClick={()=>changeStake(.25)}>+</button></div>
+    <BotWorker symbol={symbol} accountType={accountType} lossLimitMzn={lossLimitMzn} targetMzn={targetMzn} baseStake={stake} setSharedActivity={setShared} />
+    {shared && <div className="shared-activity">{shared}</div>}
   </div>;
 }
+` }
