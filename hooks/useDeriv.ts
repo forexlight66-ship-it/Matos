@@ -44,25 +44,12 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
       const previous=closedContractsRef.current.get(id);
       const mergedRaw:Partial<ProfitTransaction>={...previous,...tx};
       const normalized:ProfitTransaction={
-        contract_id:id,
-        buy_price:Number(mergedRaw.buy_price??0),
-        sell_price:mergedRaw.sell_price==null?null:Number(mergedRaw.sell_price),
-        payout:Number(mergedRaw.payout??0),
-        purchase_time:Number(mergedRaw.purchase_time??purchaseTime),
-        sell_time:mergedRaw.sell_time==null?null:Number(mergedRaw.sell_time),
-        contract_type:String(mergedRaw.contract_type??''),
-        longcode:mergedRaw.longcode,
-        profit_loss:calculateProfitLoss(mergedRaw),
-        exit_tick:mergedRaw.exit_tick??null,
-        exit_spot:mergedRaw.exit_spot??null,
+        contract_id:id,buy_price:Number(mergedRaw.buy_price??0),sell_price:mergedRaw.sell_price==null?null:Number(mergedRaw.sell_price),payout:Number(mergedRaw.payout??0),purchase_time:Number(mergedRaw.purchase_time??purchaseTime),sell_time:mergedRaw.sell_time==null?null:Number(mergedRaw.sell_time),contract_type:String(mergedRaw.contract_type??''),longcode:mergedRaw.longcode,profit_loss:calculateProfitLoss(mergedRaw),exit_tick:mergedRaw.exit_tick??null,exit_spot:mergedRaw.exit_spot??null,
       };
       closedContractsRef.current.set(id,normalized);
     }
-    const merged=Array.from(closedContractsRef.current.values())
-      .sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time))
-      .slice(0,50);
-    setProfitTransactions(merged);
-    setProfitCount(merged.length);
+    const merged=Array.from(closedContractsRef.current.values()).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time)).slice(0,50);
+    setProfitTransactions(merged);setProfitCount(merged.length);
   },[]);
 
   const refreshProfitTable=useCallback(()=>{wsRef.current?.getProfitTable({limit:50,offset:0,sort:'DESC',description:1})},[]);
@@ -89,6 +76,10 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
           if(c.is_sold||c.status==='won'||c.status==='lost'){
             mergeProfitTransactions([{contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null}]);
             setLoadingProfit(false);activeContractRef.current=null;latestProposalReqRef.current=null;
+            // Wake the AutoBot's signal effect after every closed contract.
+            // Without a new dependency change, an unchanged signal could leave
+            // the proposal loop waiting forever after the first operation.
+            setTick(prev=>prev ? {...prev, epoch: prev.epoch + 0.0001} : prev);
             window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},500);
           }
         });
