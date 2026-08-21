@@ -10,6 +10,7 @@ export class DerivWebSocket {
   private balanceSubscribed = false;
   private tickSubscriptions = new Set<string>();
   private contractSubscriptions = new Set<number>();
+  private contractSubscriptionIds = new Map<number, number>();
   private proposalRequestId = 1000;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
@@ -22,10 +23,14 @@ export class DerivWebSocket {
       this.balanceSubscribed = false;
       this.tickSubscriptions.clear();
       this.contractSubscriptions.clear();
+      this.contractSubscriptionIds.clear();
     };
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.msg_type === 'proposal_open_contract' && data.proposal_open_contract?.contract_id && data.subscription?.id) {
+          this.contractSubscriptionIds.set(Number(data.proposal_open_contract.contract_id), Number(data.subscription.id));
+        }
         const msgType = data.msg_type;
         if (msgType && this.handlers.has(msgType)) {
           for (const fn of this.handlers.get(msgType)!) fn(data);
@@ -43,6 +48,7 @@ export class DerivWebSocket {
       this.balanceSubscribed = false;
       this.tickSubscriptions.clear();
       this.contractSubscriptions.clear();
+      this.contractSubscriptionIds.clear();
     };
     this.ws.onerror = (error) => console.error('[DerivWS] Error:', error);
   }
@@ -90,6 +96,13 @@ export class DerivWebSocket {
     return sent;
   }
 
+  unsubscribeContract(contractId: number) {
+    const subscriptionId = this.contractSubscriptionIds.get(contractId);
+    if (subscriptionId !== undefined) this.send({ forget: subscriptionId });
+    this.contractSubscriptionIds.delete(contractId);
+    this.contractSubscriptions.delete(contractId);
+  }
+
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
     return this.send({ profit_table: 1, ...options });
   }
@@ -127,5 +140,6 @@ export class DerivWebSocket {
     this.balanceSubscribed = false;
     this.tickSubscriptions.clear();
     this.contractSubscriptions.clear();
+    this.contractSubscriptionIds.clear();
   }
 }
