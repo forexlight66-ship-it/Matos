@@ -49,8 +49,13 @@ export class DerivWebSocket {
 
   send(payload: any) {
     if (!this.isReady || !this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
-    this.ws.send(JSON.stringify(payload));
-    return true;
+    try {
+      this.ws.send(JSON.stringify(payload));
+      return true;
+    } catch (error) {
+      console.error('[DerivWS] Send error:', error);
+      return false;
+    }
   }
 
   isConnected(): boolean { return this.isReady && this.ws?.readyState === WebSocket.OPEN; }
@@ -79,14 +84,14 @@ export class DerivWebSocket {
   }
 
   subscribeContract(contractId: number) {
-    if (!Number.isFinite(contractId) || contractId <= 0 || this.contractSubscriptions.has(contractId)) return;
-    if (this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 })) {
-      this.contractSubscriptions.add(contractId);
-    }
+    if (!Number.isFinite(contractId) || contractId <= 0 || this.contractSubscriptions.has(contractId)) return false;
+    const sent = this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
+    if (sent) this.contractSubscriptions.add(contractId);
+    return sent;
   }
 
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
-    this.send({ profit_table: 1, ...options });
+    return this.send({ profit_table: 1, ...options });
   }
 
   getProposal(symbol: string, contractType: string, amount: number, duration: number, barrier?: number) {
@@ -105,11 +110,14 @@ export class DerivWebSocket {
     if (barrier !== undefined && (contractType === 'DIGITMATCH' || contractType === 'DIGITDIFF' || contractType === 'DIGITOVER' || contractType === 'DIGITUNDER')) {
       payload.barrier = String(barrier);
     }
-    this.send(payload);
-    return req_id;
+    return this.send(payload) ? req_id : null;
   }
 
-  buyContract(proposalId: string, price: number) { return this.send({ buy: proposalId, price }); }
+  buyContract(proposalId: string, price: number) {
+    if (!proposalId || !Number.isFinite(price) || price <= 0) return false;
+    return this.send({ buy: proposalId, price });
+  }
+
   sellContract(contractId: number) { return this.send({ sell: contractId, price: 0 }); }
 
   disconnect() {
