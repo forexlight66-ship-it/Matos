@@ -1,47 +1,236 @@
 'use client';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDeriv } from '@/hooks/useDeriv';
-type WindowSize=5|10|25|50|100|200; type Duration=1|5|10; type Strategy='PAR_IMPAR'|'ACIMA_ABAIXO'|'RISE_FALL'|'PAR_ACIMA'|'PAR_RISE'|'ACIMA_RISE'|'COMBINADA';
-type Signal={contract:'EVEN'|'ODD'|'OVER'|'UNDER'|'RISE'|'FALL';label:string;strength:number};
-const MT_PER_USD=68;
-const CONTRACT_TYPES:Record<Signal['contract'],string>={EVEN:'DIGITEVEN',ODD:'DIGITODD',OVER:'DIGITOVER',UNDER:'DIGITUNDER',RISE:'CALL',FALL:'PUT'};
-const SYMBOLS:Record<string,string>={R_10:'Volatility 10 Index',R_25:'Volatility 25 Index',R_50:'Volatility 50 Index',R_75:'Volatility 75 Index',R_100:'Volatility 100 Index','1HZ10V':'Volatility 10 (1s) Index','1HZ25V':'Volatility 25 (1s) Index','1HZ50V':'Volatility 50 (1s) Index','1HZ75V':'Volatility 75 (1s) Index','1HZ100V':'Volatility 100 (1s) Index'};
-const STRATEGIES:{id:Strategy;label:string}[]=[{id:'PAR_IMPAR',label:'Par / Ímpar'},{id:'ACIMA_ABAIXO',label:'Acima 4 / Abaixo 5'},{id:'RISE_FALL',label:'Subir / Descer'},{id:'PAR_ACIMA',label:'Par + Acima'},{id:'PAR_RISE',label:'Par + Subir'},{id:'ACIMA_RISE',label:'Acima + Subir'},{id:'COMBINADA',label:'Combinada'}];
-function lastDigit(v:number|string|null|undefined){if(v==null)return null;const s=String(v).replace(/\D/g,'');return s?Number(s.slice(-1)):null}
-function stats(values:number[]){const digits=values.map(lastDigit).filter((v):v is number=>v!==null),n=digits.length||1;const even=digits.filter(d=>d%2===0).length/n*100,over=digits.filter(d=>d>4).length/n*100;let rises=0,falls=0;for(let i=1;i<values.length;i++){if(values[i]>values[i-1])rises++;else if(values[i]<values[i-1])falls++}const dn=Math.max(1,rises+falls),probs=Array.from({length:10},(_,d)=>digits.filter(x=>x===d).length/n*100);return{even,odd:100-even,over,under:100-over,rise:rises/dn*100,fall:falls/dn*100,probs}}
-function makeSignal(values:number[],strategy:Strategy):Signal|null{if(values.length<2)return null;const s=stats(values),t=60;const parity=s.even>=t?{contract:'EVEN' as const,label:'PAR',strength:s.even}:s.odd>=t?{contract:'ODD' as const,label:'ÍMPAR',strength:s.odd}:null;const over=s.over>=t?{contract:'OVER' as const,label:'ACIMA 4',strength:s.over}:s.under>=t?{contract:'UNDER' as const,label:'ABAIXO 5',strength:s.under}:null;const dir=s.rise>=t?{contract:'RISE' as const,label:'SUBIR',strength:s.rise}:s.fall>=t?{contract:'FALL' as const,label:'DESCER',strength:s.fall}:null;if(strategy==='PAR_IMPAR')return parity;if(strategy==='ACIMA_ABAIXO')return over;if(strategy==='RISE_FALL')return dir;if(strategy==='PAR_ACIMA')return parity&&over?{...parity,label:`${parity.label} + ${over.label}`,strength:(parity.strength+over.strength)/2}:null;if(strategy==='PAR_RISE')return parity&&dir?{...parity,label:`${parity.label} + ${dir.label}`,strength:(parity.strength+dir.strength)/2}:null;if(strategy==='ACIMA_RISE')return over&&dir?{...over,label:`${over.label} + ${dir.label}`,strength:(over.strength+dir.strength)/2}:null;return parity&&over&&dir?{...parity,label:`${parity.label} + ${over.label} + ${dir.label}`,strength:(parity.strength+over.strength+dir.strength)/3}:null}
-const mt=(usd:number)=>`${usd>=0?'+':''}${(usd*MT_PER_USD).toFixed(2)} MT`; const mtAbs=(usd:number)=>(usd*MT_PER_USD).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' MT';
-export default function AutoBotV2(){
- const[selectedSymbol,setSelectedSymbol]=useState('1HZ100V'),[accountType,setAccountType]=useState<'demo'|'real'>('demo'),[windowSize,setWindowSize]=useState<WindowSize>(5),[strategy,setStrategy]=useState<Strategy>('PAR_IMPAR'),[stake,setStake]=useState(1.5),[duration,setDuration]=useState<Duration>(1),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[cycle,setCycle]=useState(0),[signal,setSignal]=useState<Signal|null>(null),[log,setLog]=useState<string[]>([]),[dailyTarget,setDailyTarget]=useState(680),[notification,setNotification]=useState<{title:string;message:string}|null>(null);
- const lastEpoch=useRef<number|null>(null),requested=useRef(false),targetReached=useRef(false),lastNotifiedContract=useRef<number|null>(null),audioContextRef=useRef<AudioContext|null>(null);
- const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,contractClosedSeq}=useDeriv(accountType);
- const beep=(frequency:number=700,durationMs:number=70)=>{try{const Ctx=window.AudioContext||((window as any).webkitAudioContext);if(!Ctx)return;const ctx=audioContextRef.current||new Ctx();audioContextRef.current=ctx;if(ctx.state==='suspended')void ctx.resume();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.type='sine';osc.frequency.value=frequency;gain.gain.setValueAtTime(0.045,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+durationMs/1000);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+durationMs/1000)}catch{}}
- const unlockAudio=()=>{try{const Ctx=window.AudioContext||((window as any).webkitAudioContext);if(!Ctx)return;const ctx=audioContextRef.current||new Ctx();audioContextRef.current=ctx;if(ctx.state==='suspended')void ctx.resume();beep(600,35)}catch{}};
- useEffect(()=>{if(isConnected)subscribeTicks(selectedSymbol)},[isConnected,selectedSymbol,subscribeTicks]);
- useEffect(()=>{if(!tick?.epoch||tick.epoch===lastEpoch.current)return;lastEpoch.current=tick.epoch;const quote=Number(tick.quote);if(!Number.isFinite(quote))return;if(running&&activeContractId!==null)beep(620,45);setTicks(prev=>{const next=[...prev,quote];if(next.length>=windowSize){const s=makeSignal(next.slice(-windowSize),strategy);setSignal(s);setLog(v=>[`${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${s?`SINAL ${s.label} ${Math.round(s.strength)}%`:'SEM SINAL'} · ${windowSize}T`,...v].slice(0,10));setCycle(0);return[]}setCycle(next.length);return next})},[tick,windowSize,strategy,running,activeContractId]);
- useEffect(()=>{if(!running||!isAuthorized||!isConnected||requested.current||proposal||buying||activeContractId!==null||!signal)return;requested.current=true;const c=signal.contract,type=CONTRACT_TYPES[c],digit=c==='EVEN'||c==='ODD'||c==='OVER'||c==='UNDER';const safeDuration=digit?Math.min(10,Math.max(1,duration)):duration,barrier=c==='OVER'?4:c==='UNDER'?5:0;if(!getProposal(selectedSymbol,type,Math.max(.5,stake),safeDuration,barrier))requested.current=false},[running,isAuthorized,isConnected,signal,proposal,buying,activeContractId,getProposal,selectedSymbol,stake,duration]);
- useEffect(()=>{if(running&&proposal&&!buying&&activeContractId===null)buy(proposal.id,proposal.ask_price)},[running,proposal,buying,activeContractId,buy]);
- useEffect(()=>{if(activeContractId===null&&!buying&&!proposal)requested.current=false},[activeContractId,buying,proposal,contractClosedSeq]);
- const currentStats=useMemo(()=>stats(ticks),[ticks]),currentDigit=lastDigit(tick?.quote),latestOperation=profitTransactions?.[0]??null,sessionProfit=useMemo(()=>(profitTransactions||[]).reduce((s,tx)=>s+Number(tx.profit_loss||0),0),[profitTransactions]),latestResult=latestOperation?Number(latestOperation.profit_loss||0):0,progress=dailyTarget>0?Math.max(0,Math.min(100,sessionProfit*MT_PER_USD/dailyTarget*100)):0;
- useEffect(()=>{if(!running||targetReached.current||dailyTarget<=0)return;const currentMT=sessionProfit*MT_PER_USD;if(currentMT>=dailyTarget){targetReached.current=true;setRunning(false);requested.current=false;setSignal(null);beep(1180,450);setNotification({title:'🎯 META ATINGIDA',message:`Resultado: ${mt(sessionProfit)} · Robô parado`});}},[sessionProfit,dailyTarget,running]);
- useEffect(()=>{const id=latestOperation?.contract_id;if(!id||id===lastNotifiedContract.current)return;lastNotifiedContract.current=id;if(latestOperation.sell_time){const pl=Number(latestOperation.profit_loss||0);beep(pl>=0?900:300,180);setNotification({title:pl>=0?'✅ OPERAÇÃO FECHADA':'❌ OPERAÇÃO FECHADA',message:`Resultado: ${mt(pl)}`})}},[latestOperation]);
- useEffect(()=>{if(!notification)return;const timer=window.setTimeout(()=>setNotification(null),3000);return()=>window.clearTimeout(timer)},[notification]);
- const resetAnalysis=()=>{setTicks([]);setCycle(0);setSignal(null);requested.current=false};const start=()=>{if(!isConnected||!isAuthorized)return;unlockAudio();targetReached.current=false;resetAnalysis();setLog([]);setNotification(null);setRunning(true)};const stop=()=>{setRunning(false);requested.current=false;setSignal(null)};const tickText=tick?.quote!=null?String(tick.quote):'—';const dialText=tickText.includes('.')?<>{tickText.slice(0,-1)}<span className="last">{tickText.slice(-1)}</span></>:tickText;
- return <div className="robot-page"><style>{`.robot-page{--bg:#0a0e1a;--s1:#121a2b;--s2:#1b2540;--s3:#232f52;--line:#2a3756;--blue:#3d7fff;--blue2:#2a5fe0;--win:#34d399;--loss:#f87171;--hi:#f5f7fa;--mid:#93a0bd;--low:#5c6789;max-width:430px;margin:auto;min-height:100%;padding:0 14px 28px;background:radial-gradient(600px 300px at 50% -5%,rgba(61,127,255,.08),transparent 70%),var(--bg);color:var(--hi);font-family:Inter,system-ui,sans-serif}.content{display:flex;flex-direction:column;gap:11px}.card{border:1px solid var(--line);border-radius:15px;background:linear-gradient(180deg,var(--s2),var(--s1));overflow:hidden}.balance{display:flex}.bal-half{flex:1;padding:14px 15px}.bal-half+.bal-half{border-left:1px solid var(--line)}.lbl{font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--low);font-weight:800}.bal{font:800 18px ui-monospace,SFMono-Regular,monospace;margin-top:6px}.bal.pos{color:var(--win)}.bal.neg{color:var(--loss)}.row3{display:grid;grid-template-columns:1fr 1fr 52px;gap:8px}.chip{min-width:0;border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:var(--s1)}.chip.demo{background:linear-gradient(135deg,#142b3a,#101e31);border-color:rgba(61,127,255,.28)}.select-card{display:flex;flex-direction:column;gap:4px;justify-content:center}.select{width:100%;background:transparent;border:0;outline:0;color:var(--hi);font-weight:800;font-size:12px}.select option,.side-select option{background:#121a2b;color:#fff}.pause{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#19366b,#142952);border-color:rgba(61,127,255,.4);font-size:18px;color:#fff;cursor:pointer}.pause.running{background:#173f36;border-color:rgba(52,211,153,.35);color:var(--win)}.op{padding:13px 14px}.op-head{display:flex;justify-content:space-between;margin-bottom:10px}.op-grid{display:grid;grid-template-columns:1fr 1fr 1.2fr 1fr;gap:6px}.op-l{font-size:8px;color:var(--low);text-transform:uppercase}.op-v{font:700 12px ui-monospace,SFMono-Regular,monospace;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.op-v.dim{color:var(--low)}.op-v.pos{color:var(--win)}.op-v.neg{color:var(--loss)}.analysis{display:grid;grid-template-columns:68px minmax(0,238px) 68px;gap:6px;align-items:center;justify-content:center}.side{border:1px solid var(--line);border-radius:12px;background:var(--s1);padding:9px 6px;text-align:center}.analysis>.side:last-child{transform:translateX(-72px)}.side-title{font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:var(--low);font-weight:800;margin-bottom:6px}.side-select{width:100%;background:transparent;border:0;outline:0;color:var(--hi);font:800 11px ui-monospace,SFMono-Regular,monospace;text-align:center}.side-unit{font-size:7px;color:var(--low);margin-top:3px}.side-input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--line);outline:0;color:var(--hi);font:800 12px ui-monospace,SFMono-Regular,monospace;text-align:center}.dial-wrap{position:relative;width:238px;height:238px;display:flex;align-items:center;justify-content:center}.dial-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from -90deg,var(--s3),var(--s2) 360deg);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 20px 50px -15px rgba(0,0,0,.6)}.digit-node{position:absolute;width:40px;height:40px;border-radius:50%;background:var(--s1);border:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 15px ui-monospace,SFMono-Regular,monospace;transition:.18s;transform:translate(-50%,-50%);z-index:2}.digit-node .p{font-size:7px;color:var(--low);margin-top:1px}.digit-node.up .p{color:var(--win)}.digit-node.down .p{color:var(--loss)}.digit-node.active{background:linear-gradient(160deg,var(--blue),var(--blue2));border-color:transparent;transform:translate(-50%,-50%) scale(1.18);box-shadow:0 0 0 6px rgba(61,127,255,.15),0 8px 20px -4px rgba(61,127,255,.7);z-index:3}.digit-node.active .p{color:#fff}.dial-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:98px;height:98px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--s3),var(--bg));display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 0 30px rgba(61,127,255,.15);z-index:20;overflow:hidden;isolation:isolate;pointer-events:none}.dial-center .tick{font:800 18px ui-monospace,SFMono-Regular,monospace;line-height:1;white-space:nowrap;position:relative;z-index:21}.dial-center .last{color:#fff}.dial-center .dial-label{font-size:8px;color:var(--low);text-transform:uppercase;letter-spacing:.08em;margin-top:3px;position:relative;z-index:21;white-space:nowrap}.remaining{text-align:center;color:var(--mid);font-size:10px;margin-top:-4px}.remaining b{color:var(--hi);font-family:ui-monospace,SFMono-Regular,monospace}.stake-box{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:13px;padding:13px 14px;background:var(--s1);margin-top:7px}.stake-cur{font:11px ui-monospace,SFMono-Regular,monospace;color:var(--low)}.stake-input{width:100px;text-align:right;border:0;background:transparent;color:var(--hi);outline:0;font:800 20px ui-monospace,SFMono-Regular,monospace}.action{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gradient(135deg,#4a8cff,var(--blue2));color:#fff;font-weight:900;font-size:14px;box-shadow:0 7px 24px rgba(61,127,255,.25)}.action.stop{background:linear-gradient(135deg,#f87171,#d84b4b)}.action:disabled{opacity:.55}.status{display:flex;justify-content:space-between;margin-top:7px;font-size:10px;color:var(--low)}.status strong{color:var(--win)}.signal{padding:12px 13px}.signal-box{margin-top:7px;display:flex;justify-content:space-between;background:#0e1628;border:1px solid #24365a;border-radius:11px;padding:10px}.signal-pct{color:var(--blue);font-family:ui-monospace,SFMono-Regular,monospace;font-weight:900}.stats-line{font-size:9px;color:var(--low);margin-top:6px}.target-row{display:flex;justify-content:space-between;align-items:center;margin-top:7px}.target-input{width:72px;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--hi);text-align:right;outline:0}.progress{height:6px;background:#202b45;border-radius:8px;overflow:hidden;margin-top:8px}.progress>div{height:100%;background:var(--blue)}.duration{display:flex;gap:8px;margin-top:7px}.duration button{flex:1;padding:12px 4px;border-radius:11px;border:1px solid var(--line);background:var(--s1);color:var(--mid);font:800 12px ui-monospace,SFMono-Regular,monospace}.duration button.on{background:linear-gradient(135deg,#3a6fc9,var(--blue));color:#fff}.history{padding:13px 14px}.history-list{margin-top:8px;display:flex;flex-direction:column;gap:5px;max-height:180px;overflow:auto}.hist{display:grid;grid-template-columns:52px 1fr auto;gap:7px;border-bottom:1px solid var(--line);padding:7px 0;font-size:9px}.hist-time,.hist-type{color:var(--mid)}.hist-result.pos{color:var(--win)}.hist-result.neg{color:var(--loss)}.empty{padding:18px;text-align:center;color:var(--low);font-size:11px}.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);width:min(390px,calc(100vw - 28px));z-index:1000;background:linear-gradient(135deg,#16284a,#101a2f);border:1px solid rgba(61,127,255,.55);box-shadow:0 12px 35px rgba(0,0,0,.45);border-radius:14px;padding:13px 15px;text-align:center}.toast-title{font-weight:900;font-size:13px}.toast-message{font:700 12px ui-monospace,SFMono-Regular,monospace;color:var(--mid);margin-top:4px}.footer{text-align:center;padding:15px 0;color:var(--low);font:9px ui-monospace,SFMono-Regular,monospace}@media(max-width:390px){.analysis{grid-template-columns:54px minmax(0,214px) 54px;gap:3px}.dial-wrap{width:214px;height:214px}.digit-node{width:36px;height:36px}.dial-center{width:88px;height:88px}.dial-center .tick{font-size:16px}}</style><div className="content">
- {notification&&<div className="toast"><div className="toast-title">{notification.title}</div><div className="toast-message">{notification.message}</div></div>}
- <div className="card balance"><div className="bal-half"><div className="lbl">Saldo</div><div className="bal">{balance?mtAbs(Number(balance.balance)):'—'}</div></div><div className="bal-half"><div className="lbl">Lucro/Perda</div><div className={`bal ${sessionProfit>=0?'pos':'neg'}`}>{mt(sessionProfit)}</div></div></div>
- <div className="row3"><label className="chip select-card demo"><div className="lbl">Tipo de Conta</div><select className="select" value={accountType} onChange={e=>{setAccountType(e.target.value as 'demo'|'real');resetAnalysis()}} disabled={running}><option value="demo">Demo</option><option value="real">Real</option></select></label><label className="chip select-card"><div className="lbl">Estratégia</div><select className="select" value={strategy} onChange={e=>{setStrategy(e.target.value as Strategy);resetAnalysis()}} disabled={running}>{STRATEGIES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></label><button className={`chip pause ${running?'running':''}`} onClick={running?stop:start}>{running?'■':'▶'}</button></div>
- <div className="card op"><div className="op-head"><span className="lbl">Última Operação Fechada</span><span className="lbl">{latestOperation?'●':'—'}</span></div><div className="op-grid"><div><div className="op-l">Tipo</div><div className="op-v">{latestOperation?.contract_type||'—'}</div></div><div><div className="op-l">Tick Final</div><div className="op-v">{latestOperation?.exit_tick??'—'}</div></div><div><div className="op-l">Preço</div><div className="op-v dim">{latestOperation?mtAbs(Number(latestOperation.buy_price||0)):'—'}</div></div><div><div className="op-l">Resultado</div><div className={`op-v ${latestResult>=0?'pos':'neg'}`}>{latestOperation?mt(latestResult):'—'}</div></div></div></div>
- <div className="analysis"><div className="side"><div className="side-title">Ticks análise</div><select className="side-select" value={windowSize} onChange={e=>{setWindowSize(Number(e.target.value) as WindowSize);resetAnalysis()}} disabled={running}>{[5,10,25,50,100,200].map(n=><option key={n} value={n}>{n}</option>)}</select><div className="side-unit">ticks ▾</div></div><div><div className="dial-wrap"><div className="dial-ring"/><div className="dial-center"><div className="tick">{dialText}</div><div className="dial-label">Último Dígito</div></div>{currentStats.probs.map((prob,i)=>{const a=(i/10)*2*Math.PI-Math.PI/2,r=95;const cx=119,cy=119;const left=cx+r*Math.cos(a),top=cy+r*Math.sin(a);return <div key={i} className={`digit-node ${currentDigit===i?'active':''} ${prob>10.3?'up':prob<9?'down':''}`} style={{left,top}}><div>{i}</div><div className="p">{prob.toFixed(1)}%</div></div>})}</div><div className="remaining"><b>{Math.max(0,windowSize-cycle)}</b> tick{Math.max(0,windowSize-cycle)===1?'':'s'} restante{Math.max(0,windowSize-cycle)===1?'':'s'}</div></div><div className="side"><div className="side-title">Meta</div><input className="side-input" type="number" min="1" value={dailyTarget} onChange={e=>setDailyTarget(Math.max(1,Number(e.target.value)||1))}/><div className="side-unit">MT</div></div></div>
- <div><div className="lbl" style={{display:'flex',justifyContent:'space-between'}}><span>Aposta</span><span>mínimo: 0.50 USD</span></div><div className="stake-box"><span className="stake-cur">USD</span><input className="stake-input" type="number" min="0.5" step="0.1" value={stake} onChange={e=>setStake(Math.max(.5,Number(e.target.value)||.5))} disabled={running}/></div></div>
- <button className={`action ${running?'stop':''}`} onClick={running?stop:start} disabled={!isConnected||!isAuthorized}>{running?'■ PARAR ROBÔ':'🤖 INICIAR ROBÔ'}{sessionProfit!==0&&<span> · {mt(sessionProfit)} hoje</span>}</button><div className="status"><span>{isConnected&&isAuthorized?'● Conectado à Deriv':'○ A ligar à Deriv…'}</span><strong>{running?'ROBÔ ATIVO':'ROBÔ PARADO'}</strong></div>
- <div className="card signal"><div className="lbl">Sinal Atual</div><div className="signal-box"><b>{signal?signal.label:'Aguardando próximo ciclo'}</b><span className="signal-pct">{signal?`${Math.round(signal.strength)}%`:'—'}</span></div><div className="stats-line">Par {Math.round(currentStats.even)}% · Ímpar {Math.round(currentStats.odd)}% · Acima {Math.round(currentStats.over)}% · Abaixo {Math.round(currentStats.under)}% · Subir {Math.round(currentStats.rise)}% · Descer {Math.round(currentStats.fall)}%</div></div>
- <label className="card select-card" style={{padding:'13px 14px'}}><div className="lbl">Símbolo</div><select className="select" value={selectedSymbol} onChange={e=>{setSelectedSymbol(e.target.value);resetAnalysis()}} disabled={running}>{Object.keys(SYMBOLS).map(s=><option key={s} value={s}>{SYMBOLS[s]}</option>)}</select></label>
- <div><div className="lbl">Duração <span style={{float:'right',fontWeight:500,textTransform:'none',letterSpacing:0}}>ticks</span></div><div className="duration">{([1,5,10] as Duration[]).map(n=><button key={n} className={duration===n?'on':''} onClick={()=>setDuration(n)} disabled={running}>{n} tick{n>1?'s':''}</button>)}</div></div>
- <div className="card signal"><div className="lbl">Meta Diária</div><div className="target-row"><span>{mt(sessionProfit)} /</span><input className="target-input" type="number" min="1" value={dailyTarget} onChange={e=>setDailyTarget(Math.max(1,Number(e.target.value)||1))}/><span>MT</span></div><div className="progress"><div style={{width:`${progress}%`}}/></div></div>
- <div className="card history"><div className="op-head"><span className="lbl">Histórico Recente</span><span className="lbl">{profitTransactions.length?'VER ÚLTIMOS':'AGUARDANDO TICK…'}</span></div><div className="history-list">{profitTransactions.length?profitTransactions.slice(0,8).map(tx=>{const pl=Number(tx.profit_loss||0);return <div className="hist" key={tx.contract_id}><span className="hist-time">{new Date(Number(tx.sell_time||tx.purchase_time)*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span className="hist-type">{tx.contract_type||'Contrato'} · {tx.exit_tick??'—'}</span><span className={`hist-result ${pl>=0?'pos':'neg'}`}>{mt(pl)}</span></div>}):<div className="empty">Nenhuma operação fechada nesta sessão.</div>}</div></div>
- {log.length>0&&<div className="card history"><div className="lbl">Análise do Robô</div><div className="history-list">{log.slice(0,5).map((item,i)=><div className="hist" key={`${item}-${i}`}><span>{item.slice(0,8)}</span><span className="hist-type">{item.slice(11)}</span><span>✓</span></div>)}</div></div>}
- {error&&<div className="card signal"><div className="lbl">Erro</div><div style={{marginTop:6,fontSize:11,color:'var(--loss)'}}>{error}</div></div>}
- <div className="footer">Powered by <span style={{color:'var(--blue)'}}>MozHyper</span> · Negocie com responsabilidade</div>
- </div></div>;
+
+type WindowSize = 5 | 10 | 25 | 50 | 100 | 200;
+type Duration = 1 | 5 | 10;
+type Strategy = 'PAR_IMPAR' | 'ACIMA_ABAIXO' | 'RISE_FALL' | 'PAR_ACIMA' | 'PAR_RISE' | 'ACIMA_RISE' | 'COMBINADA';
+type Contract = 'EVEN' | 'ODD' | 'OVER' | 'UNDER' | 'RISE' | 'FALL';
+type Signal = { contract: Contract; label: string; strength: number };
+
+const MT_PER_USD = 68;
+const CONTRACT_TYPES: Record<Contract, string> = {
+  EVEN: 'DIGITEVEN', ODD: 'DIGITODD', OVER: 'DIGITOVER', UNDER: 'DIGITUNDER', RISE: 'CALL', FALL: 'PUT',
+};
+const SYMBOLS: Record<string, string> = {
+  R_10: 'Volatility 10 Index', R_25: 'Volatility 25 Index', R_50: 'Volatility 50 Index',
+  R_75: 'Volatility 75 Index', R_100: 'Volatility 100 Index', '1HZ10V': 'Volatility 10 (1s)',
+  '1HZ25V': 'Volatility 25 (1s)', '1HZ50V': 'Volatility 50 (1s)', '1HZ75V': 'Volatility 75 (1s)',
+  '1HZ100V': 'Volatility 100 (1s)',
+};
+const STRATEGIES: { id: Strategy; label: string }[] = [
+  { id: 'PAR_IMPAR', label: 'Par / Ímpar' }, { id: 'ACIMA_ABAIXO', label: 'Acima 4 / Abaixo 5' },
+  { id: 'RISE_FALL', label: 'Subir / Descer' }, { id: 'PAR_ACIMA', label: 'Par + Acima' },
+  { id: 'PAR_RISE', label: 'Par + Subir' }, { id: 'ACIMA_RISE', label: 'Acima + Subir' },
+  { id: 'COMBINADA', label: 'Combinada' },
+];
+
+function lastDigit(value: number | string | null | undefined): number | null {
+  if (value == null) return null;
+  const digits = String(value).replace(/\D/g, '');
+  return digits ? Number(digits.slice(-1)) : null;
+}
+
+function getStats(values: number[]) {
+  const digits = values.map(lastDigit).filter((v): v is number => v !== null);
+  const n = digits.length || 1;
+  const even = digits.filter(d => d % 2 === 0).length / n * 100;
+  const over = digits.filter(d => d > 4).length / n * 100;
+  let rises = 0, falls = 0;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i] > values[i - 1]) rises++;
+    else if (values[i] < values[i - 1]) falls++;
+  }
+  const totalMoves = Math.max(1, rises + falls);
+  const probs = Array.from({ length: 10 }, (_, d) => digits.filter(x => x === d).length / n * 100);
+  return { even, odd: 100 - even, over, under: 100 - over, rise: rises / totalMoves * 100, fall: falls / totalMoves * 100, probs };
+}
+
+function makeSignal(values: number[], strategy: Strategy): Signal | null {
+  if (values.length < 2) return null;
+  const s = getStats(values);
+  const threshold = 60;
+  const parity = s.even >= threshold ? { contract: 'EVEN' as const, label: 'PAR', strength: s.even } : s.odd >= threshold ? { contract: 'ODD' as const, label: 'ÍMPAR', strength: s.odd } : null;
+  const over = s.over >= threshold ? { contract: 'OVER' as const, label: 'ACIMA 4', strength: s.over } : s.under >= threshold ? { contract: 'UNDER' as const, label: 'ABAIXO 5', strength: s.under } : null;
+  const direction = s.rise >= threshold ? { contract: 'RISE' as const, label: 'SUBIR', strength: s.rise } : s.fall >= threshold ? { contract: 'FALL' as const, label: 'DESCER', strength: s.fall } : null;
+  if (strategy === 'PAR_IMPAR') return parity;
+  if (strategy === 'ACIMA_ABAIXO') return over;
+  if (strategy === 'RISE_FALL') return direction;
+  if (strategy === 'PAR_ACIMA') return parity && over ? { ...parity, label: `${parity.label} + ${over.label}`, strength: (parity.strength + over.strength) / 2 } : null;
+  if (strategy === 'PAR_RISE') return parity && direction ? { ...parity, label: `${parity.label} + ${direction.label}`, strength: (parity.strength + direction.strength) / 2 } : null;
+  if (strategy === 'ACIMA_RISE') return over && direction ? { ...over, label: `${over.label} + ${direction.label}`, strength: (over.strength + direction.strength) / 2 } : null;
+  return parity && over && direction ? { ...parity, label: `${parity.label} + ${over.label} + ${direction.label}`, strength: (parity.strength + over.strength + direction.strength) / 3 } : null;
+}
+
+const mt = (usd: number) => `${usd >= 0 ? '+' : ''}${(usd * MT_PER_USD).toFixed(2)} MT`;
+const mtAbs = (usd: number) => `${(usd * MT_PER_USD).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT`;
+
+export default function AutoBotV2() {
+  const [selectedSymbol, setSelectedSymbol] = useState('1HZ100V');
+  const [accountType, setAccountType] = useState<'demo' | 'real'>('demo');
+  const [windowSize, setWindowSize] = useState<WindowSize>(5);
+  const [strategy, setStrategy] = useState<Strategy>('PAR_IMPAR');
+  const [stake, setStake] = useState(1.5);
+  const [duration, setDuration] = useState<Duration>(1);
+  const [running, setRunning] = useState(false);
+  const [ticks, setTicks] = useState<number[]>([]);
+  const [cycle, setCycle] = useState(0);
+  const [signal, setSignal] = useState<Signal | null>(null);
+  const [log, setLog] = useState<string[]>([]);
+  const [dailyTarget, setDailyTarget] = useState(680);
+  const [notification, setNotification] = useState<string | null>(null);
+
+  const lastEpoch = useRef<number | null>(null);
+  const requested = useRef(false);
+  const targetReached = useRef(false);
+  const lastNotifiedContract = useRef<number | null>(null);
+
+  const { tick, balance, proposal, buy, buying, activeContractId, getProposal, subscribeTicks, isAuthorized, isConnected, error, profitTransactions, contractClosedSeq } = useDeriv(accountType);
+
+  useEffect(() => {
+    if (isConnected) subscribeTicks(selectedSymbol);
+  }, [isConnected, selectedSymbol, subscribeTicks]);
+
+  useEffect(() => {
+    if (!tick?.epoch || tick.epoch === lastEpoch.current) return;
+    lastEpoch.current = tick.epoch;
+    const quote = Number(tick.quote);
+    if (!Number.isFinite(quote)) return;
+    setTicks(prev => {
+      const next = [...prev, quote];
+      if (next.length >= windowSize) {
+        const nextSignal = makeSignal(next.slice(-windowSize), strategy);
+        setSignal(nextSignal);
+        setLog(prevLog => [
+          `${new Date().toLocaleTimeString()} · ${nextSignal ? `SINAL ${nextSignal.label} ${Math.round(nextSignal.strength)}%` : 'SEM SINAL'} · ${windowSize}T`,
+          ...prevLog,
+        ].slice(0, 10));
+        setCycle(0);
+        return [];
+      }
+      setCycle(next.length);
+      return next;
+    });
+  }, [tick, windowSize, strategy]);
+
+  useEffect(() => {
+    if (!running || !isAuthorized || !isConnected || requested.current || proposal || buying || activeContractId !== null || !signal) return;
+    requested.current = true;
+    const type = CONTRACT_TYPES[signal.contract];
+    const digitContract = ['EVEN', 'ODD', 'OVER', 'UNDER'].includes(signal.contract);
+    const safeDuration = digitContract ? Math.min(10, Math.max(1, duration)) : duration;
+    const barrier = signal.contract === 'OVER' ? 4 : signal.contract === 'UNDER' ? 5 : 0;
+    if (!getProposal(selectedSymbol, type, Math.max(0.5, stake), safeDuration, barrier)) requested.current = false;
+  }, [running, isAuthorized, isConnected, signal, proposal, buying, activeContractId, getProposal, selectedSymbol, stake, duration]);
+
+  useEffect(() => {
+    if (running && proposal && !buying && activeContractId === null) buy(proposal.id, proposal.ask_price);
+  }, [running, proposal, buying, activeContractId, buy]);
+
+  useEffect(() => {
+    if (activeContractId === null && !buying && !proposal) requested.current = false;
+  }, [activeContractId, buying, proposal, contractClosedSeq]);
+
+  const sessionProfit = useMemo(() => (profitTransactions || []).reduce((sum, tx) => sum + Number(tx.profit_loss || 0), 0), [profitTransactions]);
+  const latestOperation = profitTransactions?.[0] ?? null;
+  const latestResult = latestOperation ? Number(latestOperation.profit_loss || 0) : 0;
+  const currentStats = useMemo(() => getStats(ticks), [ticks]);
+  const currentDigit = lastDigit(tick?.quote);
+  const progress = dailyTarget > 0 ? Math.max(0, Math.min(100, sessionProfit * MT_PER_USD / dailyTarget * 100)) : 0;
+
+  useEffect(() => {
+    if (!running || targetReached.current || dailyTarget <= 0) return;
+    if (sessionProfit * MT_PER_USD >= dailyTarget) {
+      targetReached.current = true;
+      requested.current = false;
+      setRunning(false);
+      setSignal(null);
+      setNotification(`Meta atingida: ${mt(sessionProfit)}. Robô parado.`);
+    }
+  }, [sessionProfit, dailyTarget, running]);
+
+  useEffect(() => {
+    const id = latestOperation?.contract_id;
+    if (!id || id === lastNotifiedContract.current) return;
+    lastNotifiedContract.current = id;
+    if (latestOperation.sell_time) setNotification(`Operação fechada: ${mt(latestResult)}`);
+  }, [latestOperation, latestResult]);
+
+  useEffect(() => {
+    if (!notification) return;
+    const timer = window.setTimeout(() => setNotification(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [notification]);
+
+  const resetAnalysis = () => {
+    setTicks([]);
+    setCycle(0);
+    setSignal(null);
+    requested.current = false;
+  };
+
+  const start = () => {
+    if (!isConnected || !isAuthorized) return;
+    targetReached.current = false;
+    resetAnalysis();
+    setLog([]);
+    setNotification(null);
+    setRunning(true);
+  };
+
+  const stop = () => {
+    setRunning(false);
+    requested.current = false;
+    setSignal(null);
+  };
+
+  const tickText = tick?.quote != null ? String(tick.quote) : '—';
+
+  return (
+    <div className="mx-auto flex min-h-full w-full max-w-[430px] flex-col gap-3 bg-slate-950 p-4 text-slate-100">
+      {notification && <div className="fixed left-1/2 top-4 z-50 w-[calc(100%-28px)] max-w-[390px] -translate-x-1/2 rounded-xl border border-blue-500 bg-slate-900 p-3 text-center text-sm shadow-xl">{notification}</div>}
+
+      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
+        <div className="p-4"><div className="text-[10px] uppercase text-slate-500">Saldo</div><div className="mt-1 font-mono font-bold">{balance ? mtAbs(Number(balance.balance)) : '—'}</div></div>
+        <div className="border-l border-slate-700 p-4"><div className="text-[10px] uppercase text-slate-500">Lucro/Perda</div><div className={`mt-1 font-mono font-bold ${sessionProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{mt(sessionProfit)}</div></div>
+      </div>
+
+      <div className="grid grid-cols-[1fr_1fr_52px] gap-2">
+        <label className="rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs"><span className="block text-[10px] uppercase text-slate-500">Conta</span><select className="mt-1 w-full bg-transparent font-bold outline-none" value={accountType} onChange={e => { setAccountType(e.target.value as 'demo' | 'real'); resetAnalysis(); }} disabled={running}><option value="demo">Demo</option><option value="real">Real</option></select></label>
+        <label className="rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs"><span className="block text-[10px] uppercase text-slate-500">Estratégia</span><select className="mt-1 w-full bg-transparent font-bold outline-none" value={strategy} onChange={e => { setStrategy(e.target.value as Strategy); resetAnalysis(); }} disabled={running}>{STRATEGIES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+        <button className="rounded-xl border border-blue-700 bg-blue-700 font-bold" onClick={running ? stop : start} disabled={!isConnected || !isAuthorized}>{running ? '■' : '▶'}</button>
+      </div>
+
+      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+        <div className="text-[10px] uppercase text-slate-500">Análise</div>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <label className="text-center text-xs"><span className="block text-[9px] text-slate-500">Ticks</span><select className="bg-transparent font-bold" value={windowSize} onChange={e => { setWindowSize(Number(e.target.value) as WindowSize); resetAnalysis(); }} disabled={running}>{[5, 10, 25, 50, 100, 200].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+          <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border-4 border-blue-700 bg-slate-950"><div className="font-mono text-xl font-bold">{tickText}</div><div className="text-[9px] uppercase text-slate-500">Último Dígito</div><div className="mt-1 text-[9px] text-slate-500">{currentDigit ?? '—'}</div></div>
+          <label className="text-center text-xs"><span className="block text-[9px] text-slate-500">Meta</span><input className="mt-1 w-16 bg-transparent text-center font-bold outline-none" type="number" min="1" value={dailyTarget} onChange={e => setDailyTarget(Math.max(1, Number(e.target.value) || 1))} /><span className="block text-[9px] text-slate-500">MT</span></label>
+        </div>
+        <div className="mt-2 text-center text-[10px] text-slate-400">{Math.max(0, windowSize - cycle)} ticks restantes</div>
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[10px] text-slate-400"><span>Par {currentStats.even.toFixed(0)}%</span><span>Acima {currentStats.over.toFixed(0)}%</span><span>Subir {currentStats.rise.toFixed(0)}%</span></div>
+      </div>
+
+      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4"><div className="text-[10px] uppercase text-slate-500">Aposta</div><div className="mt-2 flex items-center justify-between"><span className="font-mono text-xs text-slate-500">USD</span><input className="w-24 bg-transparent text-right font-mono text-xl font-bold outline-none" type="number" min="0.5" step="0.1" value={stake} onChange={e => setStake(Math.max(0.5, Number(e.target.value) || 0.5))} disabled={running} /></div></div>
+
+      <button className={`w-full rounded-xl p-4 font-bold ${running ? 'bg-red-600' : 'bg-blue-600'}`} onClick={running ? stop : start} disabled={!isConnected || !isAuthorized}>{running ? '■ PARAR ROBÔ' : '🤖 INICIAR ROBÔ'}</button>
+      <div className="flex justify-between text-[10px] text-slate-500"><span>{isConnected && isAuthorized ? '● Conectado à Deriv' : '○ A ligar à Deriv…'}</span><strong className={running ? 'text-emerald-400' : ''}>{running ? 'ROBÔ ATIVO' : 'ROBÔ PARADO'}</strong></div>
+
+      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4"><div className="text-[10px] uppercase text-slate-500">Sinal atual</div><div className="mt-2 flex justify-between rounded-lg border border-slate-700 p-3"><strong>{signal?.label || 'Aguardando próximo ciclo'}</strong><span className="text-blue-400">{signal ? `${Math.round(signal.strength)}%` : '—'}</span></div></div>
+
+      <label className="rounded-xl border border-slate-700 bg-slate-900 p-4 text-xs"><span className="block text-[10px] uppercase text-slate-500">Símbolo</span><select className="mt-1 w-full bg-transparent font-bold outline-none" value={selectedSymbol} onChange={e => { setSelectedSymbol(e.target.value); resetAnalysis(); }} disabled={running}>{Object.entries(SYMBOLS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+
+      <div><div className="text-[10px] uppercase text-slate-500">Duração</div><div className="mt-2 flex gap-2">{([1, 5, 10] as Duration[]).map(n => <button key={n} className={`flex-1 rounded-lg border p-2 text-sm ${duration === n ? 'border-blue-500 bg-blue-600' : 'border-slate-700 bg-slate-900'}`} onClick={() => setDuration(n)} disabled={running}>{n} tick{n > 1 ? 's' : ''}</button>)}</div></div>
+
+      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4"><div className="text-[10px] uppercase text-slate-500">Meta diária</div><div className="mt-1 text-sm">{mt(sessionProfit)} / {dailyTarget} MT</div><div className="mt-2 h-1.5 overflow-hidden rounded bg-slate-800"><div className="h-full bg-blue-500" style={{ width: `${progress}%` }} /></div></div>
+
+      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4"><div className="text-[10px] uppercase text-slate-500">Última operação</div><div className="mt-2 text-xs text-slate-300">{latestOperation ? `${latestOperation.contract_type || 'Contrato'} · Tick ${latestOperation.exit_tick ?? '—'} · ${mt(latestResult)}` : 'Nenhuma operação fechada.'}</div></div>
+
+      {log.length > 0 && <div className="rounded-xl border border-slate-700 bg-slate-900 p-4"><div className="text-[10px] uppercase text-slate-500">Análise do robô</div><div className="mt-2 space-y-1 text-[10px] text-slate-400">{log.slice(0, 5).map((item, i) => <div key={`${item}-${i}`}>{item}</div>)}</div></div>}
+      {error && <div className="rounded-xl border border-red-800 bg-red-950 p-4 text-xs text-red-300">{error}</div>}
+      <div className="py-3 text-center text-[9px] text-slate-600">Powered by MozHyper · Negocie com responsabilidade</div>
+    </div>
+  );
 }
