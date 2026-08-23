@@ -86,7 +86,7 @@ export default function AutoBotV2() {
   const targetReached = useRef(false);
   const lastNotifiedContract = useRef<number | null>(null);
 
-  const { tick, balance, proposal, buy, buying, activeContractId, getProposal, subscribeTicks, isAuthorized, isConnected, error, profitTransactions, contractClosedSeq } = useDeriv(accountType);
+  const { tick, balance, proposal, buy, buying, activeContractId, getProposal, subscribeTicks, isAuthorized, isConnected, error, profitTransactions, contractClosedSeq, soros, resetSoros, setSorosEnabled } = useDeriv(accountType);
 
   useEffect(() => {
     if (isConnected) subscribeTicks(selectedSymbol);
@@ -138,6 +138,9 @@ export default function AutoBotV2() {
   const currentStats = useMemo(() => getStats(ticks), [ticks]);
   const currentDigit = lastDigit(tick?.quote);
   const progress = dailyTarget > 0 ? Math.max(0, Math.min(100, sessionProfit * MT_PER_USD / dailyTarget * 100)) : 0;
+  // Soros UI connected v1: the hook is the single source of truth for stake progression.
+  const sorosEntry = soros.enabled ? soros.stake : stake;
+  const sorosStepLabel = soros.level + 1;
 
   useEffect(() => {
     if (!running || targetReached.current || dailyTarget <= 0) return;
@@ -190,6 +193,27 @@ export default function AutoBotV2() {
   return (
     <div className="mx-auto flex min-h-full w-full max-w-[430px] flex-col gap-3 bg-slate-950 p-4 text-slate-100">
       {notification && <div className="fixed left-1/2 top-4 z-50 w-[calc(100%-28px)] max-w-[390px] -translate-x-1/2 rounded-xl border border-blue-500 bg-slate-900 p-3 text-center text-sm shadow-xl">{notification}</div>}
+
+      {/* Soros UI connected v1 */}
+      <div className="rounded-xl border border-emerald-800 bg-slate-900 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-bold">Soros · 3 passos</div>
+            <div className="mt-1 text-[10px] text-slate-400">Passo {sorosStepLabel}/3 · Entrada atual US$ {sorosEntry.toFixed(2)}</div>
+          </div>
+          <button
+            className={`rounded-lg border px-3 py-2 text-[10px] font-bold ${soros.enabled ? 'border-emerald-600 text-emerald-400' : 'border-slate-600 text-slate-400'}`}
+            onClick={() => { setSorosEnabled(!soros.enabled); if (!soros.enabled) resetSoros(); }}
+            disabled={running}
+          >{soros.enabled ? 'ATIVO' : 'DESLIGADO'}</button>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[9px] text-slate-400">
+          <div className="rounded-lg bg-slate-950 p-2"><div className="text-slate-500">Entrada</div><b className="text-slate-200">US$ {sorosEntry.toFixed(2)}</b></div>
+          <div className="rounded-lg bg-slate-950 p-2"><div className="text-slate-500">Lucro acumulado</div><b className="text-emerald-400">US$ {soros.accumulatedProfit.toFixed(2)}</b></div>
+          <div className="rounded-lg bg-slate-950 p-2"><div className="text-slate-500">Estado</div><b className={soros.blocked ? 'text-red-400' : 'text-slate-200'}>{soros.blocked ? 'PARADO' : 'PRONTO'}</b></div>
+        </div>
+        {soros.blocked && <div className="mt-2 rounded-lg border border-red-900 bg-red-950/30 p-2 text-[9px] text-red-300">Perda no Passo 1: o Soros está parado. Desative e ative novamente para iniciar novo ciclo.</div>}
+      </div>
 
       <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
         <div className="p-4"><div className="text-[10px] uppercase text-slate-500">Saldo</div><div className="mt-1 font-mono font-bold">{balance ? mtAbs(Number(balance.balance)) : '—'}</div></div>
