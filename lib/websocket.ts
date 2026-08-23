@@ -10,7 +10,7 @@ export class DerivWebSocket {
   private balanceSubscribed = false;
   private tickSubscriptions = new Set<string>();
   private contractSubscriptions = new Set<number>();
-  private contractSubscriptionIds = new Map<number, number>();
+  private contractSubscriptionIds = new Map<number, string>();
   private proposalRequestId = 1000;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
@@ -29,7 +29,7 @@ export class DerivWebSocket {
       try {
         const data = JSON.parse(event.data);
         if (data.msg_type === 'proposal_open_contract' && data.proposal_open_contract?.contract_id && data.subscription?.id) {
-          this.contractSubscriptionIds.set(Number(data.proposal_open_contract.contract_id), Number(data.subscription.id));
+          this.contractSubscriptionIds.set(Number(data.proposal_open_contract.contract_id), String(data.subscription.id));
         }
         const msgType = data.msg_type;
         if (msgType && this.handlers.has(msgType)) {
@@ -98,7 +98,7 @@ export class DerivWebSocket {
 
   unsubscribeContract(contractId: number) {
     const subscriptionId = this.contractSubscriptionIds.get(contractId);
-    if (subscriptionId !== undefined) this.send({ forget: subscriptionId });
+    if (subscriptionId && subscriptionId.trim()) this.send({ forget: subscriptionId });
     this.contractSubscriptionIds.delete(contractId);
     this.contractSubscriptions.delete(contractId);
   }
