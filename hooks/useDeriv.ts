@@ -86,17 +86,20 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
     if(pnl>EPS){
       const newAccumulated=s.accumulatedProfit + pnl;
       if(s.level>=SOROS_MAX_LEVEL-1){
+        // Three successful Soros steps complete the cycle and return to the base stake.
         syncSoros(defaultSoros());
       } else {
         const nextLevel=(s.level+1) as 1|2;
+        // A profitable trade reactivates Soros even if step 1 had previously lost.
         syncSoros({level:nextLevel,stake:Math.max(0.01,newAccumulated),accumulatedProfit:newAccumulated,enabled:true,blocked:false});
       }
     } else if(pnl<-EPS){
       if(s.level===0){
-        // A loss on the real-money initial unit never starts Martingale automatically.
+        // Step 1 loss does NOT stop the robot. Keep the base stake and wait for
+        // the next profitable trade; that profit starts Soros step 2.
         syncSoros({level:0,stake:SOROS_INITIAL,accumulatedProfit:0,enabled:s.enabled,blocked:true});
       } else {
-        // Losses at Soros 2/3 only consume accumulated profit; reset to the initial unit.
+        // A loss on Soros step 2/3 only consumes accumulated profit; return to base.
         syncSoros({level:0,stake:SOROS_INITIAL,accumulatedProfit:0,enabled:s.enabled,blocked:false});
       }
     }
@@ -130,7 +133,15 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
         const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);
         if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return;
         const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
-        ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy){setBuying(false);setProposal(null);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;}if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null;}setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
+        ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';
+          // A stale/invalid forget acknowledgement must never stop the robot.
+          if(data.echo_req?.forget!==undefined){return;}
+          if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}
+          if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}
+          if(data.echo_req?.buy){setBuying(false);setProposal(null);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;}
+          if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null;}
+          setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)
+        });
         ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});
         ws.subscribe('balance',data=>{if(data.balance)setBalance(data.balance)});
         ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});
@@ -152,8 +163,9 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=5)=>{
     if(activeContractRef.current!==null)return false;
     const s=sorosRef.current;
-    if(s.enabled && s.blocked){setError('Soros: a operação inicial teve perda. O ciclo foi parado; reinicie o Soros para continuar.');return false;}
-    const effectiveAmount=s.enabled ? Math.max(.01,s.stake) : Math.max(.5,amount);
+    // After a Step 1 loss, Soros is waiting for a winner but the robot keeps trading
+    // at the base stake. The next profitable trade reactivates Soros at Step 2.
+    const effectiveAmount=s.enabled && !s.blocked ? Math.max(.01,s.stake) : Math.max(.5,amount);
     setProposal(null);setError(null);
     const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);
     if(typeof reqId==='number')latestProposalReqRef.current=reqId;
