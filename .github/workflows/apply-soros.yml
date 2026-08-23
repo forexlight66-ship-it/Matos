@@ -1,0 +1,82 @@
+name: Apply Soros strategy
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Soros to AutoBotV2
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('components/AutoBotV2.tsx')
+          s = p.read_text()
+          if 'SOROS_MODE_V1' in s:
+              print('Soros already applied')
+              raise SystemExit(0)
+
+          old = "  const [stake, setStake] = useState(1.5);"
+          new = old + "\n  // SOROS_MODE_V1: 3-step progression using only accumulated profit.\n  const [sorosEnabled, setSorosEnabled] = useState(true);\n  const [sorosStep, setSorosStep] = useState(0);\n  const [sorosProfit, setSorosProfit] = useState(0);"
+          if old not in s: raise SystemExit('stake state anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "  const progress = dailyTarget > 0 ? Math.max(0, Math.min(100, sessionProfit * MT_PER_USD / dailyTarget * 100)) : 0;"
+          new = old + "\n  const sorosStake = sorosEnabled && sorosStep > 0 ? sorosProfit : stake;"
+          if old not in s: raise SystemExit('progress anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "Math.max(0.5, stake), safeDuration, barrier"
+          new = "Math.max(0.5, sorosStake), safeDuration, barrier"
+          if old not in s: raise SystemExit('proposal stake anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "  const { tick, balance, proposal, buy, buying, activeContractId, getProposal, subscribeTicks, isAuthorized, isConnected, error, profitTransactions, contractClosedSeq } = useDeriv(accountType);"
+          new = old + "\n\n  const resetSoros = () => { setSorosStep(0); setSorosProfit(0); };\n  const sorosProfitForEntry = (entry: number, step: number) => step === 0 ? Math.floor(entry * 0.95 * 100) / 100 : Math.round(entry * 0.95 * 100) / 100;"
+          if old not in s: raise SystemExit('deriv anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "  const lastNotifiedContract = useRef<number | null>(null);"
+          new = old + "\n  const lastProcessedSorosContract = useRef<number | null>(null);"
+          if old not in s: raise SystemExit('ref anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "  useEffect(() => {\n    const id = latestOperation?.contract_id;\n    if (!id || id === lastNotifiedContract.current) return;\n    lastNotifiedContract.current = id;\n    if (latestOperation.sell_time) setNotification(`Operação fechada: ${mt(latestResult)}`);\n  }, [latestOperation, latestResult]);"
+          new = old + "\n\n  // Soros: any loss stops the cycle; wins advance 1 -> 2 -> 3.\n  useEffect(() => {\n    const id = latestOperation?.contract_id;\n    if (!running || !id || !latestOperation.sell_time || id === lastProcessedSorosContract.current) return;\n    lastProcessedSorosContract.current = id;\n    if (!sorosEnabled) return;\n    if (latestResult <= 0) {\n      setRunning(false);\n      requested.current = false;\n      resetSoros();\n      setNotification(`Soros parado após perda: ${mt(latestResult)}`);\n      return;\n    }\n    if (sorosStep === 0) {\n      const p1 = sorosProfitForEntry(stake, 0);\n      setSorosProfit(p1);\n      setSorosStep(1);\n      setNotification(`Soros Passo 1 vencido → próxima entrada US$ ${p1.toFixed(2)}`);\n    } else if (sorosStep === 1) {\n      const p2 = sorosProfitForEntry(sorosStake, 1);\n      const accumulated = Math.round((sorosProfit + p2) * 100) / 100;\n      setSorosProfit(accumulated);\n      setSorosStep(2);\n      setNotification(`Soros Passo 2 vencido → próxima entrada US$ ${accumulated.toFixed(2)}`);\n    } else {\n      const p3 = sorosProfitForEntry(sorosStake, 2);\n      const total = Math.round((sorosProfit + p3) * 100) / 100;\n      setRunning(false);\n      requested.current = false;\n      setNotification(`Soros ciclo concluído: ganho estimado US$ ${total.toFixed(2)}`);\n      resetSoros();\n    }\n  }, [latestOperation, latestResult, running, sorosEnabled, sorosStep, sorosStake, sorosProfit, stake]);"
+          if old not in s: raise SystemExit('latest operation anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "    setNotification(null);\n    setRunning(true);"
+          new = "    setNotification(null);\n    resetSoros();\n    setRunning(true);"
+          if old not in s: raise SystemExit('start anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "  const stop = () => {\n    setRunning(false);\n    requested.current = false;\n    setSignal(null);\n  };"
+          new = "  const stop = () => {\n    setRunning(false);\n    requested.current = false;\n    setSignal(null);\n    resetSoros();\n  };"
+          if old not in s: raise SystemExit('stop anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "      {notification && <div className=\"fixed left-1/2 top-4 z-50 w-[calc(100%-28px)] max-w-[390px] -translate-x-1/2 rounded-xl border border-blue-500 bg-slate-900 p-3 text-center text-sm shadow-xl\">{notification}</div>}"
+          new = old + "\n      <div className=\"rounded-xl border border-emerald-700 bg-slate-900 p-3\">\n        <div className=\"flex items-center justify-between text-xs\"><span className=\"font-bold\">Soros 3 passos</span><button className=\"rounded border border-slate-700 px-2 py-1\" onClick={() => { setSorosEnabled(v => !v); resetSoros(); }} disabled={running}>{sorosEnabled ? 'ATIVO' : 'DESLIGADO'}</button></div>\n        <div className=\"mt-2 text-[10px] text-slate-400\">Passo {sorosStep + 1}/3 · Entrada atual: US$ {Math.max(0.5, sorosStake).toFixed(2)} · Lucro protegido: US$ {sorosProfit.toFixed(2)}</div>\n        <div className=\"mt-1 text-[9px] text-slate-500\">Perdeu: para. Venceu: usa apenas o lucro no próximo passo.</div>\n      </div>"
+          if old not in s: raise SystemExit('UI anchor not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Validate build
+        run: |
+          npm install
+          npm run build
+
+      - name: Commit implementation and remove one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/AutoBotV2.tsx
+          git rm .github/workflows/apply-soros.yml
+          git commit -m "feat: add 3-step Soros progression to robot"
+          git push
