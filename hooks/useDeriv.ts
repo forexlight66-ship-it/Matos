@@ -11,7 +11,7 @@ interface Proposal { id: string; ask_price: number; payout: number; stake: numbe
 
 const SOROS_INITIAL = 1.50;
 const SOROS_MAX_LEVEL = 3;
-const SOROS_STORAGE = 'mozhyper-soros-state-v1';
+const SOROS_STORAGE = 'mozhyper-soros-state-v2';
 
 interface SorosState { level: 0|1|2; stake: number; accumulatedProfit: number; enabled: boolean; blocked: boolean; }
 const defaultSoros = (): SorosState => ({ level: 0, stake: SOROS_INITIAL, accumulatedProfit: 0, enabled: true, blocked: false });
@@ -27,7 +27,7 @@ function loadSoros(): SorosState {
     const accumulatedProfit = Number(p?.accumulatedProfit);
     return {
       level: (level === 1 || level === 2) ? level : 0,
-      stake: Number.isFinite(stake) && stake > 0 ? stake : SOROS_INITIAL,
+      stake: Number.isFinite(stake) && stake >= 1.5 ? stake : SOROS_INITIAL,
       accumulatedProfit: Number.isFinite(accumulatedProfit) && accumulatedProfit >= 0 ? accumulatedProfit : 0,
       enabled: p?.enabled !== false,
       blocked: p?.blocked === true,
@@ -75,6 +75,15 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   const syncSoros=useCallback((next:SorosState)=>{sorosRef.current=next;setSoros(next);saveSoros(next)},[]);
   const resetSoros=useCallback(()=>syncSoros(defaultSoros()),[syncSoros]);
   const setSorosEnabled=useCallback((enabled:boolean)=>syncSoros({...sorosRef.current,enabled}),[syncSoros]);
+  const setSorosStake=useCallback((initialStake:number)=>{
+    const value=Math.max(1.5,Number(initialStake)||1.5);
+    const s=sorosRef.current;
+    // The configured Stake is always the base of a new Soros cycle. If a cycle
+    // is already in progress, keep its current accumulated-profit stake intact.
+    if(s.level===0 && s.accumulatedProfit===0){
+      syncSoros({...s,stake:value,blocked:false});
+    }
+  },[syncSoros]);
 
   const processSorosResult=useCallback((tx:ProfitTransaction)=>{
     if(lastProcessedSorosContractRef.current===tx.contract_id)return;
@@ -86,21 +95,16 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
     if(pnl>EPS){
       const newAccumulated=s.accumulatedProfit + pnl;
       if(s.level>=SOROS_MAX_LEVEL-1){
-        // Three successful Soros steps complete the cycle and return to the base stake.
         syncSoros(defaultSoros());
       } else {
         const nextLevel=(s.level+1) as 1|2;
-        // A profitable trade reactivates Soros even if step 1 had previously lost.
-        syncSoros({level:nextLevel,stake:Math.max(0.01,newAccumulated),accumulatedProfit:newAccumulated,enabled:true,blocked:false});
+        syncSoros({level:nextLevel,stake:Math.max(1.5,newAccumulated),accumulatedProfit:newAccumulated,enabled:true,blocked:false});
       }
     } else if(pnl<-EPS){
       if(s.level===0){
-        // Step 1 loss does NOT stop the robot. Keep the base stake and wait for
-        // the next profitable trade; that profit starts Soros step 2.
-        syncSoros({level:0,stake:SOROS_INITIAL,accumulatedProfit:0,enabled:s.enabled,blocked:true});
+        syncSoros({level:0,stake:Math.max(1.5,s.stake),accumulatedProfit:0,enabled:s.enabled,blocked:true});
       } else {
-        // A loss on Soros step 2/3 only consumes accumulated profit; return to base.
-        syncSoros({level:0,stake:SOROS_INITIAL,accumulatedProfit:0,enabled:s.enabled,blocked:false});
+        syncSoros({level:0,stake:Math.max(1.5,s.stake),accumulatedProfit:0,enabled:s.enabled,blocked:false});
       }
     }
   },[syncSoros]);
@@ -134,7 +138,6 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
         if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return;
         const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
         ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';
-          // A stale/invalid forget acknowledgement must never stop the robot.
           if(data.echo_req?.forget!==undefined){return;}
           if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}
           if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}
@@ -163,9 +166,7 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=5)=>{
     if(activeContractRef.current!==null)return false;
     const s=sorosRef.current;
-    // After a Step 1 loss, Soros is waiting for a winner but the robot keeps trading
-    // at the base stake. The next profitable trade reactivates Soros at Step 2.
-    const effectiveAmount=s.enabled && !s.blocked ? Math.max(.01,s.stake) : Math.max(.5,amount);
+    const effectiveAmount=s.enabled && !s.blocked ? Math.max(1.5,s.stake) : Math.max(1.5,amount);
     setProposal(null);setError(null);
     const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);
     if(typeof reqId==='number')latestProposalReqRef.current=reqId;
@@ -173,5 +174,5 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   },[]);
   const buy=useCallback((proposalId:string,price:number)=>{if(!proposalId||buying||activeContractRef.current!==null)return false;setBuying(true);const sent=wsRef.current?.buyContract(proposalId,price);if(!sent){setBuying(false);setProposal(null);setError('Não foi possível enviar a compra à Deriv.');}return !!sent},[buying]);
   const sell=useCallback((contractId:number)=>wsRef.current?.sellContract(contractId),[]);
-  return {balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,activeContractId,contractClosedSeq,subscribeTicks,fetchProfitTable,getProposal,buy,sell,soros,resetSoros,setSorosEnabled};
+  return {balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,activeContractId,contractClosedSeq,subscribeTicks,fetchProfitTable,getProposal,buy,sell,soros,resetSoros,setSorosEnabled,setSorosStake};
 }
