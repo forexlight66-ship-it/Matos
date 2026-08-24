@@ -138,7 +138,6 @@ export default function AutoBotV2() {
   const currentStats = useMemo(() => getStats(ticks), [ticks]);
   const currentDigit = lastDigit(tick?.quote);
   const progress = dailyTarget > 0 ? Math.max(0, Math.min(100, sessionProfit * MT_PER_USD / dailyTarget * 100)) : 0;
-  // Soros UI connected v1: the hook is the single source of truth for stake progression.
   const sorosEntry = soros.enabled ? soros.stake : stake;
   const sorosStepLabel = soros.level + 1;
 
@@ -194,18 +193,13 @@ export default function AutoBotV2() {
     <div className="mx-auto flex min-h-full w-full max-w-[430px] flex-col gap-3 bg-slate-950 p-4 text-slate-100">
       {notification && <div className="fixed left-1/2 top-4 z-50 w-[calc(100%-28px)] max-w-[390px] -translate-x-1/2 rounded-xl border border-blue-500 bg-slate-900 p-3 text-center text-sm shadow-xl">{notification}</div>}
 
-      {/* Soros UI connected v1 */}
       <div className="rounded-xl border border-emerald-800 bg-slate-900 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-xs font-bold">Soros · 3 passos</div>
             <div className="mt-1 text-[10px] text-slate-400">Passo {sorosStepLabel}/3 · Entrada atual US$ {sorosEntry.toFixed(2)}</div>
           </div>
-          <button
-            className={`rounded-lg border px-3 py-2 text-[10px] font-bold ${soros.enabled ? 'border-emerald-600 text-emerald-400' : 'border-slate-600 text-slate-400'}`}
-            onClick={() => { setSorosEnabled(!soros.enabled); if (!soros.enabled) resetSoros(); }}
-            disabled={running}
-          >{soros.enabled ? 'ATIVO' : 'DESLIGADO'}</button>
+          <button className={`rounded-lg border px-3 py-2 text-[10px] font-bold ${soros.enabled ? 'border-emerald-600 text-emerald-400' : 'border-slate-600 text-slate-400'}`} onClick={() => { setSorosEnabled(!soros.enabled); if (!soros.enabled) resetSoros(); }} disabled={running}>{soros.enabled ? 'ATIVO' : 'DESLIGADO'}</button>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[9px] text-slate-400">
           <div className="rounded-lg bg-slate-950 p-2"><div className="text-slate-500">Entrada</div><b className="text-slate-200">US$ {sorosEntry.toFixed(2)}</b></div>
@@ -228,9 +222,26 @@ export default function AutoBotV2() {
 
       <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
         <div className="text-[10px] uppercase text-slate-500">Análise</div>
-        <div className="mt-2 flex items-center justify-between gap-3">
+        <div className="mt-2 grid grid-cols-[52px_minmax(0,1fr)_52px] items-center gap-1">
           <label className="text-center text-xs"><span className="block text-[9px] text-slate-500">Ticks</span><select className="bg-transparent font-bold" value={windowSize} onChange={e => { setWindowSize(Number(e.target.value) as WindowSize); resetAnalysis(); }} disabled={running}>{[5, 10, 25, 50, 100, 200].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
-          <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border-4 border-blue-700 bg-slate-950"><div className="font-mono text-xl font-bold">{tickText}</div><div className="text-[9px] uppercase text-slate-500">Último Dígito</div><div className="mt-1 text-[9px] text-slate-500">{currentDigit ?? '—'}</div></div>
+          <div className="relative mx-auto h-56 w-56 max-w-full">
+            <div className="absolute inset-5 rounded-full border-4 border-blue-950 bg-slate-950" />
+            {currentStats.probs.map((prob, i) => {
+              const angle = (i / 10) * Math.PI * 2 - Math.PI / 2;
+              const radius = 100;
+              const left = 50 + (Math.cos(angle) * radius / 224) * 100;
+              const top = 50 + (Math.sin(angle) * radius / 224) * 100;
+              return (
+                <div key={i} className={`absolute z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border text-[12px] font-bold shadow ${currentDigit === i ? 'border-blue-400 bg-blue-600 text-white ring-4 ring-blue-500/20' : 'border-slate-700 bg-slate-900 text-slate-200'}`} style={{ left: `${left}%`, top: `${top}%` }}>
+                  <span>{i}</span><span className="text-[7px] font-normal text-slate-400">{prob.toFixed(1)}%</span>
+                </div>
+              );
+            })}
+            <div className="absolute left-1/2 top-1/2 z-20 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-slate-700 bg-slate-950 shadow-lg">
+              <div className="font-mono text-base font-bold whitespace-nowrap">{tickText}</div>
+              <div className="text-[8px] uppercase text-slate-500">Último Dígito</div>
+            </div>
+          </div>
           <label className="text-center text-xs"><span className="block text-[9px] text-slate-500">Meta</span><input className="mt-1 w-16 bg-transparent text-center font-bold outline-none" type="number" min="1" value={dailyTarget} onChange={e => setDailyTarget(Math.max(1, Number(e.target.value) || 1))} /><span className="block text-[9px] text-slate-500">MT</span></label>
         </div>
         <div className="mt-2 text-center text-[10px] text-slate-400">{Math.max(0, windowSize - cycle)} ticks restantes</div>
