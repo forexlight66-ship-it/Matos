@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import TutorialSection from './TutorialSection';
-import DigitsGameV3 from './DigitsGameV3';
+import AutoBotV2 from './AutoBotV2';
 import RobotStrategySelector from './RobotStrategySelector';
 import AutoBotEnhancements from './AutoBotEnhancements';
 
 export default function Dashboard() {
-  const [mode,setMode]=useState<'manual'|'robot'>('manual');
+  const [mode,setMode]=useState<'automatic'|'robot'>('automatic');
   const [theme,setTheme]=useState<'dark'|'light'>('dark');
   const [menu,setMenu]=useState(false);
   useEffect(()=>{document.body.dataset.theme=theme;return()=>{delete document.body.dataset.theme}},[theme]);
@@ -20,11 +20,11 @@ export default function Dashboard() {
     <div className="matos-shell">
       <div className="matos-phone">
         <div className="mode-switch-matos" role="tablist" aria-label="Trading mode">
-          <button className={mode==='manual'?'active':''} onClick={()=>{setMode('manual');setMenu(false)}}>Manual</button>
+          <button className={mode==='automatic'?'active':''} onClick={()=>{setMode('automatic');setMenu(false)}}>Automático</button>
           <button className={mode==='robot'?'active robo':''} onClick={()=>{setMode('robot');setMenu(false)}}>🤖 Robô</button>
         </div>
         <AutoBotEnhancements />
-        {mode==='manual'?<DigitsGameV3/>:<RobotStrategySelector/>}
+        {mode==='automatic'?<AutoBotV2/>:<RobotStrategySelector/>}
       </div>
       <div id="tutorial" className="mt-4"><TutorialSection/></div>
     </div>
