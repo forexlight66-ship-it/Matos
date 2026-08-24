@@ -121,7 +121,7 @@ export default function AutoBotV2() {
     const digitContract = ['EVEN', 'ODD', 'OVER', 'UNDER'].includes(signal.contract);
     const safeDuration = digitContract ? Math.min(10, Math.max(1, duration)) : duration;
     const barrier = signal.contract === 'OVER' ? 4 : signal.contract === 'UNDER' ? 5 : 0;
-    if (!getProposal(selectedSymbol, type, Math.max(0.5, stake), safeDuration, barrier)) requested.current = false;
+    if (!getProposal(selectedSymbol, type, Math.max(1.5, stake), safeDuration, barrier)) requested.current = false;
   }, [running, isAuthorized, isConnected, signal, proposal, buying, activeContractId, getProposal, selectedSymbol, stake, duration]);
 
   useEffect(() => {
@@ -248,7 +248,7 @@ export default function AutoBotV2() {
         <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[10px] text-slate-400"><span>Par {currentStats.even.toFixed(0)}%</span><span>Acima {currentStats.over.toFixed(0)}%</span><span>Subir {currentStats.rise.toFixed(0)}%</span></div>
       </div>
 
-      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4"><div className="text-[10px] uppercase text-slate-500">Aposta</div><div className="mt-2 flex items-center justify-between"><span className="font-mono text-xs text-slate-500">USD</span><input className="w-24 bg-transparent text-right font-mono text-xl font-bold outline-none" type="number" min="0.5" step="0.1" value={stake} onChange={e => setStake(Math.max(0.5, Number(e.target.value) || 0.5))} disabled={running} /></div></div>
+      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4"><div className="text-[10px] uppercase text-slate-500">Aposta</div><div className="mt-2 flex items-center justify-between"><span className="font-mono text-xs text-slate-500">USD</span><input className="w-24 bg-transparent text-right font-mono text-xl font-bold outline-none" type="number" min="1.5" step="0.1" value={stake} onChange={e => setStake(Math.max(1.5, Number(e.target.value) || 1.5))} disabled={running} /></div></div>
 
       <button className={`w-full rounded-xl p-4 font-bold ${running ? 'bg-red-600' : 'bg-blue-600'}`} onClick={running ? stop : start} disabled={!isConnected || !isAuthorized}>{running ? '■ PARAR ROBÔ' : '🤖 INICIAR ROBÔ'}</button>
       <div className="flex justify-between text-[10px] text-slate-500"><span>{isConnected && isAuthorized ? '● Conectado à Deriv' : '○ A ligar à Deriv…'}</span><strong className={running ? 'text-emerald-400' : ''}>{running ? 'ROBÔ ATIVO' : 'ROBÔ PARADO'}</strong></div>
