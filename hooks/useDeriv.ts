@@ -12,176 +12,48 @@ interface Proposal { id: string; ask_price: number; payout: number; stake: numbe
 const SOROS_INITIAL = 1.50;
 const SOROS_MAX_LEVEL = 3;
 const SOROS_STORAGE = 'mozhyper-soros-state-v2';
-
 interface SorosState { level: 0|1|2; stake: number; accumulatedProfit: number; enabled: boolean; blocked: boolean; }
 const defaultSoros = (): SorosState => ({ level: 0, stake: SOROS_INITIAL, accumulatedProfit: 0, enabled: true, blocked: false });
 
 function loadSoros(): SorosState {
   if (typeof window === 'undefined') return defaultSoros();
   try {
-    const raw = sessionStorage.getItem(SOROS_STORAGE);
-    if (!raw) return defaultSoros();
-    const p = JSON.parse(raw);
-    const level = Number(p?.level);
-    const stake = Number(p?.stake);
-    const accumulatedProfit = Number(p?.accumulatedProfit);
-    return {
-      level: (level === 1 || level === 2) ? level : 0,
-      stake: Number.isFinite(stake) && stake >= 1.5 ? stake : SOROS_INITIAL,
-      accumulatedProfit: Number.isFinite(accumulatedProfit) && accumulatedProfit >= 0 ? accumulatedProfit : 0,
-      enabled: p?.enabled !== false,
-      blocked: p?.blocked === true,
-    };
+    const raw = sessionStorage.getItem(SOROS_STORAGE); if (!raw) return defaultSoros();
+    const p = JSON.parse(raw); const level = Number(p?.level); const stake = Number(p?.stake); const accumulatedProfit = Number(p?.accumulatedProfit);
+    const validLevel = level === 1 || level === 2 ? level : 0;
+    const minStake = validLevel === 0 ? SOROS_INITIAL : 0.01;
+    return { level: validLevel, stake: Number.isFinite(stake) && stake >= minStake ? stake : (validLevel === 0 ? SOROS_INITIAL : 0.01), accumulatedProfit: Number.isFinite(accumulatedProfit) && accumulatedProfit >= 0 ? accumulatedProfit : 0, enabled: p?.enabled !== false, blocked: p?.blocked === true };
   } catch { return defaultSoros(); }
 }
-
-function saveSoros(s: SorosState) {
-  if (typeof window === 'undefined') return;
-  try { sessionStorage.setItem(SOROS_STORAGE, JSON.stringify(s)); } catch {}
-}
-
-function calculateProfitLoss(tx: Partial<ProfitTransaction>): number {
-  const explicit = Number(tx.profit_loss);
-  if (Number.isFinite(explicit)) return explicit;
-  const buyPrice = Number(tx.buy_price);
-  const sellPrice = Number(tx.sell_price);
-  if (Number.isFinite(buyPrice) && Number.isFinite(sellPrice)) return sellPrice - buyPrice;
-  return 0;
-}
+function saveSoros(s: SorosState) { if (typeof window === 'undefined') return; try { sessionStorage.setItem(SOROS_STORAGE, JSON.stringify(s)); } catch {} }
+function calculateProfitLoss(tx: Partial<ProfitTransaction>): number { const explicit = Number(tx.profit_loss); if (Number.isFinite(explicit)) return explicit; const buyPrice = Number(tx.buy_price); const sellPrice = Number(tx.sell_price); if (Number.isFinite(buyPrice) && Number.isFinite(sellPrice)) return sellPrice - buyPrice; return 0; }
 
 export function useDeriv(accountType:'demo'|'real'='demo') {
-  const wsRef = useRef<DerivWebSocket | null>(null);
-  const activeContractRef = useRef<number | null>(null);
-  const latestProposalReqRef = useRef<number | null>(null);
-  const closedContractsRef = useRef<Map<number, ProfitTransaction>>(new Map());
-  const sessionStartedAtRef = useRef<number>(Math.floor(Date.now() / 1000));
-  const sorosRef = useRef<SorosState>(defaultSoros());
-  const lastProcessedSorosContractRef = useRef<number | null>(null);
-  const [balance,setBalance]=useState<Balance|null>(null);
-  const [tick,setTick]=useState<Tick|null>(null);
-  const [transaction,setTransaction]=useState<Transaction|null>(null);
-  const [isConnected,setIsConnected]=useState(false);
-  const [isAuthorized,setIsAuthorized]=useState(false);
-  const [error,setError]=useState<string|null>(null);
-  const [profitTransactions,setProfitTransactions]=useState<ProfitTransaction[]>([]);
-  const [profitCount,setProfitCount]=useState(0);
-  const [proposal,setProposal]=useState<Proposal|null>(null);
-  const [loadingProfit,setLoadingProfit]=useState(false);
-  const [buying,setBuying]=useState(false);
-  const [contractClosedSeq,setContractClosedSeq]=useState(0);
-  const [activeContractId,setActiveContractId]=useState<number|null>(null);
-  const [soros,setSoros]=useState<SorosState>(()=>defaultSoros());
-
-  const syncSoros=useCallback((next:SorosState)=>{sorosRef.current=next;setSoros(next);saveSoros(next)},[]);
-  const resetSoros=useCallback(()=>syncSoros(defaultSoros()),[syncSoros]);
-  const setSorosEnabled=useCallback((enabled:boolean)=>syncSoros({...sorosRef.current,enabled}),[syncSoros]);
-  const setSorosStake=useCallback((initialStake:number)=>{
-    const value=Math.max(1.5,Number(initialStake)||1.5);
-    const s=sorosRef.current;
-    // The manual Stake is always the base of a new Soros cycle.
-    // When a cycle is already at level 1/2, preserve the profit stake until it closes.
-    if(s.level===0 && s.accumulatedProfit===0){
-      syncSoros({...s,stake:value,blocked:false});
-    }
+  const wsRef = useRef<DerivWebSocket | null>(null); const activeContractRef = useRef<number | null>(null); const latestProposalReqRef = useRef<number | null>(null); const closedContractsRef = useRef<Map<number, ProfitTransaction>>(new Map()); const sessionStartedAtRef = useRef<number>(Math.floor(Date.now()/1000)); const sorosRef = useRef<SorosState>(defaultSoros()); const lastProcessedSorosContractRef = useRef<number | null>(null);
+  const [balance,setBalance]=useState<Balance|null>(null); const [tick,setTick]=useState<Tick|null>(null); const [transaction,setTransaction]=useState<Transaction|null>(null); const [isConnected,setIsConnected]=useState(false); const [isAuthorized,setIsAuthorized]=useState(false); const [error,setError]=useState<string|null>(null); const [profitTransactions,setProfitTransactions]=useState<ProfitTransaction[]>([]); const [profitCount,setProfitCount]=useState(0); const [proposal,setProposal]=useState<Proposal|null>(null); const [loadingProfit,setLoadingProfit]=useState(false); const [buying,setBuying]=useState(false); const [contractClosedSeq,setContractClosedSeq]=useState(0); const [activeContractId,setActiveContractId]=useState<number|null>(null); const [soros,setSoros]=useState<SorosState>(()=>defaultSoros());
+  const syncSoros=useCallback((next:SorosState)=>{sorosRef.current=next;setSoros(next);saveSoros(next)},[]); const resetSoros=useCallback(()=>syncSoros(defaultSoros()),[syncSoros]); const setSorosEnabled=useCallback((enabled:boolean)=>syncSoros({...sorosRef.current,enabled}),[syncSoros]);
+  const setSorosStake=useCallback((initialStake:number)=>{ const value=Math.max(SOROS_INITIAL,Number(initialStake)||SOROS_INITIAL); const s=sorosRef.current; if(s.level===0 && s.accumulatedProfit===0) syncSoros({...s,stake:value,blocked:false}); },[syncSoros]);
+  const processSorosResult=useCallback((tx:ProfitTransaction)=>{ if(lastProcessedSorosContractRef.current===tx.contract_id)return; lastProcessedSorosContractRef.current=tx.contract_id; const s=sorosRef.current; if(!s.enabled)return; const pnl=Number(tx.profit_loss||0); const EPS=0.000001;
+    if(pnl>EPS){ const newAccumulated=s.accumulatedProfit+pnl; if(s.level>=SOROS_MAX_LEVEL-1){ syncSoros(defaultSoros()); } else { const nextLevel=(s.level+1) as 1|2; syncSoros({level:nextLevel,stake:Math.max(0.01,newAccumulated),accumulatedProfit:newAccumulated,enabled:true,blocked:false}); } }
+    else if(pnl<-EPS){ syncSoros({level:0,stake:Math.max(SOROS_INITIAL,s.stake),accumulatedProfit:0,enabled:s.enabled,blocked:false}); }
   },[syncSoros]);
-
-  const processSorosResult=useCallback((tx:ProfitTransaction)=>{
-    if(lastProcessedSorosContractRef.current===tx.contract_id)return;
-    lastProcessedSorosContractRef.current=tx.contract_id;
-    const s=sorosRef.current;
-    if(!s.enabled)return;
-    const pnl=Number(tx.profit_loss||0);
-    const EPS=0.000001;
-    if(pnl>EPS){
-      const newAccumulated=s.accumulatedProfit + pnl;
-      if(s.level>=SOROS_MAX_LEVEL-1){
-        syncSoros(defaultSoros());
-      } else {
-        const nextLevel=(s.level+1) as 1|2;
-        syncSoros({level:nextLevel,stake:Math.max(1.5,newAccumulated),accumulatedProfit:newAccumulated,enabled:true,blocked:false});
-      }
-    } else if(pnl<-EPS){
-      if(s.level===0){
-        syncSoros({level:0,stake:Math.max(1.5,s.stake),accumulatedProfit:0,enabled:s.enabled,blocked:true});
-      } else {
-        syncSoros({level:0,stake:Math.max(1.5,s.stake),accumulatedProfit:0,enabled:s.enabled,blocked:false});
-      }
-    }
-  },[syncSoros]);
-
-  const mergeProfitTransactions=useCallback((incoming:ProfitTransaction[])=>{
-    for(const tx of incoming){
-      const id=Number(tx.contract_id);
-      const purchaseTime=Number(tx.purchase_time ?? 0);
-      if(!Number.isFinite(id)||id<=0||!purchaseTime||purchaseTime<sessionStartedAtRef.current) continue;
-      const previous=closedContractsRef.current.get(id);
-      const mergedRaw:Partial<ProfitTransaction>={...previous,...tx};
-      const normalized:ProfitTransaction={contract_id:id,buy_price:Number(mergedRaw.buy_price??0),sell_price:mergedRaw.sell_price==null?null:Number(mergedRaw.sell_price),payout:Number(mergedRaw.payout??0),purchase_time:Number(mergedRaw.purchase_time??purchaseTime),sell_time:mergedRaw.sell_time==null?null:Number(mergedRaw.sell_time),contract_type:String(mergedRaw.contract_type??''),longcode:mergedRaw.longcode,profit_loss:calculateProfitLoss(mergedRaw),exit_tick:mergedRaw.exit_tick??null,exit_spot:mergedRaw.exit_spot??null};
-      closedContractsRef.current.set(id,normalized);
-      if(normalized.sell_time && normalized.sell_time>0) processSorosResult(normalized);
-    }
-    const merged=Array.from(closedContractsRef.current.values()).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time)).slice(0,50);
-    setProfitTransactions(merged);setProfitCount(merged.length);
-  },[processSorosResult]);
-
+  const mergeProfitTransactions=useCallback((incoming:ProfitTransaction[])=>{ for(const tx of incoming){ const id=Number(tx.contract_id); const purchaseTime=Number(tx.purchase_time??0); if(!Number.isFinite(id)||id<=0||!purchaseTime||purchaseTime<sessionStartedAtRef.current)continue; const previous=closedContractsRef.current.get(id); const mergedRaw:Partial<ProfitTransaction>={...previous,...tx}; const normalized:ProfitTransaction={contract_id:id,buy_price:Number(mergedRaw.buy_price??0),sell_price:mergedRaw.sell_price==null?null:Number(mergedRaw.sell_price),payout:Number(mergedRaw.payout??0),purchase_time:Number(mergedRaw.purchase_time??purchaseTime),sell_time:mergedRaw.sell_time==null?null:Number(mergedRaw.sell_time),contract_type:String(mergedRaw.contract_type??''),longcode:mergedRaw.longcode,profit_loss:calculateProfitLoss(mergedRaw),exit_tick:mergedRaw.exit_tick??null,exit_spot:mergedRaw.exit_spot??null}; closedContractsRef.current.set(id,normalized); if(normalized.sell_time&&normalized.sell_time>0)processSorosResult(normalized); } const merged=Array.from(closedContractsRef.current.values()).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time)).slice(0,50); setProfitTransactions(merged);setProfitCount(merged.length); },[processSorosResult]);
   const refreshProfitTable=useCallback(()=>wsRef.current?.getProfitTable({limit:50,offset:0,sort:'DESC',description:1}),[]);
-
-  useEffect(()=>{
-    let cancelled=false; let connectionCheck:ReturnType<typeof setInterval>|null=null; let initialProfitLoaded=false; let lastProfitRefresh=0;
-    sessionStartedAtRef.current=Math.floor(Date.now()/1000);
-    closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setBalance(null);setProposal(null);setError(null);setBuying(false);setContractClosedSeq(0);setActiveContractId(null);
-    sorosRef.current=loadSoros();setSoros(sorosRef.current);lastProcessedSorosContractRef.current=null;
+  useEffect(()=>{ let cancelled=false; let connectionCheck:ReturnType<typeof setInterval>|null=null; let initialProfitLoaded=false; let lastProfitRefresh=0; sessionStartedAtRef.current=Math.floor(Date.now()/1000); closedContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setBalance(null);setProposal(null);setError(null);setBuying(false);setContractClosedSeq(0);setActiveContractId(null); sorosRef.current=loadSoros();setSoros(sorosRef.current);lastProcessedSorosContractRef.current=null;
     const refreshProfitThrottled=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<1500)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
-    const start=async()=>{
-      try{
-        const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);
-        if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return;
-        const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
-        ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';
-          if(data.echo_req?.forget!==undefined){return;}
-          if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}
-          if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}
-          if(data.echo_req?.buy){setBuying(false);setProposal(null);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;}
-          if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null;}
-          setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)
-        });
-        ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});
-        ws.subscribe('balance',data=>{if(data.balance)setBalance(data.balance)});
-        ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});
-        ws.subscribe('transaction',data=>{if(data.transaction)setTransaction(data.transaction)});
-        ws.subscribe('profit_table',data=>{if(data.profit_table){mergeProfitTransactions(data.profit_table.transactions||[]);setLoadingProfit(false)}});
-        ws.subscribe('proposal_open_contract',data=>{const c=data.proposal_open_contract;if(!c)return;const contractId=Number(c.contract_id);if(!Number.isFinite(contractId)||contractId<=0||activeContractRef.current!==contractId)return;const buyPrice=Number(c.buy_price??0);const sellPrice=c.sell_price==null?null:Number(c.sell_price);const payout=Number(c.payout??0);const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss});const purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000));const sellTime=c.sell_time?Number(c.sell_time):null;if(c.is_sold||c.status==='won'||c.status==='lost'){const closedTx:ProfitTransaction={contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null};processSorosResult(closedTx);mergeProfitTransactions([closedTx]);setLoadingProfit(false);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;setProposal(null);setBuying(false);setContractClosedSeq(v=>v+1);ws.unsubscribeContract(contractId);window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},500)}});
-        ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current!==null&&responseReqId!==latestProposalReqRef.current)return;setProposal({id:data.proposal.id,ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:data.proposal.contract_type,symbol:data.proposal.symbol||data.proposal.underlying_symbol,duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier});setError(null)});
-        ws.subscribe('buy',data=>{if(!data.buy)return;setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){activeContractRef.current=contractId;setActiveContractId(contractId);latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});
-        ws.connect();
-        connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();setIsConnected(connected);if(connected){setIsAuthorized(true);setError(prev=>prev==='Not authorized'?null:prev);ws.subscribeBalance();if(!initialProfitLoaded){initialProfitLoaded=true;refreshProfitThrottled(true)}if(connectionCheck){clearInterval(connectionCheck);connectionCheck=null}}else setIsAuthorized(false)},250);
-      }catch(err){if(!cancelled){setIsConnected(false);setIsAuthorized(false);setError(err instanceof Error?err.message:'Unable to initialize Deriv connection')}}
-    };
-    start();
-    return()=>{cancelled=true;if(connectionCheck)clearInterval(connectionCheck);wsRef.current?.disconnect();wsRef.current=null;activeContractRef.current=null;latestProposalReqRef.current=null;closedContractsRef.current.clear();setActiveContractId(null)};
+    const start=async()=>{try{const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return; const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
+      ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.echo_req?.forget!==undefined)return;if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy){setBuying(false);setProposal(null);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null}if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null}setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
+      ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});ws.subscribe('balance',data=>{if(data.balance)setBalance(data.balance)});ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});ws.subscribe('transaction',data=>{if(data.transaction)setTransaction(data.transaction)});ws.subscribe('profit_table',data=>{if(data.profit_table){mergeProfitTransactions(data.profit_table.transactions||[]);setLoadingProfit(false)}});
+      ws.subscribe('proposal_open_contract',data=>{const c=data.proposal_open_contract;if(!c)return;const contractId=Number(c.contract_id);if(!Number.isFinite(contractId)||contractId<=0||activeContractRef.current!==contractId)return;const buyPrice=Number(c.buy_price??0);const sellPrice=c.sell_price==null?null:Number(c.sell_price);const payout=Number(c.payout??0);const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss});const purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000));const sellTime=c.sell_time?Number(c.sell_time):null;if(c.is_sold||c.status==='won'||c.status==='lost'){const closedTx:ProfitTransaction={contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null};processSorosResult(closedTx);mergeProfitTransactions([closedTx]);setLoadingProfit(false);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;setProposal(null);setBuying(false);setContractClosedSeq(v=>v+1);ws.unsubscribeContract(contractId);window.setTimeout(()=>{if(!cancelled)refreshProfitThrottled()},500)}});
+      ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current!==null&&responseReqId!==latestProposalReqRef.current)return;setProposal({id:data.proposal.id,ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:data.proposal.contract_type,symbol:data.proposal.symbol||data.proposal.underlying_symbol,duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier});setError(null)});
+      ws.subscribe('buy',data=>{if(!data.buy)return;setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){activeContractRef.current=contractId;setActiveContractId(contractId);latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});ws.connect();
+      connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();setIsConnected(connected);if(connected){setIsAuthorized(true);setError(prev=>prev==='Not authorized'?null:prev);ws.subscribeBalance();if(!initialProfitLoaded){initialProfitLoaded=true;refreshProfitThrottled(true)}if(connectionCheck){clearInterval(connectionCheck);connectionCheck=null}}else setIsAuthorized(false)},250);
+    }catch(err){if(!cancelled){setIsConnected(false);setIsAuthorized(false);setError(err instanceof Error?err.message:'Unable to initialize Deriv connection')}}};start();return()=>{cancelled=true;if(connectionCheck)clearInterval(connectionCheck);wsRef.current?.disconnect();wsRef.current=null;activeContractRef.current=null;latestProposalReqRef.current=null;closedContractsRef.current.clear();setActiveContractId(null)};
   },[accountType,refreshProfitTable,mergeProfitTransactions,processSorosResult]);
-
-  const subscribeTicks=useCallback((symbol:string)=>wsRef.current?.subscribeTicks(symbol),[]);
-  const fetchProfitTable=useCallback((options?:{limit?:number;offset?:number;sort?:'ASC'|'DESC'})=>{setLoadingProfit(true);wsRef.current?.getProfitTable({description:1,...options})},[]);
-  const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=5)=>{
-    if(activeContractRef.current!==null)return false;
-    const s=sorosRef.current;
-    // Level 0 always starts from the current manual Stake. Levels 1/2 use only
-    // the accumulated Soros profit, never an old persisted initial amount.
-    const effectiveAmount=s.enabled && !s.blocked
-      ? (s.level===0 && s.accumulatedProfit===0 ? Math.max(1.5,Number(amount)||1.5) : Math.max(1.5,s.stake))
-      : Math.max(1.5,Number(amount)||1.5);
-    if(s.level===0 && s.accumulatedProfit===0 && s.stake!==effectiveAmount){
-      sorosRef.current={...s,stake:effectiveAmount,blocked:false};
-      setSoros(sorosRef.current);
-      saveSoros(sorosRef.current);
-    }
-    setProposal(null);setError(null);
-    const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);
-    if(typeof reqId==='number')latestProposalReqRef.current=reqId;
-    return typeof reqId==='number';
-  },[]);
-  const buy=useCallback((proposalId:string,price:number)=>{if(!proposalId||buying||activeContractRef.current!==null)return false;setBuying(true);const sent=wsRef.current?.buyContract(proposalId,price);if(!sent){setBuying(false);setProposal(null);setError('Não foi possível enviar a compra à Deriv.');}return !!sent},[buying]);
+  const subscribeTicks=useCallback((symbol:string)=>wsRef.current?.subscribeTicks(symbol),[]);const fetchProfitTable=useCallback((options?:{limit?:number;offset?:number;sort?:'ASC'|'DESC'})=>{setLoadingProfit(true);wsRef.current?.getProfitTable({description:1,...options})},[]);
+  const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=5)=>{if(activeContractRef.current!==null)return false;const s=sorosRef.current;const fallback=Math.max(SOROS_INITIAL,Number(amount)||SOROS_INITIAL);const effectiveAmount=s.enabled&&!s.blocked?(s.level===0&&s.accumulatedProfit===0?fallback:Math.max(0.01,s.stake)):fallback;
+    if(s.level===0&&s.accumulatedProfit===0&&s.stake!==effectiveAmount){sorosRef.current={...s,stake:effectiveAmount,blocked:false};setSoros(sorosRef.current);saveSoros(sorosRef.current)}setProposal(null);setError(null);const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);if(typeof reqId==='number')latestProposalReqRef.current=reqId;return typeof reqId==='number';},[]);
+  const buy=useCallback((proposalId:string,price:number)=>{if(!proposalId||buying||activeContractRef.current!==null)return false;setBuying(true);const sent=wsRef.current?.buyContract(proposalId,price);if(!sent){setBuying(false);setProposal(null);setError('Não foi possível enviar a compra à Deriv.')}return !!sent},[buying]);
   const sell=useCallback((contractId:number)=>wsRef.current?.sellContract(contractId),[]);
   return {balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,activeContractId,contractClosedSeq,subscribeTicks,fetchProfitTable,getProposal,buy,sell,soros,resetSoros,setSorosEnabled,setSorosStake};
 }
