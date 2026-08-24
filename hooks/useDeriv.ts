@@ -78,8 +78,8 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   const setSorosStake=useCallback((initialStake:number)=>{
     const value=Math.max(1.5,Number(initialStake)||1.5);
     const s=sorosRef.current;
-    // The configured Stake is always the base of a new Soros cycle. If a cycle
-    // is already in progress, keep its current accumulated-profit stake intact.
+    // The manual Stake is always the base of a new Soros cycle.
+    // When a cycle is already at level 1/2, preserve the profit stake until it closes.
     if(s.level===0 && s.accumulatedProfit===0){
       syncSoros({...s,stake:value,blocked:false});
     }
@@ -166,7 +166,16 @@ export function useDeriv(accountType:'demo'|'real'='demo') {
   const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=5)=>{
     if(activeContractRef.current!==null)return false;
     const s=sorosRef.current;
-    const effectiveAmount=s.enabled && !s.blocked ? Math.max(1.5,s.stake) : Math.max(1.5,amount);
+    // Level 0 always starts from the current manual Stake. Levels 1/2 use only
+    // the accumulated Soros profit, never an old persisted initial amount.
+    const effectiveAmount=s.enabled && !s.blocked
+      ? (s.level===0 && s.accumulatedProfit===0 ? Math.max(1.5,Number(amount)||1.5) : Math.max(1.5,s.stake))
+      : Math.max(1.5,Number(amount)||1.5);
+    if(s.level===0 && s.accumulatedProfit===0 && s.stake!==effectiveAmount){
+      sorosRef.current={...s,stake:effectiveAmount,blocked:false};
+      setSoros(sorosRef.current);
+      saveSoros(sorosRef.current);
+    }
     setProposal(null);setError(null);
     const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);
     if(typeof reqId==='number')latestProposalReqRef.current=reqId;
