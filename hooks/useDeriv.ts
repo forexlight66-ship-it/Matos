@@ -10,6 +10,10 @@ interface ProfitTransaction { contract_id:number; buy_price:number; sell_price:n
 interface Proposal { id:string; ask_price:number; payout:number; stake:number; contract_type:string; symbol:string; duration:number; duration_unit:string; barrier?:number }
 
 const SOROS_MIN = 1.50;
+// Final Soros flow requested for Automatic mode:
+// initial stake -> WIN => stake x 1.95 (e.g. $1.50 -> $2.925 ~= $2.93)
+// second WIN => complete reset to the configured initial stake
+// any LOSS => complete reset to the configured initial stake
 const SOROS_MAX_WINS = 2;
 const SOROS_WIN_MULTIPLIER = 1.95;
 const SOROS_STORAGE = 'mozhyper-soros-state-v8';
@@ -29,8 +33,32 @@ export function useDeriv(accountType:'demo'|'real'='demo'){
  const resetSoros=useCallback((initialStake=sorosRef.current.initialStake)=>syncSoros(defaultSoros(initialStake)),[syncSoros]);
  const setSorosEnabled=useCallback((_enabled:boolean)=>syncSoros({...sorosRef.current,enabled:true}),[syncSoros]);
  const setSorosStake=useCallback((initialStake:number)=>{const value=Math.max(SOROS_MIN,Number(initialStake)||SOROS_MIN);const s=sorosRef.current;if(s.level===0){syncSoros({...s,stake:value,initialStake:value,enabled:true,blocked:false})}},[syncSoros]);
- const processSorosResult=useCallback((tx:ProfitTransaction)=>{if(lastProcessedSorosContractRef.current===tx.contract_id)return;const pnl=calculateProfitLoss(tx);if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;lastProcessedSorosContractRef.current=tx.contract_id;const s=sorosRef.current;
-   if(pnl>0){if(s.level===0){const nextStake=Math.max(SOROS_MIN,Number((s.initialStake*SOROS_WIN_MULTIPLIER).toFixed(2)));syncSoros({level:1,stake:nextStake,initialStake:s.initialStake,accumulatedProfit:0,lossRetryCount:0,enabled:true,blocked:false});}else{syncSoros(defaultSoros(s.initialStake));}return;}
+
+ // IMPORTANT: This is the single Soros state machine used by both Automatic and Robo.
+ // $1.50 -> WIN -> $2.93 -> WIN -> RESET -> $1.50
+ // $1.50 -> LOSS -> RESET -> $1.50
+ const processSorosResult=useCallback((tx:ProfitTransaction)=>{
+   if(lastProcessedSorosContractRef.current===tx.contract_id)return;
+   const pnl=calculateProfitLoss(tx);
+   if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;
+   lastProcessedSorosContractRef.current=tx.contract_id;
+   const s=sorosRef.current;
+
+   if(pnl>0){
+     // First WIN: reinvest the original stake plus its profit.
+     // Example: $1.50 * 1.95 = $2.925 -> $2.93.
+     if(s.level===0){
+       const nextStake=Number((s.initialStake*SOROS_WIN_MULTIPLIER).toFixed(2));
+       syncSoros({level:1,stake:Math.max(SOROS_MIN,nextStake),initialStake:s.initialStake,accumulatedProfit:nextStake-s.initialStake,lossRetryCount:0,enabled:true,blocked:false});
+       return;
+     }
+
+     // Second consecutive WIN: complete Soros reset.
+     syncSoros(defaultSoros(s.initialStake));
+     return;
+   }
+
+   // Any LOSS immediately destroys the Soros cycle and returns to the configured initial stake.
    syncSoros(defaultSoros(s.initialStake));
  },[syncSoros]);
  const mergeProfitTransactions=useCallback((incoming:ProfitTransaction[])=>{for(const tx of incoming){const id=Number(tx.contract_id),purchaseTime=Number(tx.purchase_time??0);if(!Number.isFinite(id)||id<=0||!purchaseTime||purchaseTime<sessionStartedAtRef.current)continue;const previous=closedContractsRef.current.get(id);const raw:any={...previous,...tx};const normalized:ProfitTransaction={contract_id:id,buy_price:Number(raw.buy_price??0),sell_price:raw.sell_price==null?null:Number(raw.sell_price),payout:Number(raw.payout??0),purchase_time:Number(raw.purchase_time??purchaseTime),sell_time:raw.sell_time==null?null:Number(raw.sell_time),contract_type:String(raw.contract_type??''),longcode:raw.longcode,profit_loss:calculateProfitLoss(raw),exit_tick:raw.exit_tick??null,exit_spot:raw.exit_spot??null};closedContractsRef.current.set(id,normalized);if(normalized.sell_time&&normalized.sell_time>0)processSorosResult(normalized)}const merged=Array.from(closedContractsRef.current.values()).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time)).slice(0,50);setProfitTransactions(merged);setProfitCount(merged.length)},[processSorosResult]);
