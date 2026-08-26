@@ -10,6 +10,7 @@ interface ProfitTransaction { contract_id:number; buy_price:number; sell_price:n
 interface Proposal { id:string; ask_price:number; payout:number; stake:number; contract_type:string; symbol:string; duration:number; duration_unit:string; barrier?:number }
 
 const SOROS_MIN = 1.50;
+const SOROS_MAX_WINS = 3;
 const SOROS_STORAGE = 'mozhyper-soros-state-v5';
 interface SorosState { level:number; stake:number; initialStake:number; accumulatedProfit:number; lossRetryCount:number; enabled:boolean; blocked:boolean }
 const defaultSoros=(initialStake=SOROS_MIN):SorosState=>({level:0,stake:Math.max(SOROS_MIN,initialStake),initialStake:Math.max(SOROS_MIN,initialStake),accumulatedProfit:0,lossRetryCount:0,enabled:true,blocked:false});
@@ -25,7 +26,19 @@ export function useDeriv(accountType:'demo'|'real'='demo'){
  const setSorosEnabled=useCallback((_enabled:boolean)=>syncSoros({...sorosRef.current,enabled:true}),[syncSoros]);
  const setSorosStake=useCallback((initialStake:number)=>{const value=Math.max(SOROS_MIN,Number(initialStake)||SOROS_MIN);const s=sorosRef.current;if(s.level===0&&s.accumulatedProfit===0&&s.lossRetryCount===0)syncSoros({...s,stake:value,initialStake:value,enabled:true,blocked:false})},[syncSoros]);
  const processSorosResult=useCallback((tx:ProfitTransaction)=>{if(lastProcessedSorosContractRef.current===tx.contract_id)return;const pnl=calculateProfitLoss(tx);if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;lastProcessedSorosContractRef.current=tx.contract_id;const s=sorosRef.current;
-   if(pnl>0){const accumulated=s.accumulatedProfit+pnl;syncSoros({level:s.level+1,stake:accumulated,initialStake:s.initialStake,accumulatedProfit:accumulated,lossRetryCount:0,enabled:true,blocked:false});return}
+   if(pnl>0){
+     // Soros win cycle: the profit from the current entry is added to the
+     // accumulated Soros profit and becomes the next entry. After WIN #3,
+     // reset the complete cycle back to the original stake.
+     const accumulated=s.accumulatedProfit+pnl;
+     const nextLevel=s.level+1;
+     if(nextLevel>=SOROS_MAX_WINS){
+       syncSoros(defaultSoros(s.initialStake));
+       return;
+     }
+     syncSoros({level:nextLevel,stake:accumulated,initialStake:s.initialStake,accumulatedProfit:accumulated,lossRetryCount:0,enabled:true,blocked:false});
+     return;
+   }
    // Every LOSS gets exactly one retry. If this is the second consecutive LOSS, reset completely.
    if(s.lossRetryCount===0){syncSoros({level:s.level,stake:s.stake,initialStake:s.initialStake,accumulatedProfit:s.accumulatedProfit,lossRetryCount:1,enabled:true,blocked:false});return}
    syncSoros(defaultSoros(s.initialStake));
