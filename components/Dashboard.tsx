@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import TutorialSection from './TutorialSection';
-import AutoBotV3 from './AutoBotV3';
+import AutoBotV4 from './AutoBotV4';
 import RobotStrategySelector from './RobotStrategySelector';
 import AutoBotEnhancements from './AutoBotEnhancements';
 
@@ -36,7 +36,7 @@ export default function Dashboard() {
           <button className={mode==='robot'?'active robo':''} onClick={()=>{setMode('robot');setMenu(false)}}>🤖 Robô</button>
         </div>
         <AutoBotEnhancements />
-        {mode==='automatic'?<AutoBotV3/>:<RobotStrategySelector/>}
+        {mode==='automatic'?<AutoBotV4/>:<RobotStrategySelector/>}
       </div>
       <div id="tutorial" className="mt-4"><TutorialSection/></div>
     </div>
