@@ -24,14 +24,13 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!tick?.epoch||tick.epoch===lastEpoch.current)return;lastEpoch.current=tick.epoch;const q=Number(tick.quote);if(!Number.isFinite(q))return;setTicks(prev=>{const n=[...prev,q];if(n.length>=tickWindow){setSignalNow(makeSignal(n.slice(-tickWindow),strategy));return[]}return n})},[tick,strategy,tickWindow]);
  useEffect(()=>{setSorosStake(stake)},[stake,setSorosStake]);
  useEffect(()=>{setTicks([]);setSignalNow(null);requested.current=false;requestStartedAt.current=0},[tickWindow,strategy,symbol]);
+ useEffect(()=>{if(!running)return;const id=window.setInterval(()=>{if(requested.current&&requestStartedAt.current>0&&!proposal&&!buying&&activeContractId===null&&Date.now()-requestStartedAt.current>1800){requested.current=false;requestStartedAt.current=0}},250);return()=>window.clearInterval(id)},[running,proposal,buying,activeContractId]);
  useEffect(()=>{
    if(!running||stopped.current||!signalNow||proposal||buying||!isAuthorized||!isConnected)return;
    const closeChanged=contractClosedSeq!==lastRequestedClose.current;
    if(closeChanged&&activeContractId===null){requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq}
-   if(requested.current&&requestStartedAt.current>0&&Date.now()-requestStartedAt.current>1800){requested.current=false;requestStartedAt.current=0}
    if(requested.current||activeContractId!==null)return;
-   requested.current=true;
-   requestStartedAt.current=Date.now();
+   requested.current=true;requestStartedAt.current=Date.now();
    const c=signalNow.contract,barrier=c==='DIFFER'?0:c==='OVER'?5:c==='UNDER'?4:0;
    const amount=Number(soros.stake)>0?soros.stake:stake;
    if(!getProposal(symbol,TYPES[c],amount,1,barrier)){requested.current=false;requestStartedAt.current=0}
