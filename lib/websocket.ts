@@ -12,18 +12,20 @@ export class DerivWebSocket {
   private contractSubscriptions = new Set<number>();
   private contractSubscriptionIds = new Map<number, string>();
   private proposalRequestId = 1000;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectEnabled = true;
+  private reconnectDelay = 1000;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
   connect() {
+    if (!this.reconnectEnabled) return;
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
     this.ws = new WebSocket(this.url);
     this.ws.onopen = () => {
       this.isReady = true;
-      this.balanceSubscribed = false;
-      this.tickSubscriptions.clear();
-      this.contractSubscriptions.clear();
-      this.contractSubscriptionIds.clear();
+      this.reconnectDelay = 1000;
+      this.resubscribeAll();
     };
     this.ws.onmessage = (event) => {
       try {
@@ -46,11 +48,26 @@ export class DerivWebSocket {
       this.isReady = false;
       this.ws = null;
       this.balanceSubscribed = false;
-      this.tickSubscriptions.clear();
-      this.contractSubscriptions.clear();
       this.contractSubscriptionIds.clear();
+      if (this.reconnectEnabled) this.scheduleReconnect();
     };
     this.ws.onerror = (error) => console.error('[DerivWS] Error:', error);
+  }
+
+  private scheduleReconnect() {
+    if (!this.reconnectEnabled || this.reconnectTimer) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, 10000);
+    }, this.reconnectDelay);
+  }
+
+  private resubscribeAll() {
+    if (!this.isReady) return;
+    if (this.send({ balance: 1, subscribe: 1 })) this.balanceSubscribed = true;
+    for (const symbol of this.tickSubscriptions) this.send({ ticks: symbol, subscribe: 1 });
+    for (const contractId of this.contractSubscriptions) this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
   }
 
   send(payload: any) {
@@ -85,15 +102,15 @@ export class DerivWebSocket {
   }
 
   subscribeTicks(symbol = 'R_100') {
-    if (this.tickSubscriptions.has(symbol)) return;
-    if (this.send({ ticks: symbol, subscribe: 1 })) this.tickSubscriptions.add(symbol);
+    this.tickSubscriptions.add(symbol);
+    if (this.send({ ticks: symbol, subscribe: 1 })) return true;
+    return false;
   }
 
   subscribeContract(contractId: number) {
-    if (!Number.isFinite(contractId) || contractId <= 0 || this.contractSubscriptions.has(contractId)) return false;
-    const sent = this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
-    if (sent) this.contractSubscriptions.add(contractId);
-    return sent;
+    if (!Number.isFinite(contractId) || contractId <= 0) return false;
+    this.contractSubscriptions.add(contractId);
+    return this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
   }
 
   unsubscribeContract(contractId: number) {
@@ -134,6 +151,9 @@ export class DerivWebSocket {
   sellContract(contractId: number) { return this.send({ sell: contractId, price: 0 }); }
 
   disconnect() {
+    this.reconnectEnabled = false;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     if (this.ws) this.ws.close();
     this.ws = null;
     this.isReady = false;
