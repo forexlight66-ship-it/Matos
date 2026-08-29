@@ -13,6 +13,8 @@ export default function Dashboard() {
       .matos-phone{width:100%;min-height:100dvh;margin:0;border-radius:0;box-shadow:none;background:var(--bg,#070b14);box-sizing:border-box;padding:0}
       .matos-phone>div{width:100%;max-width:none}
       .matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}
+      /* Remove the AutoBot root padding that was creating the empty side margins. */
+      .matos-phone>.mx-auto.w-full{padding:0!important;max-width:none!important;width:100%!important;min-height:100dvh!important;box-sizing:border-box!important}
       .av4{width:100%!important;max-width:none!important;min-height:100dvh;box-sizing:border-box;border-radius:0!important}
       .av4 .hist{scrollbar-width:none;-ms-overflow-style:none}
       .av4 .hist::-webkit-scrollbar{display:none}
