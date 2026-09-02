@@ -3,7 +3,7 @@
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const DERIV_SIGNUP_URL = 'https://track.deriv.com/_xhgntjGPYQ7xidYl18iLj2Nd7ZgqdRLk/1/';
+const DERIV_SIGNUP_URL = 'https://t.deriv.link?t=JAZWN4WCY6JS';
 const redDeriv = (text: string) => { const parts = text.split(/(Deriv)/g); return <>{parts.map((p, i) => p === 'Deriv' ? <span key={i} style={{ color: '#ff4d5f' }}>{p}</span> : p)}</>; };
 
 const css: Record<string, React.CSSProperties> = {
