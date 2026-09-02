@@ -2,7 +2,6 @@
 
 import { randomBytes, createHash } from 'crypto';
 
-// Current Deriv OAuth 2.0 endpoints.
 const DERIV_OAUTH_AUTHORIZE = 'https://auth.deriv.com/oauth2/auth';
 const DERIV_OAUTH_TOKEN = 'https://auth.deriv.com/oauth2/token';
 
@@ -28,8 +27,6 @@ export function getAuthorizeUrl(
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    // The current OAuth application permissions use named scopes.
-    // The dashboard needs trading/account access; request only what is needed.
     scope: 'trade',
     state,
     code_challenge: codeChallenge,
@@ -55,29 +52,44 @@ export async function exchangeCode(
 
   const response = await fetch(DERIV_OAUTH_TOKEN, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString(),
     cache: 'no-store',
   });
 
   const data = await response.json().catch(() => null);
-
   if (!response.ok) {
-    throw new Error(
-      `OAuth token exchange failed (${response.status}): ${
-        data?.error_description || data?.error || JSON.stringify(data) || 'Unknown error'
-      }`
-    );
+    throw new Error(`OAuth token exchange failed (${response.status}): ${data?.error_description || data?.error || JSON.stringify(data) || 'Unknown error'}`);
   }
+  if (!data?.access_token) throw new Error('OAuth token exchange succeeded but no access_token was returned');
 
-  if (!data?.access_token) {
-    throw new Error('OAuth token exchange succeeded but no access_token was returned');
+  return { access_token: data.access_token, refresh_token: data.refresh_token };
+}
+
+export async function refreshAccessToken(
+  clientId: string,
+  refreshToken: string
+): Promise<{ access_token: string; refresh_token?: string }> {
+  const params = new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: clientId,
+    refresh_token: refreshToken,
+  });
+
+  const response = await fetch(DERIV_OAUTH_TOKEN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+    cache: 'no-store',
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.access_token) {
+    throw new Error(`OAuth token refresh failed (${response.status}): ${data?.error_description || data?.error || JSON.stringify(data) || 'Unknown error'}`);
   }
 
   return {
     access_token: data.access_token,
-    refresh_token: data.refresh_token,
+    refresh_token: data.refresh_token || refreshToken,
   };
 }
