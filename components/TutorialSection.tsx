@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+const DERIV_AFFILIATE_LINK = 'https://t.deriv.link?t=JAZWN4WCY6JS';
+
 export default function TutorialSection() {
   const { language, t } = useLanguage();
   const [showVideo, setShowVideo] = useState(true);
@@ -26,8 +28,9 @@ export default function TutorialSection() {
               <p>O trading de dígitos na Deriv baseia-se em prever o último número (de 0 a 9) do preço atual de um ativo financeiro ou índice sintético.</p>
               <h4 className="font-semibold">Como começar</h4>
               <p>Antes de tudo, assim que chegar na plataforma, escolha entre <strong>Demo</strong> ou <strong>Real</strong>.</p>
-              <p>Depois escolha sua estratégia. A plataforma dispõe de 4 estratégias: <strong>HyperDrive, HyperNova, HyperStrike e HyperForce</strong>.</p>
+              <p>Depois escolha sua estratégia. A plataforma dispõe de 5 estratégias: <strong>HyperDrive, HyperNova, HyperStrike, HyperForce e HyperFlow</strong>.</p>
               <p>Depois clique em <strong>Iniciar Robô</strong>.</p>
+              <a href={DERIV_AFFILIATE_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow hover:bg-blue-700">🚀 Abrir conta Deriv</a>
               <h4 className="font-semibold">Assistência</h4>
               <p>Para assistência contacte <strong>+258 87 904 8091</strong>.</p>
               <h4 className="font-semibold">Conceitos Básicos dos Dígitos</h4>
@@ -42,12 +45,12 @@ export default function TutorialSection() {
           ) : language === 'es' ? (
             <>
               <p>El trading de dígitos en Deriv se basa en predecir el último número (del 0 al 9) del precio actual de un activo financiero o índice sintético.</p>
-              <h4 className="font-semibold">Cómo empezar</h4><p>Primero, elige entre <strong>Demo</strong> o <strong>Real</strong>.</p><p>Después elige una estrategia: <strong>HyperDrive, HyperNova, HyperStrike y HyperForce</strong>.</p><p>Después haz clic en <strong>Iniciar Robô</strong>.</p><p>Para asistencia contacte <strong>+258 87 904 8091</strong>.</p>
+              <h4 className="font-semibold">Cómo empezar</h4><p>Primero, elige entre <strong>Demo</strong> o <strong>Real</strong>.</p><p>Después elige una estrategia: <strong>HyperDrive, HyperNova, HyperStrike, HyperForce y HyperFlow</strong>.</p><p>Después haz clic en <strong>Iniciar Robô</strong>.</p><a href={DERIV_AFFILIATE_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex rounded-xl bg-blue-600 px-4 py-3 font-bold text-white">🚀 Abrir cuenta Deriv</a><p>Para asistencia contacte <strong>+258 87 904 8091</strong>.</p>
             </>
           ) : (
             <>
               <p>Digits trading on Deriv is based on predicting the last number (0 to 9) of the current price of a financial asset or synthetic index.</p>
-              <h4 className="font-semibold">How to start</h4><p>First choose between <strong>Demo</strong> or <strong>Real</strong>.</p><p>Then choose a strategy: <strong>HyperDrive, HyperNova, HyperStrike and HyperForce</strong>.</p><p>Then click <strong>Start Robot</strong>.</p><p>For assistance contact <strong>+258 87 904 8091</strong>.</p>
+              <h4 className="font-semibold">How to start</h4><p>First choose between <strong>Demo</strong> or <strong>Real</strong>.</p><p>Then choose a strategy: <strong>HyperDrive, HyperNova, HyperStrike, HyperForce and HyperFlow</strong>.</p><p>Then click <strong>Start Robot</strong>.</p><a href={DERIV_AFFILIATE_LINK} target="_blank" rel="noopener noreferrer" className="inline-flex rounded-xl bg-blue-600 px-4 py-3 font-bold text-white">🚀 Open Deriv account</a><p>For assistance contact <strong>+258 87 904 8091</strong>.</p>
             </>
           )}
         </div>
