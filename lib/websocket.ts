@@ -121,8 +121,10 @@ export class DerivWebSocket {
   }
 
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
+    // Deriv's profit_table endpoint accepts a small page size. Keep the
+    // requested history size in the UI, but never send an invalid limit.
     const requestedLimit = Number(options?.limit ?? 50);
-    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(500, Math.floor(requestedLimit))) : 50;
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(50, Math.floor(requestedLimit))) : 50;
     const requestedOffset = Number(options?.offset ?? 0);
     const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.floor(requestedOffset)) : 0;
     const sort = options?.sort === 'ASC' ? 'ASC' : 'DESC';
