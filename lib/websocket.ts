@@ -121,7 +121,13 @@ export class DerivWebSocket {
   }
 
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
-    return this.send({ profit_table: 1, ...options });
+    const requestedLimit = Number(options?.limit ?? 50);
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(500, Math.floor(requestedLimit))) : 50;
+    const requestedOffset = Number(options?.offset ?? 0);
+    const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.floor(requestedOffset)) : 0;
+    const sort = options?.sort === 'ASC' ? 'ASC' : 'DESC';
+    const description = options?.description === 0 ? 0 : 1;
+    return this.send({ profit_table: 1, limit, offset, sort, description });
   }
 
   getProposal(symbol: string, contractType: string, amount: number, duration: number, barrier?: number) {
