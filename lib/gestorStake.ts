@@ -39,9 +39,11 @@ export function criarGestorStake(config: ConfigGestorStake) {
 
   function registrarResultado(ganhou: boolean): void {
     if (!emMartingale) {
+      // ---------------- Fase Soros ----------------
       if (ganhou) {
         const lucro = stakeAtual * payout;
         lucroAcumuladoCicloSoros += lucro;
+
         if (nivelSoros === 0) {
           nivelSoros = 1;
           stakeAtual = stakeBase + lucroAcumuladoCicloSoros;
@@ -49,31 +51,38 @@ export function criarGestorStake(config: ConfigGestorStake) {
           nivelSoros = 2;
           stakeAtual = stakeBase + lucroAcumuladoCicloSoros;
         } else {
+          // WIN no nível 2 -> ciclo Soros completo, volta ao stake base
           nivelSoros = 0;
           stakeAtual = stakeBase;
           lucroAcumuladoCicloSoros = 0;
         }
-      } else if (nivelSoros === 2) {
+      } else {
+        // QUALQUER LOSS durante o Soros ativa Martingale imediatamente.
+        // Isto inclui loss no Soros nível 0, nível 1 ou nível 2.
         emMartingale = true;
         nivelMartingale = 1;
         perdaAcumuladaMartingale = stakeAtual;
         vezesEntrouMartingale++;
+
+        // Próxima stake tenta recuperar a perda e ainda obter o lucro da stake base.
         stakeAtual = +((perdaAcumuladaMartingale + stakeBase) / payout).toFixed(2);
-      } else {
-        nivelSoros = 0;
-        stakeAtual = stakeBase;
-        lucroAcumuladoCicloSoros = 0;
       }
-    } else if (ganhou) {
-      resetTudo();
     } else {
-      perdaAcumuladaMartingale += stakeAtual;
-      nivelMartingale++;
-      if (nivelMartingale >= maxNiveisMartingale) {
-        vezesEstourouMartingale++;
+      // ---------------- Fase Martingale ----------------
+      if (ganhou) {
+        // Recuperou -> encerra o ciclo e volta ao Soros nível 0.
         resetTudo();
       } else {
-        stakeAtual = +((perdaAcumuladaMartingale + stakeBase) / payout).toFixed(2);
+        perdaAcumuladaMartingale += stakeAtual;
+        nivelMartingale++;
+
+        if (nivelMartingale >= maxNiveisMartingale) {
+          // Atingiu o limite -> não aumenta mais a stake.
+          vezesEstourouMartingale++;
+          resetTudo();
+        } else {
+          stakeAtual = +((perdaAcumuladaMartingale + stakeBase) / payout).toFixed(2);
+        }
       }
     }
   }
