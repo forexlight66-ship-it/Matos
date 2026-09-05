@@ -2,6 +2,8 @@ name: Fix Original Soros
 on:
   push:
     branches: [main]
+permissions:
+  contents: write
 jobs:
   patch:
     runs-on: ubuntu-latest
