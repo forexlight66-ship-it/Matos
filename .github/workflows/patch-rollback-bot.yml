@@ -1,0 +1,52 @@
+name: Patch rollback bot
+on:
+  push:
+    branches: [fix/rollback-bot]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch bot logic only
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('components/AutoBotV4.tsx')
+          s=p.read_text()
+          replacements=[
+            ("const IA_MAX_MARTINGALE=5;", "const IA_MAX_MARTINGALE=7;"),
+            ("closedOperations=Math.min(profitTransactions.length,2000)", "closedOperations=profitTransactions.length"),
+            ("requested.current=false;requestStartedAt.current=0}if(signalNow", "requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}if(signalNow"),
+            ("requested.current=false;requestStartedAt.current=0;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500", "requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500"),
+          ]
+          for old,new in replacements:
+            if old not in s: raise SystemExit(f'pattern not found: {old}')
+            s=s.replace(old,new,1)
+          p.write_text(s)
+          p=Path('lib/gestorStake.ts')
+          s=p.read_text()
+          old="const maxNiveisMartingale = Math.max(1, Math.floor(Number(config.maxNiveisMartingale) || 5));"
+          new="const requestedMax = Math.floor(Number(config.maxNiveisMartingale) || 7);\n  const maxNiveisMartingale = Math.max(1, requestedMax === 5 ? 7 : requestedMax);"
+          if old not in s: raise SystemExit('Martingale config pattern not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Verify
+        run: |
+          grep -q 'const IA_MAX_MARTINGALE=7;' components/AutoBotV4.tsx
+          grep -q 'closedOperations=profitTransactions.length' components/AutoBotV4.tsx
+          grep -q 'requestedMax === 5 ? 7 : requestedMax' lib/gestorStake.ts
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/AutoBotV4.tsx lib/gestorStake.ts
+          git commit -m 'Fix bot continuity and extend Martingale to 7 levels'
+          git push
+      - name: Remove temporary workflow
+        if: always()
+        run: |
+          git rm -f .github/workflows/patch-rollback-bot.yml || true
+          git commit -m 'Remove temporary patch workflow [skip ci]' || true
+          git push || true
