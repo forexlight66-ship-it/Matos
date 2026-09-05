@@ -14,7 +14,10 @@ export interface ConfigGestorStake {
 }
 
 export function criarGestorStake(config: ConfigGestorStake) {
-  const { stakeBase, payout, maxNiveisMartingale } = config;
+  let stakeBase = Math.max(0, Number(config.stakeBase) || 0);
+  const payout = Math.max(0.0001, Number(config.payout) || 0.95);
+  const maxNiveisMartingale = Math.max(1, Math.floor(Number(config.maxNiveisMartingale) || 5));
+
   let nivelSoros = 0;
   let stakeAtual = stakeBase;
   let lucroAcumuladoCicloSoros = 0;
@@ -24,8 +27,10 @@ export function criarGestorStake(config: ConfigGestorStake) {
   let vezesEntrouMartingale = 0;
   let vezesEstourouMartingale = 0;
 
+  const arredondarStake = (valor: number) => +Math.max(0, valor).toFixed(2);
+
   function proximoStake(): number {
-    return +stakeAtual.toFixed(2);
+    return arredondarStake(stakeAtual);
   }
 
   function resetTudo(): void {
@@ -37,60 +42,61 @@ export function criarGestorStake(config: ConfigGestorStake) {
     perdaAcumuladaMartingale = 0;
   }
 
+  function definirStakeBase(novaStake: number): void {
+    const valor = Number(novaStake);
+    if (!Number.isFinite(valor) || valor <= 0) return;
+    stakeBase = arredondarStake(valor);
+    resetTudo();
+  }
+
   function registrarResultado(ganhou: boolean): void {
+    // Resultado sempre é processado antes de calcular a próxima entrada.
+    // Soros: somente WIN reinveste lucro. Qualquer LOSS sai do Soros.
     if (!emMartingale) {
-      // ---------------- Fase Soros ----------------
       if (ganhou) {
         const lucro = stakeAtual * payout;
         lucroAcumuladoCicloSoros += lucro;
 
-        if (nivelSoros === 0) {
-          nivelSoros = 1;
-          stakeAtual = stakeBase + lucroAcumuladoCicloSoros;
-        } else if (nivelSoros === 1) {
-          nivelSoros = 2;
-          stakeAtual = stakeBase + lucroAcumuladoCicloSoros;
+        if (nivelSoros < 2) {
+          nivelSoros += 1;
+          stakeAtual = arredondarStake(stakeBase + lucroAcumuladoCicloSoros);
         } else {
-          // WIN no nível 2 -> ciclo Soros completo, volta ao stake base
-          nivelSoros = 0;
-          stakeAtual = stakeBase;
-          lucroAcumuladoCicloSoros = 0;
+          // 3o WIN fecha o ciclo Soros e volta ao stake manual/base.
+          resetTudo();
         }
       } else {
-        // QUALQUER LOSS durante o Soros ativa Martingale imediatamente.
-        // Isto inclui loss no Soros nível 0, nível 1 ou nível 2.
+        // LOSS em qualquer nível Soros -> Martingale nível 1.
         emMartingale = true;
         nivelMartingale = 1;
         perdaAcumuladaMartingale = stakeAtual;
-        vezesEntrouMartingale++;
-
-        // Próxima stake tenta recuperar a perda e ainda obter o lucro da stake base.
-        stakeAtual = +((perdaAcumuladaMartingale + stakeBase) / payout).toFixed(2);
+        vezesEntrouMartingale += 1;
+        stakeAtual = arredondarStake((perdaAcumuladaMartingale + stakeBase) / payout);
       }
-    } else {
-      // ---------------- Fase Martingale ----------------
-      if (ganhou) {
-        // Recuperou -> encerra o ciclo e volta ao Soros nível 0.
-        resetTudo();
-      } else {
-        perdaAcumuladaMartingale += stakeAtual;
-        nivelMartingale++;
-
-        if (nivelMartingale >= maxNiveisMartingale) {
-          // Atingiu o limite -> não aumenta mais a stake.
-          vezesEstourouMartingale++;
-          resetTudo();
-        } else {
-          stakeAtual = +((perdaAcumuladaMartingale + stakeBase) / payout).toFixed(2);
-        }
-      }
+      return;
     }
+
+    // Martingale: WIN recupera o ciclo e volta ao stake manual/base.
+    if (ganhou) {
+      resetTudo();
+      return;
+    }
+
+    perdaAcumuladaMartingale += stakeAtual;
+
+    if (nivelMartingale >= maxNiveisMartingale) {
+      vezesEstourouMartingale += 1;
+      resetTudo();
+      return;
+    }
+
+    nivelMartingale += 1;
+    stakeAtual = arredondarStake((perdaAcumuladaMartingale + stakeBase) / payout);
   }
 
   function getEstado(): EstadoGestorStake {
     return {
       nivelSoros,
-      stakeAtual: +stakeAtual.toFixed(2),
+      stakeAtual: arredondarStake(stakeAtual),
       emMartingale,
       nivelMartingale,
       lucroAcumuladoCicloSoros: +lucroAcumuladoCicloSoros.toFixed(2),
@@ -102,5 +108,12 @@ export function criarGestorStake(config: ConfigGestorStake) {
     return { vezesEntrouMartingale, vezesEstourouMartingale };
   }
 
-  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetTudo };
+  return {
+    proximoStake,
+    registrarResultado,
+    definirStakeBase,
+    getEstado,
+    getEstatisticas,
+    resetTudo,
+  };
 }
