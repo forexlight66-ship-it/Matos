@@ -16,7 +16,8 @@ export interface ConfigGestorStake {
 export function criarGestorStake(config: ConfigGestorStake) {
   let stakeBase = Math.max(0, Number(config.stakeBase) || 0);
   const payout = Math.max(0.0001, Number(config.payout) || 0.95);
-  const maxNiveisMartingale = Math.max(1, Math.floor(Number(config.maxNiveisMartingale) || 5));
+  const requestedMax = Math.floor(Number(config.maxNiveisMartingale) || 7);
+  const maxNiveisMartingale = Math.max(1, requestedMax === 5 ? 7 : requestedMax);
 
   let nivelSoros = 0;
   let stakeAtual = stakeBase;
