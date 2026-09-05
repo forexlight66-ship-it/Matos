@@ -1,6 +1,7 @@
 name: Fix Original Soros
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -29,7 +30,7 @@ jobs:
         run: |
           grep -q "const effectiveAmount=useOriginalSoros&&originalSorosEnabledRef.current?Math.max(SOROS_MIN,Number(s.level>0?s.stake:s.initialStake)):fallback;" hooks/useDeriv.ts
           grep -q "const base=Math.max(SOROS_MIN,Number(sorosRef.current.initialStake)||SOROS_MIN)" hooks/useDeriv.ts
-      - name: Commit
+      - name: Commit patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
