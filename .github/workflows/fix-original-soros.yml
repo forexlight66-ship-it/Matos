@@ -1,0 +1,44 @@
+name: Fix Original Soros
+on:
+  workflow_dispatch:
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Soros engine
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('hooks/useDeriv.ts')
+          s=p.read_text()
+          old="const processSorosResult=useCallback((tx:ProfitTransaction)=>{if(!originalSorosEnabledRef.current)return;if(lastProcessedSorosContractRef.current===tx.contract_id)return;const pnl=calculateProfitLoss(tx);if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;lastProcessedSorosContractRef.current=tx.contract_id;const s=sorosRef.current;if(pnl>0){if(s.level===0){const nextStake=Number((s.initialStake*SOROS_WIN_MULTIPLIER).toFixed(2));syncSoros({level:1,stake:Math.max(SOROS_MIN,nextStake),initialStake:s.initialStake,accumulatedProfit:nextStake-s.initialStake,lossRetryCount:0,enabled:true,blocked:false});return}syncSoros(defaultSoros(s.initialStake));return}syncSoros(defaultSoros(s.initialStake))},[syncSoros]);"
+          new="const processSorosResult=useCallback((tx:ProfitTransaction)=>{if(!originalSorosEnabledRef.current)return;const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)return;if(lastProcessedSorosContractRef.current===id)return;const pnl=calculateProfitLoss(tx);if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;lastProcessedSorosContractRef.current=id;const base=Math.max(SOROS_MIN,Number(sorosRef.current.initialStake)||SOROS_MIN);const currentLevel=Math.max(0,Math.min(SOROS_MAX_WINS-1,Math.floor(Number(sorosRef.current.level)||0)));if(pnl<=0){syncSoros(defaultSoros(base));return}if(currentLevel===0){const nextStake=Number((base*SOROS_WIN_MULTIPLIER).toFixed(2));syncSoros({level:1,stake:nextStake,initialStake:base,accumulatedProfit:nextStake-base,lossRetryCount:0,enabled:true,blocked:false});return}syncSoros(defaultSoros(base))},[syncSoros]);"
+          if old not in s:
+            raise SystemExit('Original processSorosResult block not found')
+          s=s.replace(old,new,1)
+          import re
+          pattern=r"const effectiveAmount=useOriginalSoros&&originalSorosEnabledRef\.current\?[^;]+;"
+          replacement="const effectiveAmount=useOriginalSoros&&originalSorosEnabledRef.current?Math.max(SOROS_MIN,Number(s.level>0?s.stake:s.initialStake)):fallback;"
+          s,n=re.subn(pattern,replacement,s,count=1)
+          if n!=1:
+            raise SystemExit('effectiveAmount expression not found')
+          p.write_text(s)
+          PY
+      - name: Verify
+        run: |
+          grep -q "const effectiveAmount=useOriginalSoros&&originalSorosEnabledRef.current?Math.max(SOROS_MIN,Number(s.level>0?s.stake:s.initialStake)):fallback;" hooks/useDeriv.ts
+          grep -q "const base=Math.max(SOROS_MIN,Number(sorosRef.current.initialStake)||SOROS_MIN)" hooks/useDeriv.ts
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add hooks/useDeriv.ts
+          git commit -m "Fix Original Soros cycle and stake synchronization"
+          git push
+      - name: Remove temporary workflow
+        if: always()
+        run: |
+          git rm -f .github/workflows/fix-original-soros.yml || true
+          git commit -m "Remove temporary Soros patch workflow [skip ci]" || true
+          git push || true
