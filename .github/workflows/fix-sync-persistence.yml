@@ -1,6 +1,7 @@
 name: Fix trading sync persistence
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: write
 jobs:
@@ -13,20 +14,17 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           p=Path('lib/gestorStake.ts'); s=p.read_text()
-          old="""  function getEstado(): EstadoGestorStake {\n    return {\n      nivelSoros,\n      stakeAtual: arredondarStake(stakeAtual),\n      emMartingale,\n      nivelMartingale,\n      lucroAcumuladoCicloSoros: +lucroAcumuladoCicloSoros.toFixed(2),\n      perdaAcumuladaMartingale: +perdaAcumuladaMartingale.toFixed(2),\n    };\n  }\n"""
-          new=old+"""\n  function restaurarEstado(estado: Partial<EstadoGestorStake>): void {\n    const nS = Math.max(0, Math.min(2, Math.floor(Number(estado.nivelSoros) || 0)));\n    const nM = Math.max(0, Math.min(maxNiveisMartingale, Math.floor(Number(estado.nivelMartingale) || 0)));\n    nivelSoros = nS;\n    stakeAtual = arredondarStake(Number(estado.stakeAtual) > 0 ? Number(estado.stakeAtual) : stakeBase);\n    emMartingale = Boolean(estado.emMartingale) && nM > 0;\n    nivelMartingale = emMartingale ? nM : 0;\n    lucroAcumuladoCicloSoros = Math.max(0, Number(estado.lucroAcumuladoCicloSoros) || 0);\n    perdaAcumuladaMartingale = Math.max(0, Number(estado.perdaAcumuladaMartingale) || 0);\n  }\n"""
-          if old not in s: raise SystemExit('gestor marker not found')
-          s=s.replace(old,new).replace("    resetTudo,\n  };","    resetTudo,\n    restaurarEstado,\n  };")
-          p.write_text(s)
-
+          if 'function restaurarEstado' not in s:
+            old="""  function getEstado(): EstadoGestorStake {\n    return {\n      nivelSoros,\n      stakeAtual: arredondarStake(stakeAtual),\n      emMartingale,\n      nivelMartingale,\n      lucroAcumuladoCicloSoros: +lucroAcumuladoCicloSoros.toFixed(2),\n      perdaAcumuladaMartingale: +perdaAcumuladaMartingale.toFixed(2),\n    };\n  }\n"""
+            new=old+"""\n  function restaurarEstado(estado: Partial<EstadoGestorStake>): void {\n    const nS=Math.max(0,Math.min(2,Math.floor(Number(estado.nivelSoros)||0)));\n    const nM=Math.max(0,Math.min(maxNiveisMartingale,Math.floor(Number(estado.nivelMartingale)||0)));\n    nivelSoros=nS; stakeAtual=arredondarStake(Number(estado.stakeAtual)>0?Number(estado.stakeAtual):stakeBase);\n    emMartingale=Boolean(estado.emMartingale)&&nM>0; nivelMartingale=emMartingale?nM:0;\n    lucroAcumuladoCicloSoros=Math.max(0,Number(estado.lucroAcumuladoCicloSoros)||0);\n    perdaAcumuladaMartingale=Math.max(0,Number(estado.perdaAcumuladaMartingale)||0);\n  }\n"""
+            if old not in s: raise SystemExit('gestor marker not found')
+            s=s.replace(old,new).replace('    resetTudo,\n  };','    resetTudo,\n    restaurarEstado,\n  };')
+            p.write_text(s)
           p=Path('components/AutoBotV4.tsx'); s=p.read_text()
-          marker=" const lastEpoch=useRef<number|null>(null),requested=useRef(false)"
-          if marker not in s: raise SystemExit('ref marker not found')
-          s=s.replace(marker," const lastEpoch=useRef<number|null>(null),lastTickEpochRef=useRef<number|null>(null),requested=useRef(false)")
-          s=s.replace("gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));","gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));")
-          insert_after=" const light=theme==='light';"
-          persistence="""\n const stateStorageKey=`mozhyper-stake-state-v2:${account}:${symbol}`;\n const saveStakeState=()=>{try{localStorage.setItem(stateStorageKey,JSON.stringify({state:gestorRef.current.getEstado(),savedAt:Date.now()}))}catch{}};\n const restoreStakeState=()=>{try{const raw=localStorage.getItem(stateStorageKey);if(!raw)return;const saved=JSON.parse(raw);if(saved?.state)gestorRef.current.restaurarEstado(saved.state);setStakeManagerVersion(v=>v+1)}catch{}};\n useEffect(()=>{if(running)return;restoreStakeState()},[account,symbol,maxMartingale,running]);\n useEffect(()=>{if(!running)return;const id=window.setInterval(()=>{if(lastTickEpochRef.current!==null&&lastEpoch.current===lastTickEpochRef.current&&Date.now()-lastActivityAt.current>8000){requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;subscribeTicks(symbol)}lastTickEpochRef.current=lastEpoch.current},4000);return()=>window.clearInterval(id)},[running,symbol,subscribeTicks]);\n"""
-          if persistence.strip() not in s: s=s.replace(insert_after,insert_after+persistence)
+          if 'mozhyper-stake-state-v2:' not in s:
+            s=s.replace(" const light=theme==='light';", " const stateStorageKey=`mozhyper-stake-state-v2:${account}:${symbol}`;\n const saveStakeState=()=>{try{localStorage.setItem(stateStorageKey,JSON.stringify({state:gestorRef.current.getEstado(),savedAt:Date.now()}))}catch{}};\n const restoreStakeState=()=>{try{const raw=localStorage.getItem(stateStorageKey);if(!raw)return;const saved=JSON.parse(raw);if(saved?.state)gestorRef.current.restaurarEstado(saved.state);setStakeManagerVersion(v=>v+1)}catch{}};\n useEffect(()=>{if(!running)restoreStakeState()},[account,symbol,maxMartingale,running]);\n useEffect(()=>{if(!running)return;const id=window.setInterval(()=>{if(Date.now()-lastActivityAt.current>8000){requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;subscribeTicks(symbol)}},4000);return()=>window.clearInterval(id)},[running,symbol,subscribeTicks]);\n const light=theme==='dark';")
+          # preserve actual theme expression after insertion
+          s=s.replace(" const light=theme==='dark';", " const light=theme==='light';")
           s=s.replace("gestorRef.current.registrarResultado(Number(latest.profit_loss||0)>=0);stakeReadyRef.current=true;setStakeManagerVersion", "gestorRef.current.registrarResultado(Number(latest.profit_loss||0)>=0);saveStakeState();stakeReadyRef.current=true;setStakeManagerVersion")
           s=s.replace("gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});setStakeManagerVersion(v=>v+1);lastProcessedStakeResult", "gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});restoreStakeState();setStakeManagerVersion(v=>v+1);lastProcessedStakeResult")
           p.write_text(s)
@@ -34,8 +32,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/gestorStake.ts components/AutoBotV4.tsx
-          git commit -m 'Improve trading synchronization and persist Martingale Soros state [skip ci]'
-          git push
+          if ! git diff --cached --quiet; then git commit -m 'Improve trading synchronization and persist Martingale Soros state [skip ci]'; git push; fi
       - name: Cleanup
         run: |
           git rm .github/workflows/fix-sync-persistence.yml
