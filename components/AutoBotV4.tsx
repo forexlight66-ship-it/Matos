@@ -43,7 +43,7 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),4000);return()=>clearTimeout(timer)},[notice]);
  const start=()=>{if(!isConnected||!isAuthorized)return;setSorosEnabled(!iaPower);gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});restoreStakeState();setStakeManagerVersion(v=>v+1);lastProcessedStakeResult.current=latest?.contract_id??null;stakeReadyRef.current=true;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();setTicks([]);setSignalNow(null);setRunning(true)};
  const stop=()=>{stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setSignalNow(null)};
- const logout=()=>{stop();resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
+ const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:'))localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
  const stateStorageKey=`mozhyper-stake-state-v2:${account}:${symbol}`;
  const saveStakeState=()=>{try{localStorage.setItem(stateStorageKey,JSON.stringify({state:gestorRef.current.getEstado(),savedAt:Date.now()}))}catch{}};
  const restoreStakeState=()=>{try{const raw=localStorage.getItem(stateStorageKey);if(!raw)return;const saved=JSON.parse(raw);if(saved?.state)gestorRef.current.restaurarEstado(saved.state);setStakeManagerVersion(v=>v+1)}catch{}};
