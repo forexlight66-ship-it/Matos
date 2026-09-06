@@ -105,6 +105,15 @@ export function criarGestorStake(config: ConfigGestorStake) {
     };
   }
 
+  function restaurarEstado(estado: Partial<EstadoGestorStake>): void {
+    const nS=Math.max(0,Math.min(2,Math.floor(Number(estado.nivelSoros)||0)));
+    const nM=Math.max(0,Math.min(maxNiveisMartingale,Math.floor(Number(estado.nivelMartingale)||0)));
+    nivelSoros=nS; stakeAtual=arredondarStake(Number(estado.stakeAtual)>0?Number(estado.stakeAtual):stakeBase);
+    emMartingale=Boolean(estado.emMartingale)&&nM>0; nivelMartingale=emMartingale?nM:0;
+    lucroAcumuladoCicloSoros=Math.max(0,Number(estado.lucroAcumuladoCicloSoros)||0);
+    perdaAcumuladaMartingale=Math.max(0,Number(estado.perdaAcumuladaMartingale)||0);
+  }
+
   function getEstatisticas() {
     return { vezesEntrouMartingale, vezesEstourouMartingale };
   }
@@ -116,5 +125,6 @@ export function criarGestorStake(config: ConfigGestorStake) {
     getEstado,
     getEstatisticas,
     resetTudo,
+    restaurarEstado,
   };
 }
