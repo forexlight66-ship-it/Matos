@@ -7,7 +7,7 @@ const DERIV_SIGNUP_URL = 'https://t.deriv.link?t=JAZWN4WCY6JS';
 const redDeriv = (text: string) => { const parts = text.split(/(Deriv)/g); return <>{parts.map((p, i) => p === 'Deriv' ? <span key={i} style={{ color: '#ff4d5f' }}>{p}</span> : p)}</>; };
 
 const css: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', width: '100%', position: 'relative', overflowX: 'hidden', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 16px 22px', background: '#070b16', color: '#f5f7fb', fontFamily: 'Inter, system-ui, sans-serif', gap: 12 },
+  page: { minHeight: '100vh', width: '100%', position: 'relative', overflowX: 'hidden', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 16px 22px', background: '#070b16', color: '#f5f7fb', fontFamily: 'Inter, system-ui, sans-serif', gap: 12, border: '2px solid #facc15', boxSizing: 'border-box' },
   glowBlue: { position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'rgba(55,125,255,.20)', filter: 'blur(80px)', top: -170, left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' },
   glowGold: { position: 'absolute', width: 260, height: 260, borderRadius: '50%', background: 'rgba(245,185,66,.10)', filter: 'blur(75px)', bottom: -120, right: -100, pointerEvents: 'none' },
   grid: { position: 'absolute', inset: 0, opacity: .16, backgroundImage: 'linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px)', backgroundSize: '38px 38px', maskImage: 'linear-gradient(to bottom, black, transparent 78%)', pointerEvents: 'none' },
@@ -20,7 +20,7 @@ const css: Record<string, React.CSSProperties> = {
   intro: { color: '#b4bed3', fontSize: 14, lineHeight: 1.6, margin: '0 0 18px' },
   button: { width: '100%', minHeight: 54, border: 0, borderRadius: 15, cursor: 'pointer', color: '#fff', fontSize: 14, fontWeight: 800, background: 'linear-gradient(135deg,#3d7fff,#2858d4)', boxShadow: '0 12px 28px rgba(42,94,220,.30)' },
   divider: { height: 1, background: '#facc15', margin: '23px 0 18px' }, signup: { textAlign: 'center', color: '#8d99b2', fontSize: 12 }, signupLink: { display: 'block', textAlign: 'center', marginTop: 8, color: '#5e98ff', fontSize: 13, fontWeight: 800, textDecoration: 'none' },
-  note: { marginTop: 18, padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,.035)', border: '1px solid rgba(255,255,255,.06)', color: '#68758f', textAlign: 'center', fontSize: 10, lineHeight: 1.5 },
+  note: { marginTop: 18, padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,.035)', border: '1px solid #ef4444', color: '#68758f', textAlign: 'center', fontSize: 10, lineHeight: 1.5 },
   risk: { position: 'relative', zIndex: 2, width: 'min(100%, 900px)', padding: '11px 15px', borderRadius: 13, background: 'rgba(240,73,90,.07)', border: '1px solid rgba(240,73,90,.22)', color: '#aa7885', fontSize: 9.5, lineHeight: 1.55, textAlign: 'left' },
 };
 
