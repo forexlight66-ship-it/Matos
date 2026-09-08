@@ -1,0 +1,42 @@
+name: Update requested defaults
+on:
+  push:
+    branches: [main]
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply defaults
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('components/AutoBotV4.tsx')
+          s=p.read_text()
+          reps={
+            'const IA_MAX_MARTINGALE=3;':'const IA_MAX_MARTINGALE=5;',
+            '[metas,setMetas]=useState(false),[maxMartingale,setMaxMartingale]=useState(3)':'[metas,setMetas]=useState(false),[maxMartingale,setMaxMartingale]=useState(5)',
+            '[target,setTarget]=useState(180)':'[target,setTarget]=useState(1500)',
+            '[lossLimit,setLossLimit]=useState(2500)':'[lossLimit,setLossLimit]=useState(4000)',
+            '[iaPower,setIaPower]=useState(false)':'[iaPower,setIaPower]=useState(true)',
+          }
+          for a,b in reps.items(): s=s.replace(a,b)
+          p.write_text(s)
+          q=Path('lib/gestorStake.ts')
+          s=q.read_text().replace('Number(config.maxNiveisMartingale) || 3','Number(config.maxNiveisMartingale) || 5')
+          q.write_text(s)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/AutoBotV4.tsx lib/gestorStake.ts
+          git diff --cached --quiet || git commit -m 'Set trading defaults: target 1500, loss 4000, Martingale 5, IA Power ON'
+          git push
+      - name: Remove temporary workflow
+        run: |
+          git rm .github/workflows/update-defaults-final.yml
+          git commit -m 'Remove temporary defaults workflow'
+          git push
