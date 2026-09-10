@@ -9,107 +9,29 @@ export default function Dashboard() {
     <div className="matos-page">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-
-        :root{
-          --mh-bg:#0e0e0e;
-          --mh-surface:#151717;
-          --mh-surface-2:#1b1d1d;
-          --mh-border:#323738;
-          --mh-red:#ff444f;
-          --mh-red-dim:rgba(255,68,79,.08);
-          --mh-green:#4bb4b3;
-          --mh-text:#fff;
-          --mh-text-2:#c2c2c2;
-          --mh-text-3:#6e6e6e;
-        }
-
+        :root{--mh-bg:#0e0e0e;--mh-surface:#151717;--mh-surface-2:#1b1d1d;--mh-border:#323738;--mh-red:#ff444f;--mh-red-dim:rgba(255,68,79,.08);--mh-green:#4bb4b3;--mh-text:#fff;--mh-text-2:#c2c2c2;--mh-text-3:#6e6e6e}
         html,body{margin:0;padding:0;width:100%;min-height:100%;overflow-x:hidden;background:var(--mh-bg)}
         body{font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif}
         .matos-page{width:100%;min-height:100dvh;background:var(--mh-bg);color:var(--mh-text)}
         .matos-shell{width:100%;min-height:100dvh;margin:0;padding:16px 0 32px;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
         .matos-phone{width:380px;max-width:calc(100vw - 20px);margin:0;border:1px solid var(--mh-border);border-radius:12px;background:var(--mh-bg);box-sizing:border-box;padding:0;overflow:visible}
-        .matos-phone>div{width:100%;max-width:none}
-        .matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}
-        .matos-phone>.mx-auto.w-full{padding:16px!important;max-width:none!important;width:100%!important;min-height:0!important;box-sizing:border-box!important}
-
-        .matos-phone .av4{
-          width:100%!important;max-width:none!important;min-height:0!important;box-sizing:border-box;
-          padding:0!important;border:0!important;border-radius:0!important;background:var(--mh-bg)!important;
-          color:var(--mh-text)!important;box-shadow:none!important;
-        }
-
-        .matos-phone .av4 .card,
-        .matos-phone .av4 .profit-card,
-        .matos-phone .av4 .balance-card,
-        .matos-phone .av4 .account-strategy,
-        .matos-phone .av4 .auto-status-card,
-        .matos-phone .av4 .auto-log{
-          background:var(--mh-surface)!important;
-          border-color:var(--mh-border)!important;
-          border-radius:8px!important;
-          color:var(--mh-text)!important;
-          box-shadow:none!important;
-        }
-
-        .matos-phone .av4 .profit-card{border-color:var(--mh-border)!important}
-        .matos-phone .av4 .muted{color:var(--mh-text-3)!important}
-        .matos-phone .av4 .account-strategy{border-color:var(--mh-border)!important;overflow:hidden}
-        .matos-phone .av4 .account-strategy>label+label{border-left-color:var(--mh-border)!important}
-        .matos-phone .av4 select,
-        .matos-phone .av4 input{font-family:inherit;color:var(--mh-text)!important;background:var(--mh-surface)!important;border-color:var(--mh-border)!important}
-
-        /* Deriv visual identity: red logo + primary Start Robot action */
-        .matos-phone .av4 .bg-blue-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important}
-        .matos-phone .av4 .text-blue-500{color:var(--mh-red)!important}
-        .matos-phone .av4 button.bg-blue-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important;color:#fff!important;box-shadow:0 8px 20px rgba(255,68,79,.16)!important}
-        .matos-phone .av4 button.bg-blue-600:hover{background:#e63a44!important;border-color:#e63a44!important}
-
-        .matos-phone .av4 button{font-family:inherit}
-        .matos-phone .av4 button.bg-red-500,
-        .matos-phone .av4 button.bg-red-600,
-        .matos-phone .av4 .bg-red-500,
-        .matos-phone .av4 .bg-red-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important}
-        .matos-phone .av4 .text-red-400,
-        .matos-phone .av4 .text-red-500,
-        .matos-phone .av4 .text-red-600{color:var(--mh-red)!important}
-        .matos-phone .av4 .text-green-400,
-        .matos-phone .av4 .text-green-500{color:var(--mh-green)!important}
-
-        .matos-phone .av4 .hist{scrollbar-width:none;-ms-overflow-style:none}
-        .matos-phone .av4 .hist::-webkit-scrollbar{display:none}
-        .matos-phone .av4 .trade>div:first-child{position:relative!important;width:14px!important;height:38px!important;margin:0 auto 6px!important;background:transparent!important;border-radius:0!important}
-        .matos-phone .av4 .trade>div:first-child:before{content:'';position:absolute;left:6px;top:0;width:2px;height:38px;background:currentColor;border-radius:1px}
-        .matos-phone .av4 .trade>div:first-child:after{content:'';position:absolute;left:2px;top:9px;width:10px;height:16px;background:currentColor;border-radius:2px}
-        .matos-phone .av4 .trade>div.bg-blue-500{color:var(--mh-green)!important}
-        .matos-phone .av4 .trade>div.bg-red-500{color:var(--mh-red)!important}
-
-        .dashboard-actions{display:flex;gap:6px;align-items:center;position:relative}
-        .theme-btn,.dots-btn{border:1px solid var(--mh-border)!important;background:var(--mh-surface-2)!important;color:var(--mh-text-2)!important;border-radius:8px!important;cursor:pointer;font-size:12px;font-weight:600}
-        .theme-btn{padding:8px 9px}.dots-btn{width:34px;height:34px;font-size:18px}
-        .dashboard-menu{position:absolute;right:0;top:40px;z-index:80;width:160px;padding:6px;border:1px solid var(--mh-border)!important;background:var(--mh-surface-2)!important;border-radius:8px!important;box-shadow:0 18px 35px -12px #000}
-        .dashboard-menu button{width:100%;border:0;background:transparent!important;color:var(--mh-text)!important;padding:9px;text-align:left;border-radius:6px;cursor:pointer;font-size:11px}
-        .dashboard-menu button:hover{background:var(--mh-surface)!important}
-
-        #tutorial{width:min(100%,1400px);margin-top:16px}
-
-        body.light .matos-page{--mh-bg:#f4f7fb;--mh-surface:#fff;--mh-surface-2:#eaf0f8;--mh-border:#d7e1ef;--mh-text:#182235;--mh-text-2:#53627a;--mh-text-3:#7a879d;background:#f4f7fb;color:#182235}
-        body.light .matos-phone{background:#f4f7fb}
-
-        @media(max-width:430px){
-          .matos-shell{padding:0 0 24px}
-          .matos-phone{width:100%;max-width:none;border:0;border-radius:0}
-          .matos-phone>.mx-auto.w-full{padding:12px!important}
-        }
-        @media(min-width:768px){.matos-shell{padding-top:24px}.matos-phone{box-shadow:0 20px 60px rgba(0,0,0,.28)}}
+        .matos-phone>div{width:100%;max-width:none}.matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}.matos-phone>.mx-auto.w-full{padding:16px!important;max-width:none!important;width:100%!important;min-height:0!important;box-sizing:border-box!important}
+        .matos-phone .av4{width:100%!important;max-width:none!important;min-height:0!important;box-sizing:border-box;padding:0!important;border:0!important;border-radius:0!important;background:var(--mh-bg)!important;color:var(--mh-text)!important;box-shadow:none!important}
+        .matos-phone .av4 .card,.matos-phone .av4 .profit-card,.matos-phone .av4 .balance-card,.matos-phone .av4 .account-strategy,.matos-phone .av4 .auto-status-card,.matos-phone .av4 .auto-log{background:var(--mh-surface)!important;border-color:var(--mh-border)!important;border-radius:8px!important;color:var(--mh-text)!important;box-shadow:none!important}
+        .matos-phone .av4 .profit-card{border-color:var(--mh-border)!important}.matos-phone .av4 .muted{color:var(--mh-text-3)!important}.matos-phone .av4 .account-strategy{border-color:var(--mh-border)!important;overflow:hidden}.matos-phone .av4 .account-strategy>label+label{border-left-color:var(--mh-border)!important}.matos-phone .av4 select,.matos-phone .av4 input{font-family:inherit;color:var(--mh-text)!important;background:var(--mh-surface)!important;border-color:var(--mh-border)!important}
+        .matos-phone .av4 .bg-blue-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important}.matos-phone .av4 .text-blue-500{color:var(--mh-red)!important}.matos-phone .av4 button.bg-blue-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important;color:#fff!important;box-shadow:0 8px 20px rgba(255,68,79,.16)!important}.matos-phone .av4 button.bg-blue-600:hover{background:#e63a44!important;border-color:#e63a44!important}
+        .matos-phone .av4 button{font-family:inherit}.matos-phone .av4 button.bg-red-500,.matos-phone .av4 button.bg-red-600,.matos-phone .av4 .bg-red-500,.matos-phone .av4 .bg-red-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important}.matos-phone .av4 .text-red-400,.matos-phone .av4 .text-red-500,.matos-phone .av4 .text-red-600{color:var(--mh-red)!important}.matos-phone .av4 .text-green-400,.matos-phone .av4 .text-green-500{color:var(--mh-green)!important}
+        .matos-phone .av4 .hist{scrollbar-width:none;-ms-overflow-style:none}.matos-phone .av4 .hist::-webkit-scrollbar{display:none}.matos-phone .av4 .trade>div:first-child{position:relative!important;width:14px!important;height:38px!important;margin:0 auto 6px!important;background:transparent!important;border-radius:0!important}.matos-phone .av4 .trade>div:first-child:before{content:'';position:absolute;left:6px;top:0;width:2px;height:38px;background:currentColor;border-radius:1px}.matos-phone .av4 .trade>div:first-child:after{content:'';position:absolute;left:2px;top:9px;width:10px;height:16px;background:currentColor;border-radius:2px}.matos-phone .av4 .trade>div.bg-blue-500{color:var(--mh-green)!important}.matos-phone .av4 .trade>div.bg-red-500{color:var(--mh-red)!important}
+        .dashboard-actions{display:flex;gap:6px;align-items:center;position:relative}.theme-btn,.dots-btn{border:1px solid var(--mh-border)!important;background:var(--mh-surface-2)!important;color:var(--mh-text-2)!important;border-radius:8px!important;cursor:pointer;font-size:12px;font-weight:600}.theme-btn{padding:8px 9px}.dots-btn{width:34px;height:34px;font-size:18px}.dashboard-menu{position:absolute;right:0;top:40px;z-index:80;width:160px;padding:6px;border:1px solid var(--mh-border)!important;background:var(--mh-surface-2)!important;border-radius:8px!important;box-shadow:0 18px 35px -12px #000}.dashboard-menu button{width:100%;border:0;background:transparent!important;color:var(--mh-text)!important;padding:9px;text-align:left;border-radius:6px;cursor:pointer;font-size:11px}.dashboard-menu button:hover{background:var(--mh-surface)!important}
+        /* Corrected WhatsApp alignment: fixed box, no inline-SVG baseline shift, exact supplied icon geometry. */
+        .matos-phone .av4 .whatsapp-header{width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;flex:0 0 38px!important;padding:0!important;border-radius:10px!important;background:#25D366!important;display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;color:#fff!important;line-height:0!important;text-decoration:none!important;overflow:hidden!important}
+        .matos-phone .av4 .whatsapp-header:hover{background:#20bd5a!important}
+        .matos-phone .av4 .whatsapp-header svg{display:none!important}
+        .matos-phone .av4 .whatsapp-header:before{content:'';display:block;width:17px;height:17px;flex:0 0 17px;background-repeat:no-repeat;background-position:center;background-size:17px 17px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.198-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.693.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.413-.074-.124-.272-.198-.57-.347z'/%3E%3Cpath d='M12.001 2.003c-5.518 0-9.997 4.478-9.997 9.997 0 1.762.462 3.483 1.34 4.997L2 22.003l5.132-1.327a9.96 9.96 0 0 0 4.868 1.24h.004c5.518 0 9.996-4.478 9.996-9.997 0-2.67-1.04-5.18-2.928-7.069a9.935 9.935 0 0 0-7.07-2.847zm5.842 15.822a8.288 8.288 0 0 1-5.845 2.42h-.003a8.29 8.29 0 0 1-4.229-1.158l-.304-.18-3.146.813.84-3.067-.198-.315a8.263 8.263 0 0 1-1.267-4.398c0-4.582 3.73-8.311 8.315-8.311a8.26 8.26 0 0 1 5.877 2.437 8.255 8.255 0 0 1 2.432 5.879 8.29 8.29 0 0 1-2.472 5.88z'/%3E%3C/svg%3E")}
+        #tutorial{width:min(100%,1400px);margin-top:16px}body.light .matos-page{--mh-bg:#f4f7fb;--mh-surface:#fff;--mh-surface-2:#eaf0f8;--mh-border:#d7e1ef;--mh-text:#182235;--mh-text-2:#53627a;--mh-text-3:#7a879d;background:#f4f7fb;color:#182235}body.light .matos-phone{background:#f4f7fb}
+        @media(max-width:430px){.matos-shell{padding:0 0 24px}.matos-phone{width:100%;max-width:none;border:0;border-radius:0}.matos-phone>.mx-auto.w-full{padding:12px!important}}@media(min-width:768px){.matos-shell{padding-top:24px}.matos-phone{box-shadow:0 20px 60px rgba(0,0,0,.28)}}
       `}</style>
-
-      <div className="matos-shell">
-        <div className="matos-phone">
-          <AutoBotEnhancements />
-          <AutoBotV4 />
-        </div>
-        <div id="tutorial"><TutorialSection/></div>
-      </div>
+      <div className="matos-shell"><div className="matos-phone"><AutoBotEnhancements /><AutoBotV4 /></div><div id="tutorial"><TutorialSection/></div></div>
     </div>
   );
 }
