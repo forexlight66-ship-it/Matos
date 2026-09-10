@@ -5,36 +5,111 @@ import AutoBotV4 from './AutoBotV4';
 import AutoBotEnhancements from './AutoBotEnhancements';
 
 export default function Dashboard() {
-  return <div className="matos-page">
-    <style>{`
-      html,body{margin:0;padding:0;width:100%;min-height:100%;overflow-x:hidden}
-      .matos-page{width:100%;min-height:100dvh;background:var(--bg,#070b14)}
-      .matos-shell{width:100%;min-height:100dvh;margin:0;padding:0;display:flex;flex-direction:column;align-items:stretch}
-      .matos-phone{width:100%;min-height:100dvh;margin:0;border-radius:0;box-shadow:none;background:var(--bg,#070b14);box-sizing:border-box;padding:0}
-      .matos-phone>div{width:100%;max-width:none}
-      .matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}
-      .matos-phone>.mx-auto.w-full{padding:0!important;max-width:none!important;width:100%!important;min-height:100dvh!important;box-sizing:border-box!important}
-      .av4{width:100%!important;max-width:none!important;min-height:100dvh;box-sizing:border-box;border-radius:0!important}
-      .av4 .hist{scrollbar-width:none;-ms-overflow-style:none}
-      .av4 .hist::-webkit-scrollbar{display:none}
-      .av4 .trade>div:first-child{position:relative!important;width:14px!important;height:38px!important;margin:0 auto 6px!important;background:transparent!important;border-radius:0!important}
-      .av4 .trade>div:first-child:before{content:'';position:absolute;left:6px;top:0;width:2px;height:38px;background:currentColor;border-radius:1px}
-      .av4 .trade>div:first-child:after{content:'';position:absolute;left:2px;top:9px;width:10px;height:16px;background:currentColor;border-radius:2px}
-      .av4 .trade>div.bg-blue-500{color:#3b82f6!important}
-      .av4 .trade>div.bg-red-500{color:#ef4444!important}
-      .dashboard-actions{display:flex;gap:6px;align-items:center;position:relative}.theme-btn,.dots-btn{border:1px solid rgba(255,255,255,.07);background:var(--s2);color:var(--t2);border-radius:10px;cursor:pointer;font-size:12px;font-weight:800}.theme-btn{padding:8px 9px}.dots-btn{width:34px;height:34px;font-size:18px}.dashboard-menu{position:absolute;right:0;top:40px;z-index:80;width:160px;padding:6px;border:1px solid rgba(255,255,255,.08);background:var(--s2);border-radius:13px;box-shadow:0 18px 35px -12px #000}.dashboard-menu button{width:100%;border:0;background:transparent;color:var(--t1);padding:9px;text-align:left;border-radius:8px;cursor:pointer;font-size:11px}.dashboard-menu button:hover{background:var(--s3)}
-      body[data-theme='light']{--bg:#F4F7FB;--s1:#FFFFFF;--s2:#EAF0F8;--s3:#D7E1EF;--t1:#182235;--t2:#53627A;--t3:#7A879D}body[data-theme='light'] .matos-phone{box-shadow:none;background:var(--bg)}body[data-theme='light'] .auto-status-card{background:linear-gradient(180deg,#fff,#eef4fb)}body[data-theme='light'] .auto-log{background:#edf2f8}
-      @media (min-width:768px){.matos-phone{padding:0}.av4{padding-left:clamp(16px,2.5vw,40px)!important;padding-right:clamp(16px,2.5vw,40px)!important}}
-      @media (min-width:1200px){.matos-phone{padding:0}.matos-phone>div{max-width:none!important}#tutorial{max-width:1400px}}
-      @media (max-width:430px){.matos-phone{padding:0}.av4{padding-left:10px!important;padding-right:10px!important}}
-      @media (orientation:landscape) and (max-height:600px){.matos-phone{padding:0}.av4{padding-left:12px!important;padding-right:12px!important}}
-    `}</style>
-    <div className="matos-shell">
-      <div className="matos-phone">
-        <AutoBotEnhancements />
-        <AutoBotV4 />
+  return (
+    <div className="matos-page">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        :root{
+          --mh-bg:#0e0e0e;
+          --mh-surface:#151717;
+          --mh-surface-2:#1b1d1d;
+          --mh-border:#323738;
+          --mh-red:#ff444f;
+          --mh-red-dim:rgba(255,68,79,.08);
+          --mh-green:#4bb4b3;
+          --mh-text:#fff;
+          --mh-text-2:#c2c2c2;
+          --mh-text-3:#6e6e6e;
+        }
+
+        html,body{margin:0;padding:0;width:100%;min-height:100%;overflow-x:hidden;background:var(--mh-bg)}
+        body{font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif}
+        .matos-page{width:100%;min-height:100dvh;background:var(--mh-bg);color:var(--mh-text)}
+        .matos-shell{width:100%;min-height:100dvh;margin:0;padding:16px 0 32px;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
+        .matos-phone{width:380px;max-width:calc(100vw - 20px);margin:0;border:1px solid var(--mh-border);border-radius:12px;background:var(--mh-bg);box-sizing:border-box;padding:0;overflow:visible}
+        .matos-phone>div{width:100%;max-width:none}
+        .matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}
+        .matos-phone>.mx-auto.w-full{padding:16px!important;max-width:none!important;width:100%!important;min-height:0!important;box-sizing:border-box!important}
+
+        /* Main bot surface: compact mobile Deriv-style card */
+        .matos-phone .av4{
+          width:100%!important;max-width:none!important;min-height:0!important;box-sizing:border-box;
+          padding:0!important;border:0!important;border-radius:0!important;background:var(--mh-bg)!important;
+          color:var(--mh-text)!important;box-shadow:none!important;
+        }
+
+        /* Existing AutoBotV4 cards inherit the supplied design tokens. */
+        .matos-phone .av4 .card,
+        .matos-phone .av4 .profit-card,
+        .matos-phone .av4 .balance-card,
+        .matos-phone .av4 .account-strategy,
+        .matos-phone .av4 .auto-status-card,
+        .matos-phone .av4 .auto-log{
+          background:var(--mh-surface)!important;
+          border-color:var(--mh-border)!important;
+          border-radius:8px!important;
+          color:var(--mh-text)!important;
+          box-shadow:none!important;
+        }
+
+        .matos-phone .av4 .profit-card{border-color:var(--mh-border)!important}
+        .matos-phone .av4 .muted{color:var(--mh-text-3)!important}
+        .matos-phone .av4 .account-strategy{border-color:var(--mh-border)!important;overflow:hidden}
+        .matos-phone .av4 .account-strategy>label+label{border-left-color:var(--mh-border)!important}
+        .matos-phone .av4 select,
+        .matos-phone .av4 input{font-family:inherit;color:var(--mh-text)!important;background:var(--mh-surface)!important;border-color:var(--mh-border)!important}
+
+        /* Red action language */
+        .matos-phone .av4 button{font-family:inherit}
+        .matos-phone .av4 button.bg-red-500,
+        .matos-phone .av4 button.bg-red-600,
+        .matos-phone .av4 .bg-red-500,
+        .matos-phone .av4 .bg-red-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important}
+        .matos-phone .av4 .text-red-400,
+        .matos-phone .av4 .text-red-500,
+        .matos-phone .av4 .text-red-600{color:var(--mh-red)!important}
+        .matos-phone .av4 .text-green-400,
+        .matos-phone .av4 .text-green-500{color:var(--mh-green)!important}
+
+        /* Keep the digit chart compact and close to the reference. */
+        .matos-phone .av4 .hist{scrollbar-width:none;-ms-overflow-style:none}
+        .matos-phone .av4 .hist::-webkit-scrollbar{display:none}
+        .matos-phone .av4 .trade>div:first-child{position:relative!important;width:14px!important;height:38px!important;margin:0 auto 6px!important;background:transparent!important;border-radius:0!important}
+        .matos-phone .av4 .trade>div:first-child:before{content:'';position:absolute;left:6px;top:0;width:2px;height:38px;background:currentColor;border-radius:1px}
+        .matos-phone .av4 .trade>div:first-child:after{content:'';position:absolute;left:2px;top:9px;width:10px;height:16px;background:currentColor;border-radius:2px}
+        .matos-phone .av4 .trade>div.bg-blue-500{color:#4bb4b3!important}
+        .matos-phone .av4 .trade>div.bg-red-500{color:var(--mh-red)!important}
+
+        /* Header controls already rendered by AutoBotV4. */
+        .dashboard-actions{display:flex;gap:6px;align-items:center;position:relative}
+        .theme-btn,.dots-btn{border:1px solid var(--mh-border)!important;background:var(--mh-surface-2)!important;color:var(--mh-text-2)!important;border-radius:8px!important;cursor:pointer;font-size:12px;font-weight:600}
+        .theme-btn{padding:8px 9px}.dots-btn{width:34px;height:34px;font-size:18px}
+        .dashboard-menu{position:absolute;right:0;top:40px;z-index:80;width:160px;padding:6px;border:1px solid var(--mh-border)!important;background:var(--mh-surface-2)!important;border-radius:8px!important;box-shadow:0 18px 35px -12px #000}
+        .dashboard-menu button{width:100%;border:0;background:transparent!important;color:var(--mh-text)!important;padding:9px;text-align:left;border-radius:6px;cursor:pointer;font-size:11px}
+        .dashboard-menu button:hover{background:var(--mh-surface)!important}
+
+        /* Tutorial remains available below the bot without changing trading logic. */
+        #tutorial{width:min(100%,1400px);margin-top:16px}
+
+        body.light .matos-page{--mh-bg:#f4f7fb;--mh-surface:#fff;--mh-surface-2:#eaf0f8;--mh-border:#d7e1ef;--mh-text:#182235;--mh-text-2:#53627a;--mh-text-3:#7a879d;background:#f4f7fb;color:#182235}
+        body.light .matos-phone{background:#f4f7fb}
+
+        @media(max-width:430px){
+          .matos-shell{padding:0 0 24px}
+          .matos-phone{width:100%;max-width:none;border:0;border-radius:0}
+          .matos-phone>.mx-auto.w-full{padding:12px!important}
+        }
+        @media(min-width:768px){.matos-shell{padding-top:24px}.matos-phone{box-shadow:0 20px 60px rgba(0,0,0,.28)}}
+      `}</style>
+
+      <div className="matos-shell">
+        <div className="matos-phone">
+          <AutoBotEnhancements />
+          <AutoBotV4 />
+        </div>
+        <div id="tutorial"><TutorialSection/></div>
       </div>
-      <div id="tutorial" className="mt-4"><TutorialSection/></div>
     </div>
-  </div>;
+  );
 }
