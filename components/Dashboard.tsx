@@ -32,14 +32,12 @@ export default function Dashboard() {
         .matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}
         .matos-phone>.mx-auto.w-full{padding:16px!important;max-width:none!important;width:100%!important;min-height:0!important;box-sizing:border-box!important}
 
-        /* Main bot surface: compact mobile Deriv-style card */
         .matos-phone .av4{
           width:100%!important;max-width:none!important;min-height:0!important;box-sizing:border-box;
           padding:0!important;border:0!important;border-radius:0!important;background:var(--mh-bg)!important;
           color:var(--mh-text)!important;box-shadow:none!important;
         }
 
-        /* Existing AutoBotV4 cards inherit the supplied design tokens. */
         .matos-phone .av4 .card,
         .matos-phone .av4 .profit-card,
         .matos-phone .av4 .balance-card,
@@ -60,7 +58,12 @@ export default function Dashboard() {
         .matos-phone .av4 select,
         .matos-phone .av4 input{font-family:inherit;color:var(--mh-text)!important;background:var(--mh-surface)!important;border-color:var(--mh-border)!important}
 
-        /* Red action language */
+        /* Deriv visual identity: red logo + primary Start Robot action */
+        .matos-phone .av4 .bg-blue-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important}
+        .matos-phone .av4 .text-blue-500{color:var(--mh-red)!important}
+        .matos-phone .av4 button.bg-blue-600{background:var(--mh-red)!important;border-color:var(--mh-red)!important;color:#fff!important;box-shadow:0 8px 20px rgba(255,68,79,.16)!important}
+        .matos-phone .av4 button.bg-blue-600:hover{background:#e63a44!important;border-color:#e63a44!important}
+
         .matos-phone .av4 button{font-family:inherit}
         .matos-phone .av4 button.bg-red-500,
         .matos-phone .av4 button.bg-red-600,
@@ -72,16 +75,14 @@ export default function Dashboard() {
         .matos-phone .av4 .text-green-400,
         .matos-phone .av4 .text-green-500{color:var(--mh-green)!important}
 
-        /* Keep the digit chart compact and close to the reference. */
         .matos-phone .av4 .hist{scrollbar-width:none;-ms-overflow-style:none}
         .matos-phone .av4 .hist::-webkit-scrollbar{display:none}
         .matos-phone .av4 .trade>div:first-child{position:relative!important;width:14px!important;height:38px!important;margin:0 auto 6px!important;background:transparent!important;border-radius:0!important}
         .matos-phone .av4 .trade>div:first-child:before{content:'';position:absolute;left:6px;top:0;width:2px;height:38px;background:currentColor;border-radius:1px}
         .matos-phone .av4 .trade>div:first-child:after{content:'';position:absolute;left:2px;top:9px;width:10px;height:16px;background:currentColor;border-radius:2px}
-        .matos-phone .av4 .trade>div.bg-blue-500{color:#4bb4b3!important}
+        .matos-phone .av4 .trade>div.bg-blue-500{color:var(--mh-green)!important}
         .matos-phone .av4 .trade>div.bg-red-500{color:var(--mh-red)!important}
 
-        /* Header controls already rendered by AutoBotV4. */
         .dashboard-actions{display:flex;gap:6px;align-items:center;position:relative}
         .theme-btn,.dots-btn{border:1px solid var(--mh-border)!important;background:var(--mh-surface-2)!important;color:var(--mh-text-2)!important;border-radius:8px!important;cursor:pointer;font-size:12px;font-weight:600}
         .theme-btn{padding:8px 9px}.dots-btn{width:34px;height:34px;font-size:18px}
@@ -89,7 +90,6 @@ export default function Dashboard() {
         .dashboard-menu button{width:100%;border:0;background:transparent!important;color:var(--mh-text)!important;padding:9px;text-align:left;border-radius:6px;cursor:pointer;font-size:11px}
         .dashboard-menu button:hover{background:var(--mh-surface)!important}
 
-        /* Tutorial remains available below the bot without changing trading logic. */
         #tutorial{width:min(100%,1400px);margin-top:16px}
 
         body.light .matos-page{--mh-bg:#f4f7fb;--mh-surface:#fff;--mh-surface-2:#eaf0f8;--mh-border:#d7e1ef;--mh-text:#182235;--mh-text-2:#53627a;--mh-text-3:#7a879d;background:#f4f7fb;color:#182235}
