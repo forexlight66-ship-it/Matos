@@ -1,19 +1,20 @@
 // ============================================================================
-// IA POWER — SOROS NÍVEL 2 + MARTINGALE CONDICIONAL POR P/L
+// IA POWER — SOROS NÍVEL 2 + MARTINGALE ATÉ META x16
 //
 // REGRAS PRINCIPAIS
 // - Soros normal: níveis 0 -> 1 -> 2 -> reset ao ganhar no nível 2.
-// - QUALQUER perda com P/L acumulado da sessão <= 0 ativa Martingale.
-//   Não é necessário estar no Soros nível 2.
-// - Se o P/L da sessão estiver positivo (> 0), uma perda NÃO ativa Martingale;
-//   o ciclo volta ao stake base/Soros nível 0.
+// - QUALQUER perda ativa/continua o Martingale enquanto o P/L acumulado da
+//   sessão ainda estiver ABAIXO de stakeBase x 16.
+// - Portanto, mesmo com P/L positivo, se ainda não chegou a stakeBase x 16,
+//   uma perda FORÇA a entrada no Martingale.
 // - Ao atingir P/L >= stakeBase x 16, o Martingale fica DESATIVADO.
 //   A partir desse ponto o gestor usa SOMENTE SOROS.
-// - Enquanto P/L >= stakeBase x 16, nenhuma perda pode iniciar Martingale.
-// - Se posteriormente o P/L cair abaixo do limiar, o Martingale volta a ser
-//   permitido em uma nova perda quando o P/L estiver <= 0.
+// - Enquanto P/L < stakeBase x 16, uma perda durante Martingale mantém o
+//   Martingale ativo até recuperar ou atingir o teto normal de 7 níveis.
 // - TETO NORMAL DO MARTINGALE = 7 níveis.
-// - TETO PROTEGIDO DO MARTINGALE = 1 nível.
+// - TETO PROTEGIDO DO MARTINGALE = 1 nível, usado apenas como estado de
+//   proteção quando a meta x16 já foi atingida; nessa situação o Martingale
+//   permanece bloqueado.
 // - Nunca existe nível 8.
 // - Quando o Martingale atinge o teto ativo e perde novamente, reseta para
 //   stake base/Soros nível 0.
@@ -80,9 +81,10 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       ? nivelTetoProtegido
       : nivelTetoNormal;
 
-  // Regra central: Martingale só pode ser usado quando P/L <= 0.
+  // Regra central: Martingale é permitido enquanto o P/L ainda NÃO atingiu
+  // stakeBase x 16. Não importa se o P/L está positivo ou negativo.
   const martingalePermitido = () =>
-    plAcumuladoSessao <= 0 && plAcumuladoSessao < limiarLucro();
+    plAcumuladoSessao < limiarLucro();
 
   function proximoStake() {
     return arredondar(stakeAtual);
@@ -134,8 +136,8 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         : stakeAtual;
       nivelMartingaleAtual += 1;
 
-      // Se o P/L ainda está <= 0, o Martingale continua permitido.
-      // O teto é avaliado após o resultado financeiro desta operação.
+      // Enquanto o P/L ainda estiver abaixo de stakeBase x 16, o Martingale
+      // continua permitido, inclusive quando o P/L estiver positivo.
       const teto = tetoAtivo();
 
       // TETO RÍGIDO: 7 no modo normal, 1 no protegido.
@@ -177,8 +179,8 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     // ========================================================================
     // PERDA SEM MARTINGALE
     // ========================================================================
-    // NOVA REGRA: qualquer perda com P/L <= 0 entra no Martingale,
-    // independentemente do nível do Soros em que a perda aconteceu.
+    // NOVA REGRA: qualquer perda, com P/L positivo ou negativo, entra no
+    // Martingale enquanto o P/L ainda estiver abaixo do alvo stakeBase x 16.
     if (martingalePermitido()) {
       emMartingale = true;
       nivelMartingaleAtual = 1;
@@ -192,15 +194,14 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         (perdaAcumuladaMartingale + stakeBase) / payout
       );
     } else {
-      // P/L > 0: não entra Martingale.
       // P/L >= stakeBase x 16: Martingale está explicitamente desativado.
+      // A operação perdida não inicia Martingale; volta para Soros/base.
       resetCiclo();
     }
   }
 
   function getEstado(): EstadoGestorStakeDinamico {
     const teto = tetoAtivo();
-    const somenteSoros = plAcumuladoSessao >= limiarLucro();
 
     return {
       nivelSoros,
@@ -251,7 +252,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     );
 
     // Segurança após restauração:
-    // se o P/L não permite Martingale, força Soros/base.
+    // se o P/L já atingiu o alvo, não pode continuar em Martingale.
     if (emMartingale && !martingalePermitido()) {
       resetCiclo();
     }
@@ -269,7 +270,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       limiarLucro: arredondar(limiarLucro()),
       tetoNormal: 7,
       tetoProtegido: 1,
-      martingaleAtivoSomenteComPLZeroOuNegativo: true,
+      martingaleAtivoEnquantoPLAbaixoDo16x: true,
       martingaleDesativadoNoLimiar16x: true,
     };
   }
