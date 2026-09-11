@@ -26,14 +26,19 @@ export default function LoginPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError(''); setBusy(true);
+    const registering = mode === 'register';
     try {
-      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/platform-login';
-      const body = mode === 'register' ? { name, email, password, confirmPassword } : { email, password };
+      const endpoint = registering ? '/api/auth/register' : '/api/auth/platform-login';
+      const body = registering ? { name, email, password, confirmPassword } : { email, password };
       const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Não foi possível continuar.');
-      setPlatformReady(true);
       setPassword(''); setConfirmPassword('');
+      if (registering) {
+        setPlatformReady(true);
+      } else {
+        window.location.assign('/');
+      }
     } catch (err) { setError(err instanceof Error ? err.message : 'Erro inesperado.'); }
     finally { setBusy(false); }
   }
@@ -81,7 +86,6 @@ export default function LoginPage() {
           <button disabled={busy} style={{...styles.button, opacity:busy?.65:1}}>{busy?'...':mode==='register'?copy.create:copy.enter}</button>
         </form>
         <div style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div>
-        <div style={styles.note}>{copy.note}</div>
         <div style={styles.risk}>{copy.risk}</div>
       </section>
     </main>
