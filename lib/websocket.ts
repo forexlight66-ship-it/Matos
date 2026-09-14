@@ -15,6 +15,7 @@ export class DerivWebSocket {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectEnabled = true;
   private reconnectDelay = 1000;
+  private lastProfitTableRequest = 0;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
@@ -121,8 +122,9 @@ export class DerivWebSocket {
   }
 
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
-    // Deriv's profit_table endpoint accepts a small page size. Keep the
-    // requested history size in the UI, but never send an invalid limit.
+    const now = Date.now();
+    if (now - this.lastProfitTableRequest < 10000) return false;
+    this.lastProfitTableRequest = now;
     const requestedLimit = Number(options?.limit ?? 50);
     const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(50, Math.floor(requestedLimit))) : 50;
     const requestedOffset = Number(options?.offset ?? 0);
@@ -135,19 +137,9 @@ export class DerivWebSocket {
   getProposal(symbol: string, contractType: string, amount: number, duration: number, barrier?: number) {
     const req_id = ++this.proposalRequestId;
     const payload: Record<string, any> = {
-      proposal: 1,
-      req_id,
-      amount,
-      basis: 'stake',
-      contract_type: contractType,
-      currency: 'USD',
-      duration,
-      duration_unit: 't',
-      underlying_symbol: symbol,
+      proposal: 1, req_id, amount, basis: 'stake', contract_type: contractType, currency: 'USD', duration, duration_unit: 't', underlying_symbol: symbol,
     };
-    if (barrier !== undefined && (contractType === 'DIGITMATCH' || contractType === 'DIGITDIFF' || contractType === 'DIGITOVER' || contractType === 'DIGITUNDER')) {
-      payload.barrier = String(barrier);
-    }
+    if (barrier !== undefined && (contractType === 'DIGITMATCH' || contractType === 'DIGITDIFF' || contractType === 'DIGITOVER' || contractType === 'DIGITUNDER')) payload.barrier = String(barrier);
     return this.send(payload) ? req_id : null;
   }
 
