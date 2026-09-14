@@ -10,14 +10,16 @@ export default function PwaInstallPrompt() {
   const [ios, setIos] = useState(false);
 
   useEffect(() => {
+    const ua = navigator.userAgent;
+    const mobile = /android|iphone|ipad|ipod/i.test(ua);
+    if (!mobile) return;
     const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
     if (standalone || localStorage.getItem('matos-install-dismissed') === '1') return;
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isIOS = /iphone|ipad|ipod/i.test(ua);
     setIos(isIOS);
     const handler = (e: Event) => {
       e.preventDefault();
       const event = e as Window['__matosPwaPrompt'];
-      window.__matosPwaPrompt = event;
       setDeferred(event);
       setShow(true);
     };
