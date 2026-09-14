@@ -1,0 +1,33 @@
+name: one-time-fix-closed-operations-label
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: contains(github.event.head_commit.message, '[fix-closed-label]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Translate closed operations label
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('components/AutoBotV4.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = 'Operações fechadas: <span className="text-white"><span className="closed-operations-count">{closedOperations}</span></span>'
+          new = '<span className="closed-operations-label">{t(\'closedOperations\')}:</span> <span className="closed-operations-count">{closedOperations}</span>'
+          if old not in s:
+              raise SystemExit('Expected closed operations markup not found; refusing to change the file.')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+      - name: Commit and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-closed-operations-label.yml
+          git add components/AutoBotV4.tsx .github/workflows/fix-closed-operations-label.yml
+          git commit -m "Translate closed operations label"
+          git push
