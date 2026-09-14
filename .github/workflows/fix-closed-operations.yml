@@ -1,0 +1,42 @@
+name: one-time-fix-closed-operations
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: contains(github.event.head_commit.message, '[fix-closed-ops]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fix closed operations label and color
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p = Path('components/AutoBotV4.tsx')
+          s = p.read_text(encoding='utf-8')
+          original = s
+          s = re.sub(r'>\s*(?:Número\s+de|Numero\s+de)?\s*operações\s+fechadas\s*<', ">\n<span className=\"closed-operations-label\">{t('closedOperations')}</span>\n<", s, flags=re.I)
+          s = s.replace('{closedOperations}', '<span className="closed-operations-count">{closedOperations}</span>')
+          marker = '.closed-operations-label{color:#facc15!important}.closed-operations-count{color:#facc15!important}'
+          if marker not in s:
+              pos = s.find('`}</style>')
+              if pos >= 0:
+                  s = s[:pos] + marker + s[pos:]
+              else:
+                  s = s.replace('</style>', marker + '</style>', 1)
+          if s == original:
+              raise SystemExit('No closed-operations markup found; refusing to change the file.')
+          p.write_text(s, encoding='utf-8')
+      - name: Commit and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-closed-operations.yml
+          git add components/AutoBotV4.tsx .github/workflows/fix-closed-operations.yml
+          git commit -m "Fix closed operations translation and yellow color"
+          git push
