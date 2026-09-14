@@ -1,7 +1,7 @@
 {
-  "name": "MatosFX Smart Panel",
-  "short_name": "MatosFX",
-  "description": "MatosFX Smart Panel",
+  "name": "MozHyper",
+  "short_name": "MozHyper",
+  "description": "MozHyper",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0e0e0e",
