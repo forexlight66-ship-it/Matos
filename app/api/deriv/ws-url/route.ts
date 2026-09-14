@@ -19,13 +19,13 @@ function extractAccounts(payload: any): DerivAccount[] {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function getAccounts(token: string, appId: string) {
+async function getAccounts(token: string) {
   let response: Response | null = null;
   let payload: any = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     response = await fetch(`${DERIV_API_BASE}/trading/v1/options/accounts`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${token}`, 'Deriv-App-ID': appId },
+      headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     });
     payload = await response.json().catch(() => null);
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
   let rotatedRefreshToken: string | undefined;
 
   try {
-    let accountsResult = await getAccounts(accessToken, appId);
+    let accountsResult = await getAccounts(accessToken);
 
     if ((accountsResult.response.status === 401 || accountsResult.response.status === 403) && refreshCookie) {
       try {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         accessToken = refreshedToken.access_token;
         rotatedRefreshToken = refreshedToken.refresh_token;
         refreshed = true;
-        accountsResult = await getAccounts(accessToken, appId);
+        accountsResult = await getAccounts(accessToken);
       } catch (refreshError) {
         console.error('[Deriv] Token refresh failed:', refreshError);
         return NextResponse.json({ error: 'Your Deriv connection has expired. Please connect Deriv again.', code: 'DERIV_RECONNECT_REQUIRED', reconnect: true }, { status: 401 });
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     const otpResponse = await fetch(`${DERIV_API_BASE}/trading/v1/options/accounts/${encodeURIComponent(account.account_id)}/otp`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Deriv-App-ID': appId },
+      headers: { Authorization: `Bearer ${accessToken}` },
       cache: 'no-store',
     });
     const otpPayload = await otpResponse.json().catch(() => null);
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json({ wsUrl, account: { account_id: account.account_id, account_type: account.account_type, currency: account.currency } }, { headers: { 'Cache-Control': 'no-store, private' } });
     if (refreshed) {
       response.cookies.set('deriv_access_token', accessToken, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
-      if (rotatedRefreshToken) response.cookies.set('deriv_refresh_token', rotatedRefreshToken, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+      if (rotatedRefreshToken) response.cookies.set('deriv_refresh_token', rotatedRefreshToken, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 * 24 * 30 });
     }
     return response;
   } catch (error) {
