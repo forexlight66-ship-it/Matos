@@ -3,7 +3,6 @@
 import TutorialSection from './TutorialSection';
 import AutoBotV4 from './AutoBotV4';
 import AutoBotEnhancements from './AutoBotEnhancements';
-import HyperliteBot from './HyperliteBot';
 
 export default function Dashboard() {
   return (
@@ -32,7 +31,7 @@ export default function Dashboard() {
         #tutorial{width:min(100%,1400px);margin-top:16px}body.light .matos-page{--mh-bg:#f4f7fb;--mh-surface:#fff;--mh-surface-2:#eaf0f8;--mh-border:#d7e1ef;--mh-text:#182235;--mh-text-2:#53627a;--mh-text-3:#7a879d;background:#f4f7fb;color:#182235}body.light .matos-phone{background:#f4f7fb}
         @media(max-width:430px){.matos-shell{padding:0 0 24px}.matos-phone{width:100%;max-width:none;border:0;border-radius:0}.matos-phone>.mx-auto.w-full{padding:12px!important}}@media(min-width:768px){.matos-shell{padding-top:24px}.matos-phone{box-shadow:0 20px 60px rgba(0,0,0,.28)}}
       `}</style>
-      <div className="matos-shell"><div className="matos-phone"><AutoBotEnhancements /><AutoBotV4 /><HyperliteBot /></div><div id="tutorial"><TutorialSection/></div></div>
+      <div className="matos-shell"><div className="matos-phone"><AutoBotEnhancements /><AutoBotV4 /></div><div id="tutorial"><TutorialSection/></div></div>
     </div>
   );
 }
