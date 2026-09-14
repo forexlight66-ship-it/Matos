@@ -10,7 +10,7 @@ export const metadata = {
   manifest: '/manifest.webmanifest',
   themeColor: '#0e0e0e',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MatosFX' },
-  icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
