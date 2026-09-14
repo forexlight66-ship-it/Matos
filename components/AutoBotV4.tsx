@@ -21,9 +21,9 @@ const money=(u:number,currency:'USD'|'MZN')=>currency==='USD'?`${u>=0?'+':''}${u
 function sound(kind:'win'|'loss'|'target'){try{const C=window.AudioContext||(window as any).webkitAudioContext,c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=kind==='win'?880:kind==='loss'?180:1040;g.gain.setValueAtTime(.0001,c.currentTime);g.gain.exponentialRampToValueAtTime(.12,c.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.35);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.4);setTimeout(()=>c.close(),500)}catch{}}
 function WhatsAppIcon({ size = 17, color = 'currentColor' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413.074-.124-.272-.198-.57-.347z" />
-      <path d="M12.001 2.003c-5.518 0-9.997 4.478-9.997 9.997 0 1.762.462 3.483 1.34 4.997L2 22.003l5.132-1.327a9.96 9.96 0 0 0 4.868 1.24h.004c5.518 0 9.996-4.478 9.996-9.997 0-2.67-1.04-5.18-2.928-7.069a9.935 9.935 0 0 0-7.07-2.847zm5.842 15.822a8.288 8.288 0 0 1-5.845 2.42h-.003a8.29 8.29 0 0 1-4.229-1.158l-.304-.18-3.146.813.84-3.067-.198-.315a8.263 8.263 0 0 1-1.267-4.398c0-4.582 3.73-8.311 8.315-8.311a8.26 8.26 0 0 1 5.877 2.437 8.255 8.255 0 0 1 2.432 5.879 8.29 8.29 0 0 1-2.472 5.88z" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.8" />
+      <path d="M8.1 7.8c.3-.35.7-.42 1.05-.16l1.1.82c.3.23.4.63.22.97l-.42.8c.64 1.2 1.58 2.15 2.8 2.8l.8-.42c.34-.18.74-.08.97.22l.82 1.1c.26.35.19.75-.16 1.05l-.58.5c-.5.43-1.2.6-1.82.43-1.56-.43-3.08-1.35-4.37-2.64s-2.21-2.81-2.64-4.37c-.17-.62 0-1.32.43-1.82l.5-.58z" fill={color} />
     </svg>
   );
 }
