@@ -59,7 +59,6 @@ export default function LoginPage() {
     <main style={styles.page}>
       <section style={styles.card}>
         <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
-        <div style={styles.success}>✓ {copy.welcome}</div>
         <h2 style={styles.title}>{copy.connectTitle}</h2>
         <p style={styles.intro}>{copy.note}</p>
         <button style={styles.button} onClick={() => window.location.assign('/api/auth/login')}>🔒 &nbsp;{copy.connect}</button>
