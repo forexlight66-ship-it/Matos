@@ -22,8 +22,6 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 async function getAccounts(token: string, appId: string) {
   let response: Response | null = null;
   let payload: any = null;
-  // Keep one short retry for transient Deriv 503/504 responses instead of
-  // making the user wait through multiple backoff cycles after OAuth.
   for (let attempt = 0; attempt < 2; attempt++) {
     response = await fetch(`${DERIV_API_BASE}/trading/v1/options/accounts`, {
       method: 'GET',
@@ -43,7 +41,7 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   const accessCookie = request.cookies.get('deriv_access_token')?.value || '';
   const refreshCookie = request.cookies.get('deriv_refresh_token')?.value || '';
-  if (!accessCookie && !refreshCookie) return NextResponse.json({ error: 'Not authenticated with Deriv', code: 'AUTH_REQUIRED' }, { status: 401 });
+  if (!accessCookie && !refreshCookie) return NextResponse.json({ error: 'Deriv connection required. Please connect your Deriv account again.', code: 'AUTH_REQUIRED', reconnect: true }, { status: 401 });
 
   const appId = process.env.DERIV_APP_ID?.trim();
   if (!appId) return NextResponse.json({ error: 'DERIV_APP_ID is not configured' }, { status: 500 });
@@ -58,19 +56,26 @@ export async function GET(request: NextRequest) {
     let accountsResult = await getAccounts(accessToken, appId);
 
     if ((accountsResult.response.status === 401 || accountsResult.response.status === 403) && refreshCookie) {
-      const refreshedToken = await refreshAccessToken(appId, refreshCookie);
-      accessToken = refreshedToken.access_token;
-      rotatedRefreshToken = refreshedToken.refresh_token;
-      refreshed = true;
-      accountsResult = await getAccounts(accessToken, appId);
+      try {
+        const refreshedToken = await refreshAccessToken(appId, refreshCookie);
+        accessToken = refreshedToken.access_token;
+        rotatedRefreshToken = refreshedToken.refresh_token;
+        refreshed = true;
+        accountsResult = await getAccounts(accessToken, appId);
+      } catch (refreshError) {
+        console.error('[Deriv] Token refresh failed:', refreshError);
+        return NextResponse.json({ error: 'Your Deriv connection has expired. Please connect Deriv again.', code: 'DERIV_RECONNECT_REQUIRED', reconnect: true }, { status: 401 });
+      }
     }
 
     if (!accountsResult.response.ok) {
-      const message = accountsResult.payload?.errors?.[0]?.message || accountsResult.payload?.error?.message ||
-        `Deriv service is temporarily unavailable (${accountsResult.response.status}). Please try again.`;
+      const message = accountsResult.payload?.errors?.[0]?.message || accountsResult.payload?.error?.message || `Deriv service is temporarily unavailable (${accountsResult.response.status}). Please try again.`;
       console.error('[Deriv] Account lookup failed:', accountsResult.response.status, message);
-      const response = NextResponse.json({ error: message, code: 'ACCOUNT_LOOKUP_FAILED' }, { status: accountsResult.response.status });
-      if (refreshed) response.cookies.set('deriv_access_token', accessToken, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
+      const response = NextResponse.json({ error: message, code: 'ACCOUNT_LOOKUP_FAILED', reconnect: accountsResult.response.status === 401 || accountsResult.response.status === 403 }, { status: accountsResult.response.status });
+      if (refreshed) {
+        response.cookies.set('deriv_access_token', accessToken, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
+        if (rotatedRefreshToken) response.cookies.set('deriv_refresh_token', rotatedRefreshToken, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+      }
       return response;
     }
 
@@ -89,6 +94,9 @@ export async function GET(request: NextRequest) {
     if (!otpResponse.ok) {
       const message = otpPayload?.errors?.[0]?.message || otpPayload?.error?.message || `Unable to create Deriv WebSocket session (${otpResponse.status})`;
       console.error('[Deriv] OTP request failed:', otpResponse.status, message);
+      if (otpResponse.status === 401 || otpResponse.status === 403) {
+        return NextResponse.json({ error: 'Your Deriv connection has expired. Please connect Deriv again.', code: 'DERIV_RECONNECT_REQUIRED', reconnect: true }, { status: 401 });
+      }
       return NextResponse.json({ error: message, code: 'OTP_FAILED' }, { status: otpResponse.status });
     }
 
