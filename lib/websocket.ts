@@ -16,6 +16,7 @@ export class DerivWebSocket {
   private reconnectEnabled = true;
   private reconnectDelay = 1000;
   private lastProfitTableRequest = 0;
+  private lastBalanceRequest = 0;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
@@ -99,6 +100,9 @@ export class DerivWebSocket {
 
   subscribeBalance() {
     if (this.balanceSubscribed) return;
+    const now = Date.now();
+    if (now - this.lastBalanceRequest < 5000) return;
+    this.lastBalanceRequest = now;
     if (this.send({ balance: 1, subscribe: 1 })) this.balanceSubscribed = true;
   }
 
