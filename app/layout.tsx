@@ -5,11 +5,11 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt';
 
 export const metadata = {
-  title: 'MatosFX Smart Panel',
-  description: 'MatosFX Smart Panel',
+  title: 'MozHyper',
+  description: 'MozHyper',
   manifest: '/manifest.webmanifest',
   themeColor: '#0e0e0e',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MatosFX' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MozHyper' },
   icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
