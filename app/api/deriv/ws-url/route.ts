@@ -22,7 +22,9 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 async function getAccounts(token: string, appId: string) {
   let response: Response | null = null;
   let payload: any = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Keep one short retry for transient Deriv 503/504 responses instead of
+  // making the user wait through multiple backoff cycles after OAuth.
+  for (let attempt = 0; attempt < 2; attempt++) {
     response = await fetch(`${DERIV_API_BASE}/trading/v1/options/accounts`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}`, 'Deriv-App-ID': appId },
@@ -30,7 +32,7 @@ async function getAccounts(token: string, appId: string) {
     });
     payload = await response.json().catch(() => null);
     if (response.ok || (response.status !== 503 && response.status !== 504)) break;
-    if (attempt < 2) await wait(700 * (attempt + 1));
+    if (attempt === 0) await wait(350);
   }
   return { response: response!, payload };
 }
