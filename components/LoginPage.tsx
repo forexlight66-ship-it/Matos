@@ -57,46 +57,49 @@ export default function LoginPage() {
 
   if (platformReady) return (
     <main style={styles.page}>
-      <section style={styles.card}>
-        <div style={styles.lang}>{(['en','pt','es'] as const).map(x => <button key={x} onClick={() => setLanguage(x)} style={{...styles.langBtn, ...(language===x?styles.langActive:{})}}>{x.toUpperCase()}</button>)}</div>
-        <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
-        <h2 style={styles.title}>{copy.connectTitle}</h2>
-        <p style={styles.intro}>{copy.note}</p>
-        <div style={styles.riskBox}>{copy.risk}</div>
-        <button style={styles.button} onClick={() => window.location.assign('/api/auth/login')}>🔒 &nbsp;{copy.connect}</button>
-        <div style={styles.divider}/>
-        <div style={styles.muted}>{copy.derivNo}</div>
-        <a href={DERIV_SIGNUP_URL} target="_blank" rel="noopener noreferrer" style={styles.link}>{copy.derivCreate} →</a>
-        <div style={styles.langSpacer}/>
-      </section>
+      <div style={styles.contentWrap}>
+        <section style={styles.card}>
+          <div style={styles.lang}>{(['en','pt','es'] as const).map(x => <button key={x} onClick={() => setLanguage(x)} style={{...styles.langBtn, ...(language===x?styles.langActive:{})}}>{x.toUpperCase()}</button>)}</div>
+          <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
+          <h2 style={styles.title}>{copy.connectTitle}</h2>
+          <p style={styles.intro}>{copy.note}</p>
+          <button style={styles.button} onClick={() => window.location.assign('/api/auth/login')}>🔒 &nbsp;{copy.connect}</button>
+          <div style={styles.divider}/>
+          <div style={styles.muted}>{copy.derivNo}</div>
+          <a href={DERIV_SIGNUP_URL} target="_blank" rel="noopener noreferrer" style={styles.link}>{copy.derivCreate} →</a>
+        </section>
+        <footer style={styles.footer}>{copy.risk}</footer>
+      </div>
     </main>
   );
 
   return (
     <main style={styles.page}>
-      <section style={styles.card}>
-        <div style={styles.lang}>{(['en','pt','es'] as const).map(x => <button key={x} onClick={() => setLanguage(x)} style={{...styles.langBtn, ...(language===x?styles.langActive:{})}}>{x.toUpperCase()}</button>)}</div>
-        <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
-        <div className="tabs" style={styles.tabs}><button onClick={()=>{setMode('register');setError('')}} style={mode==='register'?styles.tabActive:styles.tab}>{copy.register}</button><button onClick={()=>{setMode('login');setError('')}} style={mode==='login'?styles.tabActive:styles.tab}>{copy.login}</button></div>
-        <form onSubmit={submit}>
-          {mode==='register' && <label style={styles.label}>{copy.name}<input value={name} onChange={e=>setName(e.target.value)} style={styles.input} autoComplete="name" required minLength={2}/></label>}
-          <label style={styles.label}>{copy.email}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} style={styles.input} autoComplete="email" required/></label>
-          <label style={styles.label}>{copy.password}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={styles.input} autoComplete={mode==='register'?'new-password':'current-password'} required minLength={8}/></label>
-          {mode==='register' && <label style={styles.label}>{copy.confirm}<input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} style={styles.input} autoComplete="new-password" required minLength={8}/></label>}
-          {error && <div style={styles.error}>{error}</div>}
-          {mode==='register' && <div style={styles.riskBox}>{copy.risk}</div>}
-          <button disabled={busy} style={{...styles.button, opacity:busy?.65:1}}>{busy?'...':mode==='register'?copy.create:copy.enter}</button>
-        </form>
-        <div style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div>
-        {mode==='login' && <div style={styles.risk}>{copy.risk}</div>}
-      </section>
+      <div style={styles.contentWrap}>
+        <section style={styles.card}>
+          <div style={styles.lang}>{(['en','pt','es'] as const).map(x => <button key={x} onClick={() => setLanguage(x)} style={{...styles.langBtn, ...(language===x?styles.langActive:{})}}>{x.toUpperCase()}</button>)}</div>
+          <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
+          <div className="tabs" style={styles.tabs}><button onClick={()=>{setMode('register');setError('')}} style={mode==='register'?styles.tabActive:styles.tab}>{copy.register}</button><button onClick={()=>{setMode('login');setError('')}} style={mode==='login'?styles.tabActive:styles.tab}>{copy.login}</button></div>
+          <form onSubmit={submit}>
+            {mode==='register' && <label style={styles.label}>{copy.name}<input value={name} onChange={e=>setName(e.target.value)} style={styles.input} autoComplete="name" required minLength={2}/></label>}
+            <label style={styles.label}>{copy.email}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} style={styles.input} autoComplete="email" required/></label>
+            <label style={styles.label}>{copy.password}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={styles.input} autoComplete={mode==='register'?'new-password':'current-password'} required minLength={8}/></label>
+            {mode==='register' && <label style={styles.label}>{copy.confirm}<input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} style={styles.input} autoComplete="new-password" required minLength={8}/></label>}
+            {error && <div style={styles.error}>{error}</div>}
+            <button disabled={busy} style={{...styles.button, opacity:busy?.65:1}}>{busy?'...':mode==='register'?copy.create:copy.enter}</button>
+          </form>
+          <div style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div>
+        </section>
+        <footer style={styles.footer}>{copy.risk}</footer>
+      </div>
     </main>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page:{minHeight:'100dvh',display:'flex',alignItems:'center',justifyContent:'center',padding:16,boxSizing:'border-box',background:'#0e0e0e',color:'#fff',fontFamily:"'IBM Plex Sans',sans-serif"},
-  card:{position:'relative',width:'min(100%,390px)',padding:'22px 18px',borderRadius:12,background:'#151717',border:'1px solid #323738',boxShadow:'0 20px 50px rgba(0,0,0,.4)'},
+  page:{minHeight:'100dvh',display:'flex',alignItems:'stretch',justifyContent:'center',padding:'16px 16px 10px',boxSizing:'border-box',background:'#0e0e0e',color:'#fff',fontFamily:"'IBM Plex Sans',sans-serif'},
+  contentWrap:{width:'min(100%,390px)',minHeight:'calc(100dvh - 26px)',display:'flex',flexDirection:'column',justifyContent:'space-between',gap:14},
+  card:{position:'relative',width:'100%',padding:'22px 18px',boxSizing:'border-box',borderRadius:12,background:'#151717',border:'1px solid #323738',boxShadow:'0 20px 50px rgba(0,0,0,.4)'},
   brand:{display:'flex',alignItems:'center',gap:11,marginBottom:22},mark:{width:48,height:48,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:23,fontWeight:700,background:'#ff444f'},brandName:{fontSize:24,fontWeight:700,letterSpacing:'-.04em'},hyper:{color:'#ff444f'},sub:{marginTop:5,color:'#6e6e6e',fontSize:8,fontWeight:600,letterSpacing:'.16em'},
-  title:{fontSize:18,margin:'18px 0 8px'},intro:{color:'#aeb2b2',fontSize:12,lineHeight:1.5},label:{display:'block',color:'#aeb2b2',fontSize:11,fontWeight:600,marginBottom:10},input:{display:'block',width:'100%',boxSizing:'border-box',marginTop:5,padding:'12px 11px',borderRadius:7,border:'1px solid #323738',background:'#0e0e0e',color:'#fff',outline:'none'},button:{width:'100%',minHeight:48,border:0,borderRadius:8,cursor:'pointer',color:'#fff',fontSize:12,fontWeight:700,background:'#ff444f',marginTop:6},tabs:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:18},tab:{border:0,borderRadius:7,padding:9,background:'#1b1d1d',color:'#777',cursor:'pointer',fontWeight:700},tabActive:{border:0,borderRadius:7,padding:9,background:'#ff444f',color:'#fff',cursor:'pointer',fontWeight:700},divider:{height:1,background:'#323738',margin:'20px 0 14px'},muted:{textAlign:'center',color:'#777',fontSize:10},link:{display:'block',textAlign:'center',marginTop:7,color:'#ff444f',fontSize:12,fontWeight:700,textDecoration:'none'},note:{marginTop:14,padding:10,borderRadius:7,background:'#1b1d1d',border:'1px solid #323738',color:'#858b8b',fontSize:9,lineHeight:1.5,textAlign:'center'},risk:{marginTop:10,color:'#806e70',fontSize:8.5,lineHeight:1.5},riskBox:{margin:'12px 0',padding:'11px 10px',borderRadius:8,background:'rgba(255,68,79,.07)',border:'1px solid rgba(255,68,79,.28)',color:'#b9a5a7',fontSize:9,lineHeight:1.55,textAlign:'center'},error:{padding:9,borderRadius:7,background:'rgba(255,68,79,.08)',border:'1px solid rgba(255,68,79,.3)',color:'#ff8a91',fontSize:10,marginBottom:10},success:{padding:9,borderRadius:7,background:'rgba(75,180,179,.08)',border:'1px solid rgba(75,180,179,.3)',color:'#70cfcd',fontSize:10},switcher:{textAlign:'center',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:13},lang:{position:'absolute',right:12,top:12,display:'flex',gap:3,padding:3,borderRadius:7,background:'#1b1d1d',border:'1px solid #323738'},langSpacer:{height:4},langBtn:{border:0,borderRadius:5,padding:'4px 6px',cursor:'pointer',color:'#666',background:'transparent',fontSize:8,fontWeight:700},langActive:{color:'#fff',background:'#ff444f'}
+  title:{fontSize:18,margin:'18px 0 8px'},intro:{color:'#aeb2b2',fontSize:12,lineHeight:1.5},label:{display:'block',color:'#aeb2b2',fontSize:11,fontWeight:600,marginBottom:10},input:{display:'block',width:'100%',boxSizing:'border-box',marginTop:5,padding:'12px 11px',borderRadius:7,border:'1px solid #323738',background:'#0e0e0e',color:'#fff',outline:'none'},button:{width:'100%',minHeight:48,border:0,borderRadius:8,cursor:'pointer',color:'#fff',fontSize:12,fontWeight:700,background:'#ff444f',marginTop:6},tabs:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:18},tab:{border:0,borderRadius:7,padding:9,background:'#1b1d1d',color:'#777',cursor:'pointer',fontWeight:700},tabActive:{border:0,borderRadius:7,padding:9,background:'#ff444f',color:'#fff',cursor:'pointer',fontWeight:700},divider:{height:1,background:'#323738',margin:'20px 0 14px'},muted:{textAlign:'center',color:'#777',fontSize:10},link:{display:'block',textAlign:'center',marginTop:7,color:'#ff444f',fontSize:12,fontWeight:700,textDecoration:'none'},error:{padding:9,borderRadius:7,background:'rgba(255,68,79,.08)',border:'1px solid rgba(255,68,79,.3)',color:'#ff8a91',fontSize:10,marginBottom:10},switcher:{textAlign:'center',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:13},footer:{padding:'8px 8px 4px',textAlign:'center',color:'#6f6768',fontSize:8.5,lineHeight:1.5},lang:{position:'absolute',right:12,top:12,display:'flex',gap:3,padding:3,borderRadius:7,background:'#1b1d1d',border:'1px solid #323738'},langBtn:{border:0,borderRadius:5,padding:'4px 6px',cursor:'pointer',color:'#666',background:'transparent',fontSize:8,fontWeight:700},langActive:{color:'#fff',background:'#ff444f'}
 };
