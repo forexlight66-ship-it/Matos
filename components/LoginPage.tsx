@@ -97,7 +97,7 @@ export default function LoginPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page:{minHeight:'100dvh',display:'flex',alignItems:'stretch',justifyContent:'center',padding:'16px 16px 10px',boxSizing:'border-box',background:'#0e0e0e',color:'#fff',fontFamily:"'IBM Plex Sans',sans-serif'},
+  page:{minHeight:'100dvh',display:'flex',alignItems:'stretch',justifyContent:'center',padding:'16px 16px 10px',boxSizing:'border-box',background:'#0e0e0e',color:'#fff',fontFamily:"'IBM Plex Sans',sans-serif"},
   contentWrap:{width:'min(100%,390px)',minHeight:'calc(100dvh - 26px)',display:'flex',flexDirection:'column',justifyContent:'space-between',gap:14},
   card:{position:'relative',width:'100%',padding:'22px 18px',boxSizing:'border-box',borderRadius:12,background:'#151717',border:'1px solid #323738',boxShadow:'0 20px 50px rgba(0,0,0,.4)'},
   brand:{display:'flex',alignItems:'center',gap:11,marginBottom:22},mark:{width:48,height:48,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:23,fontWeight:700,background:'#ff444f'},brandName:{fontSize:24,fontWeight:700,letterSpacing:'-.04em'},hyper:{color:'#ff444f'},sub:{marginTop:5,color:'#6e6e6e',fontSize:8,fontWeight:600,letterSpacing:'.16em'},
