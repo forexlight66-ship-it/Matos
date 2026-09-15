@@ -29,6 +29,34 @@ function ladderStake(value: number) {
   return selected;
 }
 
+function normalizeLevel(level: number, maxLevel = SONIC_MAX_LEVEL) {
+  if (!Number.isFinite(level)) return 0;
+  return Math.min(maxLevel, Math.max(0, Math.floor(level)));
+}
+
+export function calculateSonicStake(baseStake: number, level: number, maxLevel = SONIC_MAX_LEVEL) {
+  const safeBase = clampBaseStake(baseStake);
+  const safeLevel = normalizeLevel(level, maxLevel);
+  const doubled = safeBase * Math.pow(2, safeLevel);
+  return ladderStake(Math.min(SONIC_MAX_STAKE, doubled));
+}
+
+/**
+ * Pure result transition for the Sonic staking model.
+ * Loss => next level. Win/break-even => reset to level 0.
+ */
+export function applySonicResult(state: SonicStakeState, profitLoss: number): SonicStakeState {
+  const nextLevel = Number(profitLoss) < 0
+    ? Math.min(state.maxLevel, state.level + 1)
+    : 0;
+
+  return {
+    ...state,
+    level: nextLevel,
+    stake: calculateSonicStake(state.baseStake, nextLevel, state.maxLevel),
+  };
+}
+
 /**
  * Sonic combines the two stake systems supplied for the mode:
  * 1) base stake = max(0.35, stored stake) and loss => level + 1 / doubled stake;
@@ -39,29 +67,40 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
   const maxLevel = Math.min(SONIC_MAX_LEVEL, Math.max(0, Math.floor(input?.maxLevel ?? SONIC_MAX_LEVEL)));
   let level = 0;
 
-  const calculate = () => {
-    const doubled = baseStake * Math.pow(2, level);
-    return ladderStake(Math.min(SONIC_MAX_STAKE, doubled));
-  };
-
   const getState = (): SonicStakeState => ({
     baseStake,
     level,
-    stake: calculate(),
+    stake: calculateSonicStake(baseStake, level, maxLevel),
     maxLevel,
     minStake: SONIC_MIN_STAKE,
     maxStake: SONIC_MAX_STAKE,
   });
 
   return {
-    getStake: () => calculate(),
+    getStake: () => calculateSonicStake(baseStake, level, maxLevel),
     getState,
-    recordWin: () => { level = 0; },
-    recordLoss: () => { level = Math.min(maxLevel, level + 1); },
-    reset: () => { level = 0; },
+    recordResult: (profitLoss: number) => {
+      level = Number(profitLoss) < 0
+        ? Math.min(maxLevel, level + 1)
+        : 0;
+      return getState();
+    },
+    recordWin: () => {
+      level = 0;
+      return getState();
+    },
+    recordLoss: () => {
+      level = Math.min(maxLevel, level + 1);
+      return getState();
+    },
+    reset: () => {
+      level = 0;
+      return getState();
+    },
     restore: (state?: Partial<SonicStakeState>) => {
-      if (!state) return;
-      level = Math.min(maxLevel, Math.max(0, Math.floor(Number(state.level) || 0)));
+      if (!state) return getState();
+      level = normalizeLevel(Number(state.level), maxLevel);
+      return getState();
     },
   };
 }
