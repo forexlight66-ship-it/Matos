@@ -1,10 +1,12 @@
 name: Patch AutoBotV4 UI
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: write
 jobs:
   patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,15 +28,8 @@ jobs:
           if marker not in s: raise SystemExit('notice marker not found')
           stage=" useEffect(()=>{if(activeContractId!==null)setContractStage(1);else if(contractClosedSeq===0)setContractStage(0)},[activeContractId,contractClosedSeq]);\n useEffect(()=>{if(contractClosedSeq>0){setContractStage(2);const timer=setTimeout(()=>setContractStage(activeContractId!==null?1:0),3000);return()=>clearTimeout(timer)}},[contractClosedSeq,activeContractId]);\n"
           s=s.replace(marker,stage+marker,1)
-          marker2=" const start=()=>{"
-          if marker2 not in s: raise SystemExit('start marker not found')
-          status_start=s.find('<div className=\"card mt-3 p-4\">')
-          if status_start<0: raise SystemExit('status card not found')
-          status_end=s.find('</div>',status_start)
-          # Find the status card by its existing select + probs sequence instead of generic first closing div.
           exact="<div className=\"card mt-3 p-4\"><div className=\"flex items-center justify-between\"><b className=\"text-[10px] uppercase\">{t('status')}</b>"
-          if exact not in s:
-              raise SystemExit('original status card marker not found')
+          if exact not in s: raise SystemExit('original status card marker not found')
           starti=s.index(exact)
           endi=s.find('</div></div>', starti)
           if endi<0: raise SystemExit('original status card end not found')
@@ -51,7 +46,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add components/AutoBotV4.tsx .github/workflows/patch-ui-update.yml
+          git add components/AutoBotV4.tsx
           git commit -m 'Update AutoBotV4 digit status and contract stage UI'
           git rm .github/workflows/patch-ui-update.yml
           git commit -m 'Remove temporary UI patch workflow'
