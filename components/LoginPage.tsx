@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const DERIV_SIGNUP_URL = 'https://t.deriv.link?t=JAZWN4WCY6JS';
+const DERIV_SIGNUP_URL = 'https://t.deriv.link?t=7D4QKG8Y5W88';
 const LANGUAGE_OPTIONS = [
   { code: 'en' as const, flag: '🇺🇸', label: 'América' },
   { code: 'pt' as const, flag: '🇧🇷', label: 'Brasil' },
