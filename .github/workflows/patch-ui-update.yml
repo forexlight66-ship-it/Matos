@@ -10,32 +10,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch AutoBotV4
+      - name: Update currencies
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('components/AutoBotV4.tsx')
           s=p.read_text()
-          old="const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false);"
-          new="const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false);\n const [lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[contractStage,setContractStage]=useState<0|1|2>(0);"
-          if old not in s or 'lastDigitSeen' in s: raise SystemExit('state marker not found or already patched')
+          s=s.replace("const MT=64;", "const MT=64;\ntype Currency='USD'|'MZN'|'KES'|'ZAR'|'NGN'|'COP'|'BRL'|'JMD';\nconst CURRENCY_RATES:Record<Currency,number>={USD:1,MZN:64,KES:129,ZAR:16,NGN:1300,COP:3100,BRL:5.15,JMD:157.30};\nconst CURRENCY_LABELS:Record<Currency,string>={USD:'$ USD',MZN:'MT MZN',KES:'KSh KES',ZAR:'R ZAR',NGN:'₦ NGN',COP:'$ COP',BRL:'R$ BRL',JMD:'J$ JMD'};")
+          s=s.replace("const money=(u:number,currency:'USD'|'MZN')=>currency==='USD'?`${u>=0?'+':''}${u.toFixed(2)} $`:`${u>=0?'+':''}${(u*MT).toFixed(2)} MT`;", "const money=(u:number,currency:Currency)=>{const v=u*CURRENCY_RATES[currency];return `${v>=0?'+':''}${v.toFixed(2)} ${currency}`};")
+          s=s.replace("[currency,setCurrency]=useState<'USD'|'MZN'>('MZN')", "[currency,setCurrency]=useState<Currency>('USD')")
+          s=s.replace("if(saved==='USD'||saved==='MZN')setCurrency(saved)", "if(saved&&saved in CURRENCY_RATES)setCurrency(saved as Currency)")
+          s=s.replace("{balance?currency==='USD'?`${Number(balance.balance).toFixed(2)} $`:`${(Number(balance.balance)*MT).toFixed(2)} MT`:'—'}", "{balance?`${(Number(balance.balance)*CURRENCY_RATES[currency]).toFixed(2)} ${currency}`:'—'}")
+          old="<div className=\"px-2 pb-1 pt-1 text-[10px] font-bold uppercase text-slate-400\">Moeda</div><div className=\"grid grid-cols-2 gap-1\"><button className={`rounded-lg p-2 text-xs font-bold ${currency==='USD'?'bg-blue-600 text-white':'bg-slate-800 text-slate-300'}`} onClick={()=>setCurrency('USD')}>$ USD</button><button className={`rounded-lg p-2 text-xs font-bold ${currency==='MZN'?'bg-blue-600 text-white':'bg-slate-800 text-slate-300'}`} onClick={()=>setCurrency('MZN')}>MT MZN</button></div>"
+          new="<div className=\"px-2 pb-1 pt-1 text-[10px] font-bold uppercase text-slate-400\">Moeda</div><select className=\"w-full rounded-lg bg-slate-800 p-2 text-xs font-bold text-white\" value={currency} onChange={e=>setCurrency(e.target.value as Currency)}>{(Object.keys(CURRENCY_RATES) as Currency[]).map(c=><option key={c} value={c}>{CURRENCY_LABELS[c]} — 1 USD = {CURRENCY_RATES[c]} {c}</option>)}</select>"
+          if old not in s: raise SystemExit('currency menu marker not found')
           s=s.replace(old,new,1)
-          old="const pipSize=Number((tick as any).pip_size)>0?Number((tick as any).pip_size):tickPipSize;setTicks(prev=>{"
-          new="const pipSize=Number((tick as any).pip_size)>0?Number((tick as any).pip_size):tickPipSize;setLastDigitSeen(digit(q,pipSize));setTicks(prev=>{"
-          if old not in s: raise SystemExit('tick marker not found')
-          s=s.replace(old,new,1)
-          marker=" useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),4000);return()=>clearTimeout(timer)},[notice]);"
-          if marker not in s: raise SystemExit('notice marker not found')
-          stage=" useEffect(()=>{if(activeContractId!==null)setContractStage(1);else if(contractClosedSeq===0)setContractStage(0)},[activeContractId,contractClosedSeq]);\n useEffect(()=>{if(contractClosedSeq>0){setContractStage(2);const timer=setTimeout(()=>setContractStage(activeContractId!==null?1:0),3000);return()=>clearTimeout(timer)}},[contractClosedSeq,activeContractId]);\n"
-          s=s.replace(marker,stage+marker,1)
-          exact="<div className=\"card mt-3 p-4\"><div className=\"flex items-center justify-between\"><b className=\"text-[10px] uppercase\">{t('status')}</b>"
-          if exact not in s: raise SystemExit('original status card marker not found')
-          starti=s.index(exact)
-          endi=s.find('</div></div>', starti)
-          if endi<0: raise SystemExit('original status card end not found')
-          endi += len('</div></div>')
-          newcard="""<div className=\"card mt-3 p-4\">\n  <div className=\"flex items-center justify-between\">\n    <b className=\"text-[13px] font-bold\">Últimos Dígitos: {lastDigitSeen ?? '—'}</b>\n    <select className=\"rounded-lg bg-transparent px-2 py-1 text-xs font-bold\" value={tickWindow} onChange={e=>setTickWindow(Number(e.target.value))} disabled={running}>{[5,10,25,50,100,200].map(n=><option key={n} value={n}>{n} ticks</option>)}</select>\n  </div>\n  <div className=\"mt-4 grid grid-cols-10 items-end gap-1\">\n    {st.probs.map((p,i)=>{\n      const maxP=Math.max(...st.probs),minP=Math.min(...st.probs);\n      const isMax=p===maxP&&p>0,isMin=p===minP;\n      const barColor=isMax?'bg-emerald-500':isMin?'bg-red-500':'bg-slate-300';\n      return <div key={i} className=\"text-center\">\n        <div className={`text-[10px] font-bold ${isMax?'text-emerald-500':''}`}>{p.toFixed(0)}%</div>\n        <div className={`mx-auto rounded-sm mt-1 ${barColor}`} style={{height:`${Math.max(7,Math.min(64,p*1.8))}px`,width:'20px'}}/>\n        <div className=\"text-[10px] font-bold mt-1\">{i}</div>\n      </div>;\n    })}\n  </div>\n</div>\n\n<div className=\"card mt-3 p-3 flex items-center gap-3\">\n  <button className=\"flex-shrink-0 h-11 w-11 rounded-lg bg-red-600 flex items-center justify-center\" onClick={stop} disabled={!running} aria-label=\"Parar robô\">\n    <span className=\"block h-3.5 w-3.5 bg-white rounded-sm\" />\n  </button>\n  <div className=\"flex-1\">\n    <div className=\"flex items-center\">\n      {['Analisando','Aberto','Fechado'].map((label,i)=><div key={label} className=\"flex items-center\" style={{flex:i<2?1:'0 0 auto'}}>\n        <div className=\"h-[9px] w-[9px] rounded-full\" style={{background:i<=contractStage?'#5b6cf5':'#1b1d1d',border:i<=contractStage?'none':'2px solid #323738'}}/>\n        {i<2&&<div className=\"flex-1 h-[2px] mx-1\" style={{background:i<contractStage?'#5b6cf5':'#323738'}}/>}\n      </div>)}\n    </div>\n    <div className=\"flex justify-between mt-1.5\" style={{whiteSpace:'nowrap'}}>\n      {['Analisando','Aberto','Fechado'].map((label,i)=><span key={label} className=\"text-[10px] font-bold uppercase\" style={{color:i<=contractStage?'#fff':'#6e6e6e'}}>{label}</span>)}\n    </div>\n  </div>\n</div>\n\n<div className=\"mt-2 flex items-center justify-between px-1\">\n  <div className=\"flex items-center gap-1.5 text-xs font-semibold\" style={{color:'#c2c2c2'}}>\n    <span className=\"h-1.5 w-1.5 rounded-full\" style={{background:running?'#4bb4b3':'#6e6e6e'}}/>\n    {running?t('running'):t('stopped')}\n  </div>\n  <span className=\"font-mono text-sm\">{tick?.quote??'—'}</span>\n</div>"""
-          s=s[:starti]+newcard+s[endi:]
           p.write_text(s)
           PY
       - name: Build
@@ -47,7 +36,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add components/AutoBotV4.tsx
-          git commit -m 'Update AutoBotV4 digit status and contract stage UI'
-          git rm .github/workflows/patch-ui-update.yml
-          git commit -m 'Remove temporary UI patch workflow'
+          git commit -m 'Adiciona moedas e define USD como principal'
+          git rm .github/workflows/patch-ui-update.yml .github/workflows/update-currency.yml || true
+          git commit -m 'Remove workflows temporarios de atualizacao' || true
           git push
