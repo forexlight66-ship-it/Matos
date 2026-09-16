@@ -3,6 +3,7 @@
 import './globals.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt';
+import RiskDisclosure from '@/components/RiskDisclosure';
 
 export const metadata = {
   title: 'MozHyper',
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt">
       <body>
         <LanguageProvider>{children}</LanguageProvider>
+        <RiskDisclosure />
         <PwaInstallPrompt />
         <script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));` }} />
       </body>
