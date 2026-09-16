@@ -29,6 +29,8 @@ function roundStake(value: number) {
   return Number(Math.max(SONIC_MIN_STAKE, value).toFixed(2));
 }
 
+// Após 4 perdas consecutivas, a operação seguinte começa no acumulado 8x da stake base.
+// Ex.: 0.75 -> 1.50 -> 3.00 -> 6.00. A partir daí, cada nova perda dobra o acumulado.
 export function calculateSonicAccumulation(baseStake: number, lossesToTrigger = SONIC_LOSSES_TO_TRIGGER) {
   const safeBase = clampBaseStake(baseStake);
   const steps = Math.max(0, Math.floor(lossesToTrigger) - 1);
@@ -73,6 +75,7 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
   const recordResult = (profitLoss: number) => {
     const loss = Number(profitLoss) < 0;
 
+    // Operação normal: somente depois da 4ª perda consecutiva entra no Martingale.
     if (!inMartingale) {
       if (loss) {
         consecutiveLosses += 1;
@@ -88,18 +91,28 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
       return getState();
     }
 
+    // Martingale: qualquer perda antes do nível 8 dobra o valor acumulado.
+    // Ex.: 6 -> 12 -> 24 -> 48 -> 96.
     if (loss) {
-      if (level >= maxLevel) return reset();
+      confirmationWins = 0;
+      if (level >= maxLevel) {
+        // Perdeu no Martingale 8: volta imediatamente para a stake normal.
+        return reset();
+      }
       level = Math.min(maxLevel, level + 1);
+      accumulationStake = roundStake(accumulationStake * 2);
       return getState();
     }
 
+    // Ganhou antes do nível 8: repetir mais 2 operações no mesmo valor.
+    // Só depois das 2 confirmações vencedoras volta para a stake normal.
     if (level < maxLevel) {
       confirmationWins += 1;
       if (confirmationWins >= SONIC_CONFIRMATION_TRADES) return reset();
       return getState();
     }
 
+    // Vitória no Martingale 8: também volta à stake normal após o resultado.
     return reset();
   };
 
