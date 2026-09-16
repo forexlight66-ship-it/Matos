@@ -31,7 +31,17 @@ export class DerivWebSocket {
     };
     this.ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
+        let data = JSON.parse(event.data);
+        if (data.msg_type === 'balance' && Number.isFinite(Number(data?.balance))) {
+          data = {
+            ...data,
+            balance: {
+              balance: Number(data.balance),
+              currency: String(data.currency || 'USD'),
+              loginid: data.loginid ? String(data.loginid) : undefined,
+            },
+          };
+        }
         if (data.msg_type === 'proposal_open_contract' && data.proposal_open_contract?.contract_id && data.subscription?.id) {
           this.contractSubscriptionIds.set(Number(data.proposal_open_contract.contract_id), String(data.subscription.id));
         }
