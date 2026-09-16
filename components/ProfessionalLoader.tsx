@@ -12,7 +12,7 @@ interface ProfessionalLoaderProps {
 }
 
 const labels: Record<LoaderStage, { title: string; detail: string }> = {
-  auth: { title: 'Preparing your workspace', detail: 'Checking your secure session' },
+  auth: { title: 'Preparing MozHyper', detail: 'Checking your secure session' },
   connecting: { title: 'Connecting to Deriv', detail: 'Establishing secure market connection' },
   authorizing: { title: 'Authorizing account', detail: 'Synchronizing your Deriv account' },
   ready: { title: 'Ready', detail: 'Your trading workspace is ready' },
@@ -67,9 +67,9 @@ export default function ProfessionalLoader({ stage = 'auth', detail, progress, c
       </div>
 
       <style jsx>{`
-        .mh-loader{min-height:100dvh;width:100%;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:#f4f7fb;color:#182235;font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;}
-        .mh-loader-compact{min-height:220px;padding:16px;background:transparent;}
-        .mh-loader-card{width:min(100%,390px);padding:28px 22px 22px;box-sizing:border-box;border:1px solid #d7e1ef;border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 24px 70px rgba(24,34,53,.10);}
+        .mh-loader{position:fixed;inset:0;z-index:99999;min-height:100dvh;width:100%;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:#f4f7fb;color:#182235;font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;isolation:isolate;}
+        .mh-loader-compact{position:relative;inset:auto;z-index:auto;min-height:220px;padding:16px;background:transparent;}
+        .mh-loader-card{width:min(100%,390px);padding:28px 22px 22px;box-sizing:border-box;border:1px solid #d7e1ef;border-radius:14px;background:rgba(255,255,255,.98);box-shadow:0 24px 70px rgba(24,34,53,.10);}
         .mh-loader-brand{display:flex;align-items:center;gap:11px;margin-bottom:30px;}
         .mh-loader-mark{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#ff444f;color:#fff;font-size:20px;font-weight:700;box-shadow:0 9px 22px rgba(255,68,79,.20);}
         .mh-loader-name{font-size:22px;line-height:1;font-weight:700;letter-spacing:-.045em;}
