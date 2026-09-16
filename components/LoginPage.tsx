@@ -15,6 +15,9 @@ export default function LoginPage() {
   const { language, setLanguage } = useLanguage();
   const [mode, setMode] = useState<'register' | 'login'>('register');
   const [platformReady, setPlatformReady] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
   const [name, setName] = useState('');
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
@@ -52,14 +55,28 @@ export default function LoginPage() {
     finally { setBusy(false); }
   }
 
+  async function requestPasswordReset(e: React.FormEvent) {
+    e.preventDefault();
+    setError(''); setResetMessage(''); setBusy(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resetEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Não foi possível processar o pedido.');
+      setResetMessage(data.message || 'Se o email estiver registado, receberá um link para redefinir a password.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Erro inesperado.'); }
+    finally { setBusy(false); }
+  }
+
   const pt = language === 'pt';
   const es = language === 'es';
   const copy = pt ? {
-    register:'Criar conta', login:'Entrar', name:'Nome', email:'Email', password:'Password', confirm:'Confirmar password', create:'Criar conta na plataforma', enter:'Entrar na plataforma', have:'Já tenho conta', no:'Ainda não tenho conta', welcome:'Conta criada com sucesso.', greeting:'Bem-vindo', connectTitle:'Agora conecte a sua conta Deriv', connect:'Entrar com Deriv', derivNo:'Ainda não tem uma conta Deriv?', derivCreate:'Criar conta Deriv', note:'Primeiro criamos a sua conta MozHyper. Depois conecte a Deriv para usar a plataforma.', risk:'AVISO DE RISCO: Negociar envolve risco significativo de perda financeira, incluindo a possibilidade de perder todo o capital utilizado. Resultados passados não garantem resultados futuros. Nunca opere com dinheiro que não pode perder.'
+    register:'Criar conta', login:'Entrar', name:'Nome', email:'Email', password:'Password', confirm:'Confirmar password', create:'Criar conta na plataforma', enter:'Entrar na plataforma', have:'Já tenho conta', no:'Ainda não tenho conta', welcome:'Conta criada com sucesso.', greeting:'Bem-vindo', connectTitle:'Agora conecte a sua conta Deriv', connect:'Entrar com Deriv', derivNo:'Ainda não tem uma conta Deriv?', derivCreate:'Criar conta Deriv', note:'Primeiro criamos a sua conta MozHyper. Depois conecte a Deriv para usar a plataforma.', risk:'AVISO DE RISCO: Negociar envolve risco significativo de perda financeira, incluindo a possibilidade de perder todo o capital utilizado. Resultados passados não garantem resultados futuros. Nunca opere com dinheiro que não pode perder.', forgot:'Esqueci a password', forgotTitle:'Recuperar password', forgotIntro:'Introduza o seu email e enviaremos um link para redefinir a password.', sendReset:'Enviar link de recuperação', backLogin:'Voltar ao login', resetSent:'Se o email estiver registado, receberá um link para redefinir a password.'
   } : es ? {
-    register:'Crear cuenta', login:'Entrar', name:'Nombre', email:'Email', password:'Contraseña', confirm:'Confirmar contraseña', create:'Crear cuenta en la plataforma', enter:'Entrar en la plataforma', have:'Ya tengo cuenta', no:'Aún no tengo cuenta', welcome:'Cuenta creada correctamente.', greeting:'Bienvenido', connectTitle:'Ahora conecta tu cuenta Deriv', connect:'Entrar con Deriv', derivNo:'¿Aún no tienes una cuenta Deriv?', derivCreate:'Crear cuenta Deriv', note:'Primero creamos tu cuenta MozHyper. Después conecta Deriv para usar la plataforma.', risk:'AVISO DE RIESGO: Operar implica un riesgo significativo de pérdida financiera, incluida la posibilidad de perder todo el capital utilizado. Los resultados pasados no garantizan resultados futuros. Nunca operes con dinero que no puedas perder.'
+    register:'Crear cuenta', login:'Entrar', name:'Nombre', email:'Email', password:'Contraseña', confirm:'Confirmar contraseña', create:'Crear cuenta en la plataforma', enter:'Entrar en la plataforma', have:'Ya tengo cuenta', no:'Aún no tengo cuenta', welcome:'Cuenta creada correctamente.', greeting:'Bienvenido', connectTitle:'Ahora conecta tu cuenta Deriv', connect:'Entrar con Deriv', derivNo:'¿Aún no tienes una cuenta Deriv?', derivCreate:'Crear cuenta Deriv', note:'Primero creamos tu cuenta MozHyper. Después conecta Deriv para usar la plataforma.', risk:'AVISO DE RIESGO: Operar implica un riesgo significativo de pérdida financiera, incluida la posibilidad de perder todo el capital utilizado. Los resultados pasados no garantizan resultados futuros. Nunca operes con dinero que no puedas perder.', forgot:'Olvidé mi contraseña', forgotTitle:'Recuperar contraseña', forgotIntro:'Introduce tu email y enviaremos un enlace para restablecer la contraseña.', sendReset:'Enviar enlace de recuperación', backLogin:'Volver al inicio de sesión', resetSent:'Si el email está registrado, recibirás un enlace para restablecer la contraseña.'
   } : {
-    register:'Create account', login:'Sign in', name:'Name', email:'Email', password:'Password', confirm:'Confirm password', create:'Create platform account', enter:'Sign in to platform', have:'I already have an account', no:'I do not have an account yet', welcome:'Account created successfully.', greeting:'Welcome', connectTitle:'Now connect your Deriv account', connect:'Continue with Deriv', derivNo:'Do not have a Deriv account yet?', derivCreate:'Create Deriv account', note:'First we create your MozHyper account. Then connect Deriv to use the platform.', risk:'RISK WARNING: Trading involves significant financial risk, including the possibility of losing all capital used. Past performance does not guarantee future results. Never trade with money you cannot afford to lose.'
+    register:'Create account', login:'Sign in', name:'Name', email:'Email', password:'Password', confirm:'Confirm password', create:'Create platform account', enter:'Sign in to platform', have:'I already have an account', no:'I do not have an account yet', welcome:'Account created successfully.', greeting:'Welcome', connectTitle:'Now connect your Deriv account', connect:'Continue with Deriv', derivNo:'Do not have a Deriv account yet?', derivCreate:'Create Deriv account', note:'First we create your MozHyper account. Then connect Deriv to use the platform.', risk:'RISK WARNING: Trading involves significant financial risk, including the possibility of losing all capital used. Past performance does not guarantee future results. Never trade with money you cannot afford to lose.', forgot:'Forgot password?', forgotTitle:'Recover password', forgotIntro:'Enter your email and we will send a link to reset your password.', sendReset:'Send reset link', backLogin:'Back to sign in', resetSent:'If that email is registered, you will receive a password reset link.'
   };
 
   const languagePicker = (
@@ -103,16 +120,34 @@ export default function LoginPage() {
             <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
             {languagePicker}
           </div>
-          <div className="tabs" style={styles.tabs}><button onClick={()=>{setMode('register');setError('')}} style={mode==='register'?styles.tabActive:styles.tab}>{copy.register}</button><button onClick={()=>{setMode('login');setError('')}} style={mode==='login'?styles.tabActive:styles.tab}>{copy.login}</button></div>
-          <form onSubmit={submit}>
-            {mode==='register' && <label style={styles.label}>{copy.name}<input value={name} onChange={e=>setName(e.target.value)} style={styles.input} autoComplete="name" required minLength={2}/></label>}
-            <label style={styles.label}>{copy.email}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} style={styles.input} autoComplete="email" required/></label>
-            <label style={styles.label}>{copy.password}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={styles.input} autoComplete={mode==='register'?'new-password':'current-password'} required minLength={8}/></label>
-            {mode==='register' && <label style={styles.label}>{copy.confirm}<input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} style={styles.input} autoComplete="new-password" required minLength={8}/></label>}
-            {error && <div style={styles.error}>{error}</div>}
-            <button disabled={busy} style={{...styles.button, opacity:busy?.65:1}}>{busy?'...':mode==='register'?copy.create:copy.enter}</button>
-          </form>
-          <div className="switcher" style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div>
+
+          {forgotMode ? (
+            <>
+              <h2 style={styles.title}>{copy.forgotTitle}</h2>
+              <p style={styles.intro}>{copy.forgotIntro}</p>
+              <form onSubmit={requestPasswordReset}>
+                <label style={styles.label}>{copy.email}<input type="email" value={resetEmail} onChange={e=>setResetEmail(e.target.value)} style={styles.input} autoComplete="email" required/></label>
+                {error && <div style={styles.error}>{error}</div>}
+                {resetMessage && <div style={styles.success}>{resetMessage}</div>}
+                <button disabled={busy} style={{...styles.button, opacity:busy?.65:1}}>{busy?'...':copy.sendReset}</button>
+              </form>
+              <div style={styles.switcher} onClick={()=>{setForgotMode(false);setError('');setResetMessage('')}}>{copy.backLogin}</div>
+            </>
+          ) : (
+            <>
+              <div className="tabs" style={styles.tabs}><button onClick={()=>{setMode('register');setError('')}} style={mode==='register'?styles.tabActive:styles.tab}>{copy.register}</button><button onClick={()=>{setMode('login');setError('')}} style={mode==='login'?styles.tabActive:styles.tab}>{copy.login}</button></div>
+              <form onSubmit={submit}>
+                {mode==='register' && <label style={styles.label}>{copy.name}<input value={name} onChange={e=>setName(e.target.value)} style={styles.input} autoComplete="name" required minLength={2}/></label>}
+                <label style={styles.label}>{copy.email}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} style={styles.input} autoComplete="email" required/></label>
+                <label style={styles.label}>{copy.password}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={styles.input} autoComplete={mode==='register'?'new-password':'current-password'} required minLength={8}/></label>
+                {mode==='register' && <label style={styles.label}>{copy.confirm}<input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} style={styles.input} autoComplete="new-password" required minLength={8}/></label>}
+                {error && <div style={styles.error}>{error}</div>}
+                <button disabled={busy} style={{...styles.button, opacity:busy?.65:1}}>{busy?'...':mode==='register'?copy.create:copy.enter}</button>
+              </form>
+              {mode==='login' && <div style={styles.forgot} onClick={()=>{setForgotMode(true);setResetEmail(email);setError('');setResetMessage('')}}>{copy.forgot}</div>}
+              <div className="switcher" style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div>
+            </>
+          )}
         </section>
         <footer style={styles.footer}>{copy.risk}</footer>
       </div>
@@ -127,5 +162,5 @@ const styles: Record<string, React.CSSProperties> = {
   topBar:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10,marginBottom:16},
   brand:{display:'flex',alignItems:'center',gap:11,marginBottom:0,flex:1,minWidth:0},mark:{width:48,height:48,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:23,fontWeight:700,background:'#ff444f',color:'#fff',flexShrink:0},brandName:{fontSize:24,fontWeight:700,letterSpacing:'-.04em',color:'#171717'},hyper:{color:'#ff444f'},sub:{marginTop:5,color:'#7b8085',fontSize:8,fontWeight:600,letterSpacing:'.16em'},
   welcome:{marginTop:0,marginBottom:10,textAlign:'left',color:'#22a447',fontSize:12,fontWeight:700},
-  title:{fontSize:18,margin:'18px 0 8px',color:'#171717'},intro:{color:'#626970',fontSize:12,lineHeight:1.5},label:{display:'block',color:'#4f565d',fontSize:11,fontWeight:600,marginBottom:10},input:{display:'block',width:'100%',boxSizing:'border-box',marginTop:5,padding:'12px 11px',borderRadius:7,border:'1px solid #cfd4d9',background:'#fff',color:'#171717',outline:'none'},button:{width:'100%',minHeight:48,border:0,borderRadius:8,cursor:'pointer',color:'#fff',fontSize:12,fontWeight:700,background:'#ff444f',marginTop:6},tabs:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:18},tab:{border:0,borderRadius:7,padding:9,background:'#f0f2f4',color:'#687078',cursor:'pointer',fontWeight:700},tabActive:{border:0,borderRadius:7,padding:9,background:'#ff444f',color:'#fff',cursor:'pointer',fontWeight:700},divider:{height:1,background:'#e2e5e8',margin:'20px 0 14px'},muted:{textAlign:'center',color:'#697078',fontSize:10},link:{display:'block',textAlign:'center',marginTop:7,color:'#ff444f',fontSize:12,fontWeight:700,textDecoration:'none'},error:{padding:9,borderRadius:7,background:'#fff2f3',border:'1px solid #ffc5c9',color:'#d92f3b',fontSize:10,marginBottom:10},switcher:{textAlign:'center',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:13},footer:{padding:'10px 10px',textAlign:'center',color:'#d92f3b',fontSize:8.5,lineHeight:1.5,border:'1px solid #ff444f',borderRadius:8,background:'#fff7f7',boxSizing:'border-box'},lang:{display:'flex',gap:3,padding:3,borderRadius:8,background:'#fff',border:'1px solid #dfe3e6',flexShrink:0},langBtn:{border:0,borderRadius:6,padding:'5px 7px',cursor:'pointer',color:'#687078',background:'transparent',fontSize:17,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'},langActive:{background:'#ffecee',boxShadow:'inset 0 0 0 1px #ffb8be'},flag:{display:'block',lineHeight:1}
+  title:{fontSize:18,margin:'18px 0 8px',color:'#171717'},intro:{color:'#626970',fontSize:12,lineHeight:1.5},label:{display:'block',color:'#4f565d',fontSize:11,fontWeight:600,marginBottom:10},input:{display:'block',width:'100%',boxSizing:'border-box',marginTop:5,padding:'12px 11px',borderRadius:7,border:'1px solid #cfd4d9',background:'#fff',color:'#171717',outline:'none'},button:{width:'100%',minHeight:48,border:0,borderRadius:8,cursor:'pointer',color:'#fff',fontSize:12,fontWeight:700,background:'#ff444f',marginTop:6},tabs:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:18},tab:{border:0,borderRadius:7,padding:9,background:'#f0f2f4',color:'#687078',cursor:'pointer',fontWeight:700},tabActive:{border:0,borderRadius:7,padding:9,background:'#ff444f',color:'#fff',cursor:'pointer',fontWeight:700},divider:{height:1,background:'#e2e5e8',margin:'20px 0 14px'},muted:{textAlign:'center',color:'#697078',fontSize:10},link:{display:'block',textAlign:'center',marginTop:7,color:'#ff444f',fontSize:12,fontWeight:700,textDecoration:'none'},error:{padding:9,borderRadius:7,background:'#fff2f3',border:'1px solid #ffc5c9',color:'#d92f3b',fontSize:10,marginBottom:10},success:{padding:9,borderRadius:7,background:'#effaf2',border:'1px solid #b8e5c2',color:'#208a3c',fontSize:10,marginBottom:10},switcher:{textAlign:'center',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:13},forgot:{textAlign:'right',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:11},footer:{padding:'10px 10px',textAlign:'center',color:'#d92f3b',fontSize:8.5,lineHeight:1.5,border:'1px solid #ff444f',borderRadius:8,background:'#fff7f7',boxSizing:'border-box'},lang:{display:'flex',gap:3,padding:3,borderRadius:8,background:'#fff',border:'1px solid #dfe3e6',flexShrink:0},langBtn:{border:0,borderRadius:6,padding:'5px 7px',cursor:'pointer',color:'#687078',background:'transparent',fontSize:17,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'},langActive:{background:'#ffecee',boxShadow:'inset 0 0 0 1px #ffb8be'},flag:{display:'block',lineHeight:1}
 };
