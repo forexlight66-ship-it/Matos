@@ -22,11 +22,10 @@ export default function Home() {
     );
   }
 
-  if (status.authenticated) return <Dashboard />;
-
-  return (
+  return status.authenticated ? <Dashboard /> : (
     <LoginPage
       initialPlatformReady={status.platformAuthenticated}
+      initialUserName={status.user?.name || ''}
     />
   );
 }
