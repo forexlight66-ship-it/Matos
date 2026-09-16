@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'register' | 'login'>('register');
   const [platformReady, setPlatformReady] = useState(false);
   const [name, setName] = useState('');
+  const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,6 +26,7 @@ export default function LoginPage() {
 
   const refreshStatus = () => fetch('/api/auth/me', { cache: 'no-store' }).then(r => r.json()).then(data => {
     setPlatformReady(Boolean(data.platformAuthenticated));
+    setUserName(data.user?.name || '');
     setChecking(false);
   }).catch(() => setChecking(false));
 
@@ -42,6 +44,7 @@ export default function LoginPage() {
       setPassword(''); setConfirmPassword('');
       if (registering) {
         setPlatformReady(true);
+        setUserName(name);
       } else {
         window.location.assign('/');
       }
@@ -82,6 +85,7 @@ export default function LoginPage() {
       <div style={styles.contentWrap}>
         <section style={styles.card}>
           {languagePicker}
+          {userName && <div style={styles.welcome}>Welcome, {userName}</div>}
           <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
           <h2 style={styles.title}>{copy.connectTitle}</h2>
           <p style={styles.intro}>{copy.note}</p>
@@ -110,7 +114,7 @@ export default function LoginPage() {
             {error && <div style={styles.error}>{error}</div>}
             <button disabled={busy} style={{...styles.button, opacity:busy?.65:1}}>{busy?'...':mode==='register'?copy.create:copy.enter}</button>
           </form>
-          <div style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div>
+          <div className="switcher" style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div>
         </section>
         <footer style={styles.footer}>{copy.risk}</footer>
       </div>
@@ -123,5 +127,6 @@ const styles: Record<string, React.CSSProperties> = {
   contentWrap:{width:'min(100%,390px)',minHeight:'calc(100dvh - 26px)',display:'flex',flexDirection:'column',justifyContent:'space-between',gap:14},
   card:{position:'relative',width:'100%',padding:'22px 18px',boxSizing:'border-box',borderRadius:12,background:'#ffffff',border:'1px solid #e2e5e8',boxShadow:'0 16px 45px rgba(0,0,0,.08)'},
   brand:{display:'flex',alignItems:'center',gap:11,marginBottom:22},mark:{width:48,height:48,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:23,fontWeight:700,background:'#ff444f',color:'#fff'},brandName:{fontSize:24,fontWeight:700,letterSpacing:'-.04em',color:'#171717'},hyper:{color:'#ff444f'},sub:{marginTop:5,color:'#7b8085',fontSize:8,fontWeight:600,letterSpacing:'.16em'},
+  welcome:{marginTop:48,marginBottom:8,textAlign:'right',color:'#ff444f',fontSize:12,fontWeight:700},
   title:{fontSize:18,margin:'18px 0 8px',color:'#171717'},intro:{color:'#626970',fontSize:12,lineHeight:1.5},label:{display:'block',color:'#4f565d',fontSize:11,fontWeight:600,marginBottom:10},input:{display:'block',width:'100%',boxSizing:'border-box',marginTop:5,padding:'12px 11px',borderRadius:7,border:'1px solid #cfd4d9',background:'#fff',color:'#171717',outline:'none'},button:{width:'100%',minHeight:48,border:0,borderRadius:8,cursor:'pointer',color:'#fff',fontSize:12,fontWeight:700,background:'#ff444f',marginTop:6},tabs:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:18},tab:{border:0,borderRadius:7,padding:9,background:'#f0f2f4',color:'#687078',cursor:'pointer',fontWeight:700},tabActive:{border:0,borderRadius:7,padding:9,background:'#ff444f',color:'#fff',cursor:'pointer',fontWeight:700},divider:{height:1,background:'#e2e5e8',margin:'20px 0 14px'},muted:{textAlign:'center',color:'#697078',fontSize:10},link:{display:'block',textAlign:'center',marginTop:7,color:'#ff444f',fontSize:12,fontWeight:700,textDecoration:'none'},error:{padding:9,borderRadius:7,background:'#fff2f3',border:'1px solid #ffc5c9',color:'#d92f3b',fontSize:10,marginBottom:10},switcher:{textAlign:'center',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:13},footer:{padding:'8px 8px 4px',textAlign:'center',color:'#7b8085',fontSize:8.5,lineHeight:1.5},lang:{position:'absolute',right:12,top:12,display:'flex',gap:3,padding:3,borderRadius:8,background:'#fff',border:'1px solid #dfe3e6'},langBtn:{border:0,borderRadius:6,padding:'5px 7px',cursor:'pointer',color:'#687078',background:'transparent',fontSize:17,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'},langActive:{background:'#ffecee',boxShadow:'inset 0 0 0 1px #ffb8be'},flag:{display:'block',lineHeight:1}
 };
