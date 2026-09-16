@@ -1,0 +1,38 @@
+name: Final currency dropdown cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-currency-dropdown-final.yml'
+      - 'components/AutoBotV4.tsx'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, 'Final currency dropdown cleanup') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove exchange rate text
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('components/AutoBotV4.tsx')
+          s=p.read_text(encoding='utf-8')
+          pattern=re.compile(r"\{CURRENCY_LABELS\[c\]\}\s*—\s*1 USD\s*=\s*\{CURRENCY_RATES\[c\]\}\s*\{CURRENCY_LABELS\[c\]\}")
+          s2,n=pattern.subn('{CURRENCY_LABELS[c]}',s)
+          if n != 1:
+              raise SystemExit(f'Expected 1 rate label, found {n}')
+          p.write_text(s2,encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/AutoBotV4.tsx
+          git commit -m 'Final currency dropdown cleanup'
+          git push
