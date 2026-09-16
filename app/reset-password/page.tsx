@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
