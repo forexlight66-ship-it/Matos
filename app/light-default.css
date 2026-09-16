@@ -42,3 +42,88 @@ main:has(.lang) .langBtn:nth-child(1)::after { content:'🇬🇧'; font-size:17p
 main:has(.lang) .langBtn:nth-child(2)::after { content:'🇵🇹'; font-size:17px; }
 main:has(.lang) .langBtn:nth-child(3)::after { content:'🇪🇸'; font-size:17px; }
 main:has(.lang) .tabs button:not([style*="ff444f"]) { color:#64748b !important; }
+
+/* Dashboard / AutoBot: make the Light mode reach the analysis and operation blocks. */
+body.light .matos-page {
+  --s1:#ffffff;
+  --s2:#eef3f9;
+  --s3:#e2e8f0;
+  --t1:#182235;
+  --t2:#53627a;
+  --t3:#7a879d;
+  --blue:#2563eb;
+  --gold:#d99a24;
+  --win:#16a36a;
+  --loss:#dc3545;
+}
+
+body.light .matos-phone .av4 .bg-slate-950,
+body.light .matos-phone .av4 .bg-slate-900,
+body.light .matos-phone .av4 .bg-slate-800 {
+  background:#ffffff !important;
+}
+body.light .matos-phone .av4 .border-slate-700,
+body.light .matos-phone .av4 .border-slate-800 {
+  border-color:#d7e1ef !important;
+}
+body.light .matos-phone .av4 .text-slate-100,
+body.light .matos-phone .av4 .text-slate-200,
+body.light .matos-phone .av4 .text-slate-300 {
+  color:#182235 !important;
+}
+body.light .matos-phone .av4 .text-slate-400,
+body.light .matos-phone .av4 .text-slate-500,
+body.light .matos-phone .av4 .text-slate-600 {
+  color:#7a879d !important;
+}
+body.light .matos-phone .av4 .trade {
+  background:#ffffff !important;
+  border-color:#d7e1ef !important;
+  color:#182235 !important;
+}
+body.light .matos-phone .av4 .trade .text-slate-400,
+body.light .matos-phone .av4 .trade .text-slate-500 {
+  color:#7a879d !important;
+}
+body.light .matos-phone .av4 .hist > div {
+  border-color:#d7e1ef !important;
+}
+
+/* Enhanced analysis / open / closed operation sections use shared theme variables. */
+body.light .matos-phone .av4 .auto-risk,
+body.light .matos-phone .av4 .auto-option,
+body.light .matos-phone .av4 .soros-row,
+body.light .matos-phone .av4 .risk-sequence,
+body.light .matos-phone .av4 .profit-table,
+body.light .matos-phone .av4 .profit-head,
+body.light .matos-phone .av4 .profit-row,
+body.light .matos-phone .av4 .risk-current,
+body.light .matos-phone .av4 .microtrend-card {
+  color:#182235 !important;
+}
+body.light .matos-phone .av4 .risk-sequence,
+body.light .matos-phone .av4 .profit-table,
+body.light .matos-phone .av4 .auto-log {
+  background:#ffffff !important;
+  border-color:#d7e1ef !important;
+}
+body.light .matos-phone .av4 .profit-head,
+body.light .matos-phone .av4 .risk-current {
+  background:#eef3f9 !important;
+}
+body.light .matos-phone .av4 .profit-row,
+body.light .matos-phone .av4 .risk-seq-row,
+body.light .matos-phone .av4 .activity-log > div {
+  border-color:#d7e1ef !important;
+}
+body.light .matos-phone .av4 .auto-log {
+  color:#53627a !important;
+}
+body.light .matos-phone .av4 .auto-error {
+  background:#fff1f2 !important;
+  border:1px solid #fecdd3 !important;
+}
+body.light .matos-phone .av4 .microtrend-card {
+  background:linear-gradient(135deg,#f0f6ff,#fff8e8) !important;
+  border-color:#d7e1ef !important;
+}
