@@ -50,6 +50,7 @@ export function useDeriv(accountType:'demo'|'real'='demo'){
 
 
 
+
  const processSonicExecutionResult=useCallback((tx:ProfitTransaction)=>{
   if(originalSorosEnabledRef.current||!sonicManagerRef.current)return;
   const id=Number(tx.contract_id);
