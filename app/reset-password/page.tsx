@@ -1,9 +1,9 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
   const [password, setPassword] = useState('');
@@ -64,6 +64,10 @@ export default function ResetPasswordPage() {
       </section>
     </main>
   );
+}
+
+export default function ResetPasswordPage() {
+  return <Suspense fallback={<main style={styles.page}><section style={styles.card}>A carregar...</section></main>}><ResetPasswordForm /></Suspense>;
 }
 
 const styles: Record<string, React.CSSProperties> = {
