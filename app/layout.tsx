@@ -1,6 +1,7 @@
 // app/layout.tsx
 
 import './globals.css';
+import './light-default.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt';
 import RiskDisclosure from '@/components/RiskDisclosure';
@@ -9,8 +10,8 @@ export const metadata = {
   title: 'MozHyper',
   description: 'MozHyper',
   manifest: '/manifest.webmanifest',
-  themeColor: '#0e0e0e',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MozHyper' },
+  themeColor: '#f5f7fb',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'MozHyper' },
   icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
