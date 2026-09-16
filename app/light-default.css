@@ -1,4 +1,4 @@
-/* MozHyper — Light Mode defaults and registration-page overrides. */
+/* MozHyper — global Light Mode defaults and registration-page overrides. */
 :root,
 body,
 body.light {
@@ -19,43 +19,51 @@ body.light {
 }
 
 html { color-scheme: light; }
+html, body { background:linear-gradient(180deg,#f8fafc 0%,#eef3f8 100%) !important; color:var(--t1) !important; }
 
-body {
-  background:linear-gradient(180deg,#f8fafc 0%,#eef3f8 100%) !important;
-  color:var(--t1) !important;
-}
-
-/* Dashboard components use the shared CSS variables above. */
-.matos-page { background:transparent !important; }
-.matos-phone { background:var(--bg) !important; border-color:#dbe3ed !important; box-shadow:0 24px 60px rgba(31,41,55,.12) !important; }
+/* Dashboard: these rules intentionally win over legacy dark inline styles. */
+.matos-page { background:#f4f7fb !important; color:#172033 !important; }
+.matos-phone { background:#f4f7fb !important; border-color:#dbe3ed !important; box-shadow:0 24px 60px rgba(31,41,55,.12) !important; }
+.matos-phone .av4 { background:#f4f7fb !important; color:#172033 !important; }
+.matos-phone .av4 .card,
+.matos-phone .av4 .profit-card,
+.matos-phone .av4 .balance-card,
+.matos-phone .av4 .account-strategy,
+.matos-phone .av4 .auto-status-card,
+.matos-phone .av4 .auto-log,
 .card,
 .stats,
 .last-op,
 .market,
 .stake-input-wrap,
 .auto-strategy,
-.auto-metrics>div { background:var(--s1) !important; border-color:#dbe3ed !important; }
+.auto-metrics>div { background:#ffffff !important; border-color:#dbe3ed !important; color:#172033 !important; }
+.matos-phone .av4 .muted,
+.matos-phone .av4 .closed-operations-label,
+.matos-phone .av4 .closed-operations-count { color:#64748b !important; }
+.matos-phone .av4 select,
+.matos-phone .av4 input { color:#172033 !important; background:#ffffff !important; border-color:#cbd5e1 !important; }
 .logout,
 .menu-btn,
 .control-pill,
 .mode-switch-matos,
 .select-menu,
 .symbol-menu,
-.menu { background:var(--s2) !important; color:var(--t1) !important; border-color:#d7e0ea !important; }
+.menu { background:#eef2f7 !important; color:#172033 !important; border-color:#d7e0ea !important; }
 .menu button,
 .select-menu button,
-.symbol-menu button { color:var(--t1) !important; }
+.symbol-menu button { color:#172033 !important; }
 .menu button:hover,
 .select-menu button:hover,
-.symbol-menu button:hover { background:var(--s3) !important; }
+.symbol-menu button:hover { background:#e2e8f0 !important; }
 .auto-status-card { background:linear-gradient(180deg,#fff,#f3f6fa) !important; border-color:#dbe3ed !important; }
 .dial-ring { background:conic-gradient(from -90deg,#e5ebf2,#dce5ef,#e5ebf2) !important; box-shadow:inset 0 0 0 1px #d5dee9,0 16px 40px rgba(31,41,55,.10) !important; }
 .digit,
-.dial-center { background:var(--s1) !important; border-color:#dbe3ed !important; }
-.dial-center { background:radial-gradient(circle at 30% 30%,#eef3f8,var(--bg)) !important; }
-.duration { background:var(--s1) !important; color:var(--t1) !important; border-color:#dbe3ed !important; }
+.dial-center { background:#ffffff !important; border-color:#dbe3ed !important; }
+.dial-center { background:radial-gradient(circle at 30% 30%,#eef3f8,#f4f7fb) !important; }
+.duration { background:#ffffff !important; color:#172033 !important; border-color:#dbe3ed !important; }
 
-/* The platform registration/login page uses inline dark styles, so force its light appearance. */
+/* Force registration/login to Light Mode despite legacy inline dark styles. */
 main:has(.lang) { background:#f5f7fb !important; color:#172033 !important; }
 main:has(.lang) .card,
 main:has(.lang) section[style] { background:#ffffff !important; border-color:#e2e8f0 !important; box-shadow:0 20px 50px rgba(15,23,42,.10) !important; color:#172033 !important; }
