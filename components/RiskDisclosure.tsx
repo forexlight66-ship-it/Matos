@@ -38,7 +38,7 @@ export default function RiskDisclosure() {
       'Pode perder todo o dinheiro investido. Nunca negocie com dinheiro que não possa suportar perder.',
       'Em Opções Digitais, uma operação pode resultar na perda de 100% da aposta inicial.',
       'Resultados passados, históricos, sinais e desempenho apresentado não garantem resultados futuros.',
-      'MOZHYPER é uma ferramenta tecnológica de análise e execução e não presta aconselhamento financeiro ou recomendações personalizadas.',
+      'MozHyper é uma ferramenta tecnológica de análise e execução e não presta aconselhamento financeiro ou recomendações personalizadas.',
       'As operações estão sujeitas às condições da Deriv, incluindo preços, execução, disponibilidade e possíveis falhas técnicas ou de comunicação.'
     ],
     acknowledge:'Li e compreendi',source:'Fonte: Divulgação de Risco da Deriv. Última atualização: 10/09/2026.',more:'Consultar divulgação oficial'
@@ -49,7 +49,7 @@ export default function RiskDisclosure() {
       'Puedes perder todo el dinero invertido. Nunca operes con dinero que no puedas permitirte perder.',
       'En Opciones Digitales, una operación puede resultar en la pérdida del 100% de la apuesta inicial.',
       'Los resultados pasados, históricos, señales y rendimiento mostrado no garantizan resultados futuros.',
-      'MOZHYPER es una herramienta tecnológica de análisis y ejecución y no proporciona asesoramiento financiero ni recomendaciones personalizadas.',
+      'MozHyper es una herramienta tecnológica de análisis y ejecución y no proporciona asesoramiento financiero ni recomendaciones personalizadas.',
       'Las operaciones están sujetas a las condiciones de Deriv, incluidos precios, ejecución, disponibilidad y posibles fallos técnicos o de comunicación.'
     ],
     acknowledge:'He leído y comprendido',source:'Fuente: Divulgación de Riesgo de Deriv. Última actualización: 10/09/2026.',more:'Consultar divulgación oficial'
@@ -60,7 +60,7 @@ export default function RiskDisclosure() {
       'You may lose all money invested. Never trade with money you cannot afford to lose.',
       'For Digital Options, a trade may result in a loss of 100% of the initial stake.',
       'Past results, history, signals and displayed performance do not guarantee future results.',
-      'MOZHYPER is a technology tool for analysis and execution and does not provide financial advice or personalised recommendations.',
+      'MozHyper is a technology tool for analysis and execution and does not provide financial advice or personalised recommendations.',
       "Trading is subject to Deriv's conditions, including pricing, execution, availability and possible technical or communication failures."
     ],
     acknowledge:'I have read and understood',source:'Source: Deriv Risk Disclosure. Last updated: 10/09/2026.',more:'View official disclosure'
@@ -76,7 +76,7 @@ export default function RiskDisclosure() {
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="risk-title" style={{position:'fixed',inset:0,zIndex:500,background:'rgba(0,0,0,.72)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
       <div style={{width:'min(100%,560px)',maxHeight:'min(92vh,780px)',overflow:'auto',border:'1px solid #334155',borderRadius:16,background:'#0f172a',color:'#f8fafc',boxShadow:'0 24px 80px rgba(0,0,0,.5)',padding:20}}>
-        <div style={{color:'#facc15',fontSize:10,fontWeight:800,textTransform:'uppercase',letterSpacing:'.08em'}}>MOZHYPER</div>
+        <div style={{color:'#facc15',fontSize:10,fontWeight:800,textTransform:'uppercase',letterSpacing:'.08em'}}>MozHyper</div>
         <h2 id="risk-title" style={{margin:'6px 0',fontSize:22,lineHeight:1.2}}>{copy.title}</h2>
         <p style={{margin:0,color:'#cbd5e1',fontSize:12,lineHeight:1.55}}>{copy.lead}</p>
         <div style={{marginTop:16,display:'grid',gap:10}}>
