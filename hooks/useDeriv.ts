@@ -32,6 +32,7 @@ export function useDeriv(accountType:'demo'|'real'='demo'){
  const refreshProfitTable=useCallback(()=>wsRef.current?.getProfitTable({limit:2000,offset:0,sort:'DESC',description:1}),[]);
  const resetTradingSession=useCallback(()=>{const now=Math.floor(Date.now()/1000);sessionStartedAtRef.current=now;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();lastProcessedSorosContractRef.current=null;balanceCacheRef.current=null;setBalance(null);setProfitTransactions([]);setProfitCount(0);setContractClosedSeq(0);clearSorosStorage();try{localStorage.removeItem(cacheKey(accountType));sessionStorage.setItem(TRADING_SESSION_STORAGE,String(now))}catch{};const fresh=defaultSoros(sorosRef.current.initialStake||SOROS_MIN);sorosRef.current=fresh;setSoros(fresh)},[accountType]);
 
+
  const processSonicExecutionResult=useCallback((tx:ProfitTransaction)=>{
   if(originalSorosEnabledRef.current||!sonicManagerRef.current)return;
   const id=Number(tx.contract_id);
