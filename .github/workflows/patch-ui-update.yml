@@ -1,0 +1,58 @@
+name: Patch AutoBotV4 UI
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch AutoBotV4
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('components/AutoBotV4.tsx')
+          s=p.read_text()
+          old="const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false);"
+          new="const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false);\n const [lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[contractStage,setContractStage]=useState<0|1|2>(0);"
+          if old not in s or 'lastDigitSeen' in s: raise SystemExit('state marker not found or already patched')
+          s=s.replace(old,new,1)
+          old="const pipSize=Number((tick as any).pip_size)>0?Number((tick as any).pip_size):tickPipSize;setTicks(prev=>{"
+          new="const pipSize=Number((tick as any).pip_size)>0?Number((tick as any).pip_size):tickPipSize;setLastDigitSeen(digit(q,pipSize));setTicks(prev=>{"
+          if old not in s: raise SystemExit('tick marker not found')
+          s=s.replace(old,new,1)
+          marker=" useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),4000);return()=>clearTimeout(timer)},[notice]);"
+          if marker not in s: raise SystemExit('notice marker not found')
+          stage=" useEffect(()=>{if(activeContractId!==null)setContractStage(1);else if(contractClosedSeq===0)setContractStage(0)},[activeContractId,contractClosedSeq]);\n useEffect(()=>{if(contractClosedSeq>0){setContractStage(2);const timer=setTimeout(()=>setContractStage(activeContractId!==null?1:0),3000);return()=>clearTimeout(timer)}},[contractClosedSeq,activeContractId]);\n"
+          s=s.replace(marker,stage+marker,1)
+          marker2=" const start=()=>{"
+          if marker2 not in s: raise SystemExit('start marker not found')
+          status_start=s.find('<div className=\"card mt-3 p-4\">')
+          if status_start<0: raise SystemExit('status card not found')
+          status_end=s.find('</div>',status_start)
+          # Find the status card by its existing select + probs sequence instead of generic first closing div.
+          exact="<div className=\"card mt-3 p-4\"><div className=\"flex items-center justify-between\"><b className=\"text-[10px] uppercase\">{t('status')}</b>"
+          if exact not in s:
+              raise SystemExit('original status card marker not found')
+          starti=s.index(exact)
+          endi=s.find('</div></div>', starti)
+          if endi<0: raise SystemExit('original status card end not found')
+          endi += len('</div></div>')
+          newcard="""<div className=\"card mt-3 p-4\">\n  <div className=\"flex items-center justify-between\">\n    <b className=\"text-[13px] font-bold\">Últimos Dígitos: {lastDigitSeen ?? '—'}</b>\n    <select className=\"rounded-lg bg-transparent px-2 py-1 text-xs font-bold\" value={tickWindow} onChange={e=>setTickWindow(Number(e.target.value))} disabled={running}>{[5,10,25,50,100,200].map(n=><option key={n} value={n}>{n} ticks</option>)}</select>\n  </div>\n  <div className=\"mt-4 grid grid-cols-10 items-end gap-1\">\n    {st.probs.map((p,i)=>{\n      const maxP=Math.max(...st.probs),minP=Math.min(...st.probs);\n      const isMax=p===maxP&&p>0,isMin=p===minP;\n      const barColor=isMax?'bg-emerald-500':isMin?'bg-red-500':'bg-slate-300';\n      return <div key={i} className=\"text-center\">\n        <div className={`text-[10px] font-bold ${isMax?'text-emerald-500':''}`}>{p.toFixed(0)}%</div>\n        <div className={`mx-auto rounded-sm mt-1 ${barColor}`} style={{height:`${Math.max(7,Math.min(64,p*1.8))}px`,width:'20px'}}/>\n        <div className=\"text-[10px] font-bold mt-1\">{i}</div>\n      </div>;\n    })}\n  </div>\n</div>\n\n<div className=\"card mt-3 p-3 flex items-center gap-3\">\n  <button className=\"flex-shrink-0 h-11 w-11 rounded-lg bg-red-600 flex items-center justify-center\" onClick={stop} disabled={!running} aria-label=\"Parar robô\">\n    <span className=\"block h-3.5 w-3.5 bg-white rounded-sm\" />\n  </button>\n  <div className=\"flex-1\">\n    <div className=\"flex items-center\">\n      {['Analisando','Aberto','Fechado'].map((label,i)=><div key={label} className=\"flex items-center\" style={{flex:i<2?1:'0 0 auto'}}>\n        <div className=\"h-[9px] w-[9px] rounded-full\" style={{background:i<=contractStage?'#5b6cf5':'#1b1d1d',border:i<=contractStage?'none':'2px solid #323738'}}/>\n        {i<2&&<div className=\"flex-1 h-[2px] mx-1\" style={{background:i<contractStage?'#5b6cf5':'#323738'}}/>}\n      </div>)}\n    </div>\n    <div className=\"flex justify-between mt-1.5\" style={{whiteSpace:'nowrap'}}>\n      {['Analisando','Aberto','Fechado'].map((label,i)=><span key={label} className=\"text-[10px] font-bold uppercase\" style={{color:i<=contractStage?'#fff':'#6e6e6e'}}>{label}</span>)}\n    </div>\n  </div>\n</div>\n\n<div className=\"mt-2 flex items-center justify-between px-1\">\n  <div className=\"flex items-center gap-1.5 text-xs font-semibold\" style={{color:'#c2c2c2'}}>\n    <span className=\"h-1.5 w-1.5 rounded-full\" style={{background:running?'#4bb4b3':'#6e6e6e'}}/>\n    {running?t('running'):t('stopped')}\n  </div>\n  <span className=\"font-mono text-sm\">{tick?.quote??'—'}</span>\n</div>"""
+          s=s[:starti]+newcard+s[endi:]
+          p.write_text(s)
+          PY
+      - name: Build
+        run: |
+          npm install
+          npm run build
+      - name: Commit and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/AutoBotV4.tsx .github/workflows/patch-ui-update.yml
+          git commit -m 'Update AutoBotV4 digit status and contract stage UI'
+          git rm .github/workflows/patch-ui-update.yml
+          git commit -m 'Remove temporary UI patch workflow'
+          git push
