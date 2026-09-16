@@ -5,6 +5,12 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 const DERIV_SIGNUP_URL = 'https://t.deriv.link?t=JAZWN4WCY6JS';
 
+const LANGUAGE_OPTIONS = [
+  { code: 'en' as const, flag: '🇺🇸', label: 'América' },
+  { code: 'pt' as const, flag: '🇧🇷', label: 'Brasil' },
+  { code: 'es' as const, flag: '🇪🇸', label: 'España' },
+];
+
 export default function LoginPage() {
   const { language, setLanguage } = useLanguage();
   const [mode, setMode] = useState<'register' | 'login'>('register');
@@ -53,13 +59,29 @@ export default function LoginPage() {
     register:'Create account', login:'Sign in', name:'Name', email:'Email', password:'Password', confirm:'Confirm password', create:'Create platform account', enter:'Sign in to platform', have:'I already have an account', no:'I do not have an account yet', welcome:'Account created successfully.', connectTitle:'Now connect your Deriv account', connect:'Continue with Deriv', derivNo:'Do not have a Deriv account yet?', derivCreate:'Create Deriv account', note:'First we create your MozHyper account. Then connect Deriv to use the platform.', risk:'RISK WARNING: Trading involves significant financial risk, including the possibility of losing all capital used. Past performance does not guarantee future results. Never trade with money you cannot afford to lose.'
   };
 
+  const languagePicker = (
+    <div style={styles.lang} aria-label="Language selector">
+      {LANGUAGE_OPTIONS.map(({ code, flag, label }) => (
+        <button
+          key={code}
+          title={label}
+          aria-label={label}
+          onClick={() => setLanguage(code)}
+          style={{ ...styles.langBtn, ...(language === code ? styles.langActive : {}) }}
+        >
+          <span style={styles.flag}>{flag}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   if (checking) return <main style={styles.page}><div style={styles.card}>Loading...</div></main>;
 
   if (platformReady) return (
     <main style={styles.page}>
       <div style={styles.contentWrap}>
         <section style={styles.card}>
-          <div style={styles.lang}>{(['en','pt','es'] as const).map(x => <button key={x} onClick={() => setLanguage(x)} style={{...styles.langBtn, ...(language===x?styles.langActive:{})}}>{x.toUpperCase()}</button>)}</div>
+          {languagePicker}
           <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
           <h2 style={styles.title}>{copy.connectTitle}</h2>
           <p style={styles.intro}>{copy.note}</p>
@@ -77,7 +99,7 @@ export default function LoginPage() {
     <main style={styles.page}>
       <div style={styles.contentWrap}>
         <section style={styles.card}>
-          <div style={styles.lang}>{(['en','pt','es'] as const).map(x => <button key={x} onClick={() => setLanguage(x)} style={{...styles.langBtn, ...(language===x?styles.langActive:{})}}>{x.toUpperCase()}</button>)}</div>
+          {languagePicker}
           <div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>
           <div className="tabs" style={styles.tabs}><button onClick={()=>{setMode('register');setError('')}} style={mode==='register'?styles.tabActive:styles.tab}>{copy.register}</button><button onClick={()=>{setMode('login');setError('')}} style={mode==='login'?styles.tabActive:styles.tab}>{copy.login}</button></div>
           <form onSubmit={submit}>
@@ -97,9 +119,9 @@ export default function LoginPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page:{minHeight:'100dvh',display:'flex',alignItems:'stretch',justifyContent:'center',padding:'16px 16px 10px',boxSizing:'border-box',background:'#0e0e0e',color:'#fff',fontFamily:"'IBM Plex Sans',sans-serif"},
+  page:{minHeight:'100dvh',display:'flex',alignItems:'stretch',justifyContent:'center',padding:'16px 16px 10px',boxSizing:'border-box',background:'#ffffff',color:'#171717',fontFamily:"'IBM Plex Sans',sans-serif"},
   contentWrap:{width:'min(100%,390px)',minHeight:'calc(100dvh - 26px)',display:'flex',flexDirection:'column',justifyContent:'space-between',gap:14},
-  card:{position:'relative',width:'100%',padding:'22px 18px',boxSizing:'border-box',borderRadius:12,background:'#151717',border:'1px solid #323738',boxShadow:'0 20px 50px rgba(0,0,0,.4)'},
-  brand:{display:'flex',alignItems:'center',gap:11,marginBottom:22},mark:{width:48,height:48,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:23,fontWeight:700,background:'#ff444f'},brandName:{fontSize:24,fontWeight:700,letterSpacing:'-.04em'},hyper:{color:'#ff444f'},sub:{marginTop:5,color:'#6e6e6e',fontSize:8,fontWeight:600,letterSpacing:'.16em'},
-  title:{fontSize:18,margin:'18px 0 8px'},intro:{color:'#aeb2b2',fontSize:12,lineHeight:1.5},label:{display:'block',color:'#aeb2b2',fontSize:11,fontWeight:600,marginBottom:10},input:{display:'block',width:'100%',boxSizing:'border-box',marginTop:5,padding:'12px 11px',borderRadius:7,border:'1px solid #323738',background:'#0e0e0e',color:'#fff',outline:'none'},button:{width:'100%',minHeight:48,border:0,borderRadius:8,cursor:'pointer',color:'#fff',fontSize:12,fontWeight:700,background:'#ff444f',marginTop:6},tabs:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:18},tab:{border:0,borderRadius:7,padding:9,background:'#1b1d1d',color:'#777',cursor:'pointer',fontWeight:700},tabActive:{border:0,borderRadius:7,padding:9,background:'#ff444f',color:'#fff',cursor:'pointer',fontWeight:700},divider:{height:1,background:'#323738',margin:'20px 0 14px'},muted:{textAlign:'center',color:'#777',fontSize:10},link:{display:'block',textAlign:'center',marginTop:7,color:'#ff444f',fontSize:12,fontWeight:700,textDecoration:'none'},error:{padding:9,borderRadius:7,background:'rgba(255,68,79,.08)',border:'1px solid rgba(255,68,79,.3)',color:'#ff8a91',fontSize:10,marginBottom:10},switcher:{textAlign:'center',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:13},footer:{padding:'8px 8px 4px',textAlign:'center',color:'#6f6768',fontSize:8.5,lineHeight:1.5},lang:{position:'absolute',right:12,top:12,display:'flex',gap:3,padding:3,borderRadius:7,background:'#1b1d1d',border:'1px solid #323738'},langBtn:{border:0,borderRadius:5,padding:'4px 6px',cursor:'pointer',color:'#666',background:'transparent',fontSize:8,fontWeight:700},langActive:{color:'#fff',background:'#ff444f'}
+  card:{position:'relative',width:'100%',padding:'22px 18px',boxSizing:'border-box',borderRadius:12,background:'#ffffff',border:'1px solid #e2e5e8',boxShadow:'0 16px 45px rgba(0,0,0,.08)'},
+  brand:{display:'flex',alignItems:'center',gap:11,marginBottom:22},mark:{width:48,height:48,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:23,fontWeight:700,background:'#ff444f',color:'#fff'},brandName:{fontSize:24,fontWeight:700,letterSpacing:'-.04em',color:'#171717'},hyper:{color:'#ff444f'},sub:{marginTop:5,color:'#7b8085',fontSize:8,fontWeight:600,letterSpacing:'.16em'},
+  title:{fontSize:18,margin:'18px 0 8px',color:'#171717'},intro:{color:'#626970',fontSize:12,lineHeight:1.5},label:{display:'block',color:'#4f565d',fontSize:11,fontWeight:600,marginBottom:10},input:{display:'block',width:'100%',boxSizing:'border-box',marginTop:5,padding:'12px 11px',borderRadius:7,border:'1px solid #cfd4d9',background:'#fff',color:'#171717',outline:'none'},button:{width:'100%',minHeight:48,border:0,borderRadius:8,cursor:'pointer',color:'#fff',fontSize:12,fontWeight:700,background:'#ff444f',marginTop:6},tabs:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:18},tab:{border:0,borderRadius:7,padding:9,background:'#f0f2f4',color:'#687078',cursor:'pointer',fontWeight:700},tabActive:{border:0,borderRadius:7,padding:9,background:'#ff444f',color:'#fff',cursor:'pointer',fontWeight:700},divider:{height:1,background:'#e2e5e8',margin:'20px 0 14px'},muted:{textAlign:'center',color:'#697078',fontSize:10},link:{display:'block',textAlign:'center',marginTop:7,color:'#ff444f',fontSize:12,fontWeight:700,textDecoration:'none'},error:{padding:9,borderRadius:7,background:'#fff2f3',border:'1px solid #ffc5c9',color:'#d92f3b',fontSize:10,marginBottom:10},switcher:{textAlign:'center',color:'#ff444f',fontSize:10,fontWeight:700,cursor:'pointer',marginTop:13},footer:{padding:'8px 8px 4px',textAlign:'center',color:'#7b8085',fontSize:8.5,lineHeight:1.5},lang:{position:'absolute',right:12,top:12,display:'flex',gap:3,padding:3,borderRadius:8,background:'#fff',border:'1px solid #dfe3e6'},langBtn:{border:0,borderRadius:6,padding:'5px 7px',cursor:'pointer',color:'#687078',background:'transparent',fontSize:17,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'},langActive:{background:'#ffecee',boxShadow:'inset 0 0 0 1px #ffb8be'},flag:{display:'block',lineHeight:1}
 };
