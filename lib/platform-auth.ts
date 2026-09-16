@@ -24,11 +24,23 @@ async function ensureSchema() {
       expires_at TIMESTAMPTZ NOT NULL
     );
     CREATE INDEX IF NOT EXISTS platform_sessions_user_id_idx ON platform_sessions(user_id);
+    CREATE TABLE IF NOT EXISTS platform_password_resets (
+      token_hash TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES platform_users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS platform_password_resets_user_id_idx ON platform_password_resets(user_id);
+    CREATE INDEX IF NOT EXISTS platform_password_resets_expires_at_idx ON platform_password_resets(expires_at);
   `);
 }
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function hashResetToken(token: string) {
+  return createHash('sha256').update(token).digest('hex');
 }
 
 export async function hashPassword(password: string) {
@@ -60,6 +72,53 @@ export async function authenticateUser(email: string, password: string) {
   const user = result.rows[0];
   if (!user || !(await verifyPassword(password, user.password_hash))) return null;
   return { id: user.id, name: user.name, email: user.email };
+}
+
+export async function createPasswordResetToken(email: string) {
+  await ensureSchema();
+  const normalized = normalizeEmail(email);
+  const result = await pool.query('SELECT id, name, email FROM platform_users WHERE email = $1', [normalized]);
+  const user = result.rows[0];
+  if (!user) return null;
+
+  const token = randomBytes(32).toString('base64url');
+  const tokenHash = hashResetToken(token);
+  await pool.query('DELETE FROM platform_password_resets WHERE user_id = $1 AND used_at IS NULL', [user.id]);
+  await pool.query(
+    "INSERT INTO platform_password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 minutes')",
+    [tokenHash, user.id]
+  );
+  return { token, user };
+}
+
+export async function resetPasswordWithToken(token: string, password: string) {
+  await ensureSchema();
+  const tokenHash = hashResetToken(token.trim());
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      'SELECT user_id FROM platform_password_resets WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() FOR UPDATE',
+      [tokenHash]
+    );
+    const reset = result.rows[0];
+    if (!reset) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+
+    const passwordHash = await hashPassword(password);
+    await client.query('UPDATE platform_users SET password_hash = $1 WHERE id = $2', [passwordHash, reset.user_id]);
+    await client.query('UPDATE platform_password_resets SET used_at = NOW() WHERE token_hash = $1', [tokenHash]);
+    await client.query('DELETE FROM platform_sessions WHERE user_id = $1', [reset.user_id]);
+    await client.query('COMMIT');
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createSession(userId: string | number) {
