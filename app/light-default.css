@@ -1,76 +1,43 @@
-/* MozHyper — global Light Mode defaults and registration-page overrides. */
-:root,
-body,
-body.light {
-  --bg:#f4f7fb;
-  --s1:#ffffff;
-  --s2:#eef2f7;
-  --s3:#e2e8f0;
-  --blue:#2563eb;
-  --blue-soft:rgba(37,99,235,.12);
-  --gold:#d99112;
-  --gold-soft:rgba(217,145,18,.12);
-  --win:#16a34a;
-  --loss:#dc2626;
-  --t1:#172033;
-  --t2:#526078;
-  --t3:#7b879c;
-  color-scheme:light;
+/* MozHyper — Light Mode and language flags only for platform registration/login. */
+
+html:has(main .lang) { color-scheme: light; }
+body:has(main .lang) {
+  background:#f5f7fb !important;
+  color:#172033 !important;
 }
 
-html { color-scheme: light; }
-html, body { background:linear-gradient(180deg,#f8fafc 0%,#eef3f8 100%) !important; color:var(--t1) !important; }
-
-/* Dashboard: these rules intentionally win over legacy dark inline styles. */
-.matos-page { background:#f4f7fb !important; color:#172033 !important; }
-.matos-phone { background:#f4f7fb !important; border-color:#dbe3ed !important; box-shadow:0 24px 60px rgba(31,41,55,.12) !important; }
-.matos-phone .av4 { background:#f4f7fb !important; color:#172033 !important; }
-.matos-phone .av4 .card,
-.matos-phone .av4 .profit-card,
-.matos-phone .av4 .balance-card,
-.matos-phone .av4 .account-strategy,
-.matos-phone .av4 .auto-status-card,
-.matos-phone .av4 .auto-log,
-.card,
-.stats,
-.last-op,
-.market,
-.stake-input-wrap,
-.auto-strategy,
-.auto-metrics>div { background:#ffffff !important; border-color:#dbe3ed !important; color:#172033 !important; }
-.matos-phone .av4 .muted,
-.matos-phone .av4 .closed-operations-label,
-.matos-phone .av4 .closed-operations-count { color:#64748b !important; }
-.matos-phone .av4 select,
-.matos-phone .av4 input { color:#172033 !important; background:#ffffff !important; border-color:#cbd5e1 !important; }
-.logout,
-.menu-btn,
-.control-pill,
-.mode-switch-matos,
-.select-menu,
-.symbol-menu,
-.menu { background:#eef2f7 !important; color:#172033 !important; border-color:#d7e0ea !important; }
-.menu button,
-.select-menu button,
-.symbol-menu button { color:#172033 !important; }
-.menu button:hover,
-.select-menu button:hover,
-.symbol-menu button:hover { background:#e2e8f0 !important; }
-.auto-status-card { background:linear-gradient(180deg,#fff,#f3f6fa) !important; border-color:#dbe3ed !important; }
-.dial-ring { background:conic-gradient(from -90deg,#e5ebf2,#dce5ef,#e5ebf2) !important; box-shadow:inset 0 0 0 1px #d5dee9,0 16px 40px rgba(31,41,55,.10) !important; }
-.digit,
-.dial-center { background:#ffffff !important; border-color:#dbe3ed !important; }
-.dial-center { background:radial-gradient(circle at 30% 30%,#eef3f8,#f4f7fb) !important; }
-.duration { background:#ffffff !important; color:#172033 !important; border-color:#dbe3ed !important; }
-
-/* Force registration/login to Light Mode despite legacy inline dark styles. */
-main:has(.lang) { background:#f5f7fb !important; color:#172033 !important; }
+/* Registration/login page: override the component's legacy dark inline styles. */
+main:has(.lang) {
+  background:#f5f7fb !important;
+  color:#172033 !important;
+}
 main:has(.lang) .card,
-main:has(.lang) section[style] { background:#ffffff !important; border-color:#e2e8f0 !important; box-shadow:0 20px 50px rgba(15,23,42,.10) !important; color:#172033 !important; }
-main:has(.lang) input { background:#f8fafc !important; border-color:#cbd5e1 !important; color:#172033 !important; }
-main:has(.lang) .lang { background:#eef2f7 !important; border-color:#d7dee8 !important; }
-main:has(.lang) .langBtn { color:#64748b !important; width:34px !important; height:30px !important; padding:0 !important; font-size:0 !important; }
-main:has(.lang) .langBtn.langActive { background:#2563eb !important; color:#ffffff !important; }
+main:has(.lang) section[style] {
+  background:#ffffff !important;
+  border-color:#e2e8f0 !important;
+  box-shadow:0 20px 50px rgba(15,23,42,.10) !important;
+  color:#172033 !important;
+}
+main:has(.lang) input {
+  background:#f8fafc !important;
+  border-color:#cbd5e1 !important;
+  color:#172033 !important;
+}
+main:has(.lang) .lang {
+  background:#eef2f7 !important;
+  border-color:#d7dee8 !important;
+}
+main:has(.lang) .langBtn {
+  color:#64748b !important;
+  width:34px !important;
+  height:30px !important;
+  padding:0 !important;
+  font-size:0 !important;
+}
+main:has(.lang) .langBtn.langActive {
+  background:#2563eb !important;
+  color:#ffffff !important;
+}
 main:has(.lang) .langBtn:nth-child(1)::after { content:'🇬🇧'; font-size:17px; }
 main:has(.lang) .langBtn:nth-child(2)::after { content:'🇵🇹'; font-size:17px; }
 main:has(.lang) .langBtn:nth-child(3)::after { content:'🇪🇸'; font-size:17px; }
