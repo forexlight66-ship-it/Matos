@@ -1,0 +1,39 @@
+name: Fix currency dropdown labels
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-currency-dropdown.yml'
+      - 'components/AutoBotV4.tsx'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, 'Fix currency dropdown labels') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove exchange rate text from dropdown
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('components/AutoBotV4.tsx')
+          s = p.read_text(encoding='utf-8')
+          pattern = re.compile(r"\{CURRENCY_LABELS\[c\]\}\s*—\s*1 USD\s*=\s*\{CURRENCY_RATES\[c\]\}\s*\{c\}")
+          s2, n = pattern.subn('{CURRENCY_LABELS[c]}', s)
+          if n != 1:
+              raise SystemExit(f'Expected exactly 1 dropdown rate expression, found {n}')
+          p.write_text(s2, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/AutoBotV4.tsx
+          git commit -m 'Fix currency dropdown labels'
+          git push
