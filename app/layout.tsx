@@ -6,11 +6,11 @@ import PwaInstallPrompt from '@/components/PwaInstallPrompt';
 import RiskDisclosure from '@/components/RiskDisclosure';
 
 export const metadata = {
-  title: 'MozHyper',
-  description: 'MozHyper',
+  title: 'MOZHYPER',
+  description: 'MOZHYPER',
   manifest: '/manifest.webmanifest',
   themeColor: '#0e0e0e',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MozHyper' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MOZHYPER' },
   icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
