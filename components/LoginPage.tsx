@@ -10,7 +10,7 @@ const LANGUAGE_OPTIONS = [
   { code: 'es' as const, flag: '🇪🇸', label: 'España' },
 ];
 
-export default function LoginPage({ initialPlatformReady = false }: { initialPlatformReady?: boolean }) {
+export default function LoginPage({ initialPlatformReady = false, initialUserName = '' }: { initialPlatformReady?: boolean; initialUserName?: string }) {
   const { language, setLanguage } = useLanguage();
   const [mode, setMode] = useState<'register' | 'login'>('register');
   const [platformReady, setPlatformReady] = useState(initialPlatformReady);
@@ -21,7 +21,7 @@ export default function LoginPage({ initialPlatformReady = false }: { initialPla
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState(initialUserName);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
