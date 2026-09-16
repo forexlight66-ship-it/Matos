@@ -1,0 +1,42 @@
+name: Update currencies
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update-currency.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update AutoBotV4 currencies
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('components/AutoBotV4.tsx')
+          s = p.read_text()
+          s = s.replace("const MT=64;", "const MT=64;\ntype Currency='USD'|'MZN'|'KES'|'ZAR'|'NGN'|'COP'|'BRL'|'JMD';\nconst CURRENCY_RATES:Record<Currency,number>={USD:1,MZN:64,KES:129,ZAR:16,NGN:1300,COP:3100,BRL:5.15,JMD:157.30};\nconst CURRENCY_LABELS:Record<Currency,string>={USD:'$ USD',MZN:'MT MZN',KES:'KSh KES',ZAR:'R ZAR',NGN:'₦ NGN',COP:'$ COP',BRL:'R$ BRL',JMD:'J$ JMD'};")
+          s = s.replace("const money=(u:number,currency:'USD'|'MZN')=>currency==='USD'?`${u>=0?'+':''}${u.toFixed(2)} $`:`${u>=0?'+':''}${(u*MT).toFixed(2)} MT`;", "const money=(u:number,currency:Currency)=>{const v=u*CURRENCY_RATES[currency];return `${v>=0?'+':''}${v.toFixed(2)} ${currency}`};")
+          s = s.replace("[currency,setCurrency]=useState<'USD'|'MZN'>('MZN')", "[currency,setCurrency]=useState<Currency>('USD')")
+          s = s.replace("if(saved==='USD'||saved==='MZN')setCurrency(saved)", "if(saved&&saved in CURRENCY_RATES)setCurrency(saved as Currency)")
+          s = s.replace("{balance?currency==='USD'?`${Number(balance.balance).toFixed(2)} $`:`${(Number(balance.balance)*MT).toFixed(2)} MT`:'—'}", "{balance?`${(Number(balance.balance)*CURRENCY_RATES[currency]).toFixed(2)} ${currency}`:'—'}")
+          old = "<div className=\"px-2 pb-1 pt-1 text-[10px] font-bold uppercase text-slate-400\">Moeda</div><div className=\"grid grid-cols-2 gap-1\"><button className={`rounded-lg p-2 text-xs font-bold ${currency==='USD'?'bg-blue-600 text-white':'bg-slate-800 text-slate-300'}`} onClick={()=>setCurrency('USD')}>$ USD</button><button className={`rounded-lg p-2 text-xs font-bold ${currency==='MZN'?'bg-blue-600 text-white':'bg-slate-800 text-slate-300'}`} onClick={()=>setCurrency('MZN')}>MT MZN</button></div>"
+          new = "<div className=\"px-2 pb-1 pt-1 text-[10px] font-bold uppercase text-slate-400\">Moeda</div><select className=\"w-full rounded-lg bg-slate-800 p-2 text-xs font-bold text-white\" value={currency} onChange={e=>setCurrency(e.target.value as Currency)}>{(Object.keys(CURRENCY_RATES) as Currency[]).map(c=><option key={c} value={c}>{CURRENCY_LABELS[c]} — 1 USD = {CURRENCY_RATES[c]} {c}</option>)}</select>"
+          if old not in s:
+            raise SystemExit('Currency menu pattern not found')
+          s = s.replace(old,new)
+          p.write_text(s)
+      - name: Commit changes and remove updater
+        run: |
+          rm .github/workflows/update-currency.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/AutoBotV4.tsx .github/workflows/update-currency.yml
+          git commit -m 'Adiciona moedas e define USD como principal'
+          git push
