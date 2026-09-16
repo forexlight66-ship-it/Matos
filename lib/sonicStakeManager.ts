@@ -1,5 +1,5 @@
 const SONIC_MIN_STAKE = 0.35;
-const SONIC_MAX_MARTINGALE = 8;
+const SONIC_MAX_MARTINGALE = 10;
 const SONIC_LOSSES_TO_TRIGGER = 4;
 const SONIC_CONFIRMATION_TRADES = 2;
 
@@ -30,7 +30,7 @@ function roundStake(value: number) {
 }
 
 // Após 4 perdas consecutivas, a operação seguinte começa no acumulado 8x da stake base.
-// Ex.: 0.75 -> 1.50 -> 3.00 -> 6.00. A partir daí, cada nova perda dobra o acumulado.
+// A partir daí, cada nova perda dobra o valor acumulado até ao nível máximo M10.
 export function calculateSonicAccumulation(baseStake: number, lossesToTrigger = SONIC_LOSSES_TO_TRIGGER) {
   const safeBase = clampBaseStake(baseStake);
   const steps = Math.max(0, Math.floor(lossesToTrigger) - 1);
@@ -91,12 +91,11 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
       return getState();
     }
 
-    // Martingale: qualquer perda antes do nível 8 dobra o valor acumulado.
-    // Ex.: 6 -> 12 -> 24 -> 48 -> 96.
+    // Martingale: qualquer perda antes do nível 10 dobra o valor acumulado.
     if (loss) {
       confirmationWins = 0;
       if (level >= maxLevel) {
-        // Perdeu no Martingale 8: volta imediatamente para a stake normal.
+        // Perdeu no Martingale 10: volta imediatamente para a stake normal.
         return reset();
       }
       level = Math.min(maxLevel, level + 1);
@@ -104,7 +103,7 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
       return getState();
     }
 
-    // Ganhou antes do nível 8: repetir mais 2 operações no mesmo valor.
+    // Ganhou antes do nível 10: repetir mais 2 operações no mesmo valor.
     // Só depois das 2 confirmações vencedoras volta para a stake normal.
     if (level < maxLevel) {
       confirmationWins += 1;
@@ -112,7 +111,7 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
       return getState();
     }
 
-    // Vitória no Martingale 8: também volta à stake normal após o resultado.
+    // Vitória no Martingale 10: também volta à stake normal após o resultado.
     return reset();
   };
 
