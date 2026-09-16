@@ -3,6 +3,7 @@
 import './globals.css';
 import './light-default.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import GlobalLanguageSelector from '@/components/GlobalLanguageSelector';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt';
 import RiskDisclosure from '@/components/RiskDisclosure';
 
@@ -19,7 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt">
       <body>
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          <GlobalLanguageSelector />
+          {children}
+        </LanguageProvider>
         <RiskDisclosure />
         <PwaInstallPrompt />
         <script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));` }} />
