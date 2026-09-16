@@ -4,29 +4,29 @@
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
+const languages = [
+  { code: 'en' as const, flag: '🇬🇧', label: 'English' },
+  { code: 'pt' as const, flag: '🇵🇹', label: 'Português' },
+  { code: 'es' as const, flag: '🇪🇸', label: 'Español' },
+];
+
 export default function LanguageSelector() {
   const { language, setLanguage } = useLanguage();
 
   return (
-    <div className="flex gap-2 items-center">
-      <button
-        onClick={() => setLanguage('en')}
-        className={`px-3 py-1 rounded ${language === 'en' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-      >
-        EN
-      </button>
-      <button
-        onClick={() => setLanguage('pt')}
-        className={`px-3 py-1 rounded ${language === 'pt' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-      >
-        PT
-      </button>
-      <button
-        onClick={() => setLanguage('es')}
-        className={`px-3 py-1 rounded ${language === 'es' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-      >
-        ES
-      </button>
+    <div className="flex gap-1.5 items-center">
+      {languages.map(({ code, flag, label }) => (
+        <button
+          key={code}
+          type="button"
+          onClick={() => setLanguage(code)}
+          aria-label={label}
+          title={label}
+          className={`w-9 h-8 rounded-lg text-lg leading-none transition ${language === code ? 'bg-blue-600 shadow-sm' : 'bg-gray-100 hover:bg-gray-200'}`}
+        >
+          {flag}
+        </button>
+      ))}
     </div>
   );
 }
