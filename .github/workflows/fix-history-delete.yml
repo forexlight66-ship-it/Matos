@@ -36,12 +36,6 @@ jobs:
           if old_button not in s:
               raise SystemExit('Delete button markup not found')
           s = s.replace(old_button, new_button, 1)
-
-          old_reset = "  resetTradingSession();\n  setNotice('Histórico e prejuízo limpos — novo ciclo iniciado');"
-          new_reset = "  resetTradingSession();\n  setNotice('Histórico e prejuízo limpos — novo ciclo iniciado');"
-          if old_reset not in s:
-              raise SystemExit('clear-history reset block not found')
-          s = s.replace(old_reset, new_reset, 1)
           p.write_text(s)
 
           p = Path('hooks/useDeriv.ts')
