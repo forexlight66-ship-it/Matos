@@ -57,8 +57,11 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
   const tetoAtivo = () => plAcumuladoSessao >= limiarLucro() ? nivelTetoProtegido : nivelTetoNormal;
   const martingalePermitido = () => plAcumuladoSessao < limiarLucro();
 
-  const stakeParaRecuperar = (deficit: number) =>
-    arredondar((Math.max(0, deficit) + stakeBase) / payout);
+  const stakeParaRecuperar = (deficit: number) => {
+    const objetivo = Math.max(0, deficit) + stakeBase;
+    const stake = objetivo / Math.max(0.0001, payout);
+    return Math.ceil(stake * 100 - 1e-9) / 100;
+  };
 
   function proximoStake() {
     return arredondar(stakeAtual);
