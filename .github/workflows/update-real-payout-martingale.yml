@@ -34,7 +34,7 @@ jobs:
               if old not in s:
                   raise SystemExit('manager payout declaration not found')
               s = s.replace(old, new, 1)
-          if 'atualizarPayout };' not in s and 'atualizarPayout };' not in s:
+          if 'atualizarPayout };' not in s:
               old_return = "  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado };"
               new_return = "  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado, atualizarPayout };"
               if old_return not in s:
@@ -50,22 +50,22 @@ jobs:
                   raise SystemExit('AutoBot refs marker not found')
               s = s.replace(marker, marker + "\n const lastPayoutRatioRef=useRef(IA_PAYOUT);", 1)
 
-          if 'const ratio=(Number(proposal.payout)-Number(proposal.ask_price))/Number(proposal.ask_price);' not in s:
+          if 'lastPayoutRatioRef.current=ratio' not in s:
               deriv_marker = " const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,fetchProfitTable,resetTradingSession}=useDeriv(account);"
               if deriv_marker not in s:
                   raise SystemExit('AutoBot Deriv marker not found')
               effect = """ useEffect(()=>{
           if(!proposal||!proposal.ask_price)return;
           const ratio=(Number(proposal.payout)-Number(proposal.ask_price))/Number(proposal.ask_price);
-          if(Number.isFinite(ratio)&&ratio>0)lastPayoutRatioRef.current=ratio;
+          if(Number.isFinite(ratio)&&ratio>0){
+           lastPayoutRatioRef.current=ratio;
+           gestorRef.current.atualizarPayout(ratio);
+          }
          },[proposal]);"""
               s = s.replace(deriv_marker, deriv_marker + effect, 1)
 
-          if 'gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);' not in s:
-              needle = 'gestorRef.current.registrarResultado('
-              count = s.count(needle)
-              if count < 1:
-                  raise SystemExit('gestor registrarResultado call not found')
+          needle = 'gestorRef.current.registrarResultado('
+          if 'gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);' not in s and needle in s:
               s = s.replace(needle, 'gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);\n  gestorRef.current.registrarResultado(', 1)
           bot.write_text(s)
           PY
