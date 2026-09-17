@@ -29,7 +29,11 @@ export interface EstadoGestorStakeDinamico {
 
 export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
   const stakeBase = Math.max(0, Number(config.stakeBase) || 0.75);
-  const payout = Math.max(0.0001, Number(config.payout) || 0.95);
+  let payout = Math.max(0.0001, Number(config.payout) || 0.95);
+
+  function atualizarPayout(novoPayout: number): void {
+    if (Number.isFinite(novoPayout) && novoPayout > 0) payout = novoPayout;
+  }
   const nivelTetoNormal = 7;
   const nivelTetoProtegido = 1;
   const multiplicadorLimiarLucro = Math.max(0, Number(config.multiplicadorLimiarLucro) || 16);
@@ -53,8 +57,6 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
   const tetoAtivo = () => plAcumuladoSessao >= limiarLucro() ? nivelTetoProtegido : nivelTetoNormal;
   const martingalePermitido = () => plAcumuladoSessao < limiarLucro();
 
-  // Calcula a stake necessária para recuperar TODO o défice financeiro
-  // conhecido e ainda deixar pelo menos uma stakeBase de resultado positivo.
   const stakeParaRecuperar = (deficit: number) =>
     arredondar((Math.max(0, deficit) + stakeBase) / payout);
 
@@ -86,9 +88,6 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     const ganhou = resultadoNumerico > 0;
     plAcumuladoSessao += resultadoNumerico;
 
-    // ========================================================================
-    // MARTINGALE — RECUPERAÇÃO POR VALOR REAL
-    // ========================================================================
     if (emMartingale) {
       if (resultadoNumerico < 0) {
         const perda = Math.abs(resultadoNumerico);
@@ -107,15 +106,11 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       }
 
       if (ganhou) {
-        // A vitória reduz o défice pelo LUCRO REAL recebido.
-        // Se ainda existir défice, NÃO termina o Martingale.
         deficitRecuperacao = Math.max(0, deficitRecuperacao - resultadoNumerico);
 
         if (deficitRecuperacao <= EPS) {
-          // Ciclo totalmente recuperado.
           resetCiclo();
         } else if (martingalePermitido()) {
-          // Recuperação parcial: continua no Martingale com o valor restante.
           nivelMartingaleAtual += 1;
           if (nivelMartingaleAtual >= tetoAtivo()) {
             vezesEstourouTeto++;
@@ -129,7 +124,6 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         return;
       }
 
-      // Resultado zero/empate não reduz o défice.
       if (martingalePermitido() && nivelMartingaleAtual < tetoAtivo()) {
         stakeAtual = stakeParaRecuperar(deficitRecuperacao);
       } else {
@@ -138,9 +132,6 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       return;
     }
 
-    // ========================================================================
-    // SOROS — SEM MARTINGALE ATIVO
-    // ========================================================================
     if (ganhou) {
       lucroAcumuladoCicloSoros += resultadoNumerico;
 
@@ -156,9 +147,6 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       return;
     }
 
-    // ========================================================================
-    // PRIMEIRA PERDA — INICIA RECUPERAÇÃO
-    // ========================================================================
     if (resultadoNumerico < 0 && martingalePermitido()) {
       emMartingale = true;
       nivelMartingaleAtual = 1;
@@ -212,7 +200,15 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     };
   }
 
-  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado };
+  return {
+    proximoStake,
+    registrarResultado,
+    getEstado,
+    getEstatisticas,
+    resetSessao,
+    restaurarEstado,
+    atualizarPayout,
+  };
 }
 
 export function criarGestorStake(config: {
