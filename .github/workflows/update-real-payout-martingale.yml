@@ -1,11 +1,11 @@
-name: Update Martingale with real Deriv payout
+name: Finalize Martingale real payout
 
 on:
   push:
     branches: [main]
 
 jobs:
-  update:
+  finalize:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -15,65 +15,91 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Apply real payout changes
+      - name: Corrigir payout real e recuperação financeira
+        shell: bash
         run: |
+          set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
           manager = Path('lib/gestorStakeSorosMartingaleDinamico.ts')
           s = manager.read_text()
-          old = "  const payout = Math.max(0.0001, Number(config.payout) || 0.95);"
-          new = """  let payout = Math.max(0.0001, Number(config.payout) || 0.95);
+
+          fixed = "  const payout = Math.max(0.0001, Number(config.payout) || 0.95);"
+          dynamic = """  let payout = Math.max(0.0001, Number(config.payout) || 0.95);
 
           function atualizarPayout(novoPayout: number): void {
             if (Number.isFinite(novoPayout) && novoPayout > 0) payout = novoPayout;
           }"""
           if 'function atualizarPayout(novoPayout: number)' not in s:
+              if fixed not in s:
+                  raise SystemExit('Declaração de payout não encontrada no gestor')
+              s = s.replace(fixed, dynamic, 1)
+
+          if 'atualizarPayout,' not in s:
+              old = "  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado };"
+              new = """  return {
+            proximoStake,
+            registrarResultado,
+            getEstado,
+            getEstatisticas,
+            resetSessao,
+            restaurarEstado,
+            atualizarPayout,
+          };"""
               if old not in s:
-                  raise SystemExit('manager payout declaration not found')
+                  raise SystemExit('Return do gestor não encontrado')
               s = s.replace(old, new, 1)
-          old_return = "  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado };"
-          new_return = "  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado, atualizarPayout };"
-          if 'atualizarPayout };' not in s and old_return in s:
-              s = s.replace(old_return, new_return, 1)
+
           manager.write_text(s)
 
           bot = Path('components/AutoBotV4.tsx')
           s = bot.read_text()
-          marker = " const gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));"
-          if 'const lastPayoutRatioRef=useRef(IA_PAYOUT);' not in s:
-              if marker not in s:
-                  raise SystemExit('gestorRef declaration not found')
-              s = s.replace(marker, marker + "\n const lastPayoutRatioRef=useRef(IA_PAYOUT);", 1)
 
-          effect = """ useEffect(()=>{
+          gestor = " const gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));"
+          ref_line = " const lastPayoutRatioRef=useRef(IA_PAYOUT);"
+          if ref_line not in s:
+              if gestor not in s:
+                  raise SystemExit('gestorRef não encontrado no AutoBotV4')
+              s = s.replace(gestor, gestor + "\n" + ref_line, 1)
+
+          payout_effect = """ useEffect(()=>{
           if(!proposal||!proposal.ask_price)return;
           const ratio=(proposal.payout-proposal.ask_price)/proposal.ask_price;
           if(Number.isFinite(ratio)&&ratio>0)lastPayoutRatioRef.current=ratio
          },[proposal]);"""
           if 'lastPayoutRatioRef.current=ratio' not in s:
-              deriv_marker = " const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,fetchProfitTable,resetTradingSession}=useDeriv(account);"
-              if deriv_marker not in s:
-                  raise SystemExit('useDeriv declaration not found')
-              s = s.replace(deriv_marker, deriv_marker + effect, 1)
+              deriv = " const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,fetchProfitTable,resetTradingSession}=useDeriv(account);"
+              if deriv not in s:
+                  raise SystemExit('useDeriv não encontrado no AutoBotV4')
+              s = s.replace(deriv, deriv + payout_effect, 1)
 
-          registrar = "gestorRef.current.registrarResultado("
-          if registrar in s and 'gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);' not in s:
-              s = s.replace(registrar, "gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);\n  gestorRef.current.registrarResultado(", 1)
+          updater = "  gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);\n"
+          registrar = "  gestorRef.current.registrarResultado(Number(latest.profit_loss||0));"
+          if updater not in s:
+              if registrar not in s:
+                  raise SystemExit('registrarResultado não encontrado no AutoBotV4')
+              s = s.replace(registrar, updater + registrar, 1)
+
           bot.write_text(s)
           PY
 
-      - name: Build
+      - name: Validar build
         run: |
           npm install
           npm run build
 
-      - name: Commit source changes and remove patch workflow
+      - name: Commitar apenas as correções finais
         run: |
+          set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/gestorStakeSorosMartingaleDinamico.ts components/AutoBotV4.tsx
           git rm .github/workflows/update-real-payout-martingale.yml
           git add lib/gestorStakeSorosMartingaleDinamico.ts components/AutoBotV4.tsx
+          if git diff --cached --quiet; then
+            echo 'Nenhuma alteração pendente.'
+            exit 0
+          fi
           git commit -m 'Corrige martingale: usa payout real do contrato em vez de 0.95 fixo'
           git push origin main
