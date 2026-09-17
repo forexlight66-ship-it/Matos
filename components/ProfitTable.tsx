@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useDeriv } from '@/hooks/useDeriv';
 import { useLanguage } from '@/contexts/LanguageContext';
+import InlineSpinner from '@/components/InlineSpinner';
 
 export default function ProfitTable() {
   const { profitTransactions, profitCount, loadingProfit, fetchProfitTable } = useDeriv();
@@ -21,7 +22,12 @@ export default function ProfitTable() {
   return (
     <div className="card">
       <h2 className="text-xl font-bold mb-4">{t('profitTable')}</h2>
-      {loadingProfit && <p>{t('loading')}</p>}
+      {loadingProfit && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+          <InlineSpinner size={16} />
+          <span>{t('loading')}</span>
+        </div>
+      )}
       {!loadingProfit && profitTransactions.length === 0 && <p>{t('noTransactions')}</p>}
       {profitTransactions.length > 0 && (
         <>
@@ -61,21 +67,9 @@ export default function ProfitTable() {
           <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
             <span className="text-sm text-gray-600">{t('total')} {profitCount} {t('transactions')}</span>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                {t('previous')}
-              </button>
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">{t('previous')}</button>
               <span className="text-sm">{t('page')} {page + 1} / {totalPages || 1}</span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                {t('next')}
-              </button>
+              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">{t('next')}</button>
             </div>
           </div>
         </>
