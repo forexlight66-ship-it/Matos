@@ -2,72 +2,51 @@ name: Fix Martingale real payout
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   fix:
-    if: github.event.head_commit.message != 'Corrige martingale: usa payout real do contrato em vez de 0.95 fixo'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-
-      - name: Patch Martingale
-        shell: python
+      - name: Patch and build
         run: |
+          set -euo pipefail
+          python3 - <<'PY'
           from pathlib import Path
-          import re
           p=Path('lib/gestorStakeSorosMartingaleDinamico.ts')
           s=p.read_text()
-          old="""  const stakeParaRecuperar = (deficit: number) =>
-    arredondar((Math.max(0, deficit) + stakeBase) / payout);
-"""
-          new="""  const stakeParaRecuperar = (deficit: number) => {
-    const objetivo = Math.max(0, deficit) + stakeBase;
-    const stake = objetivo / Math.max(0.0001, payout);
-    // Arredonda sempre para cima aos centavos para que o payout real
-    // cubra o défice e preserve o lucro-alvo, evitando sub-recuperação.
-    return Math.ceil(stake * 100 - 1e-9) / 100;
-  };
-"""
+          old='''  const stakeParaRecuperar = (deficit: number) =>\n    arredondar((Math.max(0, deficit) + stakeBase) / payout);\n'''
+          new='''  const stakeParaRecuperar = (deficit: number) => {\n    const objetivo = Math.max(0, deficit) + stakeBase;\n    const stake = objetivo / Math.max(0.0001, payout);\n    return Math.ceil(stake * 100 - 1e-9) / 100;\n  };\n'''
           if old not in s: raise SystemExit('Formula stakeParaRecuperar não encontrada')
-          s=s.replace(old,new,1)
-          p.write_text(s)
+          p.write_text(s.replace(old,new,1))
 
           p=Path('components/AutoBotV4.tsx')
           s=p.read_text()
           marker=" const gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));"
           if 'const lastPayoutRatioRef=useRef(IA_PAYOUT);' not in s:
               if marker not in s: raise SystemExit('gestorRef não encontrado')
-              s=s.replace(marker, marker+"\n const lastPayoutRatioRef=useRef(IA_PAYOUT);",1)
-
+              s=s.replace(marker,marker+'\n const lastPayoutRatioRef=useRef(IA_PAYOUT);',1)
           deriv=" const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,fetchProfitTable,resetTradingSession}=useDeriv(account);"
           if 'lastPayoutRatioRef.current=ratio' not in s:
               if deriv not in s: raise SystemExit('useDeriv não encontrado')
-              effect=""" useEffect(()=>{
-  if(!proposal||!proposal.ask_price)return;
-  const ratio=(proposal.payout-proposal.ask_price)/proposal.ask_price;
-  if(Number.isFinite(ratio)&&ratio>0)lastPayoutRatioRef.current=ratio;
- },[proposal]);"""
+              effect=""" useEffect(()=>{\n  if(!proposal||!proposal.ask_price)return;\n  const ratio=(proposal.payout-proposal.ask_price)/proposal.ask_price;\n  if(Number.isFinite(ratio)&&ratio>0)lastPayoutRatioRef.current=ratio;\n },[proposal]);"""
               s=s.replace(deriv,deriv+effect,1)
-
+          registrar='gestorRef.current.registrarResultado(Number(latest.profit_loss||0));'
           if 'gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);' not in s:
-              registrar='gestorRef.current.registrarResultado(Number(latest.profit_loss||0));'
               if registrar not in s: raise SystemExit('registrarResultado não encontrado')
               s=s.replace(registrar,'gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);\n'+registrar,1)
-
           p.write_text(s)
-
-      - name: Build
-        run: |
+          PY
           npm install
           npm run build
-
       - name: Commit final
         run: |
           set -euo pipefail
