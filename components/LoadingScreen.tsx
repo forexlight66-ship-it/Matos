@@ -15,6 +15,7 @@ export default function LoadingScreen() {
         <div style={styles.title}>A preparar a plataforma</div>
         <div style={styles.detail}>A verificar a sua sessão...</div>
       </section>
+      <style>{`@keyframes mh-loading-spin { to { transform: rotate(360deg); } }`}</style>
     </main>
   );
 }
@@ -32,4 +33,3 @@ const styles: Record<string, React.CSSProperties> = {
   title:{fontSize:13,fontWeight:700},
   detail:{marginTop:6,color:'#747b82',fontSize:10},
 };
-
