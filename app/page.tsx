@@ -15,6 +15,17 @@ export default function Home() {
       .catch(() => setStatus({ authenticated: false, platformAuthenticated: false, user: null }));
   }, []);
 
+  useEffect(() => {
+    if (!status?.authenticated) return;
+    const timer = window.setTimeout(() => {
+      const strategySelect = document.querySelector<HTMLSelectElement>('.account-strategy select');
+      if (!strategySelect) return;
+      strategySelect.value = 'ACIMA5_BAIXO4';
+      strategySelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [status?.authenticated]);
+
   if (status === null) return <LoadingScreen />;
 
   return status.authenticated ? <Dashboard /> : (
