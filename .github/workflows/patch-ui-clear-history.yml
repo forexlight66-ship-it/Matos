@@ -1,0 +1,46 @@
+name: Add AutoBotV4 history delete
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch AutoBotV4
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('components/AutoBotV4.tsx')
+          s=p.read_text()
+
+          marker=" const restoreStakeState=()=>{try{const raw=localStorage.getItem(stateStorageKey);if(!raw)return;const saved=JSON.parse(raw);if(saved?.state)gestorRef.current.restaurarEstado(saved.state);setStakeManagerVersion(v=>v+1)}catch{}};"
+          if 'clearHistoryAndStartNewCycle' not in s:
+              if marker not in s: raise SystemExit('restore marker not found')
+              handler="""\n const clearHistoryAndStartNewCycle=()=>{\n  if(running)return;\n  stopped.current=false;\n  requested.current=false;\n  requestStartedAt.current=0;\n  stakeReadyRef.current=true;\n  lastProcessedStakeResult.current=null;\n  lastProcessedSonicResult.current=null;\n  lastRequestedClose.current=contractClosedSeq;\n  gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});\n  sonicRef.current=createSonicStakeManager({baseStake:stake});\n  barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null;\n  try{localStorage.removeItem(stateStorageKey)}catch{}\n  setTicks([]);\n  setSignalNow(null);\n  setLastDigitSeen(null);\n  setContractStage(0);\n  setStakeManagerVersion(v=>v+1);\n  resetTradingSession();\n  setNotice('Histórico e prejuízo limpos — novo ciclo iniciado');\n };"""
+              s=s.replace(marker,marker+handler,1)
+
+          old='''<div className="card mt-3 p-4" style={{borderColor:'#facc15'}}><div className="flex justify-between"><b className="text-[10px] uppercase muted">{t('recentHistory')}</b><span className="text-[9px] muted">→</span></div><div className="hist mt-3">'''
+          new='''<div className="card mt-3 p-4" style={{borderColor:'#facc15'}}><div className="flex items-center justify-between gap-2"><b className="text-[10px] uppercase muted">{t('recentHistory')}</b><div className="flex items-center gap-2"><button type="button" onClick={clearHistoryAndStartNewCycle} disabled={running} className="rounded-lg border border-red-500/70 px-2.5 py-1 text-[9px] font-black uppercase text-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Limpar histórico e começar novo ciclo">Delete</button><span className="text-[9px] muted">→</span></div></div><div className="hist mt-3">'''
+          if old not in s: raise SystemExit('recent history marker not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Verify and build
+        run: |
+          grep -q 'clearHistoryAndStartNewCycle' components/AutoBotV4.tsx
+          grep -q 'Limpar histórico e começar novo ciclo' components/AutoBotV4.tsx
+          npm install
+          npm run build
+      - name: Commit and remove temporary workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/AutoBotV4.tsx
+          git commit -m 'Add Delete button to reset recent history and cycle'
+          git rm .github/workflows/patch-ui-clear-history.yml
+          git commit -m 'Remove temporary history delete patch workflow'
+          git push
