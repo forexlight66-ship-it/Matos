@@ -1,4 +1,4 @@
-name: Apply Hyper recovery strategies v3
+name: Finalize Martingale real payout
 
 on:
   push:
@@ -8,49 +8,60 @@ permissions:
   contents: write
 
 jobs:
-  apply:
-    if: github.event.head_commit.message != 'Adiciona 4 estrategias de recuperacao (HyperGuard, HyperShield, HyperBreak, HyperSwap) ao dropdown'
+  finalize:
+    if: github.event.head_commit.message != 'Corrige martingale: usa payout real do contrato em vez de 0.95 fixo'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Patch AutoBotV4
+      - name: Aplicar payout real
         shell: python
         run: |
           from pathlib import Path
-          p=Path('components/AutoBotV4.tsx')
-          s=p.read_text()
-          reps={
-          "import { createSonicStakeManager } from '@/lib/sonicStakeManager';":"import { createSonicStakeManager } from '@/lib/sonicStakeManager';\nimport { isRecoveryStrategy, initialBarrierState, nextBarrierState, type BarrierState } from '@/lib/hyperRecoveryStrategies';",
-          "type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPERLITE';":"type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPERLITE'|'HYPERGUARD'|'HYPERSHIELD'|'HYPERBREAK'|'HYPERSWAP';",
-          "if(s==='HYPERLITE')return x.even>=t?":"if(isRecoveryStrategy(s))return v.length>=2?{contract:'OVER' as Contract,label:s,strength:100}:null;if(s==='HYPERLITE')return x.even>=t?",
-          "const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),stakeReadyRef=useRef(true);":"const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),stakeReadyRef=useRef(true);\n const barrierStateRef=useRef<BarrierState|null>(null);",
-          "useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);setContractStage(0);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now()},[tickWindow,strategy,symbol]);":"useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);setContractStage(0);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy,symbol]);",
-          "const c:Contract=signalNow.contract as Contract;const barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;":"let contractTypeStr:string,barrier:number;if(isRecoveryStrategy(strategy)&&barrierStateRef.current){contractTypeStr=barrierStateRef.current.contractType;barrier=barrierStateRef.current.barrier}else{const c:Contract=signalNow.contract as Contract;barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;contractTypeStr=TYPES[c]}if(!isRecoveryStrategy(strategy)){}"
-          }
-          for old,new in reps.items():
-              if old not in s: raise SystemExit('Missing: '+old[:80])
+          manager=Path('lib/gestorStakeSorosMartingaleDinamico.ts')
+          s=manager.read_text()
+          if 'function atualizarPayout(novoPayout: number)' not in s:
+              old='  const payout = Math.max(0.0001, Number(config.payout) || 0.95);'
+              new='''  let payout = Math.max(0.0001, Number(config.payout) || 0.95);\n\n  function atualizarPayout(novoPayout: number): void {\n    if (Number.isFinite(novoPayout) && novoPayout > 0) payout = novoPayout;\n  }'''
+              if old not in s: raise SystemExit('Payout fixo não encontrado')
               s=s.replace(old,new,1)
-          # The proposal call now follows the replacement above; remove its old TYPES[c] argument.
-          s=s.replace("getProposal(symbol,TYPES[c],amount,1,barrier,", "getProposal(symbol,contractTypeStr,amount,1,barrier,", 1)
-          marker=" useEffect(()=>{if(running&&proposal&&!buying&&activeContractId===null){requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();buy(proposal.id,proposal.ask_price)}},[running,proposal,buying,activeContractId,buy]);"
-          addition=marker+"\n useEffect(()=>{if(!isRecoveryStrategy(strategy)||!barrierStateRef.current)return;const lastTx=profitTransactions[0];if(!lastTx)return;const won=(lastTx.profit_loss??0)>0;barrierStateRef.current=nextBarrierState(strategy,barrierStateRef.current,won,st.probs)},[contractClosedSeq]);"
-          if marker not in s: raise SystemExit('Missing buy effect')
-          s=s.replace(marker,addition,1)
-          old='<option value="HYPERLITE">Hyperlite</option></select></label></div>'
-          new='<option value="HYPERLITE">Hyperlite</option><option value="HYPERGUARD">HyperGuard</option><option value="HYPERSHIELD">HyperShield</option><option value="HYPERBREAK">HyperBreak</option><option value="HYPERSWAP">HyperSwap</option></select></label></div>'
-          if old not in s: raise SystemExit('Missing dropdown')
-          s=s.replace(old,new,1)
-          p.write_text(s)
+          if 'atualizarPayout,' not in s:
+              old='  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado };'
+              new='''  return {\n    proximoStake,\n    registrarResultado,\n    getEstado,\n    getEstatisticas,\n    resetSessao,\n    restaurarEstado,\n    atualizarPayout,\n  };'''
+              if old not in s: raise SystemExit('Return do gestor não encontrado')
+              s=s.replace(old,new,1)
+          manager.write_text(s)
+
+          bot=Path('components/AutoBotV4.tsx')
+          s=bot.read_text()
+          marker=" const gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));"
+          if 'const lastPayoutRatioRef=useRef(IA_PAYOUT);' not in s:
+              if marker not in s: raise SystemExit('gestorRef não encontrado')
+              s=s.replace(marker,marker+'\n const lastPayoutRatioRef=useRef(IA_PAYOUT);',1)
+          if 'lastPayoutRatioRef.current=ratio' not in s:
+              deriv=" const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,fetchProfitTable,resetTradingSession}=useDeriv(account);"
+              if deriv not in s: raise SystemExit('useDeriv não encontrado')
+              effect=""" useEffect(()=>{
+          if(!proposal||!proposal.ask_price)return;
+          const ratio=(proposal.payout-proposal.ask_price)/proposal.ask_price;
+          if(Number.isFinite(ratio)&&ratio>0)lastPayoutRatioRef.current=ratio
+         },[proposal]);"""
+              s=s.replace(deriv,deriv+effect,1)
+          updater='  gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);\n'
+          registrar='  gestorRef.current.registrarResultado(Number(latest.profit_loss||0));'
+          if updater not in s:
+              if registrar not in s: raise SystemExit('registrarResultado não encontrado')
+              s=s.replace(registrar,updater+registrar,1)
+          bot.write_text(s)
       - name: Build
         run: npm install && npm run build
-      - name: Commit
+      - name: Commit final
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add components/AutoBotV4.tsx lib/hyperRecoveryStrategies.ts
-          git add -A .github/workflows
-          git rm -f .github/workflows/apply-hyper-recovery-v3.yml .github/workflows/apply-hyper-recovery-v2.yml .github/workflows/apply-hyper-recovery.yml || true
-          git commit -m "Adiciona 4 estrategias de recuperacao (HyperGuard, HyperShield, HyperBreak, HyperSwap) ao dropdown"
+          git add lib/gestorStakeSorosMartingaleDinamico.ts components/AutoBotV4.tsx
+          git rm .github/workflows/apply-hyper-recovery-v3.yml
+          git add lib/gestorStakeSorosMartingaleDinamico.ts components/AutoBotV4.tsx
+          git commit -m 'Corrige martingale: usa payout real do contrato em vez de 0.95 fixo'
           git push
