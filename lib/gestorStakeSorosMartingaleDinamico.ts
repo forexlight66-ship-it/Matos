@@ -1,26 +1,9 @@
 // ============================================================================
-// IA POWER — SOROS NÍVEL 2 + MARTINGALE ATÉ META x16
+// IA POWER — SOROS + MARTINGALE COM RECUPERAÇÃO FINANCEIRA REAL
 //
-// REGRAS PRINCIPAIS
-// - Soros normal: níveis 0 -> 1 -> 2 -> reset ao ganhar no nível 2.
-// - QUALQUER perda ativa/continua o Martingale enquanto o P/L acumulado da
-//   sessão ainda estiver ABAIXO de stakeBase x 16.
-// - Portanto, mesmo com P/L positivo, se ainda não chegou a stakeBase x 16,
-//   uma perda FORÇA a entrada no Martingale.
-// - Ao atingir P/L >= stakeBase x 16, o Martingale fica DESATIVADO.
-//   A partir desse ponto o gestor usa SOMENTE SOROS.
-// - Enquanto P/L < stakeBase x 16, uma perda durante Martingale mantém o
-//   Martingale ativo até recuperar ou atingir o teto normal de 7 níveis.
-// - TETO NORMAL DO MARTINGALE = 7 níveis.
-// - TETO PROTEGIDO DO MARTINGALE = 1 nível, usado apenas como estado de
-//   proteção quando a meta x16 já foi atingida; nessa situação o Martingale
-//   permanece bloqueado.
-// - Nunca existe nível 8.
-// - Quando o Martingale atinge o teto ativo e perde novamente, reseta para
-//   stake base/Soros nível 0.
-// - Qualquer vitória durante Martingale encerra o Martingale e volta ao Soros
-//   nível 0. Se essa vitória levar o P/L ao limiar x16, permanece somente Soros.
-// - O gestor aceita resultado financeiro REAL (number) ou boolean.
+// A recuperação é baseada no P/L REAL do ciclo, não apenas em WIN/LOSS.
+// Isso evita encerrar o Martingale quando uma vitória ainda deixou um
+// défice financeiro por recuperar.
 // ============================================================================
 
 export interface ConfigGestorStakeDinamico {
@@ -41,20 +24,16 @@ export interface EstadoGestorStakeDinamico {
   modo: 'NORMAL_7' | 'PROTEGIDO_1';
   lucroAcumuladoCicloSoros?: number;
   perdaAcumuladaMartingale?: number;
+  deficitRecuperacao?: number;
 }
 
 export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
   const stakeBase = Math.max(0, Number(config.stakeBase) || 0.75);
   const payout = Math.max(0.0001, Number(config.payout) || 0.95);
-
-  // TETOS RÍGIDOS DE SEGURANÇA.
-  // Os valores recebidos na configuração não podem aumentar esses limites.
   const nivelTetoNormal = 7;
   const nivelTetoProtegido = 1;
-  const multiplicadorLimiarLucro = Math.max(
-    0,
-    Number(config.multiplicadorLimiarLucro) || 16
-  );
+  const multiplicadorLimiarLucro = Math.max(0, Number(config.multiplicadorLimiarLucro) || 16);
+  const EPS = 0.01;
 
   let nivelSoros = 0;
   let stakeAtual = stakeBase;
@@ -63,28 +42,21 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
   let emMartingale = false;
   let nivelMartingaleAtual = 0;
   let perdaAcumuladaMartingale = 0;
+  let deficitRecuperacao = 0;
 
   let plAcumuladoSessao = 0;
-
   let vezesEntrouMartingale = 0;
   let vezesEstourouTeto = 0;
 
   const arredondar = (v: number) => +Math.max(0, v).toFixed(2);
-
-  // Ex.: $0.75 x 16 = $12.00.
   const limiarLucro = () => stakeBase * multiplicadorLimiarLucro;
+  const tetoAtivo = () => plAcumuladoSessao >= limiarLucro() ? nivelTetoProtegido : nivelTetoNormal;
+  const martingalePermitido = () => plAcumuladoSessao < limiarLucro();
 
-  // O teto 1 é usado apenas quando o P/L já atingiu o limiar.
-  // Porém, nesse estado o Martingale fica bloqueado de qualquer forma.
-  const tetoAtivo = () =>
-    plAcumuladoSessao >= limiarLucro()
-      ? nivelTetoProtegido
-      : nivelTetoNormal;
-
-  // Regra central: Martingale é permitido enquanto o P/L ainda NÃO atingiu
-  // stakeBase x 16. Não importa se o P/L está positivo ou negativo.
-  const martingalePermitido = () =>
-    plAcumuladoSessao < limiarLucro();
+  // Calcula a stake necessária para recuperar TODO o défice financeiro
+  // conhecido e ainda deixar pelo menos uma stakeBase de resultado positivo.
+  const stakeParaRecuperar = (deficit: number) =>
+    arredondar((Math.max(0, deficit) + stakeBase) / payout);
 
   function proximoStake() {
     return arredondar(stakeAtual);
@@ -97,6 +69,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     emMartingale = false;
     nivelMartingaleAtual = 0;
     perdaAcumuladaMartingale = 0;
+    deficitRecuperacao = 0;
   }
 
   function resetSessao() {
@@ -104,53 +77,64 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     resetCiclo();
   }
 
-  /**
-   * Registra o resultado financeiro REAL da operação.
-   * Também aceita boolean para compatibilidade com versões antigas.
-   */
+  /** Registra o resultado financeiro REAL da operação. */
   function registrarResultado(resultado: boolean | number): void {
     const resultadoNumerico = typeof resultado === 'number'
       ? (Number.isFinite(resultado) ? resultado : 0)
       : (resultado ? stakeAtual * payout : -stakeAtual);
 
-    const ganhou = resultadoNumerico >= 0;
-
-    // Atualiza primeiro: todas as decisões abaixo usam o P/L pós-operação.
+    const ganhou = resultadoNumerico > 0;
     plAcumuladoSessao += resultadoNumerico;
 
     // ========================================================================
-    // MARTINGALE JÁ ATIVO
+    // MARTINGALE — RECUPERAÇÃO POR VALOR REAL
     // ========================================================================
     if (emMartingale) {
-      if (ganhou) {
-        // Qualquer vitória encerra o Martingale.
-        // Se o lucro chegou a stakeBase x 16, a próxima operação será somente
-        // Soros porque martingalePermitido() ficará falso.
-        resetCiclo();
+      if (resultadoNumerico < 0) {
+        const perda = Math.abs(resultadoNumerico);
+        perdaAcumuladaMartingale += perda;
+        deficitRecuperacao += perda;
+        nivelMartingaleAtual += 1;
+
+        const teto = tetoAtivo();
+        if (!martingalePermitido() || nivelMartingaleAtual >= teto) {
+          vezesEstourouTeto++;
+          resetCiclo();
+        } else {
+          stakeAtual = stakeParaRecuperar(deficitRecuperacao);
+        }
         return;
       }
 
-      // Perda durante Martingale.
-      perdaAcumuladaMartingale += Math.abs(resultadoNumerico) > 0
-        ? Math.abs(resultadoNumerico)
-        : stakeAtual;
-      nivelMartingaleAtual += 1;
+      if (ganhou) {
+        // A vitória reduz o défice pelo LUCRO REAL recebido.
+        // Se ainda existir défice, NÃO termina o Martingale.
+        deficitRecuperacao = Math.max(0, deficitRecuperacao - resultadoNumerico);
 
-      // Enquanto o P/L ainda estiver abaixo de stakeBase x 16, o Martingale
-      // continua permitido, inclusive quando o P/L estiver positivo.
-      const teto = tetoAtivo();
-
-      // TETO RÍGIDO: 7 no modo normal, 1 no protegido.
-      // Nunca criar uma próxima entrada acima do teto.
-      if (!martingalePermitido() || nivelMartingaleAtual >= teto) {
-        vezesEstourouTeto++;
-        resetCiclo();
-      } else {
-        stakeAtual = arredondar(
-          (perdaAcumuladaMartingale + stakeBase) / payout
-        );
+        if (deficitRecuperacao <= EPS) {
+          // Ciclo totalmente recuperado.
+          resetCiclo();
+        } else if (martingalePermitido()) {
+          // Recuperação parcial: continua no Martingale com o valor restante.
+          nivelMartingaleAtual += 1;
+          if (nivelMartingaleAtual >= tetoAtivo()) {
+            vezesEstourouTeto++;
+            resetCiclo();
+          } else {
+            stakeAtual = stakeParaRecuperar(deficitRecuperacao);
+          }
+        } else {
+          resetCiclo();
+        }
+        return;
       }
 
+      // Resultado zero/empate não reduz o défice.
+      if (martingalePermitido() && nivelMartingaleAtual < tetoAtivo()) {
+        stakeAtual = stakeParaRecuperar(deficitRecuperacao);
+      } else {
+        resetCiclo();
+      }
       return;
     }
 
@@ -167,100 +151,53 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         nivelSoros = 2;
         stakeAtual = arredondar(stakeBase + lucroAcumuladoCicloSoros);
       } else {
-        // Vitória no Soros nível 2 fecha o ciclo.
         resetCiclo();
       }
-
-      // Ao atingir stakeBase x 16, não há nenhuma ativação de Martingale.
-      // O próximo ciclo continua exclusivamente em Soros.
       return;
     }
 
     // ========================================================================
-    // PERDA SEM MARTINGALE
+    // PRIMEIRA PERDA — INICIA RECUPERAÇÃO
     // ========================================================================
-    // NOVA REGRA: qualquer perda, com P/L positivo ou negativo, entra no
-    // Martingale enquanto o P/L ainda estiver abaixo do alvo stakeBase x 16.
-    if (martingalePermitido()) {
+    if (resultadoNumerico < 0 && martingalePermitido()) {
       emMartingale = true;
       nivelMartingaleAtual = 1;
-      perdaAcumuladaMartingale = Math.abs(resultadoNumerico) > 0
-        ? Math.abs(resultadoNumerico)
-        : stakeAtual;
+      const perda = Math.abs(resultadoNumerico);
+      perdaAcumuladaMartingale = perda;
+      deficitRecuperacao = perda;
       vezesEntrouMartingale++;
-
-      // Primeira stake do Martingale calcula recuperação da perda + stake base.
-      stakeAtual = arredondar(
-        (perdaAcumuladaMartingale + stakeBase) / payout
-      );
+      stakeAtual = stakeParaRecuperar(deficitRecuperacao);
     } else {
-      // P/L >= stakeBase x 16: Martingale está explicitamente desativado.
-      // A operação perdida não inicia Martingale; volta para Soros/base.
       resetCiclo();
     }
   }
 
   function getEstado(): EstadoGestorStakeDinamico {
-    const teto = tetoAtivo();
-
     return {
       nivelSoros,
       stakeAtual: arredondar(stakeAtual),
       emMartingale,
       nivelMartingaleAtual,
       plAcumuladoSessao: arredondar(plAcumuladoSessao),
-      tetoAtivoAgora: teto,
-      modo: teto === nivelTetoProtegido ? 'PROTEGIDO_1' : 'NORMAL_7',
+      tetoAtivoAgora: tetoAtivo(),
+      modo: tetoAtivo() === nivelTetoProtegido ? 'PROTEGIDO_1' : 'NORMAL_7',
       lucroAcumuladoCicloSoros: arredondar(lucroAcumuladoCicloSoros),
       perdaAcumuladaMartingale: arredondar(perdaAcumuladaMartingale),
+      deficitRecuperacao: arredondar(deficitRecuperacao),
     };
   }
 
-  function restaurarEstado(
-    estado: Partial<EstadoGestorStakeDinamico>
-  ): void {
-    nivelSoros = Math.max(
-      0,
-      Math.min(2, Math.floor(Number(estado.nivelSoros) || 0))
-    );
-
-    stakeAtual = arredondar(
-      Number(estado.stakeAtual) > 0
-        ? Number(estado.stakeAtual)
-        : stakeBase
-    );
-
-    nivelMartingaleAtual = Math.max(
-      0,
-      Math.min(7, Math.floor(Number(estado.nivelMartingaleAtual) || 0))
-    );
-
+  function restaurarEstado(estado: Partial<EstadoGestorStakeDinamico>): void {
+    nivelSoros = Math.max(0, Math.min(2, Math.floor(Number(estado.nivelSoros) || 0)));
+    stakeAtual = arredondar(Number(estado.stakeAtual) > 0 ? Number(estado.stakeAtual) : stakeBase);
+    nivelMartingaleAtual = Math.max(0, Math.min(7, Math.floor(Number(estado.nivelMartingaleAtual) || 0)));
     emMartingale = Boolean(estado.emMartingale) && nivelMartingaleAtual > 0;
+    plAcumuladoSessao = Number.isFinite(Number(estado.plAcumuladoSessao)) ? Number(estado.plAcumuladoSessao) : 0;
+    lucroAcumuladoCicloSoros = Math.max(0, Number(estado.lucroAcumuladoCicloSoros) || 0);
+    perdaAcumuladaMartingale = Math.max(0, Number(estado.perdaAcumuladaMartingale) || 0);
+    deficitRecuperacao = Math.max(0, Number(estado.deficitRecuperacao) || perdaAcumuladaMartingale);
 
-    plAcumuladoSessao = Number.isFinite(Number(estado.plAcumuladoSessao))
-      ? Number(estado.plAcumuladoSessao)
-      : 0;
-
-    lucroAcumuladoCicloSoros = Math.max(
-      0,
-      Number(estado.lucroAcumuladoCicloSoros) || 0
-    );
-
-    perdaAcumuladaMartingale = Math.max(
-      0,
-      Number(estado.perdaAcumuladaMartingale) || 0
-    );
-
-    // Segurança após restauração:
-    // se o P/L já atingiu o alvo, não pode continuar em Martingale.
-    if (emMartingale && !martingalePermitido()) {
-      resetCiclo();
-    }
-
-    // Nunca restaurar um nível que possa criar uma entrada acima do teto.
-    if (emMartingale && nivelMartingaleAtual >= tetoAtivo()) {
-      resetCiclo();
-    }
+    if (emMartingale && (!martingalePermitido() || nivelMartingaleAtual >= tetoAtivo())) resetCiclo();
   }
 
   function getEstatisticas() {
@@ -270,27 +207,14 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       limiarLucro: arredondar(limiarLucro()),
       tetoNormal: 7,
       tetoProtegido: 1,
-      martingaleAtivoEnquantoPLAbaixoDo16x: true,
-      martingaleDesativadoNoLimiar16x: true,
+      recuperacaoFinanceiraReal: true,
+      martingaleContinuaEnquantoHouverDeficit: true,
     };
   }
 
-  return {
-    proximoStake,
-    registrarResultado,
-    getEstado,
-    getEstatisticas,
-    resetSessao,
-    restaurarEstado,
-  };
+  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado };
 }
 
-// ---------------------------------------------------------------------------
-// COMPATIBILIDADE COM O AUTOBOTV4
-// ---------------------------------------------------------------------------
-// IA Power usa sempre os tetos rígidos 7/1 e limiar stakeBase x 16.
-// maxNiveisMartingale permanece na assinatura para não quebrar o AutoBotV4,
-// mas não pode aumentar o teto de segurança.
 export function criarGestorStake(config: {
   stakeBase: number;
   payout: number;
