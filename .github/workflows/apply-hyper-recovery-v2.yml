@@ -1,0 +1,76 @@
+name: Apply Hyper recovery strategies v2
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message != 'Adiciona 4 estrategias de recuperacao (HyperGuard, HyperShield, HyperBreak, HyperSwap) ao dropdown'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch AutoBotV4
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('components/AutoBotV4.tsx')
+          s = p.read_text()
+          replacements = [
+            (
+              "import { createSonicStakeManager } from '@/lib/sonicStakeManager';",
+              "import { createSonicStakeManager } from '@/lib/sonicStakeManager';\nimport { isRecoveryStrategy, initialBarrierState, nextBarrierState, type BarrierState } from '@/lib/hyperRecoveryStrategies';"
+            ),
+            (
+              "type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPERLITE';",
+              "type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPERLITE'|'HYPERGUARD'|'HYPERSHIELD'|'HYPERBREAK'|'HYPERSWAP';"
+            ),
+            (
+              "function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return null;const x=stats(v,pipSize),t=65;if(s==='HYPERLITE')",
+              "function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return null;const x=stats(v,pipSize),t=65;if(isRecoveryStrategy(s))return v.length>=2?{contract:'OVER' as Contract,label:s,strength:100}:null;if(s==='HYPERLITE')"
+            ),
+            (
+              "const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),stakeReadyRef=useRef(true);",
+              "const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),stakeReadyRef=useRef(true);\n const barrierStateRef=useRef<BarrierState|null>(null);"
+            ),
+            (
+              "useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);setContractStage(0);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now()},[tickWindow,strategy,symbol]);",
+              "useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);setContractStage(0);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy,symbol]);"
+            ),
+            (
+              "const c:Contract=signalNow.contract as Contract;const barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;const amount=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake);if(!getProposal(symbol,TYPES[c],amount,1,barrier,!iaPower&&!sonic)){requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}",
+              "let contractTypeStr:string,barrier:number;if(isRecoveryStrategy(strategy)&&barrierStateRef.current){contractTypeStr=barrierStateRef.current.contractType;barrier=barrierStateRef.current.barrier}else{const c:Contract=signalNow.contract as Contract;barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;contractTypeStr=TYPES[c]}const amount=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake);if(!getProposal(symbol,contractTypeStr,amount,1,barrier,!iaPower&&!sonic)){requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}"
+            ),
+            (
+              " useEffect(()=>{if(running&&proposal&&!buying&&activeContractId===null){requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();buy(proposal.id,proposal.ask_price)}},[running,proposal,buying,activeContractId,buy]);",
+              " useEffect(()=>{if(running&&proposal&&!buying&&activeContractId===null){requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();buy(proposal.id,proposal.ask_price)}},[running,proposal,buying,activeContractId,buy]);\n useEffect(()=>{if(!isRecoveryStrategy(strategy)||!barrierStateRef.current)return;const lastTx=profitTransactions[0];if(!lastTx)return;const won=(lastTx.profit_loss??0)>0;barrierStateRef.current=nextBarrierState(strategy,barrierStateRef.current,won,st.probs)},[contractClosedSeq]);"
+            ),
+            (
+              '<option value="HYPERLITE">Hyperlite</option></select></label></div>',
+              '<option value="HYPERLITE">Hyperlite</option><option value="HYPERGUARD">HyperGuard</option><option value="HYPERSHIELD">HyperShield</option><option value="HYPERBREAK">HyperBreak</option><option value="HYPERSWAP">HyperSwap</option></select></label></div>'
+            ),
+          ]
+          for old, new in replacements:
+              if old not in s:
+                  raise SystemExit(f'Missing expected source fragment: {old[:100]}')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+
+      - name: Build
+        run: npm install && npm run build
+
+      - name: Commit final change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/AutoBotV4.tsx lib/hyperRecoveryStrategies.ts .github/workflows/apply-hyper-recovery-v2.yml .github/workflows/apply-hyper-recovery.yml
+          git rm -f .github/workflows/apply-hyper-recovery-v2.yml .github/workflows/apply-hyper-recovery.yml
+          git commit -m "Adiciona 4 estrategias de recuperacao (HyperGuard, HyperShield, HyperBreak, HyperSwap) ao dropdown"
+          git push
