@@ -30,40 +30,7 @@ export function useDeriv(accountType:'demo'|'real'='demo'){
  const processSorosResult=useCallback((tx:ProfitTransaction)=>{if(!originalSorosEnabledRef.current)return;const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)return;if(lastProcessedSorosContractRef.current===id)return;const pnl=calculateProfitLoss(tx);if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;lastProcessedSorosContractRef.current=id;const base=Math.max(SOROS_MIN,Number(sorosRef.current.initialStake)||SOROS_MIN);const currentLevel=Math.max(0,Math.min(SOROS_MAX_WINS-1,Math.floor(Number(sorosRef.current.level)||0)));if(pnl<=0){syncSoros(defaultSoros(base));return}if(currentLevel===0){const nextStake=Number((base*SOROS_WIN_MULTIPLIER).toFixed(2));syncSoros({level:1,stake:nextStake,initialStake:base,accumulatedProfit:nextStake-base,lossRetryCount:0,enabled:true,blocked:false});return}syncSoros(defaultSoros(base))},[syncSoros]);
  const mergeProfitTransactions=useCallback((incoming:ProfitTransaction[])=>{for(const tx of incoming){const id=Number(tx.contract_id),purchaseTime=Number(tx.purchase_time??0);if(!Number.isFinite(id)||id<=0||!purchaseTime)continue;const belongsToSession=sessionContractIdsRef.current.has(id)||purchaseTime>=sessionStartedAtRef.current;if(!belongsToSession)continue;const previous=closedContractsRef.current.get(id);const raw:any={...previous,...tx};const normalized:ProfitTransaction={contract_id:id,buy_price:Number(raw.buy_price??0),sell_price:raw.sell_price==null?null:Number(raw.sell_price),payout:Number(raw.payout??0),purchase_time:Number(raw.purchase_time??purchaseTime),sell_time:raw.sell_time==null?null:Number(raw.sell_time),contract_type:String(raw.contract_type??''),longcode:raw.longcode,profit_loss:calculateProfitLoss(raw),exit_tick:raw.exit_tick??null,exit_spot:raw.exit_spot??null};closedContractsRef.current.set(id,normalized);if(normalized.sell_time&&normalized.sell_time>0)processSorosResult(normalized)}const merged=Array.from(closedContractsRef.current.values()).filter(x=>x.sell_time&&Number(x.sell_time)>0).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time));setProfitTransactions(merged);setProfitCount(merged.length);saveTradingCache()},[processSorosResult,saveTradingCache]);
  const refreshProfitTable=useCallback(()=>wsRef.current?.getProfitTable({limit:2000,offset:0,sort:'DESC',description:1}),[]);
- const resetTradingSession=useCallback(()=>{const now=Math.floor(Date.now()/1000);sessionStartedAtRef.current=now;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();lastProcessedSorosContractRef.current=null;balanceCacheRef.current=null;setBalance(null);setProfitTransactions([]);setProfitCount(0);setContractClosedSeq(0);clearSorosStorage();try{localStorage.removeItem(cacheKey(accountType));sessionStorage.setItem(TRADING_SESSION_STORAGE,String(now))}catch{};const fresh=defaultSoros(sorosRef.current.initialStake||SOROS_MIN);sorosRef.current=fresh;setSoros(fresh)},[accountType]);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ const resetTradingSession=useCallback(()=>{const now=Math.floor(Date.now()/1000);sessionStartedAtRef.current=now;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();lastProcessedSorosContractRef.current=null;balanceCacheRef.current=null;setBalance(null);setProfitTransactions([]);setProfitCount(0);setContractClosedSeq(0);clearSorosStorage();try{localStorage.removeItem(cacheKey(accountType));sessionStorage.setItem(TRADING_SESSION_STORAGE,String(now))}catch{};const fresh=defaultSoros(sorosRef.current.initialStake||SOROS_MIN);sorosRef.current=fresh;setSoros(fresh);wsRef.current?.subscribeBalance()},[accountType]);
 
 
 
@@ -84,6 +51,40 @@ export function useDeriv(accountType:'demo'|'real'='demo'){
   sonicLastProcessedContractRef.current=id;
   sonicManagerRef.current.recordResult(calculateProfitLoss(tx));
  },[]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
  useEffect(()=>{let cancelled=false;let connectionCheck:ReturnType<typeof setInterval>|null=null;let initialProfitLoaded=false;let lastProfitRefresh=0;let storedStart=0;try{storedStart=Number(sessionStorage.getItem(TRADING_SESSION_STORAGE)||0)}catch{};sessionStartedAtRef.current=Number.isFinite(storedStart)&&storedStart>0?storedStart:Math.floor(Date.now()/1000);try{sessionStorage.setItem(TRADING_SESSION_STORAGE,String(sessionStartedAtRef.current))}catch{};closedContractsRef.current.clear();sessionContractIdsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setBalance(null);balanceCacheRef.current=null;restoreTradingCache();setProposal(null);setError(null);setBuying(false);setContractClosedSeq(0);setActiveContractId(null);const restoredSoros=loadSoros()||defaultSoros();sorosRef.current=restoredSoros;setSoros(restoredSoros);lastProcessedSorosContractRef.current=null;
    const refresh=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<2000)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
