@@ -10,10 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Move Sonic execution callback before effect
+      - name: Fix Sonic callback and history reset
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
+          # Keep Sonic callback before the main effect.
           p = Path('hooks/useDeriv.ts')
           s = p.read_text()
           block = """ const processSonicExecutionResult=useCallback((tx:ProfitTransaction)=>{\n  if(originalSorosEnabledRef.current||!sonicManagerRef.current)return;\n  const id=Number(tx.contract_id);\n  if(!Number.isFinite(id)||id<=0||sonicLastProcessedContractRef.current===id)return;\n  sonicLastProcessedContractRef.current=id;\n  sonicManagerRef.current.recordResult(calculateProfitLoss(tx));\n },[]);\n"""
@@ -27,7 +29,29 @@ jobs:
           end = s.find("\n useEffect(()=>", pos)
           if end < 0:
               raise SystemExit('useEffect marker after resetTradingSession not found')
+          # Refresh the real Deriv balance immediately when a new session starts.
+          old_reset = "const resetTradingSession=useCallback(()=>{const now=Math.floor(Date.now()/1000);sessionStartedAtRef.current=now;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();lastProcessedSorosContractRef.current=null;balanceCacheRef.current=null;setBalance(null);setProfitTransactions([]);setProfitCount(0);setContractClosedSeq(0);clearSorosStorage();try{localStorage.removeItem(cacheKey(accountType));sessionStorage.setItem(TRADING_SESSION_STORAGE,String(now))}catch{};const fresh=defaultSoros(sorosRef.current.initialStake||SOROS_MIN);sorosRef.current=fresh;setSoros(fresh)},[accountType]);"
+          new_reset = "const resetTradingSession=useCallback(()=>{const now=Math.floor(Date.now()/1000);sessionStartedAtRef.current=now;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();lastProcessedSorosContractRef.current=null;balanceCacheRef.current=null;setBalance(null);setProfitTransactions([]);setProfitCount(0);setContractClosedSeq(0);clearSorosStorage();try{localStorage.removeItem(cacheKey(accountType));sessionStorage.setItem(TRADING_SESSION_STORAGE,String(now))}catch{};const fresh=defaultSoros(sorosRef.current.initialStake||SOROS_MIN);sorosRef.current=fresh;setSoros(fresh);wsRef.current?.subscribeBalance()},[accountType]);"
+          if old_reset not in s:
+              raise SystemExit('resetTradingSession definition not found')
+          s = s.replace(old_reset, new_reset, 1)
           s = s[:end] + "\n" + block.rstrip() + "\n" + s[end:]
+          p.write_text(s)
+
+          # Add a real trash-can icon to Recent History.
+          p = Path('components/AutoBotV4.tsx')
+          s = p.read_text()
+          if 'function TrashIcon' not in s:
+              marker = "function WhatsAppIcon({ size = 17, color = 'currentColor' }) {"
+              icon = """function TrashIcon({ size = 15, color = 'currentColor' }) {\n  return (\n    <svg width={size} height={size} viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\">\n      <path d=\"M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v6M14 11v6\" stroke={color} strokeWidth=\"2\" strokeLinecap=\"round\" strokeLinejoin=\"round\"/>\n    </svg>\n  );\n}\n"""
+              if marker not in s:
+                  raise SystemExit('WhatsAppIcon marker not found')
+              s = s.replace(marker, icon + marker, 1)
+          old_button = '''<button type="button" onClick={clearHistoryAndStartNewCycle} disabled={running} className="rounded-lg border border-red-500/70 px-2.5 py-1 text-[9px] font-black uppercase text-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Limpar histórico e começar novo ciclo">Delete</button>'''
+          new_button = '''<button type="button" onClick={clearHistoryAndStartNewCycle} disabled={running} className="flex h-7 w-7 items-center justify-center rounded-lg border border-red-500/70 text-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Limpar histórico e começar novo ciclo" aria-label="Limpar histórico e começar novo ciclo"><TrashIcon size={14} /></button>'''
+          if old_button not in s:
+              raise SystemExit('Delete button markup not found')
+          s = s.replace(old_button, new_button, 1)
           p.write_text(s)
           PY
       - name: Verify
@@ -40,7 +64,10 @@ jobs:
           c=s.index('useEffect(()=>{let cancelled=false', b)
           if not (a < b < c):
               raise SystemExit('Sonic callback is not before the main effect')
-          print('Sonic callback order verified')
+          u=Path('components/AutoBotV4.tsx').read_text()
+          if 'function TrashIcon' not in u or 'aria-label="Limpar histórico e começar novo ciclo"' not in u or '>Delete</button>' in u:
+              raise SystemExit('History trash button patch was not applied')
+          print('History trash reset verified')
           PY
       - name: Build
         run: |
@@ -50,8 +77,8 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add hooks/useDeriv.ts
-          git commit -m 'Fix Sonic execution callback declaration order'
-          git rm .github/workflows/fix-sonic-order.yml .github/workflows/patch-ui-update.yml .github/workflows/patch-ui-v2.yml .github/workflows/simple-ui-patch.yml 2>/dev/null || true
-          git commit -m 'Remove temporary patch workflows' || true
+          git add hooks/useDeriv.ts components/AutoBotV4.tsx
+          git commit -m 'Apply reliable history reset and balance refresh'
+          git rm .github/workflows/fix-sonic-order.yml .github/workflows/fix-history-delete.yml .github/workflows/patch-delete-icon-balance.yml .github/workflows/patch-ui-v2.yml .github/workflows/patch-ui-v3.yml 2>/dev/null || true
+          git commit -m 'Remove temporary history patch workflows' || true
           git push
