@@ -1,0 +1,83 @@
+name: Update Martingale with real Deriv payout
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  update:
+    if: "!startsWith(github.event.head_commit.message, 'Corrige recuperacao do martingale para usar payout real')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply real payout changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manager = Path('lib/gestorStakeSorosMartingaleDinamico.ts')
+          s = manager.read_text()
+
+          old = "  const payout = Math.max(0.0001, Number(config.payout) || 0.95);"
+          new = """  let payout = Math.max(0.0001, Number(config.payout) || 0.95);
+
+          function atualizarPayout(novoPayout: number): void {
+            if (Number.isFinite(novoPayout) && novoPayout > 0) payout = novoPayout;
+          }"""
+          if old not in s:
+              raise SystemExit('manager payout declaration not found')
+          s = s.replace(old, new, 1)
+
+          old_return = "  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado };"
+          new_return = "  return { proximoStake, registrarResultado, getEstado, getEstatisticas, resetSessao, restaurarEstado, atualizarPayout };"
+          if old_return not in s:
+              raise SystemExit('manager return not found')
+          s = s.replace(old_return, new_return, 1)
+          manager.write_text(s)
+
+          bot = Path('components/AutoBotV4.tsx')
+          s = bot.read_text()
+
+          marker = " const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),stakeReadyRef=useRef(true);"
+          replacement = marker + "\n const lastPayoutRatioRef=useRef(IA_PAYOUT);"
+          if marker not in s:
+              raise SystemExit('AutoBot refs marker not found')
+          s = s.replace(marker, replacement, 1)
+
+          deriv_marker = " const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,fetchProfitTable,resetTradingSession}=useDeriv(account);"
+          payout_effect = deriv_marker + "\n useEffect(()=>{\n  if(!proposal||!proposal.ask_price)return;\n  const ratio=(Number(proposal.payout)-Number(proposal.ask_price))/Number(proposal.ask_price);\n  if(Number.isFinite(ratio)&&ratio>0)lastPayoutRatioRef.current=ratio;\n },[proposal]);"
+          if deriv_marker not in s:
+              raise SystemExit('AutoBot Deriv marker not found')
+          s = s.replace(deriv_marker, payout_effect, 1)
+
+          pattern = r"(?m)^(\s*)gestorRef\.current\.registrarResultado\(([^;]+)\);"
+          matches = list(re.finditer(pattern, s))
+          if len(matches) != 1:
+              raise SystemExit(f'expected exactly 1 gestor registrarResultado call, found {len(matches)}')
+          m = matches[0]
+          indent, arg = m.group(1), m.group(2)
+          repl = f"{indent}gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);\n{indent}gestorRef.current.registrarResultado({arg});"
+          s = s[:m.start()] + repl + s[m.end():]
+          bot.write_text(s)
+          PY
+
+      - name: Build
+        run: |
+          npm install
+          npm run build
+
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/gestorStakeSorosMartingaleDinamico.ts components/AutoBotV4.tsx .github/workflows/update-real-payout-martingale.yml
+          git diff --cached --quiet && { echo 'No changes'; exit 0; }
+          git commit -m 'Corrige recuperacao do martingale para usar payout real do contrato, nao 0.95 fixo'
+          git push origin main
