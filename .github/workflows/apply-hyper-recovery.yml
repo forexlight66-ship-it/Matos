@@ -1,0 +1,89 @@
+name: Apply Hyper recovery strategies
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message != 'Adiciona 4 estrategias de recuperacao (HyperGuard, HyperShield, HyperBreak, HyperSwap) ao dropdown'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch AutoBotV4
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('components/AutoBotV4.tsx')
+          s = p.read_text()
+
+          s = s.replace(
+              "import { createSonicStakeManager } from '@/lib/sonicStakeManager';",
+              "import { createSonicStakeManager } from '@/lib/sonicStakeManager';\nimport { isRecoveryStrategy, initialBarrierState, nextBarrierState, type BarrierState } from '@/lib/hyperRecoveryStrategies';"
+          )
+
+          s = s.replace(
+              "type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPERLITE';",
+              "type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPERLITE'|'HYPERGUARD'|'HYPERSHIELD'|'HYPERBREAK'|'HYPERSWAP';"
+          )
+
+          old = "function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return null;const x=stats(v,pipSize),t=65;if(s==='HYPERLITE')"
+          new = "function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return null;const x=stats(v,pipSize),t=65;if(isRecoveryStrategy(s))return {contract:'OVER' as Contract,label:s,strength:100};if(s==='HYPERLITE')"
+          s = s.replace(old, new)
+
+          old = "const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),stakeReadyRef=useRef(true);"
+          new = "const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),stakeReadyRef=useRef(true);\n const barrierStateRef=useRef<BarrierState|null>(null);"
+          s = s.replace(old, new)
+
+          old = "useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);setContractStage(0);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now()},[tickWindow,strategy,symbol]);"
+          new = "useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);setContractStage(0);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy,symbol]);"
+          s = s.replace(old, new)
+
+          old = "const c:Contract=signalNow.contract as Contract;const barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;const amount=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake);if(!getProposal(symbol,TYPES[c],amount,1,barrier,!iaPower&&!sonic)){requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}"
+          new = "let contractTypeStr:string,barrier:number;if(isRecoveryStrategy(strategy)&&barrierStateRef.current){contractTypeStr=TYPES[barrierStateRef.current.contractType==='DIGITOVER'?'OVER':barrierStateRef.current.contractType==='DIGITUNDER'?'UNDER':'DIFFER'];barrier=barrierStateRef.current.barrier}else{const c:Contract=signalNow.contract as Contract;barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;contractTypeStr=TYPES[c]}const amount=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake);if(!getProposal(symbol,contractTypeStr,amount,1,barrier,!iaPower&&!sonic)){requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}"
+          # Correct the recovery branch to keep the requested contractType string and barrier together.
+          new = "let contractTypeStr:string,barrier:number;if(isRecoveryStrategy(strategy)&&barrierStateRef.current){contractTypeStr=barrierStateRef.current.contractType;barrier=barrierStateRef.current.barrier}else{const c:Contract=signalNow.contract as Contract;barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;contractTypeStr=TYPES[c]}const amount=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake);if(!getProposal(symbol,contractTypeStr,amount,1,barrier,!iaPower&&!sonic)){requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}"
+          s = s.replace(old, new)
+
+          marker = " useEffect(()=>{if(running&&proposal&&!buying&&activeContractId===null){requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();buy(proposal.id,proposal.ask_price)}},[running,proposal,buying,activeContractId,buy]);"
+          addition = marker + "\n useEffect(()=>{if(!isRecoveryStrategy(strategy)||!barrierStateRef.current)return;const lastTx=profitTransactions[0];if(!lastTx)return;const won=(lastTx.profit_loss??0)>0;barrierStateRef.current=nextBarrierState(strategy,barrierStateRef.current,won,st.probs)},[contractClosedSeq]);"
+          s = s.replace(marker, addition)
+
+          old = '<option value="HYPERLITE">Hyperlite</option></option>'
+          # Actual source has no duplicated closing option; handle exact current markup below.
+          s = s.replace(
+              '<option value="HYPERLITE">Hyperlite</option></select></label></div>',
+              '<option value="HYPERLITE">Hyperlite</option><option value="HYPERGUARD">HyperGuard</option><option value="HYPERSHIELD">HyperShield</option><option value="HYPERBREAK">HyperBreak</option><option value="HYPERSWAP">HyperSwap</option></select></label></div>'
+          )
+
+          required = [
+              "hyperRecoveryStrategies",
+              "HYPERGUARD",
+              "HYPERSHIELD",
+              "HYPERBREAK",
+              "HYPERSWAP",
+              "barrierStateRef",
+              "contractTypeStr:string,barrier:number",
+          ]
+          missing = [x for x in required if x not in s]
+          if missing:
+              raise SystemExit(f'Missing patch markers: {missing}')
+          p.write_text(s)
+
+      - name: Build
+        run: npm ci && npm run build
+
+      - name: Commit changes and remove helper workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/AutoBotV4.tsx .github/workflows/apply-hyper-recovery.yml lib/hyperRecoveryStrategies.ts
+          git commit -m "Adiciona 4 estrategias de recuperacao (HyperGuard, HyperShield, HyperBreak, HyperSwap) ao dropdown"
+          git push
