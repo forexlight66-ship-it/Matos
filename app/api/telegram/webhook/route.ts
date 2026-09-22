@@ -144,6 +144,11 @@ export async function POST(request: NextRequest) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || '');
 
+    if (text.startsWith('/id')) {
+      await telegram('sendMessage', { chat_id: chatId, text: `🆔 O teu Telegram Chat ID é: ${chatId}` });
+      return NextResponse.json({ ok: true });
+    }
+
     if (text.startsWith('/start') || text.startsWith('/curso')) {
       await sendCourse(chatId);
       return NextResponse.json({ ok: true });
