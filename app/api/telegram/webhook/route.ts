@@ -201,7 +201,8 @@ export async function POST(request: NextRequest) {
       const photo = message.photo[message.photo.length - 1];
       const saved = await saveProof(Number(pending.id), String(photo.file_id));
       if (!saved) {
-        await telegram('sendMessage', { chat_id: chatId, text: 'Este comprovativo já foi recebido. Aguarde a validação.' });
+        const lang=await getCourseLanguage(chatId,'pt');
+        await telegram('sendMessage', { chat_id: chatId, text: lang==='en'?'This payment proof was already received. Please wait for validation.':lang==='es'?'Este comprobante ya fue recibido. Espera la validación.':'Este comprovativo já foi recebido. Aguarde a validação.' });
         return NextResponse.json({ ok: true });
       }
 
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
       });
       await telegram('sendMessage', {
         chat_id: chatId,
-        text: '📨 Comprovativo recebido. Aguarde a validação do pagamento.',
+        text: texts[await getCourseLanguage(chatId,'pt')].received,
       });
       return NextResponse.json({ ok: true });
     }
