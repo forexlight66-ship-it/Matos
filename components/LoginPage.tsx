@@ -65,7 +65,46 @@ export default function LoginPage({ initialPlatformReady = false, initialUserNam
 
   const languagePicker = <div style={styles.lang} aria-label="Language selector">{LANGUAGE_OPTIONS.map(({ code, flag, label }) => <button key={code} type="button" title={label} aria-label={label} onClick={() => setLanguage(code)} style={{ ...styles.langBtn, ...(language === code ? styles.langActive : {}) }}><span style={styles.flag}>{flag}</span></button>)}</div>;
 
-  if (platformReady) return <main style={styles.page}><div style={styles.contentWrap}><section style={styles.card}><div style={styles.topBar}><div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>{languagePicker}</div>{userName && <div style={styles.welcome}>{copy.greeting}, {userName}</div>}<h2 style={styles.title}>{copy.connectTitle}</h2><p style={styles.intro}>{copy.note}</p><button style={styles.button} onClick={() => window.location.assign('/api/auth/login')}>🔒 &nbsp;{copy.connect}</button><div style={styles.divider}/><div style={styles.muted}>{copy.derivNo}</div><a href={DERIV_SIGNUP_URL} target="_blank" rel="noopener noreferrer" style={styles.link}>{copy.derivCreate} →</a></section><footer style={styles.footer}>{copy.risk}</footer></div></main>;
+  const responsiveStyles = `
+    @media (min-width: 768px) {
+      .login-page-matos {
+        width: 100%;
+        min-height: 100dvh;
+        padding: 0 !important;
+        align-items: stretch !important;
+      }
+      .login-content-matos {
+        width: 100% !important;
+        max-width: none !important;
+        min-height: 100dvh !important;
+        padding: clamp(32px, 5vw, 80px) !important;
+        box-sizing: border-box;
+        justify-content: center !important;
+        align-items: center;
+      }
+      .login-card-matos {
+        width: min(100%, 560px) !important;
+        padding: 32px !important;
+      }
+      .login-footer-matos {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        width: min(90vw, 900px);
+      }
+    }
+    @media (min-width: 1920px) {
+      .login-content-matos {
+        padding: 60px 80px !important;
+      }
+      .login-card-matos {
+        width: min(100%, 620px) !important;
+        padding: 40px !important;
+      }
+    }
+  `;
+  if (platformReady) return <main className="login-page-matos" style={styles.page}><style>{responsiveStyles}</style><div className="login-content-matos" style={styles.contentWrap}><section className="login-card-matos" style={styles.card}><div style={styles.topBar}><div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>{languagePicker}</div>{userName && <div style={styles.welcome}>{copy.greeting}, {userName}</div>}<h2 style={styles.title}>{copy.connectTitle}</h2><p style={styles.intro}>{copy.note}</p><button style={styles.button} onClick={() => window.location.assign('/api/auth/login')}>🔒 &nbsp;{copy.connect}</button><div style={styles.divider}/><div style={styles.muted}>{copy.derivNo}</div><a href={DERIV_SIGNUP_URL} target="_blank" rel="noopener noreferrer" style={styles.link}>{copy.derivCreate} →</a></section><footer className="login-footer-matos" style={styles.footer}>{copy.risk}</footer></div></main>;
 
   return <main style={styles.page}><div style={styles.contentWrap}><section style={styles.card}><div style={styles.topBar}><div style={styles.brand}><div style={styles.mark}>M</div><div><div style={styles.brandName}>Moz<span style={styles.hyper}>Hyper</span></div><div style={styles.sub}>DIGITS TRADING</div></div></div>{languagePicker}</div>{forgotMode ? <><h2 style={styles.title}>{copy.forgotTitle}</h2><p style={styles.intro}>{copy.forgotIntro}</p><form onSubmit={requestPasswordReset}><label style={styles.label}>{copy.email}<input type="email" value={resetEmail} onChange={e=>setResetEmail(e.target.value)} style={styles.input} autoComplete="email" required /></label>{error&&<div style={styles.error}>{error}</div>}{resetMessage&&<div style={styles.success}>{resetMessage}</div>}<button disabled={busy} style={{...styles.button,opacity:busy?.65:1}}>{busy?<InlineSpinner size={16} />:copy.sendReset}</button></form><div style={styles.switcher} onClick={()=>{setForgotMode(false);setError('');setResetMessage('')}}>{copy.backLogin}</div></> : <><div style={styles.tabs}><button type="button" onClick={()=>{setMode('register');setError('')}} style={mode==='register'?styles.tabActive:styles.tab}>{copy.register}</button><button type="button" onClick={()=>{setMode('login');setError('')}} style={mode==='login'?styles.tabActive:styles.tab}>{copy.login}</button></div><form onSubmit={submit}>{mode==='register'&&<label style={styles.label}>{copy.name}<input value={name} onChange={e=>setName(e.target.value)} style={styles.input} autoComplete="name" required minLength={2}/></label>}<label style={styles.label}>{copy.email}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} style={styles.input} autoComplete="email" required/></label><label style={styles.label}>{copy.password}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={styles.input} autoComplete={mode==='register'?'new-password':'current-password'} required minLength={8}/></label>{mode==='register'&&<label style={styles.label}>{copy.confirm}<input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} style={styles.input} autoComplete="new-password" required minLength={8}/></label>}{error&&<div style={styles.error}>{error}</div>}<button disabled={busy} style={{...styles.button,opacity:busy?.65:1}}>{busy?<InlineSpinner size={16} />:mode==='register'?copy.create:copy.enter}</button></form>{mode==='login'&&<div style={styles.forgot} onClick={()=>{setForgotMode(true);setResetEmail(email);setError('');setResetMessage('')}}>{copy.forgot}</div>}<div style={styles.switcher} onClick={()=>setMode(mode==='register'?'login':'register')}>{mode==='register'?copy.have:copy.no}</div></>}</section><footer style={styles.footer}>{copy.risk}</footer></div></main>;
 }
