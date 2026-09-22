@@ -19,7 +19,7 @@ export default function TutorialSection() {
       </div>
       <style jsx>{`.tutorial-tab{position:relative;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;padding:7px 14px;border-radius:8px;font-weight:700}.tutorial-video-active{color:#fff;background:#dc2626}.tutorial-video-active::after{content:'';position:absolute;left:0;right:0;bottom:0;width:100%;height:4px;background:#ef4444}`}</style>
       {showVideo ? (
-        <div className="w-full rounded-lg overflow-hidden shadow"><iframe src={videoUrl} title="MozHyper Digits Tutorial" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen className="w-full aspect-video" /></div>
+        <div className="w-full rounded-lg overflow-hidden shadow"><iframe src={videoUrl} title="Digits Tutorial" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen className="w-full aspect-video" /></div>
       ) : (
         <div className="bg-gray-50 p-4 rounded-lg text-gray-700 space-y-4 leading-relaxed">
           <h3 className="font-semibold text-lg">{language === 'pt' ? 'Guia de Trading de Dígitos' : language === 'es' ? 'Guía de Trading de Dígitos' : 'Digits Trading Guide'}</h3>
