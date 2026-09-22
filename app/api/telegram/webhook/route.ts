@@ -14,6 +14,9 @@ const adminChatId = () => process.env.TELEGRAM_ADMIN_CHAT_ID || '';
 const price = () => process.env.COURSE_PRICE_MZN || '—';
 const emola = () => process.env.EMOLA_NUMBER || '—';
 const mpesa = () => process.env.MPESA_NUMBER || '—';
+const binanceAmount = () => process.env.BINANCE_USDT_AMOUNT || '15';
+const binanceNetwork = () => process.env.BINANCE_USDT_NETWORK || 'TRC20';
+const binanceAddress = () => process.env.BINANCE_USDT_ADDRESS || '—';
 
 async function telegram(method: string, body: Record<string, unknown>) {
   const botToken = token();
@@ -47,9 +50,13 @@ function courseIntro(firstName?: string) {
 async function sendCourse(chatId: number, firstName?: string) {
   return telegram('sendMessage', {
     chat_id: chatId,
-    text: courseIntro(firstName),
+    text: courseIntro(firstName) + '\\n\\n💳 Escolha o método de pagamento:',
     reply_markup: {
-      inline_keyboard: [[{ text: '💳 Já fiz o pagamento', callback_data: 'course_pay' }]],
+      inline_keyboard: [
+        [{ text: '📱 e-Mola', callback_data: 'course_method:emola' }],
+        [{ text: '📱 M-Pesa', callback_data: 'course_method:mpesa' }],
+        [{ text: '🟡 Binance — USDT', callback_data: 'course_method:binance' }],
+      ],
     },
   });
 }
@@ -60,6 +67,29 @@ async function handleCallback(query: any) {
   const fromId = String(query.from?.id || '');
   const message = query.message;
   const chatId = Number(message?.chat?.id);
+
+  const methodMatch = data.match(/^course_method:(emola|mpesa|binance)$/);
+  if (methodMatch) {
+    if (!Number.isFinite(chatId)) return;
+    const method = methodMatch[1];
+    const details = method === 'emola'
+      ? `📱 e-Mola\\n\\n💰 Valor: ${price()} MT (Lifetime)\\n📱 Número: ${emola()}\\n\\nDepois de fazer o pagamento, envie o comprovativo aqui.`
+      : method === 'mpesa'
+        ? `📱 M-Pesa\\n\\n💰 Valor: ${price()} MT (Lifetime)\\n📱 Número: ${mpesa()}\\n\\nDepois de fazer o pagamento, envie o comprovativo aqui.`
+        : `🟡 Binance — USDT\\n\\n💰 Valor: ${binanceAmount()} USDT\\n🌐 Rede: ${binanceNetwork()}\\n📍 Endereço: ${binanceAddress()}\\n\\n⚠️ Envie pela rede ${binanceNetwork()} exatamente. Depois, envie o comprovativo aqui.`;
+    const request = await createPaymentRequest({
+      telegramUserId: Number(query.from?.id),
+      chatId,
+      username: query.from?.username,
+      firstName: query.from?.first_name,
+    });
+    await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: 'Método selecionado.' });
+    await telegram('sendMessage', {
+      chat_id: chatId,
+      text: details + `\\n\\n🔖 Referência do pedido: #${request.id}`,
+    });
+    return;
+  }
 
   if (data === 'course_pay') {
     if (!Number.isFinite(chatId)) return;
