@@ -157,10 +157,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (message.photo?.length) {
-      const pending = await getLatestAwaitingProof(chatId);
+      // Accept the proof even if the button callback was not persisted first.
+      let pending = await getLatestAwaitingProof(chatId);
       if (!pending) {
-        await telegram('sendMessage', { chat_id: chatId, text: 'ℹ️ Primeiro clique em “💳 Já fiz o pagamento” e depois envie o comprovativo.' });
-        return NextResponse.json({ ok: true });
+        pending = await createPaymentRequest({
+          telegramUserId: Number(message.from?.id || chatId),
+          chatId,
+          username: message.from?.username,
+          firstName: message.from?.first_name,
+        });
       }
 
       const photo = message.photo[message.photo.length - 1];
