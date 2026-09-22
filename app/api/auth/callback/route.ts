@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCode } from '@/lib/oauth';
-import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getSession, PLATFORM_SESSION_COOKIE, createDerivOAuthSession } from '@/lib/platform-auth';
 
 const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
 const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
   const oauthErrorDescription = searchParams.get('error_description');
   const errorRedirect = (reason: string) => NextResponse.redirect(`${PRODUCTION_APP_URL}/?auth_error=${encodeURIComponent(reason)}`, { status: 302 });
 
-  if (!platformSession) return errorRedirect('platform_account_required');
   if (oauthError) return errorRedirect(oauthErrorDescription || oauthError);
   if (!code || !state) return errorRedirect('missing_oauth_parameters');
 
@@ -32,6 +31,10 @@ export async function GET(request: NextRequest) {
   try {
     const { access_token, refresh_token } = await exchangeCode(clientId, PRODUCTION_CALLBACK_URL, code, verifier);
     const response = NextResponse.redirect(PRODUCTION_APP_URL + '/', { status: 302 });
+    if (!platformSession) {
+      const sessionId = await createDerivOAuthSession();
+      response.cookies.set(PLATFORM_SESSION_COOKIE, sessionId, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+    }
     response.cookies.set('deriv_access_token', access_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
     if (refresh_token) response.cookies.set('deriv_refresh_token', refresh_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
     response.cookies.delete('oauth_verifier');
