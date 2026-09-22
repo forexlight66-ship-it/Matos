@@ -13,6 +13,7 @@ export type CoursePayment = {
   username: string | null;
   first_name: string | null;
   status: string;
+  language?: 'pt' | 'en' | 'es';
 };
 
 async function ensureCourseSchema() {
@@ -35,6 +36,11 @@ async function ensureCourseSchema() {
     );
     CREATE INDEX IF NOT EXISTS telegram_course_payments_chat_idx ON telegram_course_payments(chat_id);
     CREATE INDEX IF NOT EXISTS telegram_course_payments_status_idx ON telegram_course_payments(status);
+    CREATE TABLE IF NOT EXISTS telegram_course_user_languages (
+      chat_id BIGINT PRIMARY KEY,
+      language TEXT NOT NULL DEFAULT 'pt',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 }
 
@@ -118,4 +124,17 @@ export async function verifyCourseCode(code: string) {
     [hash],
   );
   return result.rows[0] as CoursePayment | undefined;
+}
+
+export async function setCourseLanguage(chatId: number, language: 'pt' | 'en' | 'es') {
+  await ensureCourseSchema();
+  await pool.query(`INSERT INTO telegram_course_user_languages (chat_id, language) VALUES ($1,$2)
+    ON CONFLICT (chat_id) DO UPDATE SET language=EXCLUDED.language, updated_at=NOW()`, [chatId, language]);
+}
+
+export async function getCourseLanguage(chatId: number, fallback: 'pt' | 'en' | 'es' = 'pt') {
+  await ensureCourseSchema();
+  const result = await pool.query('SELECT language FROM telegram_course_user_languages WHERE chat_id=$1', [chatId]);
+  const language = result.rows[0]?.language;
+  return language === 'en' || language === 'es' || language === 'pt' ? language : fallback;
 }
