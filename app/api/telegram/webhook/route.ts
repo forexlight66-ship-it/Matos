@@ -78,7 +78,7 @@ Referência do pedido: #${request.id}`,
     return;
   }
 
-  const match = data.match(/^course_(approve|reject):(\\d+)$/);
+  const match = data.match(/^course_(approve|reject):(\d+)$/);
   if (!match) return;
   if (fromId !== adminChatId()) {
     await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: 'Sem autorização.', show_alert: true });
