@@ -5,6 +5,8 @@ import {
   getLatestAwaitingProof,
   rejectPayment,
   saveProof,
+  getCourseLanguage,
+  setCourseLanguage,
 } from '@/lib/telegram-course';
 
 export const dynamic = 'force-dynamic';
