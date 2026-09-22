@@ -13,6 +13,7 @@ const token = () => process.env.TELEGRAM_BOT_TOKEN || '';
 const adminChatId = () => process.env.TELEGRAM_ADMIN_CHAT_ID || '';
 const price = () => process.env.COURSE_PRICE_MZN || '—';
 const emola = () => process.env.EMOLA_NUMBER || '—';
+const mpesa = () => process.env.MPESA_NUMBER || '—';
 
 async function telegram(method: string, body: Record<string, unknown>) {
   const botToken = token();
@@ -35,7 +36,8 @@ function courseIntro() {
     '📚 O curso ensina, passo a passo, como utilizar a plataforma, compreender as ferramentas e trabalhar com gestão de risco e estratégias.',
     '',
     `💰 Valor: ${price()} MT`,
-    `📱 Pagamento por e-Mola: ${emola()}`,
+    `📱 e-Mola: ${emola()}`,
+    `📱 M-Pesa: ${mpesa()}`,
     '',
     'Depois de fazer o pagamento, envie o comprovativo neste bot. A validação é feita manualmente.',
   ].join('\\n');
@@ -197,7 +199,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    await telegram('sendMessage', { chat_id: chatId, text: courseIntro() , reply_markup: { inline_keyboard: [[{ text: '💳 Já fiz o pagamento', callback_data: 'course_pay' }]] } });
+    await telegram('sendMessage', { chat_id: chatId, text: courseIntro(), reply_markup: { inline_keyboard: [[{ text: '💳 Já fiz o pagamento', callback_data: 'course_pay' }]] } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Telegram Course]', error);
