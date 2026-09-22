@@ -32,30 +32,15 @@ async function telegram(method: string, body: Record<string, unknown>) {
   return data.result;
 }
 
-function courseIntro(firstName?: string) {
-  const name = String(firstName || '').trim();
-  return [
-    `👋 Bem-vindo${name ? `, ${name}` : ''} ao Curso Completo!`,
-    '',
-    '📚 O curso ensina, passo a passo, como utilizar a plataforma de uma forma avançada, compreender as ferramentas e trabalhar com gestão de risco e estratégias aprovadas.',
-    '',
-    'Depois de fazer o pagamento, envie o comprovativo neste bot. A validação é feita manualmente pelo Administrador.',
-  ].join('\n');
-}
-
-async function sendCourse(chatId: number, firstName?: string) {
-  return telegram('sendMessage', {
-    chat_id: chatId,
-    text: courseIntro(firstName) + '\n\n💳 Escolha o método de pagamento:',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '📱 e-Mola', callback_data: 'course_method:emola' }],
-        [{ text: '📱 M-Pesa', callback_data: 'course_method:mpesa' }],
-        [{ text: '🟡 Binance — USDT', callback_data: 'course_method:binance' }],
-      ],
-    },
-  });
-}
+type Lang = 'pt' | 'en' | 'es';
+const texts = {
+  pt: { welcome:'Bem-vindo', course:'Curso Completo', intro:'📚 O curso ensina, passo a passo, como utilizar a plataforma de uma forma avançada, compreender as ferramentas e trabalhar com gestão de risco e estratégias aprovadas.', proof:'Depois de fazer o pagamento, envie o comprovativo neste bot. A validação é feita manualmente pelo Administrador.', choose:'💳 Escolha o método de pagamento:', emola:'📱 e-Mola', mpesa:'📱 M-Pesa', binance:'🟡 Binance — USDT', selected:'Método selecionado.', amount:'Valor', lifetime:'Lifetime', number:'Número', sendProof:'Depois de fazer o pagamento, envie o comprovativo aqui.', network:'Rede', address:'Endereço', warning:'⚠️ Envie pela rede', copyNumber:'📋 Copiar número', copyAddress:'📋 Copiar endereço USDT', ref:'🔖 Referência do pedido', received:'📨 Comprovativo recebido. Aguarde a validação do pagamento.', confirmed:'✅ Pagamento confirmado!', password:'🔐 Senha de acesso ao curso:', keep:'Guarde esta senha. Ela será usada para desbloquear o curso.', rejected:'❌ O comprovativo não foi validado. Se acha que houve um engano, envie um novo comprovativo.', language:'🌐 Escolha o idioma:', portuguese:'🇵🇹 Português', english:'🇬🇧 English', spanish:'🇪🇸 Español' },
+  en: { welcome:'Welcome', course:'Complete Course', intro:'📚 The course teaches, step by step, how to use the platform in an advanced way, understand its tools, and work with risk management and approved strategies.', proof:'After making the payment, send the proof in this bot. Validation is performed manually by the Administrator.', choose:'💳 Choose your payment method:', emola:'📱 e-Mola', mpesa:'📱 M-Pesa', binance:'🟡 Binance — USDT', selected:'Payment method selected.', amount:'Amount', lifetime:'Lifetime', number:'Number', sendProof:'After making the payment, send the proof here.', network:'Network', address:'Address', warning:'⚠️ Send using the network', copyNumber:'📋 Copy number', copyAddress:'📋 Copy USDT address', ref:'🔖 Order reference', received:'📨 Payment proof received. Please wait for validation.', confirmed:'✅ Payment confirmed!', password:'🔐 Course access password:', keep:'Keep this password. It will be used to unlock the course.', rejected:'❌ The payment proof was not validated. If you believe this was a mistake, send a new proof.', language:'🌐 Choose your language:', portuguese:'🇵🇹 Português', english:'🇬🇧 English', spanish:'🇪🇸 Español' },
+  es: { welcome:'Bienvenido', course:'Curso Completo', intro:'📚 El curso enseña, paso a paso, cómo utilizar la plataforma de forma avanzada, comprender sus herramientas y trabajar con gestión de riesgo y estrategias aprobadas.', proof:'Después de realizar el pago, envía el comprobante en este bot. La validación la realiza manualmente el Administrador.', choose:'💳 Elige tu método de pago:', emola:'📱 e-Mola', mpesa:'📱 M-Pesa', binance:'🟡 Binance — USDT', selected:'Método de pago seleccionado.', amount:'Importe', lifetime:'Lifetime', number:'Número', sendProof:'Después de realizar el pago, envía el comprobante aquí.', network:'Red', address:'Dirección', warning:'⚠️ Envía usando la red', copyNumber:'📋 Copiar número', copyAddress:'📋 Copiar dirección USDT', ref:'🔖 Referencia del pedido', received:'📨 Comprobante recibido. Espera la validación.', confirmed:'✅ ¡Pago confirmado!', password:'🔐 Contraseña de acceso al curso:', keep:'Guarda esta contraseña. Se utilizará para desbloquear el curso.', rejected:'❌ El comprobante no fue validado. Si crees que hubo un error, envía un nuevo comprobante.', language:'🌐 Elige tu idioma:', portuguese:'🇵🇹 Português', english:'🇬🇧 English', spanish:'🇪🇸 Español' }
+} as const;
+function courseIntro(firstName?: string, lang: Lang = 'pt') { const t=texts[lang]; const name=String(firstName||'').trim(); return [`👋 ${t.welcome}${name ? `, ${name}` : ''} — ${t.course}!`, '', t.intro, '', t.proof].join('\\n'); }
+async function sendLanguageMenu(chatId:number){ return telegram('sendMessage',{chat_id:chatId,text:texts.pt.language,reply_markup:{inline_keyboard:[[{text:texts.pt.portuguese,callback_data:'course_lang:pt'},{text:texts.pt.english,callback_data:'course_lang:en'},{text:texts.pt.spanish,callback_data:'course_lang:es'}]]}}); }
+async function sendCourse(chatId:number,firstName?:string,lang:Lang='pt'){const t=texts[lang];return telegram('sendMessage',{chat_id:chatId,text:courseIntro(firstName,lang)+`\\n\\n${t.choose}`,reply_markup:{inline_keyboard:[[{text:t.emola,callback_data:`course_method:${lang}:emola`}],[{text:t.mpesa,callback_data:`course_method:${lang}:mpesa`}],[{text:t.binance,callback_data:`course_method:${lang}:binance`}],[{text:'🌐 Language / Idioma',callback_data:'course_language'}]]}});}
 
 async function handleCallback(query: any) {
   const callbackId = String(query.id || '');
@@ -64,27 +49,32 @@ async function handleCallback(query: any) {
   const message = query.message;
   const chatId = Number(message?.chat?.id);
 
-  const methodMatch = data.match(/^course_method:(emola|mpesa|binance)$/);
+  if (data === 'course_language') { if (Number.isFinite(chatId)) await sendLanguageMenu(chatId); await telegram('answerCallbackQuery',{callback_query_id:callbackId}); return; }
+  const langMatch=data.match(/^course_lang:(pt|en|es)$/); if(langMatch){if(!Number.isFinite(chatId))return;const lang=langMatch[1] as Lang;await setCourseLanguage(chatId,lang);await telegram('answerCallbackQuery',{callback_query_id:callbackId,text:texts[lang].language});await sendCourse(chatId,message?.chat?.first_name||query.from?.first_name,lang);return;}
+  const methodMatch = data.match(/^course_method:(pt|en|es):(emola|mpesa|binance)$/);
   if (methodMatch) {
     if (!Number.isFinite(chatId)) return;
-    const method = methodMatch[1];
+    const lang=methodMatch[1] as Lang;
+    const method=methodMatch[2];
+    await setCourseLanguage(chatId,lang);
+    const t=texts[lang];
     const details = method === 'emola'
-      ? `📱 e-Mola\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${emola()} — MJM\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
+      ? `📱 e-Mola\n\n💰 ${t.amount}: ${price()} MT (${t.lifetime})\n📱 ${t.number}: ${emola()} — MJM\n\n${t.sendProof}`
       : method === 'mpesa'
-        ? `📱 M-Pesa\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${mpesa()} — MJM\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
-        : `🟡 Binance — USDT\n\n💰 Valor: ${binanceAmount()} USDT\n🌐 Rede: ${binanceNetwork()}\n📍 Endereço: ${binanceAddress()}\n\n⚠️ Envie pela rede ${binanceNetwork()} exatamente. Depois, envie o comprovativo aqui.`;
+        ? `📱 M-Pesa\n\n💰 ${t.amount}: ${price()} MT (${t.lifetime})\n📱 ${t.number}: ${mpesa()} — MJM\n\n${t.sendProof}`
+        : `🟡 Binance — USDT\n\n💰 ${t.amount}: ${binanceAmount()} USDT\n🌐 ${t.network}: ${binanceNetwork()}\n📍 ${t.address}: ${binanceAddress()}\n\n${t.warning} ${binanceNetwork()} exactly.`;
     const copyText = method === 'emola' ? emola() : method === 'mpesa' ? mpesa() : binanceAddress();
-    const copyLabel = method === 'binance' ? '📋 Copiar endereço USDT' : '📋 Copiar número';
+    const copyLabel = method === 'binance' ? texts[lang].copyAddress : texts[lang].copyNumber;
     const request = await createPaymentRequest({
       telegramUserId: Number(query.from?.id),
       chatId,
       username: query.from?.username,
       firstName: query.from?.first_name,
     });
-    await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: 'Método selecionado.' });
+    await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: texts[lang].selected });
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: details + `\n\n🔖 Referência do pedido: #${request.id}`,
+      text: details + `\n\n${texts[lang].ref}: #${request.id}`,
       reply_markup: {
         inline_keyboard: [[{
           text: copyLabel,
@@ -187,7 +177,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (text.startsWith('/start') || text.startsWith('/curso')) {
-      await sendCourse(chatId, message.from?.first_name);
+      const code=String(message.from?.language_code||'').toLowerCase();
+      const fallback:Lang=code.startsWith('es')?'es':code.startsWith('en')?'en':'pt';
+      const lang=await getCourseLanguage(chatId,fallback); await setCourseLanguage(chatId,lang);
+      await sendCourse(chatId,message.from?.first_name,lang);
       return NextResponse.json({ ok: true });
     }
 
@@ -239,7 +232,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    await telegram('sendMessage', { chat_id: chatId, text: courseIntro(message.from?.first_name), reply_markup: { inline_keyboard: [[{ text: '💳 Já fiz o pagamento', callback_data: 'course_pay' }]] } });
+    const lang=await getCourseLanguage(chatId,'pt'); await telegram('sendMessage',{chat_id:chatId,text:courseIntro(message.from?.first_name,lang),reply_markup:{inline_keyboard:[[{text:texts[lang].choose,callback_data:'course_language'}]]}});
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Telegram Course]', error);
