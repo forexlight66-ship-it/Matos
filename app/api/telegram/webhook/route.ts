@@ -29,17 +29,18 @@ async function telegram(method: string, body: Record<string, unknown>) {
   return data.result;
 }
 
-function courseIntro() {
+function courseIntro(firstName?: string) {
+  const name = String(firstName || '').trim();
   return [
-    '👋 Bem-vindo ao Curso Completo!',
+    `👋 Bem-vindo${name ? `, ${name}` : ''} ao Curso Completo!`,
     '',
-    '📚 O curso ensina, passo a passo, como utilizar a plataforma, compreender as ferramentas e trabalhar com gestão de risco e estratégias.',
+    '📚 O curso ensina, passo a passo, como utilizar a plataforma de uma forma avançada, compreender as ferramentas e trabalhar com gestão de risco e estratégias aprovadas.',
     '',
-    `💰 Valor: ${price()} MT`,
-    `📱 e-Mola: ${emola()}`,
-    `📱 M-Pesa: ${mpesa()}`,
+    `💰 Valor: ${price()} MT (Lifetime)`,
+    `📱 e-Mola: ${emola()} MJM`,
+    `📱 M-Pesa: ${mpesa()} MJM`,
     '',
-    'Depois de fazer o pagamento, envie o comprovativo neste bot. A validação é feita manualmente.',
+    'Depois de fazer o pagamento, envie o comprovativo neste bot. A validação é feita manualmente pelo Administrador.',
   ].join('\\n');
 }
 
@@ -204,7 +205,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    await telegram('sendMessage', { chat_id: chatId, text: courseIntro(), reply_markup: { inline_keyboard: [[{ text: '💳 Já fiz o pagamento', callback_data: 'course_pay' }]] } });
+    await telegram('sendMessage', { chat_id: chatId, text: courseIntro(message.from?.first_name), reply_markup: { inline_keyboard: [[{ text: '💳 Já fiz o pagamento', callback_data: 'course_pay' }]] } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Telegram Course]', error);
