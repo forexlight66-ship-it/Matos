@@ -107,7 +107,8 @@ export async function rejectPayment(paymentId: number) {
 
 export async function verifyCourseCode(code: string) {
   await ensureCourseSchema();
-  const normalized = code.trim().toUpperCase();
+  // Hash exactly the code sent to the customer; the MozHyper prefix is case-sensitive.
+  const normalized = code.trim();
   const hash = createHash('sha256').update(normalized).digest('hex');
   const result = await pool.query(
     `SELECT id, telegram_user_id, chat_id, username, first_name, status
