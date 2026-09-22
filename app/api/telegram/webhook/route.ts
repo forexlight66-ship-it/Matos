@@ -44,10 +44,10 @@ function courseIntro(firstName?: string) {
   ].join('\\n');
 }
 
-async function sendCourse(chatId: number) {
+async function sendCourse(chatId: number, firstName?: string) {
   return telegram('sendMessage', {
     chat_id: chatId,
-    text: courseIntro(),
+    text: courseIntro(firstName),
     reply_markup: {
       inline_keyboard: [[{ text: '💳 Já fiz o pagamento', callback_data: 'course_pay' }]],
     },
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (text.startsWith('/start') || text.startsWith('/curso')) {
-      await sendCourse(chatId);
+      await sendCourse(chatId, message.from?.first_name);
       return NextResponse.json({ ok: true });
     }
 
