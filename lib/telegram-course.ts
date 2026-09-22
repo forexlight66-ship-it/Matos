@@ -81,7 +81,7 @@ export async function getLatestAwaitingProof(chatId: number) {
 
 export async function approvePayment(paymentId: number) {
   await ensureCourseSchema();
-  const code = `IZI-${randomBytes(4).toString('hex').toUpperCase()}`;
+  const code = `MozHyper-${randomBytes(4).toString('hex').toUpperCase()}`;
   const hash = createHash('sha256').update(code).digest('hex');
   const result = await pool.query(
     `UPDATE telegram_course_payments
