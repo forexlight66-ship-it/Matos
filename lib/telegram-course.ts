@@ -132,7 +132,7 @@ export async function setCourseLanguage(chatId: number, language: 'pt' | 'en' | 
     ON CONFLICT (chat_id) DO UPDATE SET language=EXCLUDED.language, updated_at=NOW()`, [chatId, language]);
 }
 
-export async function getCourseLanguage(chatId: number, fallback: 'pt' | 'en' | 'es' = 'pt') {
+export async function getCourseLanguage(chatId: number, fallback: 'pt' | 'en' | 'es' = 'pt'): Promise<'pt' | 'en' | 'es'> {
   await ensureCourseSchema();
   const result = await pool.query('SELECT language FROM telegram_course_user_languages WHERE chat_id=$1', [chatId]);
   const language = result.rows[0]?.language;
