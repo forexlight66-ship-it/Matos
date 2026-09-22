@@ -148,3 +148,15 @@ export function safeErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return 'Unknown authentication error';
 }
+
+
+/** Create an isolated platform session for users entering through Deriv OAuth. */
+export async function createDerivOAuthSession() {
+  await ensureSchema();
+  const suffix = randomBytes(18).toString('hex');
+  const result = await pool.query(
+    'INSERT INTO platform_users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id',
+    ['Deriv User', `deriv-${suffix}@oauth.matos.local`, await hashPassword(randomBytes(32).toString('base64url'))]
+  );
+  return createSession(result.rows[0].id);
+}
