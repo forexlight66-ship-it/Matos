@@ -69,10 +69,12 @@ async function handleCallback(query: any) {
     if (!Number.isFinite(chatId)) return;
     const method = methodMatch[1];
     const details = method === 'emola'
-      ? `📱 e-Mola\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${emola()}\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
+      ? `📱 e-Mola\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${emola()} — MJM\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
       : method === 'mpesa'
-        ? `📱 M-Pesa\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${mpesa()}\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
+        ? `📱 M-Pesa\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${mpesa()} — MJM\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
         : `🟡 Binance — USDT\n\n💰 Valor: ${binanceAmount()} USDT\n🌐 Rede: ${binanceNetwork()}\n📍 Endereço: ${binanceAddress()}\n\n⚠️ Envie pela rede ${binanceNetwork()} exatamente. Depois, envie o comprovativo aqui.`;
+    const copyText = method === 'emola' ? emola() : method === 'mpesa' ? mpesa() : binanceAddress();
+    const copyLabel = method === 'binance' ? '📋 Copiar endereço USDT' : '📋 Copiar número';
     const request = await createPaymentRequest({
       telegramUserId: Number(query.from?.id),
       chatId,
@@ -83,6 +85,12 @@ async function handleCallback(query: any) {
     await telegram('sendMessage', {
       chat_id: chatId,
       text: details + `\n\n🔖 Referência do pedido: #${request.id}`,
+      reply_markup: {
+        inline_keyboard: [[{
+          text: copyLabel,
+          copy_text: { text: copyText },
+        }]],
+      },
     });
     return;
   }
