@@ -39,18 +39,14 @@ function courseIntro(firstName?: string) {
     '',
     '📚 O curso ensina, passo a passo, como utilizar a plataforma de uma forma avançada, compreender as ferramentas e trabalhar com gestão de risco e estratégias aprovadas.',
     '',
-    `💰 Valor: ${price()} MT (Lifetime)`,
-    `📱 e-Mola: ${emola()} MJM`,
-    `📱 M-Pesa: ${mpesa()} MJM`,
-    '',
     'Depois de fazer o pagamento, envie o comprovativo neste bot. A validação é feita manualmente pelo Administrador.',
-  ].join('\\n');
+  ].join('\n');
 }
 
 async function sendCourse(chatId: number, firstName?: string) {
   return telegram('sendMessage', {
     chat_id: chatId,
-    text: courseIntro(firstName) + '\\n\\n💳 Escolha o método de pagamento:',
+    text: courseIntro(firstName) + '\n\n💳 Escolha o método de pagamento:',
     reply_markup: {
       inline_keyboard: [
         [{ text: '📱 e-Mola', callback_data: 'course_method:emola' }],
@@ -73,10 +69,10 @@ async function handleCallback(query: any) {
     if (!Number.isFinite(chatId)) return;
     const method = methodMatch[1];
     const details = method === 'emola'
-      ? `📱 e-Mola\\n\\n💰 Valor: ${price()} MT (Lifetime)\\n📱 Número: ${emola()}\\n\\nDepois de fazer o pagamento, envie o comprovativo aqui.`
+      ? `📱 e-Mola\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${emola()}\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
       : method === 'mpesa'
-        ? `📱 M-Pesa\\n\\n💰 Valor: ${price()} MT (Lifetime)\\n📱 Número: ${mpesa()}\\n\\nDepois de fazer o pagamento, envie o comprovativo aqui.`
-        : `🟡 Binance — USDT\\n\\n💰 Valor: ${binanceAmount()} USDT\\n🌐 Rede: ${binanceNetwork()}\\n📍 Endereço: ${binanceAddress()}\\n\\n⚠️ Envie pela rede ${binanceNetwork()} exatamente. Depois, envie o comprovativo aqui.`;
+        ? `📱 M-Pesa\n\n💰 Valor: ${price()} MT (Lifetime)\n📱 Número: ${mpesa()}\n\nDepois de fazer o pagamento, envie o comprovativo aqui.`
+        : `🟡 Binance — USDT\n\n💰 Valor: ${binanceAmount()} USDT\n🌐 Rede: ${binanceNetwork()}\n📍 Endereço: ${binanceAddress()}\n\n⚠️ Envie pela rede ${binanceNetwork()} exatamente. Depois, envie o comprovativo aqui.`;
     const request = await createPaymentRequest({
       telegramUserId: Number(query.from?.id),
       chatId,
@@ -86,7 +82,7 @@ async function handleCallback(query: any) {
     await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: 'Método selecionado.' });
     await telegram('sendMessage', {
       chat_id: chatId,
-      text: details + `\\n\\n🔖 Referência do pedido: #${request.id}`,
+      text: details + `\n\n🔖 Referência do pedido: #${request.id}`,
     });
     return;
   }
@@ -220,7 +216,7 @@ export async function POST(request: NextRequest) {
           `Valor esperado: ${price()} MT`,
           '',
           'Valide o pagamento e escolha uma opção:',
-        ].join('\\n'),
+        ].join('\n'),
         reply_markup: {
           inline_keyboard: [[
             { text: '✅ APROVAR', callback_data: `course_approve:${saved.id}` },
