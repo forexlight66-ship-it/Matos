@@ -28,7 +28,8 @@ export interface EstadoGestorStakeDinamico {
 }
 
 export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
-  const stakeBase = Math.max(0, Number(config.stakeBase) || 0.75);
+  const MIN_STAKE = 0.35;
+  const stakeBase = Math.max(MIN_STAKE, Number(config.stakeBase) || 0.75);
   let payout = Math.max(0.0001, Number(config.payout) || 0.95);
 
   function atualizarPayout(novoPayout: number): void {
@@ -64,7 +65,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
   };
 
   function proximoStake() {
-    return arredondar(stakeAtual);
+    return Math.max(MIN_STAKE, arredondar(stakeAtual));
   }
 
   function resetCiclo() {
@@ -180,7 +181,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
 
   function restaurarEstado(estado: Partial<EstadoGestorStakeDinamico>): void {
     nivelSoros = Math.max(0, Math.min(2, Math.floor(Number(estado.nivelSoros) || 0)));
-    stakeAtual = arredondar(Number(estado.stakeAtual) > 0 ? Number(estado.stakeAtual) : stakeBase);
+    stakeAtual = Math.max(MIN_STAKE, arredondar(Number(estado.stakeAtual) > 0 ? Number(estado.stakeAtual) : stakeBase));
     nivelMartingaleAtual = Math.max(0, Math.min(7, Math.floor(Number(estado.nivelMartingaleAtual) || 0)));
     emMartingale = Boolean(estado.emMartingale) && nivelMartingaleAtual > 0;
     plAcumuladoSessao = Number.isFinite(Number(estado.plAcumuladoSessao)) ? Number(estado.plAcumuladoSessao) : 0;
