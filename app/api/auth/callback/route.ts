@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       response.cookies.set(PLATFORM_SESSION_COOKIE, sessionId, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
     }
     response.cookies.set('deriv_access_token', access_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
+    if (platformSession?.country) response.cookies.set('matos_country', String(platformSession.country).toUpperCase(), { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 });
     if (refresh_token) response.cookies.set('deriv_refresh_token', refresh_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
     response.cookies.delete('oauth_verifier');
     response.cookies.delete('oauth_state');
