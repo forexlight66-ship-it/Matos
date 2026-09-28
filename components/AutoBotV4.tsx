@@ -6,13 +6,14 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { criarGestorStake } from '@/lib/gestorStakeSorosMartingaleDinamico';
 import { createSonicStakeManager } from '@/lib/sonicStakeManager';
 import { isRecoveryStrategy, initialBarrierState, nextBarrierState, type BarrierState } from '@/lib/hyperRecoveryStrategies';
+import { FALLBACK_RATES, getCurrencyMeta } from '@/lib/country-currency';
 
 type Contract='EVEN'|'ODD'|'OVER'|'UNDER'|'RISE'|'FALL'|'DIFFER'|'MATCH0';
 type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPERLITE'|'HYPERGUARD'|'HYPERSHIELD'|'HYPERBREAK'|'HYPERSWAP';
 const MT=64;
-type Currency='USD'|'MZN'|'KES'|'ZAR'|'NGN'|'COP'|'BRL'|'JMD'|'AOA'|'RUB';
-const CURRENCY_RATES:Record<Currency,number>={USD:1,MZN:64,KES:129,ZAR:16,NGN:1300,COP:3100,BRL:5.15,JMD:157.30,AOA:920,RUB:81};
-const CURRENCY_LABELS:Record<Currency,string>={USD:'$',MZN:'MT',KES:'KSh',ZAR:'ZAR',NGN:'₦',COP:'COP',BRL:'R$',JMD:'J$',AOA:'Kz',RUB:'₽'};
+type Currency=string;
+const CURRENCY_RATES:Record<string,number>={...FALLBACK_RATES};
+const CURRENCY_LABELS:Record<string,string>=Object.fromEntries(Object.keys(CURRENCY_RATES).map(c=>[c,getCurrencyMeta(c).symbol]));
 const normalizeCurrency=(value:unknown,fallback:Currency='USD'):Currency=>{const c=String(value??'').trim().toUpperCase();return c in CURRENCY_RATES?c as Currency:fallback};
 const IA_PAYOUT=0.95;
 const IA_MAX_MARTINGALE=7;
