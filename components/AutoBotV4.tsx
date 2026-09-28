@@ -12,7 +12,7 @@ type Strategy='PAR_IMPAR'|'ACIMA5_BAIXO4'|'RISE_FALL'|'DIFERENTE'|'MATCH0'|'HYPE
 const MT=64;
 type Currency='USD'|'MZN'|'KES'|'ZAR'|'NGN'|'COP'|'BRL'|'JMD'|'AOA'|'RUB';
 type CurrencyOption={currency:Currency;symbol:string;label:string;rate:number};
-const DEFAULT_CURRENCY:CurrencyOption={currency:'USD',symbol:'=0.95;
+const DEFAULT_CURRENCY:CurrencyOption={currency:'USD',symbol:'$',label:'$ USD',rate:1};
 const IA_MAX_MARTINGALE=7;
 const IA_RISK_STAKE=0.75;
 const SYMBOLS:Record<string,string>={R_10:'Volatility 10 Index',R_25:'Volatility 25 Index',R_50:'Volatility 50 Index',R_75:'Volatility 75 Index',R_100:'Volatility 100 Index','1HZ10V':'Volatility 10 (1s)','1HZ25V':'Volatility 25 (1s)','1HZ50V':'Volatility 50 (1s)','1HZ75V':'Volatility 75 (1s)','1HZ100V':'Volatility 100 (1s)'};
