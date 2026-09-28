@@ -1,11 +1,22 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import TutorialSection from './TutorialSection';
 import AutoBotV4 from './AutoBotV4';
 import AutoBotEnhancements from './AutoBotEnhancements';
 
 export default function Dashboard() {
+  const [currencyReady, setCurrencyReady] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/currency', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(data => {
+      if (!alive) return;
+      const code = String(data?.currency || 'USD').toUpperCase();
+      try { localStorage.setItem('mozhyper-currency', code); } catch {}
+      setCurrencyReady(true);
+    }).catch(() => { if (alive) setCurrencyReady(true); });
+    return () => { alive = false; };
+  }, []);
   useEffect(() => {
     document.body.classList.add('light');
   }, []);
@@ -48,7 +59,7 @@ export default function Dashboard() {
         }
         @media(max-width:430px){.matos-page{padding:22px 0 36px}.matos-shell{padding:0 0 24px}.matos-phone{width:100%;max-width:none;border:0;border-radius:0}.matos-phone>.mx-auto.w-full{padding:12px!important}}@media(min-width:768px){.matos-shell{padding-top:24px}.matos-phone{box-shadow:0 20px 60px rgba(0,0,0,.28)}}
       `}</style>
-      <div className="matos-shell"><div className="matos-phone"><AutoBotEnhancements /><AutoBotV4 /></div><div id="tutorial"><TutorialSection/></div></div>
+      <div className="matos-shell"><div className="matos-phone">{currencyReady && <><AutoBotEnhancements /><AutoBotV4 /></>}</div><div id="tutorial"><TutorialSection/></div></div>
     </div>
   );
 }
