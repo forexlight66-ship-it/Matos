@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
     response.cookies.set(PLATFORM_SESSION_COOKIE, session, {
       httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30,
     });
+    response.cookies.set('matos_country', country, {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365,
+    });
     return response;
   } catch (error: any) {
     const message = safeErrorMessage(error);
