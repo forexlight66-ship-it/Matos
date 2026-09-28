@@ -10,13 +10,15 @@ export async function POST(request: NextRequest) {
     const email = String(body?.email || '').trim().toLowerCase();
     const password = String(body?.password || '');
     const confirmPassword = String(body?.confirmPassword || '');
+    const country = String(body?.country || '').trim().toUpperCase();
 
     if (name.length < 2) return NextResponse.json({ error: 'Nome inválido.' }, { status: 400 });
     if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: 'Email inválido.' }, { status: 400 });
     if (password.length < 8) return NextResponse.json({ error: 'A password deve ter pelo menos 8 caracteres.' }, { status: 400 });
     if (password !== confirmPassword) return NextResponse.json({ error: 'As passwords não coincidem.' }, { status: 400 });
+    if (!country || !/^[A-Z]{2}$/.test(country)) return NextResponse.json({ error: 'Selecione o país.' }, { status: 400 });
 
-    const user = await createUser(name, email, password);
+    const user = await createUser(name, email, password, country);
     const session = await createSession(user.id);
     const response = NextResponse.json({ ok: true, user });
     response.cookies.set(PLATFORM_SESSION_COOKIE, session, {
