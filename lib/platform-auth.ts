@@ -70,10 +70,10 @@ export async function createUser(name: string, email: string, password: string, 
 
 export async function authenticateUser(email: string, password: string) {
   await ensureSchema();
-  const result = await pool.query('SELECT id, name, email, password_hash FROM platform_users WHERE email = $1', [normalizeEmail(email)]);
+  const result = await pool.query('SELECT id, name, email, password_hash, country FROM platform_users WHERE email = $1', [normalizeEmail(email)]);
   const user = result.rows[0];
   if (!user || !(await verifyPassword(password, user.password_hash))) return null;
-  return { id: user.id, name: user.name, email: user.email };
+  return { id: user.id, name: user.name, email: user.email, country: user.country || null };
 }
 
 export async function createPasswordResetToken(email: string) {
