@@ -1,59 +1,9 @@
-import { NextResponse } from 'next/server';
-
-type CurrencyConfig = { country: string; currency: string; symbol: string; rate: number };
-
-const COUNTRIES: Record<string, CurrencyConfig> = {
-  MZ: { country: 'Mozambique', currency: 'MZN', symbol: 'MT', rate: 64 },
-  KE: { country: 'Kenya', currency: 'KES', symbol: 'KSh', rate: 129 },
-  AO: { country: 'Angola', currency: 'AOA', symbol: 'Kz', rate: 920 },
-  NG: { country: 'Nigeria', currency: 'NGN', symbol: '₦', rate: 1300 },
-  ZA: { country: 'South Africa', currency: 'ZAR', symbol: 'R', rate: 16 },
-  CO: { country: 'Colombia', currency: 'COP', symbol: 'COP', rate: 3100 },
-  BR: { country: 'Brazil', currency: 'BRL', symbol: 'R$', rate: 5.15 },
-  JM: { country: 'Jamaica', currency: 'JMD', symbol: 'J$', rate: 157.3 },
-  RU: { country: 'Russia', currency: 'RUB', symbol: '₽', rate: 81 }
-};
-
-function getClientIp(request: Request) {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  return request.headers.get('x-real-ip')?.trim() || '';
-}
-
-export async function GET(request: Request) {
-  const ip = getClientIp(request);
-  let countryCode = '';
-  let detectedCountry = '';
-
-  if (ip && !['127.0.0.1', '::1', 'localhost'].includes(ip)) {
-    try {
-      const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
-        cache: 'no-store',
-        headers: { Accept: 'application/json' }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        countryCode = String(data?.country_code || '').toUpperCase();
-        detectedCountry = String(data?.country_name || '');
-      }
-    } catch {}
-  }
-
-  const native = COUNTRIES[countryCode];
-  const currencies = native
-    ? [
-        { currency: 'USD', symbol: '$', label: '$ USD', rate: 1 },
-        { currency: native.currency, symbol: native.symbol, label: `${native.symbol} ${native.currency}`, rate: native.rate }
-      ]
-    : [{ currency: 'USD', symbol: '$', label: '$ USD', rate: 1 }];
-
-  return NextResponse.json({
-    detectedBy: 'ip',
-    countryCode,
-    country: native?.country || detectedCountry || null,
-    currencies,
-    defaultCurrency: native?.currency || 'USD'
-  }, {
-    headers: { 'Cache-Control': 'private, max-age=300' }
-  });
-}
+import {NextRequest,NextResponse} from 'next/server';
+import {cookies} from 'next/headers';
+import {getSession} from '@/lib/platform-auth';
+import {FALLBACK_RATES,getCountryCurrency,getCurrencyMeta} from '@/lib/country-currency';
+export const dynamic='force-dynamic';
+function ipOf(r:NextRequest){return r.headers.get('cf-connecting-ip')?.trim()||r.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||r.headers.get('x-real-ip')?.trim()||'';}
+async function detect(r:NextRequest){try{const ip=ipOf(r);const url=ip?'https://ipapi.co/'+encodeURIComponent(ip)+'/json/':'https://ipapi.co/json/';const x=await fetch(url,{cache:'no-store',headers:{accept:'application/json'}});if(!x.ok)return null;const d=await x.json();return {country:String(d.country_code||'').toUpperCase(),currency:String(d.currency||'').toUpperCase()};}catch{return null}}
+async function fx(c:string){if(c==='USD')return 1;try{const x=await fetch('https://open.er-api.com/v6/latest/USD',{next:{revalidate:86400}});if(x.ok){const d=await x.json();const n=Number(d?.rates?.[c]);if(Number.isFinite(n)&&n>0)return n;}}catch{}return FALLBACK_RATES[c]||1;}
+export async function GET(r:NextRequest){let country='',currency='',source='default';try{const c=await cookies();const s=await getSession(c.get('matos_session')?.value);if(s?.country){country=String(s.country).toUpperCase();currency=getCountryCurrency(country);source='registration';}}catch{}if(!currency){const d=await detect(r);country=d?.country||'';currency=d?.currency||getCountryCurrency(country)||'USD';source=d?'ip':'default';}const m=getCurrencyMeta(currency),rate=await fx(currency);return NextResponse.json({country,currency,symbol:m.symbol,name:m.name,rate,options:[{code:currency,symbol:m.symbol,name:m.name,rate},{code:'USD',symbol:'$',name:'US Dollar',rate:1}].filter((x,i,a)=>a.findIndex(y=>y.code===x.code)===i),source});}
