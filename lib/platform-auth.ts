@@ -68,6 +68,17 @@ export async function createUser(name: string, email: string, password: string, 
   return result.rows[0];
 }
 
+export async function updateUserCountry(userId: string | number, country: string) {
+  await ensureSchema();
+  const normalized = country.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(normalized)) return null;
+  const result = await pool.query(
+    'UPDATE platform_users SET country = $1 WHERE id = $2 RETURNING id, name, email, country',
+    [normalized, userId]
+  );
+  return result.rows[0] || null;
+}
+
 export async function authenticateUser(email: string, password: string) {
   await ensureSchema();
   const result = await pool.query('SELECT id, name, email, password_hash, country FROM platform_users WHERE email = $1', [normalizeEmail(email)]);
