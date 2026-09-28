@@ -16,6 +16,7 @@ async function ensureSchema() {
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      country TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS platform_sessions (
@@ -33,6 +34,7 @@ async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS platform_password_resets_user_id_idx ON platform_password_resets(user_id);
     CREATE INDEX IF NOT EXISTS platform_password_resets_expires_at_idx ON platform_password_resets(expires_at);
   `);
+  await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS country TEXT');
 }
 
 function normalizeEmail(email: string) {
@@ -57,11 +59,11 @@ export async function verifyPassword(password: string, stored: string) {
   return expected.length === derived.length && timingSafeEqual(expected, derived);
 }
 
-export async function createUser(name: string, email: string, password: string) {
+export async function createUser(name: string, email: string, password: string, country?: string) {
   await ensureSchema();
   const result = await pool.query(
-    'INSERT INTO platform_users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, name, email',
-    [name.trim(), normalizeEmail(email), await hashPassword(password)]
+    'INSERT INTO platform_users (name, email, password_hash, country) VALUES ($1, $2, $3, $4) RETURNING id, name, email, country',
+    [name.trim(), normalizeEmail(email), await hashPassword(password), country?.trim().toUpperCase() || null]
   );
   return result.rows[0];
 }
@@ -132,7 +134,7 @@ export async function getSession(sessionId?: string | null) {
   if (!sessionId) return null;
   await ensureSchema();
   const result = await pool.query(
-    `SELECT u.id, u.name, u.email FROM platform_sessions s JOIN platform_users u ON u.id = s.user_id WHERE s.id = $1 AND s.expires_at > NOW()`,
+    `SELECT u.id, u.name, u.email, u.country FROM platform_sessions s JOIN platform_users u ON u.id = s.user_id WHERE s.id = $1 AND s.expires_at > NOW()`,
     [sessionId]
   );
   return result.rows[0] || null;
