@@ -12,6 +12,6 @@ export async function GET(request: NextRequest) {
     authenticated: Boolean(platformSession && derivAuthenticated),
     platformAuthenticated: Boolean(platformSession),
     derivAuthenticated,
-    user: platformSession ? { id: platformSession.id, name: platformSession.name, email: platformSession.email } : null,
+    user: platformSession ? { id: platformSession.id, name: platformSession.name, email: platformSession.email, country: platformSession.country || null } : null,
   });
 }
