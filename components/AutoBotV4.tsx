@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeriv } from '@/hooks/useDeriv';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { criarGestorStake } from '@/lib/gestorStakeSorosMartingaleDinamico';
