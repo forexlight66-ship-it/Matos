@@ -168,7 +168,22 @@ export default function AutoBotV4(){
    return;
   }
   const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
-  const amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
+  const iaRecovery=iaPower?Boolean(gestorRef.current.getEstado().emMartingale||Number(gestorRef.current.getEstado().deficitRecuperacao||0)>0.01):false;
+  const sonicRecovery=sonic?Boolean(sonicRef.current.getState().inMartingale||Number(sonicRef.current.getState().recoveryDeficit||0)>0.01):false;
+  const recoveryActive=iaRecovery||sonicRecovery;
+  // Na recuperação financeira não aceitamos uma stake parcial:
+  // ou cobrimos todo o défice numa única operação, ou aguardamos saldo suficiente.
+  if(recoveryActive&&desiredStake>maxStakeByBalance+0.001){
+   if(iaPower||sonic)pendingRiskStakeRef.current=null;
+   requested.current=false;
+   requestStartedAt.current=0;
+   stakeReadyRef.current=true;
+   setNotice('Recuperação aguardando saldo suficiente para cobrir todo o défice.');
+   return;
+  }
+  const amount=recoveryActive
+    ? Number(desiredStake.toFixed(2))
+    : Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
   if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
   const applySoros=!iaPower&&!sonic;
   if(!getProposal(symbol,contractTypeStr,amount,1,barrier,applySoros)){
