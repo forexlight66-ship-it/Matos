@@ -60,7 +60,8 @@ export default function AutoBotV4(){
   const result=Number(closed.profit_loss);
   if(!Number.isFinite(id)||id<=0||!Number.isFinite(result))return;
 
-  const executedStake=Math.max(0.35,Number(closed.buy_price)||0.35);
+  const fallbackStake=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():stake;
+  const executedStake=Math.max(0.35,Number(closed.buy_price)>0?Number(closed.buy_price):Number(fallbackStake)||0.35);
   const closedPayout=Number(closed.payout);
   const payoutRatio=executedStake>0&&Number.isFinite(closedPayout)&&closedPayout>executedStake
     ?(closedPayout-executedStake)/executedStake
