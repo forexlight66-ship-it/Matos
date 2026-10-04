@@ -67,7 +67,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
 
   const stakeParaRecuperar = (deficit: number) => {
     const safeDeficit = Math.max(0, Number(deficit) || 0);
-    const objetivo = safeDeficit + stakeBase;
+    const objetivo = safeDeficit;
     const stake = objetivo / Math.max(0.0001, payout);
     return Math.ceil(stake * 100 - 1e-9) / 100;
   };
