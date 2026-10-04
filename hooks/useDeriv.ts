@@ -28,7 +28,56 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
  const resetSoros=useCallback((initialStake=sorosRef.current.initialStake)=>syncSoros(defaultSoros(initialStake)),[syncSoros]);
  const setSorosEnabled=useCallback((enabled:boolean)=>{originalSorosEnabledRef.current=enabled;if(enabled)syncSoros({...sorosRef.current,enabled:true});else syncSoros({...sorosRef.current,enabled:false})},[syncSoros]);
  const setSorosStake=useCallback((initialStake:number)=>{if(!originalSorosEnabledRef.current)return;const value=Math.max(SOROS_MIN,Number(initialStake)||SOROS_MIN);syncSoros(defaultSoros(value))},[syncSoros]);
- const processSorosResult=useCallback((tx:ProfitTransaction)=>{if(!originalSorosEnabledRef.current)return;const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)return;if(processedSorosContractsRef.current.has(id))return;const pnl=calculateProfitLoss(tx);if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;processedSorosContractsRef.current.add(id);const base=Math.max(SOROS_MIN,Number(sorosRef.current.initialStake)||SOROS_MIN);const currentLevel=Math.max(0,Math.min(SOROS_MAX_WINS-1,Math.floor(Number(sorosRef.current.level)||0)));if(pnl<=0){syncSoros(defaultSoros(base));return}if(currentLevel<SOROS_MAX_WINS-1){const currentStake=Math.max(SOROS_MIN,Number(sorosRef.current.stake)||base);const nextStake=Number((currentStake*SOROS_WIN_MULTIPLIER).toFixed(2));const nextLevel=currentLevel+1;syncSoros({level:nextLevel,stake:nextStake,initialStake:base,accumulatedProfit:nextStake-base,lossRetryCount:0,enabled:true,blocked:false});return}syncSoros(defaultSoros(base))},[syncSoros]);
+ const processSorosResult=useCallback((tx:ProfitTransaction)=>{
+  if(!originalSorosEnabledRef.current)return;
+  const id=Number(tx.contract_id);
+  if(!Number.isFinite(id)||id<=0)return;
+  if(processedSorosContractsRef.current.has(id))return;
+
+  const pnl=calculateProfitLoss(tx);
+  if(!Number.isFinite(pnl)||Math.abs(pnl)<0.000001)return;
+  processedSorosContractsRef.current.add(id);
+
+  const base=Math.max(
+   SOROS_MIN,
+   Number(sorosRef.current.initialStake)||SOROS_MIN,
+  );
+  const currentLevel=Math.max(
+   0,
+   Math.min(SOROS_MAX_WINS-1,Math.floor(Number(sorosRef.current.level)||0)),
+  );
+  const executedStake=Math.max(
+   SOROS_MIN,
+   Number(tx.buy_price)>0
+    ?Number(tx.buy_price)
+    :Number(sorosRef.current.stake)||base,
+  );
+
+  if(pnl<=0){
+   // Uma perda encerra o ciclo Soros normal e volta à stake base.
+   syncSoros(defaultSoros(base));
+   return;
+  }
+
+  if(currentLevel<SOROS_MAX_WINS-1){
+   const nextLevel=currentLevel+1;
+   const nextStake=Number(executedStake.toFixed(2));
+   syncSoros({
+    level:nextLevel,
+    stake:nextStake,
+    initialStake:base,
+    accumulatedProfit:Number((nextStake-base).toFixed(2)),
+    lossRetryCount:0,
+    enabled:true,
+    blocked:false
+   });
+   return;
+  }
+
+  // Terceira vitória conclui o ciclo Soros; não altera o valor base.
+  syncSoros(defaultSoros(base));
+ },[syncSoros]);
+
  const notifyClosedTransaction=useCallback((tx:ProfitTransaction)=>{
   const id=Number(tx.contract_id);
   const purchaseTime=Number(tx.purchase_time??0);
