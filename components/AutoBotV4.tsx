@@ -54,7 +54,7 @@ export default function AutoBotV4(){
  const lastPayoutRatioRef=useRef(IA_PAYOUT);
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE}));
  const processClosedTradeImmediately=useCallback((closed:any)=>{
-  if(!running||!closed?.sell_time||!closed?.contract_id)return;
+  if(!running||!closed?.contract_id)return;
   const id=Number(closed.contract_id);
   const result=Number(closed.profit_loss||0);
   if(!Number.isFinite(id)||id<=0||!Number.isFinite(result))return;
