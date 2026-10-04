@@ -32,6 +32,7 @@ export interface EstadoGestorStakeDinamico {
   perdaAcumuladaMartingale?: number;
   deficitRecuperacao?: number;
   ultimaStakeExecutada?: number;
+  payout?: number;
 }
 
 const MIN_STAKE = 0.35;
@@ -252,6 +253,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       perdaAcumuladaMartingale: arredondar(perdaAcumuladaMartingale),
       deficitRecuperacao: arredondar(deficitRecuperacao),
       ultimaStakeExecutada: arredondar(ultimaStakeExecutada),
+      payout: Number(payout.toFixed(6)),
     };
   }
 
@@ -295,6 +297,9 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       MIN_STAKE,
       arredondar(Number(estado.ultimaStakeExecutada) || stakeAtual),
     );
+    if (Number.isFinite(Number(estado.payout)) && Number(estado.payout) > 0) {
+      payout = Number(estado.payout);
+    }
 
     if (deficitRecuperacao > EPS) {
       emMartingale = true;
