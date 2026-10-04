@@ -2,6 +2,7 @@ const SONIC_MIN_STAKE = 0.35;
 const SONIC_MAX_MARTINGALE = 10;
 const SONIC_LOSSES_TO_TRIGGER = 4;
 const SONIC_CONFIRMATION_TRADES = 2;
+const SONIC_SOROS_LEVELS = 3;
 
 export interface SonicStakeState {
   baseStake: number;
@@ -13,6 +14,9 @@ export interface SonicStakeState {
   accumulationStake: number;
   inMartingale: boolean;
   confirmationWins: number;
+  inSoros: boolean;
+  sorosLevel: number;
+  sorosStake: number;
 }
 
 function clampBaseStake(value: number) {
@@ -37,8 +41,10 @@ export function calculateSonicAccumulation(baseStake: number, lossesToTrigger = 
   return roundStake(safeBase * Math.pow(2, steps));
 }
 
-export function calculateSonicStake(baseStake: number, state: Pick<SonicStakeState, 'inMartingale' | 'accumulationStake'>) {
-  return state.inMartingale ? roundStake(state.accumulationStake) : roundStake(baseStake);
+export function calculateSonicStake(baseStake: number, state: Pick<SonicStakeState, 'inMartingale' | 'accumulationStake' | 'inSoros' | 'sorosStake'>) {
+  if (state.inMartingale) return roundStake(state.accumulationStake);
+  if (state.inSoros) return roundStake(state.sorosStake);
+  return roundStake(baseStake);
 }
 
 export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?: number }) {
@@ -50,11 +56,14 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
   let inMartingale = false;
   let accumulationStake = calculateSonicAccumulation(baseStake);
   let confirmationWins = 0;
+  let inSoros = false;
+  let sorosLevel = 0;
+  let sorosStake = roundStake(baseStake);
 
   const getState = (): SonicStakeState => ({
     baseStake,
     level,
-    stake: calculateSonicStake(baseStake, { inMartingale, accumulationStake }),
+    stake: calculateSonicStake(baseStake, { inMartingale, accumulationStake, inSoros, sorosStake }),
     maxLevel,
     minStake: SONIC_MIN_STAKE,
     consecutiveLosses,
@@ -69,15 +78,23 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
     inMartingale = false;
     accumulationStake = calculateSonicAccumulation(baseStake);
     confirmationWins = 0;
+    inSoros = false;
+    sorosLevel = 0;
+    sorosStake = roundStake(baseStake);
     return getState();
   };
 
   const recordResult = (profitLoss: number) => {
     const loss = Number(profitLoss) < 0;
 
-    // Operação normal: somente depois da 4ª perda consecutiva entra no Martingale.
+    // Operação normal:
+    // - perda: encerra o ciclo Soros e acumula as perdas para o Martingale;
+    // - vitória: mantém EXATAMENTE a mesma stake para o próximo nível Soros.
     if (!inMartingale) {
       if (loss) {
+        inSoros = false;
+        sorosLevel = 0;
+        sorosStake = roundStake(baseStake);
         consecutiveLosses += 1;
         if (consecutiveLosses >= SONIC_LOSSES_TO_TRIGGER) {
           inMartingale = true;
@@ -87,6 +104,14 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
         }
       } else {
         consecutiveLosses = 0;
+        if (!inSoros) {
+          inSoros = true;
+          sorosLevel = 1;
+          sorosStake = getState().stake;
+        } else {
+          sorosLevel += 1;
+          if (sorosLevel >= SONIC_SOROS_LEVELS) return reset();
+        }
       }
       return getState();
     }
@@ -129,6 +154,10 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
       inMartingale = Boolean(state.inMartingale) || level >= SONIC_LOSSES_TO_TRIGGER;
       accumulationStake = roundStake(Number(state.accumulationStake) || calculateSonicAccumulation(baseStake));
       confirmationWins = Math.max(0, Math.floor(Number(state.confirmationWins) || 0));
+      inSoros = Boolean(state.inSoros) && !inMartingale;
+      sorosLevel = Math.max(0, Math.min(SONIC_SOROS_LEVELS - 1, Math.floor(Number(state.sorosLevel) || 0)));
+      sorosStake = roundStake(Number(state.sorosStake) || baseStake);
+      if (inSoros && sorosLevel <= 0) sorosLevel = 1;
       return getState();
     },
   };
