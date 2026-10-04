@@ -118,7 +118,8 @@ export default function AutoBotV4(){
    barrier=c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;
    contractTypeStr=TYPES[c];
   }
-  const rawAmount=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake);
+  const sonicMartingale=sonic?sonicRef.current.getState().inMartingale:false;
+  const rawAmount=iaPower?gestorRef.current.proximoStake():(sonic&&sonicMartingale?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake));
   const availableBalance=Number(balance?.balance);
   const maxStakeByBalance=Math.floor(availableBalance*0.5*100)/100;
   if(!Number.isFinite(availableBalance)||availableBalance<=0||maxStakeByBalance<0.35){
@@ -129,7 +130,8 @@ export default function AutoBotV4(){
   }
   const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
   const amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
-  if(!getProposal(symbol,contractTypeStr,amount,1,barrier,!iaPower&&!sonic)){
+  const applySoros=!iaPower&&(!sonic||!sonicMartingale);
+  if(!getProposal(symbol,contractTypeStr,amount,1,barrier,applySoros)){
    requested.current=false;
    requestStartedAt.current=0;
    stakeReadyRef.current=true;
@@ -138,8 +140,8 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(!enabled);setStakeManagerVersion(v=>v+1)};
- const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake});setSorosEnabled(!enabled);setStakeManagerVersion(v=>v+1)};
- const start=()=>{const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return;botArmedRef.current=true;setSorosEnabled(!iaPower&&!sonic);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance*0.5);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});restoreStakeState();const riskBaseStake=Math.min(Math.max(0.35,Number(gestorRef.current.proximoStake())||cappedInitialStake),availableBalance*0.5);sonicRef.current=createSonicStakeManager({baseStake:riskBaseStake});setStakeManagerVersion(v=>v+1);lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();setTicks([]);setSignalNow(null);setRunning(true)};
+ const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake});setSorosEnabled(true);setStakeManagerVersion(v=>v+1)};
+ const start=()=>{const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return;botArmedRef.current=true;setSorosEnabled(!iaPower);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance*0.5);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});restoreStakeState();const riskBaseStake=Math.min(Math.max(0.35,Number(gestorRef.current.proximoStake())||cappedInitialStake),availableBalance*0.5);sonicRef.current=createSonicStakeManager({baseStake:riskBaseStake});setStakeManagerVersion(v=>v+1);lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();setTicks([]);setSignalNow(null);setRunning(true)};
  const stop=()=>{botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setSignalNow(null)};
  const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:'))localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
  const stateStorageKey=`mozhyper-stake-state-v2:${account}:${symbol}:${stake.toFixed(2)}`;
