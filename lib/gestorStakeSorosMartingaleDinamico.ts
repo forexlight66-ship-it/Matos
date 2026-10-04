@@ -241,6 +241,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
 
   function getEstado(): EstadoGestorStakeDinamico {
     const teto = tetoAtivo();
+    const protegido = plAcumuladoSessao >= limiarLucro();
     return {
       nivelSoros,
       stakeAtual: proximoStake(),
@@ -248,7 +249,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       nivelMartingaleAtual,
       plAcumuladoSessao: arredondar(plAcumuladoSessao),
       tetoAtivoAgora: teto,
-      modo: teto === nivelTetoProtegido ? 'PROTEGIDO_1' : 'NORMAL_7',
+      modo: protegido ? 'PROTEGIDO_1' : 'NORMAL_7',
       lucroAcumuladoCicloSoros: arredondar(lucroAcumuladoCicloSoros),
       perdaAcumuladaMartingale: arredondar(perdaAcumuladaMartingale),
       deficitRecuperacao: arredondar(deficitRecuperacao),
