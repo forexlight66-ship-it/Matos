@@ -100,10 +100,14 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         nivelMartingaleAtual += 1;
 
         const teto = tetoAtivo();
-        if (!martingalePermitido() || nivelMartingaleAtual >= teto) {
+        if (!martingalePermitido()) {
           vezesEstourouTeto++;
           resetCiclo();
         } else {
+          // Ao atingir o teto, a recuperação NÃO é encerrada enquanto houver défice.
+          // O nível fica limitado ao teto, mas a stake continua sendo calculada
+          // pelo défice financeiro real até que ele seja totalmente recuperado.
+          if (nivelMartingaleAtual > teto) nivelMartingaleAtual = teto;
           stakeAtual = stakeParaRecuperar(deficitRecuperacao);
         }
         return;
@@ -115,13 +119,10 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         if (deficitRecuperacao <= EPS) {
           resetCiclo();
         } else if (martingalePermitido()) {
-          nivelMartingaleAtual += 1;
-          if (nivelMartingaleAtual >= tetoAtivo()) {
-            vezesEstourouTeto++;
-            resetCiclo();
-          } else {
-            stakeAtual = stakeParaRecuperar(deficitRecuperacao);
-          }
+          const teto = tetoAtivo();
+          // O teto limita o nível, não encerra a recuperação financeira.
+          nivelMartingaleAtual = Math.min(teto, nivelMartingaleAtual + 1);
+          stakeAtual = stakeParaRecuperar(deficitRecuperacao);
         } else {
           resetCiclo();
         }
