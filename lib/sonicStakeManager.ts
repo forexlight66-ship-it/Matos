@@ -70,6 +70,9 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
     accumulationStake,
     inMartingale,
     confirmationWins,
+    inSoros,
+    sorosLevel,
+    sorosStake,
   });
 
   const reset = () => {
