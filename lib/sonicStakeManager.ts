@@ -92,7 +92,7 @@ export function createSonicStakeManager(input?: {
     const safeDeficit = Math.max(0, Number(deficit) || 0);
     // Recupera todo o défice financeiro e ainda procura uma unidade
     // de lucro equivalente à stake base.
-    const objective = safeDeficit + baseStake;
+    const objective = safeDeficit;
     return roundUpStake(objective / Math.max(0.0001, payout));
   };
 
