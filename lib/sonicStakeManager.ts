@@ -3,6 +3,7 @@ const SONIC_MAX_MARTINGALE = 10;
 const SONIC_LOSSES_TO_TRIGGER = 4;
 const SONIC_CONFIRMATION_TRADES = 2;
 const SONIC_SOROS_LEVELS = 3;
+const SONIC_DEFAULT_PAYOUT = 0.95;
 
 export interface SonicStakeState {
   baseStake: number;
@@ -33,6 +34,10 @@ function roundStake(value: number) {
   return Number(Math.max(SONIC_MIN_STAKE, value).toFixed(2));
 }
 
+function roundUpStake(value: number) {
+  return Number(Math.max(SONIC_MIN_STAKE, Math.ceil(value * 100 - 1e-9) / 100).toFixed(2));
+}
+
 // Após 4 perdas consecutivas, a operação seguinte começa no acumulado 8x da stake base.
 // A partir daí, cada nova perda dobra o valor acumulado até ao nível máximo M10.
 export function calculateSonicAccumulation(baseStake: number, lossesToTrigger = SONIC_LOSSES_TO_TRIGGER) {
@@ -47,8 +52,9 @@ export function calculateSonicStake(baseStake: number, state: Pick<SonicStakeSta
   return roundStake(baseStake);
 }
 
-export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?: number }) {
+export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?: number; payout?: number }) {
   const baseStake = clampBaseStake(input?.baseStake ?? SONIC_MIN_STAKE);
+  let payout = Number.isFinite(Number(input?.payout)) && Number(input?.payout) > 0 ? Number(input?.payout) : SONIC_DEFAULT_PAYOUT;
   const maxLevel = Math.min(SONIC_MAX_MARTINGALE, Math.max(1, Math.floor(input?.maxLevel ?? SONIC_MAX_MARTINGALE)));
 
   let consecutiveLosses = 0;
@@ -59,6 +65,17 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
   let inSoros = false;
   let sorosLevel = 0;
   let sorosStake = roundStake(baseStake);
+
+  const stakeForRecovery = (deficit: number) => {
+    const objective = Math.max(0, Number(deficit) || 0) + baseStake;
+    return roundUpStake(objective / Math.max(0.0001, payout));
+  };
+
+  const atualizarPayout = (newPayout: number) => {
+    if (Number.isFinite(newPayout) && newPayout > 0) payout = Number(newPayout);
+    if (inMartingale && recoveryDeficit > 0) accumulationStake = stakeForRecovery(recoveryDeficit);
+    return getState();
+  };
 
   const getState = (): SonicStakeState => ({
     baseStake,
@@ -88,29 +105,36 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
   };
 
   const recordResult = (profitLoss: number) => {
-    const loss = Number(profitLoss) < 0;
+    const pnl = Number(profitLoss);
+    if (!Number.isFinite(pnl) || Math.abs(pnl) < 0.000001) return getState();
+    const loss = pnl < 0;
 
-    // Operação normal:
-    // - perda: encerra o ciclo Soros e acumula as perdas para o Martingale;
-    // - vitória: mantém EXATAMENTE a mesma stake para o próximo nível Soros.
+    // Fora do Martingale:
+    // perdas consecutivas acumulam o défice do ciclo. Quando chegar à 4ª,
+    // o próximo valor já é calculado para recuperar todo o défice financeiro.
     if (!inMartingale) {
       if (loss) {
         inSoros = false;
         sorosLevel = 0;
         sorosStake = roundStake(baseStake);
         consecutiveLosses += 1;
+        recoveryDeficit = Number((recoveryDeficit + Math.abs(pnl)).toFixed(2));
+
         if (consecutiveLosses >= SONIC_LOSSES_TO_TRIGGER) {
           inMartingale = true;
           level = SONIC_LOSSES_TO_TRIGGER;
-          accumulationStake = calculateSonicAccumulation(baseStake);
+          accumulationStake = stakeForRecovery(recoveryDeficit);
           confirmationWins = 0;
         }
       } else {
         consecutiveLosses = 0;
+        recoveryDeficit = 0;
+
+        // Soros do Sonic: mantém a MESMA stake vencedora nos próximos níveis.
         if (!inSoros) {
           inSoros = true;
           sorosLevel = 1;
-          sorosStake = getState().stake;
+          sorosStake = roundStake(baseStake);
         } else {
           sorosLevel += 1;
           if (sorosLevel >= SONIC_SOROS_LEVELS) return reset();
@@ -119,28 +143,28 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
       return getState();
     }
 
-    // Martingale: qualquer perda antes do nível 10 dobra o valor acumulado.
+    // Martingale com recuperação financeira real.
     if (loss) {
       confirmationWins = 0;
-      if (level >= maxLevel) {
-        // Perdeu no Martingale 10: volta imediatamente para a stake normal.
-        return reset();
-      }
-      level = Math.min(maxLevel, level + 1);
-      accumulationStake = roundStake(accumulationStake * 2);
+      recoveryDeficit = Number((recoveryDeficit + Math.abs(pnl)).toFixed(2));
+      if (level < maxLevel) level += 1;
+      // Mesmo no nível máximo, a recuperação continua enquanto existir défice.
+      accumulationStake = stakeForRecovery(recoveryDeficit);
       return getState();
     }
 
-    // Ganhou antes do nível 10: repetir mais 2 operações no mesmo valor.
-    // Só depois das 2 confirmações vencedoras volta para a stake normal.
-    if (level < maxLevel) {
-      confirmationWins += 1;
-      if (confirmationWins >= SONIC_CONFIRMATION_TRADES) return reset();
-      return getState();
-    }
+    // WIN no Martingale: desconta apenas o lucro líquido REAL recebido.
+    recoveryDeficit = Number(Math.max(0, recoveryDeficit - pnl).toFixed(2));
 
-    // Vitória no Martingale 10: também volta à stake normal após o resultado.
-    return reset();
+    // Não resetar por nível. Só resetar quando todo o défice do ciclo
+    // estiver efetivamente recuperado.
+    if (recoveryDeficit <= 0.01) return reset();
+
+    // Ainda existe défice: permanece no Martingale.
+    if (level < maxLevel) level += 1;
+    accumulationStake = stakeForRecovery(recoveryDeficit);
+    confirmationWins = 0;
+    return getState();
   };
 
   return {
@@ -150,6 +174,7 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
     recordWin: () => recordResult(1),
     recordLoss: () => recordResult(-1),
     reset,
+    atualizarPayout,
     restore: (state?: Partial<SonicStakeState>) => {
       if (!state) return getState();
       consecutiveLosses = Math.max(0, Math.floor(Number(state.consecutiveLosses) || 0));
