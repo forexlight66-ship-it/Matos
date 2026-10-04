@@ -1,9 +1,15 @@
 // ============================================================================
-// IA POWER — SOROS + MARTINGALE COM RECUPERAÇÃO FINANCEIRA REAL
+// IA POWER — CICLO ÚNICO DE SOROS + MARTINGALE + DÉFICE FINANCEIRO REAL
 //
-// A recuperação é baseada no P/L REAL do ciclo, não apenas em WIN/LOSS.
-// Isso evita encerrar o Martingale quando uma vitória ainda deixou um
-// défice financeiro por recuperar.
+// Regras:
+// 1. O P/L REAL da operação é a única fonte de verdade.
+// 2. WIN em Soros repete a stake REAL que venceu.
+// 3. LOSS soma o valor perdido ao défice do ciclo.
+// 4. Durante recuperação, WIN reduz somente o lucro REAL recebido.
+// 5. Enquanto houver défice (> 0.01), o ciclo NÃO é reiniciado.
+// 6. O teto Martingale limita o nível exibido, mas nunca encerra recuperação.
+// 7. A recuperação usa (défice + stake base) / payout.
+// 8. O lucro acumulado da sessão nunca apaga o défice do ciclo.
 // ============================================================================
 
 export interface ConfigGestorStakeDinamico {
@@ -25,20 +31,45 @@ export interface EstadoGestorStakeDinamico {
   lucroAcumuladoCicloSoros?: number;
   perdaAcumuladaMartingale?: number;
   deficitRecuperacao?: number;
+  ultimaStakeExecutada?: number;
 }
 
+const MIN_STAKE = 0.35;
+const EPS = 0.01;
+
 export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
-  const MIN_STAKE = 0.35;
   const stakeBase = Math.max(MIN_STAKE, Number(config.stakeBase) || 0.75);
   let payout = Math.max(0.0001, Number(config.payout) || 0.95);
 
-  function atualizarPayout(novoPayout: number): void {
-    if (Number.isFinite(novoPayout) && novoPayout > 0) payout = novoPayout;
-  }
-  const nivelTetoNormal = 7;
-  const nivelTetoProtegido = 1;
-  const multiplicadorLimiarLucro = Math.max(0, Number(config.multiplicadorLimiarLucro) || 16);
-  const EPS = 0.01;
+  const nivelTetoNormal = Math.max(
+    1,
+    Math.floor(Number(config.nivelTetoNormal) || 7),
+  );
+  const nivelTetoProtegido = Math.max(
+    1,
+    Math.floor(Number(config.nivelTetoProtegido) || 1),
+  );
+  const multiplicadorLimiarLucro = Math.max(
+    0,
+    Number(config.multiplicadorLimiarLucro) || 16,
+  );
+
+  const arredondar = (v: number) => Number(
+    Math.max(0, Number.isFinite(v) ? v : 0).toFixed(2),
+  );
+
+  const limiarLucro = () => stakeBase * multiplicadorLimiarLucro;
+  const tetoAtivo = () =>
+    plAcumuladoSessao >= limiarLucro()
+      ? nivelTetoProtegido
+      : nivelTetoNormal;
+
+  const stakeParaRecuperar = (deficit: number) => {
+    const safeDeficit = Math.max(0, Number(deficit) || 0);
+    const objetivo = safeDeficit + stakeBase;
+    const stake = objetivo / Math.max(0.0001, payout);
+    return Math.ceil(stake * 100 - 1e-9) / 100;
+  };
 
   let nivelSoros = 0;
   let stakeAtual = stakeBase;
@@ -52,20 +83,37 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
   let plAcumuladoSessao = 0;
   let vezesEntrouMartingale = 0;
   let vezesEstourouTeto = 0;
+  let ultimaStakeExecutada = stakeBase;
 
-  const arredondar = (v: number) => +Math.max(0, v).toFixed(2);
-  const limiarLucro = () => stakeBase * multiplicadorLimiarLucro;
-  const tetoAtivo = () => plAcumuladoSessao >= limiarLucro() ? nivelTetoProtegido : nivelTetoNormal;
-  const martingalePermitido = () => plAcumuladoSessao < limiarLucro();
+  const proximoStake = () =>
+    Math.max(MIN_STAKE, arredondar(stakeAtual));
 
-  const stakeParaRecuperar = (deficit: number) => {
-    const objetivo = Math.max(0, deficit) + stakeBase;
-    const stake = objetivo / Math.max(0.0001, payout);
-    return Math.ceil(stake * 100 - 1e-9) / 100;
-  };
+  function atualizarPayout(novoPayout: number) {
+    if (Number.isFinite(novoPayout) && novoPayout > 0) {
+      payout = Number(novoPayout);
+      if (deficitRecuperacao > EPS) {
+        stakeAtual = stakeParaRecuperar(deficitRecuperacao);
+      }
+    }
+  }
 
-  function proximoStake() {
-    return Math.max(MIN_STAKE, arredondar(stakeAtual));
+  function entrarMartingale(deficitInicial?: number) {
+    const deficit = Math.max(
+      EPS,
+      Number(deficitInicial ?? deficitRecuperacao) || 0,
+    );
+    emMartingale = true;
+    nivelSoros = 0;
+    lucroAcumuladoCicloSoros = 0;
+    deficitRecuperacao = arredondar(deficit);
+    nivelMartingaleAtual = Math.min(
+      Math.max(1, nivelMartingaleAtual || 1),
+      nivelTetoNormal,
+    );
+    stakeAtual = Math.max(
+      MIN_STAKE,
+      arredondar(stakeParaRecuperar(deficitRecuperacao)),
+    );
   }
 
   function resetCiclo() {
@@ -76,6 +124,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     nivelMartingaleAtual = 0;
     perdaAcumuladaMartingale = 0;
     deficitRecuperacao = 0;
+    ultimaStakeExecutada = stakeBase;
   }
 
   function resetSessao() {
@@ -83,114 +132,191 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     resetCiclo();
   }
 
-  /** Registra o resultado financeiro REAL da operação. */
-  function registrarResultado(resultado: boolean | number): void {
-    const resultadoNumerico = typeof resultado === 'number'
-      ? (Number.isFinite(resultado) ? resultado : 0)
-      : (resultado ? stakeAtual * payout : -stakeAtual);
+  function registrarResultado(
+    resultado: boolean | number,
+    stakeExecutada?: number,
+  ): void {
+    const resultadoNumerico =
+      typeof resultado === 'number'
+        ? (Number.isFinite(resultado) ? resultado : 0)
+        : (resultado ? stakeAtual * payout : -stakeAtual);
 
-    const ganhou = resultadoNumerico > 0;
-    plAcumuladoSessao += resultadoNumerico;
+    if (!Number.isFinite(resultadoNumerico) || Math.abs(resultadoNumerico) < 0.000001) {
+      return;
+    }
+
+    const actualStake =
+      Number.isFinite(Number(stakeExecutada)) && Number(stakeExecutada) > 0
+        ? Math.max(MIN_STAKE, arredondar(Number(stakeExecutada)))
+        : proximoStake();
+
+    ultimaStakeExecutada = actualStake;
+    plAcumuladoSessao = arredondar(plAcumuladoSessao + resultadoNumerico);
 
     if (emMartingale) {
       if (resultadoNumerico < 0) {
         const perda = Math.abs(resultadoNumerico);
-        perdaAcumuladaMartingale += perda;
-        deficitRecuperacao += perda;
-        nivelMartingaleAtual += 1;
+        perdaAcumuladaMartingale = arredondar(
+          perdaAcumuladaMartingale + perda,
+        );
+        deficitRecuperacao = arredondar(
+          deficitRecuperacao + perda,
+        );
 
         const teto = tetoAtivo();
-        if (!martingalePermitido()) {
-          vezesEstourouTeto++;
-          resetCiclo();
+        if (nivelMartingaleAtual < teto) {
+          nivelMartingaleAtual += 1;
         } else {
-          // Ao atingir o teto, a recuperação NÃO é encerrada enquanto houver défice.
-          // O nível fica limitado ao teto, mas a stake continua sendo calculada
-          // pelo défice financeiro real até que ele seja totalmente recuperado.
-          if (nivelMartingaleAtual > teto) nivelMartingaleAtual = teto;
-          stakeAtual = stakeParaRecuperar(deficitRecuperacao);
+          vezesEstourouTeto += 1;
+          nivelMartingaleAtual = teto;
         }
+
+        stakeAtual = Math.max(
+          MIN_STAKE,
+          arredondar(stakeParaRecuperar(deficitRecuperacao)),
+        );
         return;
       }
 
-      if (ganhou) {
-        deficitRecuperacao = Math.max(0, deficitRecuperacao - resultadoNumerico);
+      if (resultadoNumerico > 0) {
+        deficitRecuperacao = arredondar(
+          Math.max(0, deficitRecuperacao - resultadoNumerico),
+        );
 
         if (deficitRecuperacao <= EPS) {
           resetCiclo();
-        } else if (martingalePermitido()) {
-          const teto = tetoAtivo();
-          // O teto limita o nível, não encerra a recuperação financeira.
-          nivelMartingaleAtual = Math.min(teto, nivelMartingaleAtual + 1);
-          stakeAtual = stakeParaRecuperar(deficitRecuperacao);
-        } else {
-          resetCiclo();
+          return;
         }
+
+        const teto = tetoAtivo();
+        if (nivelMartingaleAtual < teto) {
+          nivelMartingaleAtual += 1;
+        } else {
+          nivelMartingaleAtual = teto;
+        }
+
+        stakeAtual = Math.max(
+          MIN_STAKE,
+          arredondar(stakeParaRecuperar(deficitRecuperacao)),
+        );
         return;
       }
 
-      if (martingalePermitido() && nivelMartingaleAtual < tetoAtivo()) {
-        stakeAtual = stakeParaRecuperar(deficitRecuperacao);
-      } else {
-        resetCiclo();
-      }
       return;
     }
 
-    if (ganhou) {
-      lucroAcumuladoCicloSoros += resultadoNumerico;
+    if (resultadoNumerico < 0) {
+      const perda = Math.abs(resultadoNumerico);
+      perdaAcumuladaMartingale = arredondar(
+        perdaAcumuladaMartingale + perda,
+      );
+      deficitRecuperacao = arredondar(deficitRecuperacao + perda);
+      vezesEntrouMartingale += 1;
+      entrarMartingale(deficitRecuperacao);
+      return;
+    }
+
+    if (resultadoNumerico > 0) {
+      lucroAcumuladoCicloSoros = arredondar(
+        lucroAcumuladoCicloSoros + resultadoNumerico,
+      );
+
+      if (deficitRecuperacao > EPS) {
+        entrarMartingale(deficitRecuperacao);
+        return;
+      }
 
       if (nivelSoros === 0) {
         nivelSoros = 1;
-        stakeAtual = arredondar(stakeBase + lucroAcumuladoCicloSoros);
+        stakeAtual = actualStake;
       } else if (nivelSoros === 1) {
         nivelSoros = 2;
-        stakeAtual = arredondar(stakeBase + lucroAcumuladoCicloSoros);
+        stakeAtual = actualStake;
       } else {
         resetCiclo();
       }
-      return;
-    }
-
-    if (resultadoNumerico < 0 && martingalePermitido()) {
-      emMartingale = true;
-      nivelMartingaleAtual = 1;
-      const perda = Math.abs(resultadoNumerico);
-      perdaAcumuladaMartingale = perda;
-      deficitRecuperacao = perda;
-      vezesEntrouMartingale++;
-      stakeAtual = stakeParaRecuperar(deficitRecuperacao);
-    } else {
-      resetCiclo();
     }
   }
 
   function getEstado(): EstadoGestorStakeDinamico {
+    const teto = tetoAtivo();
     return {
       nivelSoros,
-      stakeAtual: arredondar(stakeAtual),
+      stakeAtual: proximoStake(),
       emMartingale,
       nivelMartingaleAtual,
       plAcumuladoSessao: arredondar(plAcumuladoSessao),
-      tetoAtivoAgora: tetoAtivo(),
-      modo: tetoAtivo() === nivelTetoProtegido ? 'PROTEGIDO_1' : 'NORMAL_7',
+      tetoAtivoAgora: teto,
+      modo: teto === nivelTetoProtegido ? 'PROTEGIDO_1' : 'NORMAL_7',
       lucroAcumuladoCicloSoros: arredondar(lucroAcumuladoCicloSoros),
       perdaAcumuladaMartingale: arredondar(perdaAcumuladaMartingale),
       deficitRecuperacao: arredondar(deficitRecuperacao),
+      ultimaStakeExecutada: arredondar(ultimaStakeExecutada),
     };
   }
 
-  function restaurarEstado(estado: Partial<EstadoGestorStakeDinamico>): void {
-    nivelSoros = Math.max(0, Math.min(2, Math.floor(Number(estado.nivelSoros) || 0)));
-    stakeAtual = Math.max(MIN_STAKE, arredondar(Number(estado.stakeAtual) > 0 ? Number(estado.stakeAtual) : stakeBase));
-    nivelMartingaleAtual = Math.max(0, Math.min(7, Math.floor(Number(estado.nivelMartingaleAtual) || 0)));
-    emMartingale = Boolean(estado.emMartingale) && nivelMartingaleAtual > 0;
-    plAcumuladoSessao = Number.isFinite(Number(estado.plAcumuladoSessao)) ? Number(estado.plAcumuladoSessao) : 0;
-    lucroAcumuladoCicloSoros = Math.max(0, Number(estado.lucroAcumuladoCicloSoros) || 0);
-    perdaAcumuladaMartingale = Math.max(0, Number(estado.perdaAcumuladaMartingale) || 0);
-    deficitRecuperacao = Math.max(0, Number(estado.deficitRecuperacao) || perdaAcumuladaMartingale);
+  function restaurarEstado(estado: Partial<EstadoGestorStakeDinamico>) {
+    nivelSoros = Math.max(
+      0,
+      Math.min(2, Math.floor(Number(estado.nivelSoros) || 0)),
+    );
+    stakeAtual = Math.max(
+      MIN_STAKE,
+      arredondar(
+        Number(estado.stakeAtual) > 0
+          ? Number(estado.stakeAtual)
+          : stakeBase,
+      ),
+    );
+    nivelMartingaleAtual = Math.max(
+      0,
+      Math.min(
+        nivelTetoNormal,
+        Math.floor(Number(estado.nivelMartingaleAtual) || 0),
+      ),
+    );
+    emMartingale = Boolean(estado.emMartingale);
+    plAcumuladoSessao = Number.isFinite(Number(estado.plAcumuladoSessao))
+      ? arredondar(Number(estado.plAcumuladoSessao))
+      : 0;
+    lucroAcumuladoCicloSoros = Math.max(
+      0,
+      arredondar(Number(estado.lucroAcumuladoCicloSoros) || 0),
+    );
+    perdaAcumuladaMartingale = Math.max(
+      0,
+      arredondar(Number(estado.perdaAcumuladaMartingale) || 0),
+    );
+    deficitRecuperacao = Math.max(
+      0,
+      arredondar(Number(estado.deficitRecuperacao) || 0),
+    );
+    ultimaStakeExecutada = Math.max(
+      MIN_STAKE,
+      arredondar(Number(estado.ultimaStakeExecutada) || stakeAtual),
+    );
 
-    if (emMartingale && (!martingalePermitido() || nivelMartingaleAtual >= tetoAtivo())) resetCiclo();
+    if (deficitRecuperacao > EPS) {
+      emMartingale = true;
+      nivelMartingaleAtual = Math.min(
+        Math.max(1, nivelMartingaleAtual || 1),
+        nivelTetoNormal,
+      );
+      nivelSoros = 0;
+      lucroAcumuladoCicloSoros = 0;
+      stakeAtual = Math.max(
+        MIN_STAKE,
+        arredondar(stakeParaRecuperar(deficitRecuperacao)),
+      );
+      return;
+    }
+
+    if (!emMartingale) {
+      nivelMartingaleAtual = 0;
+      perdaAcumuladaMartingale = 0;
+    } else {
+      resetCiclo();
+    }
   }
 
   function getEstatisticas() {
@@ -198,10 +324,12 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       vezesEntrouMartingale,
       vezesEstourouTeto,
       limiarLucro: arredondar(limiarLucro()),
-      tetoNormal: 7,
-      tetoProtegido: 1,
+      tetoNormal: nivelTetoNormal,
+      tetoProtegido: nivelTetoProtegido,
       recuperacaoFinanceiraReal: true,
       martingaleContinuaEnquantoHouverDeficit: true,
+      resetSomenteComDeficitZerado: true,
+      sorosRepeteStakeVencedora: true,
     };
   }
 
@@ -221,10 +349,15 @@ export function criarGestorStake(config: {
   payout: number;
   maxNiveisMartingale?: number;
 }) {
+  const maxLevel = Math.max(
+    1,
+    Math.min(20, Math.floor(Number(config.maxNiveisMartingale) || 7)),
+  );
+
   return criarGestorStakeDinamico({
     stakeBase: config.stakeBase,
     payout: config.payout,
-    nivelTetoNormal: 7,
+    nivelTetoNormal: maxLevel,
     nivelTetoProtegido: 1,
     multiplicadorLimiarLucro: 16,
   });
