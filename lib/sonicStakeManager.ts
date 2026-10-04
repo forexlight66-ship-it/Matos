@@ -18,6 +18,8 @@ export interface SonicStakeState {
   inSoros: boolean;
   sorosLevel: number;
   sorosStake: number;
+  recoveryDeficit: number;
+  payout: number;
 }
 
 function clampBaseStake(value: number) {
@@ -65,6 +67,7 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
   let inSoros = false;
   let sorosLevel = 0;
   let sorosStake = roundStake(baseStake);
+  let recoveryDeficit = 0;
 
   const stakeForRecovery = (deficit: number) => {
     const objective = Math.max(0, Number(deficit) || 0) + baseStake;
@@ -90,6 +93,8 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
     inSoros,
     sorosLevel,
     sorosStake,
+    recoveryDeficit,
+    payout,
   });
 
   const reset = () => {
@@ -101,6 +106,7 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
     inSoros = false;
     sorosLevel = 0;
     sorosStake = roundStake(baseStake);
+    recoveryDeficit = 0;
     return getState();
   };
 
@@ -185,6 +191,9 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
       inSoros = Boolean(state.inSoros) && !inMartingale;
       sorosLevel = Math.max(0, Math.min(SONIC_SOROS_LEVELS - 1, Math.floor(Number(state.sorosLevel) || 0)));
       sorosStake = roundStake(Number(state.sorosStake) || baseStake);
+      recoveryDeficit = Math.max(0, Number(state.recoveryDeficit) || 0);
+      payout = Number.isFinite(Number(state.payout)) && Number(state.payout) > 0 ? Number(state.payout) : payout;
+      if (inMartingale && recoveryDeficit > 0) accumulationStake = stakeForRecovery(recoveryDeficit);
       if (inSoros && sorosLevel <= 0) sorosLevel = 1;
       return getState();
     },
