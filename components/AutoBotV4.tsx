@@ -122,7 +122,9 @@ export default function AutoBotV4(){
    contractTypeStr=TYPES[c];
   }
   const sonicMartingale=sonic?sonicRef.current.getState().inMartingale:false;
-  const rawAmount=iaPower?gestorRef.current.proximoStake():(sonic&&sonicMartingale?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake));
+  // Sonic é a fonte de verdade da stake quando está ativo.
+  // Não usar o estado Soros (que pode estar em 0.01) para a operação Sonic normal.
+  const rawAmount=iaPower?gestorRef.current.proximoStake():(sonic?sonicRef.current.getStake():(Number(soros.stake)>0?soros.stake:stake));
   const availableBalance=Number(balance?.balance);
   const maxStakeByBalance=Math.floor(availableBalance*0.5*100)/100;
   if(!Number.isFinite(availableBalance)||availableBalance<=0||maxStakeByBalance<0.35){
