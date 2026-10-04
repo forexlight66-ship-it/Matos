@@ -115,6 +115,9 @@ export function createSonicStakeManager(input?: { baseStake?: number; maxLevel?:
         }
       } else {
         consecutiveLosses = 0;
+        // Uma vitória antes do Martingale encerra qualquer perda isolada
+        // que não chegou a disparar o ciclo de recuperação.
+        recoveryDeficit = 0;
 
         if (!inSoros) {
           inSoros = true;
