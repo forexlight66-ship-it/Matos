@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#ffffff"/><text x="256" y="300" text-anchor="middle" font-family="Arial,sans-serif" font-size="160" font-weight="700" fill="#ff444f">MH</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#FF444F"/>
+  <g transform="translate(256 256) scale(0.82) translate(-256 -285)">
+    <path d="M190 249 L190 132 L256 197 L322 132 L322 249" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linejoin="miter" stroke-linecap="butt"/>
+    <polygon points="88,424 146,388 190,406 249,351 300,369 358,322 424,285 424,439 88,439" fill="#FFFFFF" fill-opacity="0.2"/>
+    <polyline points="88,424 146,388 190,406 249,351 300,369 358,322 424,285" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="424" cy="285" r="33" fill="none" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="4"/>
+    <circle cx="424" cy="285" r="20" fill="#FFFFFF"/>
+  </g>
+</svg>
