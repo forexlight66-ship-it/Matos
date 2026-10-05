@@ -1,8 +1,5 @@
 const SONIC_MIN_STAKE = 0.35;
 const SONIC_MAX_MARTINGALE = 11;
-const SONIC_LOSSES_TO_TRIGGER = 4;
-const SONIC_CONFIRMATION_TRADES = 2;
-const SONIC_SOROS_LEVELS = 3;
 const SONIC_DEFAULT_PAYOUT = 0.95;
 const EPS = 0.01;
 
@@ -22,6 +19,8 @@ export interface SonicStakeState {
   recoveryDeficit: number;
   payout: number;
   lastExecutedStake: number;
+  sessionPnl: number;
+  profitBuffer: number;
 }
 
 function clampBaseStake(value: number) {
@@ -44,22 +43,24 @@ function roundStake(value: number) {
 }
 
 function roundUpStake(value: number) {
-  return Number(Math.max(SONIC_MIN_STAKE, Math.ceil(value * 100 - 1e-9) / 100).toFixed(2));
+  return Number(
+    Math.max(SONIC_MIN_STAKE, Math.ceil(value * 100 - 1e-9) / 100).toFixed(2),
+  );
 }
 
-export function calculateSonicAccumulation(baseStake: number, lossesToTrigger = SONIC_LOSSES_TO_TRIGGER) {
-  const safeBase = clampBaseStake(baseStake);
-  const steps = Math.max(0, Math.floor(lossesToTrigger) - 1);
-  return roundStake(safeBase * Math.pow(2, steps));
+export function calculateSonicAccumulation(baseStake: number) {
+  // Mantido apenas por compatibilidade com código antigo.
+  // Sonic não usa mais multiplicação fixa (x2/x4/x8).
+  return roundStake(clampBaseStake(baseStake));
 }
 
 export function calculateSonicStake(
   baseStake: number,
-  state: Pick<SonicStakeState, 'inMartingale' | 'accumulationStake' | 'inSoros' | 'sorosStake'>,
+  state: Pick<SonicStakeState, 'inMartingale' | 'accumulationStake'>,
 ) {
-  if (state.inMartingale) return roundStake(state.accumulationStake);
-  if (state.inSoros) return roundStake(state.sorosStake);
-  return roundStake(baseStake);
+  return state.inMartingale
+    ? roundStake(state.accumulationStake)
+    : roundStake(baseStake);
 }
 
 export function createSonicStakeManager(input?: {
@@ -72,93 +73,106 @@ export function createSonicStakeManager(input?: {
     Number.isFinite(Number(input?.payout)) && Number(input?.payout) > 0
       ? Number(input?.payout)
       : SONIC_DEFAULT_PAYOUT;
+
   const maxLevel = Math.min(
     SONIC_MAX_MARTINGALE,
     Math.max(1, Math.floor(input?.maxLevel ?? SONIC_MAX_MARTINGALE)),
   );
 
-  let consecutiveLosses = 0;
   let level = 0;
+  let consecutiveLosses = 0;
   let inMartingale = false;
-  let accumulationStake = calculateSonicAccumulation(baseStake);
+  let accumulationStake = roundStake(baseStake);
   let confirmationWins = 0;
-  let inSoros = false;
-  let sorosLevel = 0;
-  let sorosStake = roundStake(baseStake);
   let recoveryDeficit = 0;
+  let sessionPnl = 0;
   let lastExecutedStake = roundStake(baseStake);
 
   const stakeForRecovery = (deficit: number) => {
     const safeDeficit = Math.max(0, Number(deficit) || 0);
-    // Calcula somente o necessário para o défice.
-    // O limite de recuperação parcial é aplicado pelo executor
-    // de acordo com 50% do saldo disponível no momento da entrada.
-    const objective = safeDeficit;
-    return roundUpStake(objective / Math.max(0.0001, payout));
+    return roundUpStake(safeDeficit / Math.max(0.0001, payout));
   };
 
-  const enterMartingaleRecovery = () => {
-    inMartingale = true;
-    inSoros = false;
-    sorosLevel = 0;
-    sorosStake = roundStake(baseStake);
-    confirmationWins = 0;
-    level = Math.min(maxLevel, Math.max(1, Math.floor(level || SONIC_LOSSES_TO_TRIGGER)));
-    accumulationStake = stakeForRecovery(recoveryDeficit);
+  const syncRiskFromSessionPnl = () => {
+    recoveryDeficit = roundMoney(Math.max(0, -sessionPnl));
+
+    if (recoveryDeficit > EPS) {
+      inMartingale = true;
+      accumulationStake = stakeForRecovery(recoveryDeficit);
+    } else {
+      inMartingale = false;
+      recoveryDeficit = 0;
+      accumulationStake = roundStake(baseStake);
+      level = 0;
+      consecutiveLosses = 0;
+      confirmationWins = 0;
+    }
   };
 
   const atualizarPayout = (newPayout: number) => {
-    if (Number.isFinite(newPayout) && newPayout > 0) payout = Number(newPayout);
-    if (recoveryDeficit > EPS) accumulationStake = stakeForRecovery(recoveryDeficit);
+    if (Number.isFinite(newPayout) && newPayout > 0) {
+      payout = Number(newPayout);
+      if (recoveryDeficit > EPS) {
+        accumulationStake = stakeForRecovery(recoveryDeficit);
+      }
+    }
     return getState();
   };
 
-  const getState = (): SonicStakeState => ({
-    baseStake,
-    level,
-    stake: calculateSonicStake(baseStake, {
-      inMartingale,
+  const getState = (): SonicStakeState => {
+    const deficit = roundMoney(Math.max(0, -sessionPnl));
+    const profitBuffer = roundMoney(Math.max(0, sessionPnl));
+
+    return {
+      baseStake,
+      level,
+      stake: calculateSonicStake(baseStake, {
+        inMartingale,
+        accumulationStake,
+      }),
+      maxLevel,
+      minStake: SONIC_MIN_STAKE,
+      consecutiveLosses,
       accumulationStake,
-      inSoros,
-      sorosStake,
-    }),
-    maxLevel,
-    minStake: SONIC_MIN_STAKE,
-    consecutiveLosses,
-    accumulationStake,
-    inMartingale,
-    confirmationWins,
-    inSoros,
-    sorosLevel,
-    sorosStake,
-    recoveryDeficit: roundMoney(recoveryDeficit),
-    payout,
-    lastExecutedStake,
-  });
+      inMartingale,
+      confirmationWins,
+      // Sonic nunca usa Soros interno.
+      inSoros: false,
+      sorosLevel: 0,
+      sorosStake: roundStake(baseStake),
+      recoveryDeficit: deficit,
+      payout,
+      lastExecutedStake,
+      sessionPnl: roundMoney(sessionPnl),
+      profitBuffer,
+    };
+  };
 
   const reset = () => {
-    consecutiveLosses = 0;
     level = 0;
+    consecutiveLosses = 0;
     inMartingale = false;
-    accumulationStake = calculateSonicAccumulation(baseStake);
+    accumulationStake = roundStake(baseStake);
     confirmationWins = 0;
-    inSoros = false;
-    sorosLevel = 0;
-    sorosStake = roundStake(baseStake);
     recoveryDeficit = 0;
+    sessionPnl = 0;
     lastExecutedStake = roundStake(baseStake);
     return getState();
   };
 
   /**
-   * Registra o P/L REAL e a stake REAL executada.
+   * Sonic usa o P/L FINANCEIRO ACUMULADO como fonte única de verdade.
    *
-   * Regras:
-   * - WIN no Soros: a próxima operação repete exatamente a stake vencedora.
-   * - LOSS: acrescenta o valor perdido ao défice do ciclo.
-   * - WIN parcial durante recuperação: reduz apenas o P/L REAL recebido.
-   * - Nunca reinicia um ciclo enquanto recoveryDeficit > 0.
-   * - O teto Martingale limita o nível, nunca apaga o défice.
+   * Exemplo:
+   *   -1 x 6  => sessão = -6
+   *   +7      => sessão = +1 (défice zerado + colchão de +1)
+   *   +1      => sessão = +2 (colchão de +2)
+   *   -1      => sessão = +1 -> continua na stake base
+   *   -1      => sessão =  0 -> continua na stake base
+   *   -1      => sessão = -1 -> agora começa a recuperação
+   *
+   * O lucro acumulado não é apagado quando o défice é recuperado.
+   * Um novo Martingale só nasce quando o P/L acumulado realmente volta abaixo de zero.
    */
   const recordResult = (profitLoss: number, executedStake?: number) => {
     const pnl = Number(profitLoss);
@@ -168,77 +182,44 @@ export function createSonicStakeManager(input?: {
       Number.isFinite(Number(executedStake)) && Number(executedStake) > 0
         ? roundStake(Number(executedStake))
         : getState().stake;
+
     lastExecutedStake = actualStake;
+    sessionPnl = roundMoney(sessionPnl + pnl);
 
     if (pnl < 0) {
-      const wasInSoros = inSoros;
-      recoveryDeficit = roundMoney(recoveryDeficit + Math.abs(pnl));
       consecutiveLosses += 1;
-      inSoros = false;
-      sorosLevel = 0;
-      sorosStake = roundStake(baseStake);
-
-      if (!inMartingale) {
-        // A sequência base mantém o gatilho tradicional de 4 perdas.
-        // Uma perda ocorrida durante Soros, porém, quebra o Soros e entra
-        // imediatamente em recuperação financeira.
-        if (wasInSoros || consecutiveLosses >= SONIC_LOSSES_TO_TRIGGER) {
-          enterMartingaleRecovery();
-        } else {
-          accumulationStake = calculateSonicAccumulation(baseStake);
+      confirmationWins = 0;
+      if (recoveryDeficit <= EPS) {
+        // Ainda existem lucros acumulados? Consome esse colchão primeiro.
+        if (sessionPnl >= -EPS) {
+          recoveryDeficit = 0;
+          inMartingale = false;
+          accumulationStake = roundStake(baseStake);
+          level = 0;
+          return getState();
         }
-      } else {
-        if (level < maxLevel) level += 1;
-        level = Math.min(level, maxLevel);
-        accumulationStake = stakeForRecovery(recoveryDeficit);
-        confirmationWins = 0;
+
+        inMartingale = true;
+        level = Math.min(maxLevel, Math.max(1, level + 1));
+      } else if (level < maxLevel) {
+        level += 1;
+      }
+
+      syncRiskFromSessionPnl();
+      if (inMartingale) {
+        level = Math.min(maxLevel, Math.max(1, level));
       }
       return getState();
     }
 
-    // WIN recebido fora do Martingale pode reduzir um défice pendente.
-    if (!inMartingale && recoveryDeficit > EPS) {
-      recoveryDeficit = roundMoney(Math.max(0, recoveryDeficit - pnl));
-      consecutiveLosses = 0;
-
-      if (recoveryDeficit <= EPS) {
-        // O ciclo foi totalmente recuperado; começa novo ciclo na base.
-        return reset();
-      }
-
-      // Vitória parcial não apaga o défice: entra em recuperação imediatamente.
-      enterMartingaleRecovery();
-      accumulationStake = stakeForRecovery(recoveryDeficit);
+    // WIN: o P/L positivo primeiro recupera o défice acumulado.
+    // Qualquer excedente permanece como colchão financeiro.
+    if (pnl > 0) {
       confirmationWins += 1;
+      syncRiskFromSessionPnl();
       return getState();
     }
 
-    if (inMartingale) {
-      recoveryDeficit = roundMoney(Math.max(0, recoveryDeficit - pnl));
-
-      if (recoveryDeficit <= EPS) {
-        confirmationWins += 1;
-        return reset();
-      }
-
-      if (level < maxLevel) level += 1;
-      level = Math.min(level, maxLevel);
-      accumulationStake = stakeForRecovery(recoveryDeficit);
-      confirmationWins += 1;
-      return getState();
-    }
-
-    // Sem défice: Soros repete exatamente a stake REAL que venceu.
-    consecutiveLosses = 0;
-    if (!inSoros) {
-      inSoros = true;
-      sorosLevel = 1;
-      sorosStake = actualStake;
-    } else {
-      sorosLevel += 1;
-      sorosStake = actualStake;
-      if (sorosLevel >= SONIC_SOROS_LEVELS) return reset();
-    }
     return getState();
   };
 
@@ -253,37 +234,42 @@ export function createSonicStakeManager(input?: {
     restore: (state?: Partial<SonicStakeState>) => {
       if (!state) return getState();
 
-      consecutiveLosses = Math.max(0, Math.floor(Number(state.consecutiveLosses) || 0));
       level = normalizeLevel(Number(state.level), maxLevel);
-      inMartingale = Boolean(state.inMartingale) || Number(state.recoveryDeficit) > EPS;
-      accumulationStake = roundStake(
-        Number(state.accumulationStake) || calculateSonicAccumulation(baseStake),
-      );
-      confirmationWins = Math.max(0, Math.floor(Number(state.confirmationWins) || 0));
-      inSoros = Boolean(state.inSoros) && !inMartingale;
-      sorosLevel = Math.max(
+      consecutiveLosses = Math.max(
         0,
-        Math.min(SONIC_SOROS_LEVELS - 1, Math.floor(Number(state.sorosLevel) || 0)),
+        Math.floor(Number(state.consecutiveLosses) || 0),
       );
-      sorosStake = roundStake(Number(state.sorosStake) || baseStake);
-      recoveryDeficit = roundMoney(Math.max(0, Number(state.recoveryDeficit) || 0));
-      lastExecutedStake = roundStake(Number(state.lastExecutedStake) || sorosStake || baseStake);
+      inMartingale = Boolean(state.inMartingale);
+      accumulationStake = roundStake(
+        Number(state.accumulationStake) || baseStake,
+      );
+      confirmationWins = Math.max(
+        0,
+        Math.floor(Number(state.confirmationWins) || 0),
+      );
+      recoveryDeficit = roundMoney(
+        Math.max(0, Number(state.recoveryDeficit) || 0),
+      );
+      lastExecutedStake = roundStake(
+        Number(state.lastExecutedStake) || baseStake,
+      );
+      sessionPnl = roundMoney(
+        Number.isFinite(Number(state.sessionPnl))
+          ? Number(state.sessionPnl)
+          : -recoveryDeficit,
+      );
 
-      if (
-        Number.isFinite(Number(state.payout)) &&
-        Number(state.payout) > 0
-      ) {
+      if (Number.isFinite(Number(state.payout)) && Number(state.payout) > 0) {
         payout = Number(state.payout);
       }
 
-      if (recoveryDeficit > EPS) {
-        enterMartingaleRecovery();
-        accumulationStake = stakeForRecovery(recoveryDeficit);
-        level = Math.min(Math.max(SONIC_LOSSES_TO_TRIGGER, level || SONIC_LOSSES_TO_TRIGGER), maxLevel);
-      } else if (inSoros && sorosLevel <= 0) {
-        sorosLevel = 1;
-      } else if (!inMartingale && !inSoros) {
-        accumulationStake = calculateSonicAccumulation(baseStake);
+      syncRiskFromSessionPnl();
+
+      if (inMartingale) {
+        level = Math.min(
+          maxLevel,
+          Math.max(1, normalizeLevel(level, maxLevel)),
+        );
       }
 
       return getState();
@@ -291,4 +277,4 @@ export function createSonicStakeManager(input?: {
   };
 }
 
-export { SONIC_MIN_STAKE, SONIC_MAX_MARTINGALE as SONIC_MAX_LEVEL, SONIC_CONFIRMATION_TRADES };
+export { SONIC_MIN_STAKE, SONIC_MAX_MARTINGALE as SONIC_MAX_LEVEL };
