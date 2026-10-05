@@ -32,7 +32,7 @@ export default function LoadingScreen() {
         <div style={styles.detail}>A verificar a sua sessão...</div>
       </section>
       </div>
-      <style>{`@keyframes mh-loading-spin { to { transform: rotate(360deg); } } @keyframes mh-loading-border { to { stroke-dashoffset: -100; } } @keyframes mh-loading-cardspin { to { transform: rotate(360deg); }`}</style>
+      <style>{`@keyframes mh-loading-spin { to { transform: rotate(360deg); } } @keyframes mh-loading-border { to { stroke-dashoffset: -100; } } @keyframes mh-loading-cardspin { to { transform: rotate(360deg); } }`}</style>
     </main>
   );
 }
