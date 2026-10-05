@@ -76,7 +76,6 @@ export default function IASonic() {
   const requestedRef = useRef(false);
   const lastContractRef = useRef<number | null>(null);
   const lastProcessedRef = useRef<number | null>(null);
-  const executedStakeRef = useRef(MIN_STAKE);
 
   const {
     tick,
@@ -155,7 +154,6 @@ export default function IASonic() {
   useEffect(() => {
     if (!enabled || !proposal || buying || activeContractId !== null) return;
     requestedRef.current = false;
-    executedStakeRef.current = stake;
     buy(proposal.id, proposal.ask_price);
     setTicks([]);
     setSignalStrength(0);
@@ -220,7 +218,6 @@ export default function IASonic() {
       setBaseStake(Number(normalized.toFixed(2)));
       setLevel(0);
       setRecoveryDeficit(0);
-      executedStakeRef.current = Number(normalized.toFixed(2));
       setTicks([]);
       setSignalStrength(0);
       setStatus('IA Sonic ON');
@@ -233,7 +230,6 @@ export default function IASonic() {
       requestedRef.current = false;
       setRecoveryDeficit(0);
       setLevel(0);
-      executedStakeRef.current = baseStake;
       setTicks([]);
       setSignalStrength(0);
       setStatus('IA Sonic OFF');
