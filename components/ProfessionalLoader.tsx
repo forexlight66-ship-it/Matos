@@ -39,7 +39,7 @@ export default function ProfessionalLoader({ stage = 'auth', detail, progress, c
     <div className={compact ? 'mh-loader mh-loader-compact' : 'mh-loader'} role="status" aria-live="polite">
       <div className="mh-loader-card">
         <div className="mh-loader-brand" aria-label="MozHyper">
-          <div className="mh-loader-mark">M</div>
+          <img src="/icon.svg?v=2" width="44" height="44" className="mh-loader-mark" alt="MozHyper" />
           <div>
             <div className="mh-loader-name">Moz<span>Hyper</span></div>
             <div className="mh-loader-caption">DIGITS TRADING</div>
