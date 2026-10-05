@@ -136,9 +136,7 @@ export function createSonicStakeManager(input?: {
       level = 0;
     }
 
-    const visibleDeficit = inMartingale
-      ? roundMoney(Math.max(0, -sessionPnl))
-      : 0;
+    const visibleDeficit = inMartingale ? roundMoney(recoveryDeficit) : 0;
 
     return {
       baseStake,
@@ -207,7 +205,11 @@ export function createSonicStakeManager(input?: {
       confirmationWins = 0;
 
       if (inMartingale) {
-        recoveryDeficit = roundMoney(Math.max(0, -sessionPnl));
+        // A recuperação é sempre de todo o défice atual em uma única
+        // operação. Se esta operação perder, o valor perdido é somado
+        // integralmente ao défice e a próxima stake é recalculada para
+        // tentar recuperar o novo défice total de uma vez.
+        recoveryDeficit = roundMoney(recoveryDeficit + actualStake);
         if (level < maxLevel) level += 1;
         level = Math.min(maxLevel, Math.max(SONIC_LOSSES_TO_TRIGGER, level));
         accumulationStake = stakeForRecovery(recoveryDeficit);
@@ -222,14 +224,17 @@ export function createSonicStakeManager(input?: {
       }
 
       // 4º loss: começa a recuperação financeira.
+      // A primeira stake de recovery é calculada para que UM único WIN
+      // cubra todo o défice acumulado até aqui.
       enterRecovery();
       return getState();
     }
 
     if (pnl > 0) {
       if (inMartingale) {
-        // O lucro real reduz diretamente o défice.
-        recoveryDeficit = roundMoney(Math.max(0, -sessionPnl));
+        // O lucro real reduz diretamente o défice. A recuperação termina
+        // somente quando todo o défice financeiro é compensado.
+        recoveryDeficit = roundMoney(Math.max(0, recoveryDeficit - pnl));
         confirmationWins += 1;
 
         if (recoveryDeficit <= EPS) {
@@ -306,7 +311,11 @@ export function createSonicStakeManager(input?: {
           SONIC_LOSSES_TO_TRIGGER,
           consecutiveLosses,
         );
-        recoveryDeficit = roundMoney(Math.max(0, -sessionPnl));
+        // Mantém o défice financeiro salvo como fonte de verdade. Em
+        // estados antigos que não o tenham, usa sessionPnl como fallback.
+        recoveryDeficit = roundMoney(
+          recoveryDeficit > EPS ? recoveryDeficit : Math.max(0, -sessionPnl),
+        );
         if (recoveryDeficit > EPS) {
           accumulationStake = stakeForRecovery(recoveryDeficit);
           level = Math.min(
