@@ -8,7 +8,7 @@
 // 4. Durante recuperação, WIN reduz somente o lucro REAL recebido.
 // 5. Enquanto houver défice (> 0.01), o ciclo NÃO é reiniciado.
 // 6. O teto Martingale limita o nível exibido, mas nunca encerra recuperação.
-// 7. A recuperação usa défice / payout, com recuperação parcial limitada a $40 por operação.
+// 7. A recuperação usa défice / payout. O limite de recuperação parcial é aplicado dinamicamente pelo saldo disponível.
 // 8. O lucro acumulado da sessão nunca apaga o défice do ciclo.
 // ============================================================================
 
@@ -36,7 +36,6 @@ export interface EstadoGestorStakeDinamico {
 }
 
 const MIN_STAKE = 0.35;
-const MAX_RECOVERY_STAKE = 40;
 const EPS = 0.01;
 
 export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
@@ -70,7 +69,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
     const safeDeficit = Math.max(0, Number(deficit) || 0);
     const objetivo = safeDeficit;
     const stake = objetivo / Math.max(0.0001, payout);
-    return Math.min(MAX_RECOVERY_STAKE, Math.ceil(stake * 100 - 1e-9) / 100);
+    return Math.ceil(stake * 100 - 1e-9) / 100;
   };
 
   let nivelSoros = 0;
