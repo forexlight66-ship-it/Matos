@@ -4,6 +4,7 @@ const SONIC_LOSSES_TO_TRIGGER = 4;
 const SONIC_CONFIRMATION_TRADES = 2;
 const SONIC_SOROS_LEVELS = 3;
 const SONIC_DEFAULT_PAYOUT = 0.95;
+const SONIC_MAX_RECOVERY_STAKE = 40;
 const EPS = 0.01;
 
 export interface SonicStakeState {
@@ -90,10 +91,13 @@ export function createSonicStakeManager(input?: {
 
   const stakeForRecovery = (deficit: number) => {
     const safeDeficit = Math.max(0, Number(deficit) || 0);
-    // Recupera todo o défice financeiro e ainda procura uma unidade
-    // de lucro equivalente à stake base.
+    // Recuperação parcial: calcula o necessário para o défice,
+    // mas nunca expõe mais de $40 numa única operação.
     const objective = safeDeficit;
-    return roundUpStake(objective / Math.max(0.0001, payout));
+    return Math.min(
+      SONIC_MAX_RECOVERY_STAKE,
+      roundUpStake(objective / Math.max(0.0001, payout)),
+    );
   };
 
   const enterMartingaleRecovery = () => {
