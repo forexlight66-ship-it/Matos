@@ -7,5 +7,5 @@
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "orientation": "portrait",
-  "icons": [{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "icons": [{"src":"/icon.svg?v=2","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
 }
