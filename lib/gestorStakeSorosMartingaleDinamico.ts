@@ -357,7 +357,7 @@ export function criarGestorStake(config: {
 }) {
   const maxLevel = Math.max(
     1,
-    Math.min(20, Math.floor(Number(config.maxNiveisMartingale) || 7)),
+    Math.min(20, Math.floor(Number(config.maxNiveisMartingale) || 11)),
   );
 
   return criarGestorStakeDinamico({
