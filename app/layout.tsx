@@ -9,10 +9,10 @@ import RiskDisclosure from '@/components/RiskDisclosure';
 export const metadata = {
   title: 'MozHyper',
   description: 'MozHyper',
-  manifest: '/manifest.webmanifest',
+  manifest: '/manifest.webmanifest?v=2',
   themeColor: '#0e0e0e',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MozHyper' },
-  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  icons: { icon: '/icon.svg?v=2', apple: '/icon.svg?v=2' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
