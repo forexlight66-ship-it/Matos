@@ -6,6 +6,7 @@ import { useDeriv } from '@/hooks/useDeriv';
 const MIN_STAKE = 0.35;
 const MAX_LEVEL = 20;
 const MAX_BASE_STAKE = 10;
+const DEFAULT_PAYOUT = 0.95;
 const SIGNAL_TICKS = 5;
 const SIGNAL_THRESHOLD = 65;
 const CONTRACT_TYPE = 'DIGITEVEN';
@@ -64,6 +65,7 @@ export default function IASonic() {
   const [account, setAccount] = useState<'demo' | 'real'>('demo');
   const [baseStake, setBaseStake] = useState(MIN_STAKE);
   const [level, setLevel] = useState(0);
+  const [recoveryDeficit, setRecoveryDeficit] = useState(0);
   const [ticks, setTicks] = useState<number[]>([]);
   const [pipSize, setPipSize] = useState<number | undefined>();
   const [signalStrength, setSignalStrength] = useState(0);
@@ -74,6 +76,7 @@ export default function IASonic() {
   const requestedRef = useRef(false);
   const lastContractRef = useRef<number | null>(null);
   const lastProcessedRef = useRef<number | null>(null);
+  const executedStakeRef = useRef(MIN_STAKE);
 
   const {
     tick,
@@ -90,10 +93,17 @@ export default function IASonic() {
     setSorosEnabled,
   } = useDeriv(account);
 
-  const stake = useMemo(
-    () => Number((baseStake * Math.pow(2, Math.min(level, MAX_LEVEL))).toFixed(2)),
-    [baseStake, level]
-  );
+  const stake = useMemo(() => {
+    if (recoveryDeficit > 0.01) {
+      return Number(
+        Math.max(
+          MIN_STAKE,
+          Math.ceil((recoveryDeficit / DEFAULT_PAYOUT) * 100 - 1e-9) / 100,
+        ).toFixed(2),
+      );
+    }
+    return Number(baseStake.toFixed(2));
+  }, [baseStake, recoveryDeficit]);
 
   useEffect(() => {
     setSorosEnabled(false);
@@ -145,6 +155,7 @@ export default function IASonic() {
   useEffect(() => {
     if (!enabled || !proposal || buying || activeContractId !== null) return;
     requestedRef.current = false;
+    executedStakeRef.current = stake;
     buy(proposal.id, proposal.ask_price);
     setTicks([]);
     setSignalStrength(0);
@@ -165,14 +176,39 @@ export default function IASonic() {
     setTicks([]);
     setSignalStrength(0);
 
-    if (profit < 0) {
-      const nextLevel = Math.min(MAX_LEVEL, level + 1);
-      setLevel(nextLevel);
-      setNotice(`LOSS · nível ${nextLevel}/${MAX_LEVEL} · próxima $${Number((baseStake * Math.pow(2, nextLevel)).toFixed(2)).toFixed(2)}`);
-    } else {
-      setLevel(0);
-      setNotice(`WIN · reset para $${baseStake.toFixed(2)}`);
-    }
+    if (!Number.isFinite(profit) || Math.abs(profit) < 0.000001) return;
+
+    // O P/L REAL é a única fonte de verdade do ciclo.
+    setRecoveryDeficit(previous => {
+      const nextDeficit = Number(
+        Math.max(0, previous + (profit < 0 ? Math.abs(profit) : -profit)).toFixed(2),
+      );
+
+      if (profit < 0) {
+        const nextLevel = Math.min(MAX_LEVEL, level + 1);
+        setLevel(nextLevel);
+        const nextStake = Math.max(
+          MIN_STAKE,
+          Math.ceil((nextDeficit / DEFAULT_PAYOUT) * 100 - 1e-9) / 100,
+        );
+        setNotice(
+          `LOSS · défice ${nextDeficit.toFixed(2)} · nível ${nextLevel}/${MAX_LEVEL} · próxima ${nextStake.toFixed(2)}`,
+        );
+      } else if (nextDeficit <= 0.01) {
+        setLevel(0);
+        setNotice(`WIN · défice recuperado · reset para ${baseStake.toFixed(2)}`);
+      } else {
+        const nextStake = Math.max(
+          MIN_STAKE,
+          Math.ceil((nextDeficit / DEFAULT_PAYOUT) * 100 - 1e-9) / 100,
+        );
+        setNotice(
+          `WIN parcial · défice ${nextDeficit.toFixed(2)} · próxima ${nextStake.toFixed(2)}`,
+        );
+      }
+
+      return nextDeficit;
+    });
   }, [enabled, profitTransactions, level, baseStake]);
 
   const toggle = () => {
@@ -183,6 +219,8 @@ export default function IASonic() {
       const normalized = Math.min(MAX_BASE_STAKE, Math.max(MIN_STAKE, Number.isFinite(saved) ? saved : MIN_STAKE));
       setBaseStake(Number(normalized.toFixed(2)));
       setLevel(0);
+      setRecoveryDeficit(0);
+      executedStakeRef.current = Number(normalized.toFixed(2));
       setTicks([]);
       setSignalStrength(0);
       setStatus('IA Sonic ON');
@@ -193,6 +231,9 @@ export default function IASonic() {
       takeControlOfCoreBot(true);
     } else {
       requestedRef.current = false;
+      setRecoveryDeficit(0);
+      setLevel(0);
+      executedStakeRef.current = baseStake;
       setTicks([]);
       setSignalStrength(0);
       setStatus('IA Sonic OFF');
@@ -219,7 +260,7 @@ export default function IASonic() {
         <div className="ia-sonic-top">
           <div>
             <div className="ia-sonic-title">⚡ IA SONIC</div>
-            <div className="ia-sonic-sub">Hyperlite · somente PAR · 5 ticks · gatilho 65% · x2 até nível 20</div>
+            <div className="ia-sonic-sub">Hyperlite · somente PAR · 5 ticks · gatilho 65% · recuperação por défice real</div>
           </div>
           <button className={`ia-sonic-toggle ${enabled ? 'on' : ''}`} type="button" onClick={toggle} aria-label="Ativar ou desativar IA Sonic"><i /></button>
         </div>
@@ -231,7 +272,7 @@ export default function IASonic() {
 
         <div className="ia-sonic-grid">
           <label className="ia-sonic-box"><span className="ia-sonic-label">Stake base</span><input className="ia-sonic-input" type="number" min={MIN_STAKE} max={MAX_BASE_STAKE} step="0.01" value={baseStake} onChange={e=>setBaseStake(Math.max(MIN_STAKE,Math.min(MAX_BASE_STAKE,Number(e.target.value)||MIN_STAKE)))} onBlur={()=>localStorage.setItem('izitrader_stake',String(baseStake))} disabled={enabled}/></label>
-          <div className="ia-sonic-box"><span className="ia-sonic-label">Próxima aposta</span><b className="ia-sonic-value">${stake.toFixed(2)}</b></div>
+          <div className="ia-sonic-box"><span className="ia-sonic-label">Próxima aposta</span><b className="ia-sonic-value">${stake.toFixed(2)}</b><span className="ia-sonic-sub">Défice: ${recoveryDeficit.toFixed(2)}</span></div>
         </div>
 
         <div className="ia-sonic-signal">{notice}</div>
