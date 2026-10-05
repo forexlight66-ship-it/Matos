@@ -10,18 +10,7 @@ export default function LoadingScreen() {
         <rect x="1.5" y="1.5" width="97" height="97" rx="6" fill="none" stroke="#ff444f" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength="100" strokeDasharray="22 78" style={{animation:'mh-loading-border 1.6s linear infinite'}} />
       </svg>
       <section style={styles.card}>
-        <svg style={styles.logo} viewBox="-30 -30 572 572" role="img" aria-label="MozHyper">
-          <rect x="-12" y="-12" width="536" height="536" rx="124" fill="none" stroke="#e7ebef" strokeWidth="14" />
-          <rect x="-12" y="-12" width="536" height="536" rx="124" fill="none" stroke="#ff444f" strokeWidth="14" strokeLinecap="round" pathLength="100" strokeDasharray="22 78" style={{animation:'mh-loading-border 1.4s linear infinite'}} />
-          <rect width="512" height="512" rx="112" fill="#ff444f" />
-          <g transform="translate(256 256) scale(0.82) translate(-256 -285)">
-            <path d="M190 249 L190 132 L256 197 L322 132 L322 249" fill="none" stroke="#fff" strokeWidth="26" strokeLinejoin="miter" />
-            <polygon points="88,424 146,388 190,406 249,351 300,369 358,322 424,285 424,439 88,439" fill="#fff" fillOpacity=".2" />
-            <polyline points="88,424 146,388 190,406 249,351 300,369 358,322 424,285" fill="none" stroke="#fff" strokeWidth="11" strokeLinejoin="round" strokeLinecap="round" />
-            <circle cx="424" cy="285" r="33" fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="4" />
-            <circle cx="424" cy="285" r="20" fill="#fff" />
-          </g>
-        </svg>
+        <img src="/icon.svg" width="66" height="66" style={styles.logo} alt="MozHyper" />
         <div style={styles.brand}>Moz<span>Hyper</span></div>
         <div style={styles.sub}>DIGITS TRADING</div>
         <div style={styles.spinner} aria-hidden="true">
