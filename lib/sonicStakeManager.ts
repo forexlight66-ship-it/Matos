@@ -126,6 +126,16 @@ export function createSonicStakeManager(input?: {
   };
 
   const getState = (): SonicStakeState => {
+    // Invariant: Sonic só pode estar em recuperação a partir da 4ª
+    // perda consecutiva. Isto também protege contra estados antigos
+    // restaurados do localStorage.
+    if (consecutiveLosses < SONIC_LOSSES_TO_TRIGGER) {
+      inMartingale = false;
+      recoveryDeficit = 0;
+      accumulationStake = roundStake(baseStake);
+      level = 0;
+    }
+
     const visibleDeficit = inMartingale
       ? roundMoney(Math.max(0, -sessionPnl))
       : 0;
@@ -291,7 +301,7 @@ export function createSonicStakeManager(input?: {
 
       // Nunca restaura recovery apenas porque existe défice salvo:
       // o estado de recuperação precisa ter sido efetivamente ativado.
-      if (inMartingale) {
+      if (inMartingale && consecutiveLosses >= SONIC_LOSSES_TO_TRIGGER) {
         consecutiveLosses = Math.max(
           SONIC_LOSSES_TO_TRIGGER,
           consecutiveLosses,
@@ -307,6 +317,9 @@ export function createSonicStakeManager(input?: {
           clearCycle();
         }
       } else {
+        // Estado antigo/inconsistente: nunca permitir recuperação antes
+        // da 4ª perda consecutiva.
+        inMartingale = false;
         recoveryDeficit = 0;
         accumulationStake = roundStake(baseStake);
         level = 0;
