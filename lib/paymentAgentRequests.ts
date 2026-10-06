@@ -238,7 +238,7 @@ export async function claimTransfer(id: string) {
   }
 }
 
-export async function completeTransfer(id: string, transactionId: string | null, status: 'completed' | 'failed') {
+export async function completeTransfer(id: string, transactionId: string | null, status: 'completed' | 'failed' | 'transfer_pending') {
   await ensurePaymentRequestSchema();
   const result = await pool.query(
     `UPDATE payment_agent_requests SET status=$2, transaction_id=$3, completed_at=CASE WHEN $2='completed' THEN NOW() ELSE completed_at END WHERE id=$1 RETURNING *`,
