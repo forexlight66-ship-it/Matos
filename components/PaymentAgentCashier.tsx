@@ -459,7 +459,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
           <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
           {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.5 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN</div>}
-          {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.5 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentNumber} · {paymentName}<br/>1 USD = 68 MZN</div>
+          {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.5 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentNumber} · {paymentName}<br/>1 USD = 68 MZN</div>}
         </div>}
 
         {step === 'otp' && <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:16 }}>
