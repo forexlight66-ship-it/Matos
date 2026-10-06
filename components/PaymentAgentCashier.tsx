@@ -533,8 +533,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.paymentMethod}</div>
             <div style={{ display:'flex', gap:8, marginTop:6 }}>
-              <button type="button" onClick={()=>setPaymentMethod('mpesa')} style={{ flex:1, padding:11, borderRadius:11, border: paymentMethod==='mpesa' ? '2px solid #ff4654' : '1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:900 }}>{copy.mpesa}</button>
-              <button type="button" onClick={()=>setPaymentMethod('emola')} style={{ flex:1, padding:11, borderRadius:11, border: paymentMethod==='emola' ? '2px solid #ff4654' : '1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:900 }}>{copy.emola}</button>
+              <button type="button" onClick={()=>setPaymentMethod('mpesa')} aria-label={copy.mpesa} style={{ flex:1, height:82, padding:6, borderRadius:12, border: paymentMethod==='mpesa' ? '2px solid #ff4654' : '1px solid #94a3b8', background:light?'#fff':'#111827', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <img src="/payment-agent/mpesa.svg" alt={copy.mpesa} style={{ width:'100%', height:'68px', objectFit:'contain', display:'block' }} />
+              </button>
+              <button type="button" onClick={()=>setPaymentMethod('emola')} aria-label={copy.emola} style={{ flex:1, height:82, padding:6, borderRadius:12, border: paymentMethod==='emola' ? '2px solid #ff4654' : '1px solid #94a3b8', background:light?'#fff':'#111827', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <img src="/payment-agent/emola.svg" alt={copy.emola} style={{ width:'100%', height:'68px', objectFit:'contain', display:'block' }} />
+              </button>
             </div>
           </div>
           {action === 'withdraw' && <>
