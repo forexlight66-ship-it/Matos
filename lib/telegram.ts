@@ -15,6 +15,7 @@ function token() {
     || process.env.PAYMENTAGENT_TELEGRAM_BOT_TOKEN?.trim()
     || process.env.PAYMENTAGENT_BOT_TOKEN?.trim()
     || process.env.TELEGRAM_BOT_TOKEN_PAYMENT_AGENT?.trim()
+    || process.env.TELEGRAM_BOT_TOKEN2?.trim()
     || '';
 }
 
