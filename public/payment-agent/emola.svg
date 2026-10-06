@@ -1,1 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 300"><g fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round"><rect x="145" y="55" width="145" height="190" rx="20"/><path d="M180 210h75"/><path d="M185 35c20-18 48-15 58 5M205 20c12-12 27-10 34 2"/></g><path d="M315 85l78-60 85 88-78 60z" fill="#fff"/><path d="M345 82l90 95" stroke="#f97824" stroke-width="12"/><text x="525" y="205" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="68" font-weight="700" fill="#fff">e-Mola</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 360">
+<g transform="translate(250 0)">
+<g fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"><rect x="-75" y="55" width="105" height="140" rx="17"/><path d="M-48 168h52"/><path d="M-45 39c16-15 37-12 45 4M-28 27c10-10 22-8 28 2"/></g>
+<path d="M-5 92l62-48 68 70-63 48z" fill="#fff"/>
+<path d="M20 91l72 75" stroke="#f97824" stroke-width="9"/>
+</g>
+<text x="250" y="310" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="62" font-weight="700" fill="#fff">e-Mola</text>
+</svg>
