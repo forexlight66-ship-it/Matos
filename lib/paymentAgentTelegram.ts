@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getPaymentRequest, transitionPaymentRequest, claimTransfer, completeTransfer, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
+import { getPaymentRequest, transitionPaymentRequest, claimTransfer, completeTransfer, revealVerificationCode, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
 import { derivPaymentRequest, transferWalletToOptions, transferOptionsToWallet, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
