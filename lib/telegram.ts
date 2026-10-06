@@ -1,13 +1,16 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 
 function token() {
-  return process.env.TELEGRAM_BOT_TOKEN?.trim() || '';
+  return process.env.PAYMENT_AGENT_TELEGRAM_BOT_TOKEN?.trim()
+    || process.env.TELEGRAM_BOT_TOKEN?.trim()
+    || '';
 }
 
 function chatIds() {
   return Array.from(new Set([
-    process.env.TELEGRAM_AGENT_CHAT_ID?.trim() || '',
-    process.env.TELEGRAM_ADMIN_CHAT_ID?.trim() || '',
+    process.env.PAYMENT_AGENT_TELEGRAM_CHAT_ID?.trim(),
+    process.env.TELEGRAM_AGENT_CHAT_ID?.trim(),
+    process.env.TELEGRAM_ADMIN_CHAT_ID?.trim(),
   ].filter(Boolean)));
 }
 
