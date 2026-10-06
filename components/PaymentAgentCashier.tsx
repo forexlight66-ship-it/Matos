@@ -40,19 +40,24 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [message, setMessage] = useState('');
   const [requestId, setRequestId] = useState('');
   const [agentCurrencies, setAgentCurrencies] = useState<AgentCurrency[]>([]);
+  const [derivNickname, setDerivNickname] = useState('');
 
   useEffect(() => {
     if (!open || !action) return;
-    setStep('form'); setAmount(''); setNickname(''); setCode(''); setBusy(false); setMessage(''); setRequestId('');
+    setStep('form'); setAmount(''); setCode(''); setBusy(false); setMessage(''); setRequestId(''); setDerivNickname('');
   }, [open, action]);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    fetch('/api/payment-agent/profile', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(payload => { if (!cancelled && Array.isArray(payload?.data?.currencies)) setAgentCurrencies(payload.data.currencies); })
-      .catch(() => undefined);
+    Promise.all([
+      fetch('/api/payment-agent/profile', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+      fetch('/api/payment-agent/nickname', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+    ]).then(([profile, nickname]) => {
+      if (cancelled) return;
+      if (Array.isArray(profile?.data?.currencies)) setAgentCurrencies(profile.data.currencies);
+      if (nickname?.nickname) setDerivNickname(String(nickname.nickname));
+    }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [open]);
 
@@ -118,7 +123,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     try {
       const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : '/api/payment-agent/withdraw';
       const body = action === 'deposit'
-        ? { toNickname: nickname.trim(), amount: parseMoney(amount), currency }
+        ? { amount: parseMoney(amount), currency }
         : { amount: parseMoney(amount), currency, verificationCode: code };
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const payload: ApiResult = await response.json().catch(() => ({}));
@@ -150,10 +155,11 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         </div>
 
         {step === 'form' && <>
-          {action === 'deposit' && <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginTop: 14 }}>Nickname Deriv
-            <input value={nickname} onChange={e => setNickname(e.target.value)} autoComplete="off" placeholder="Ex.: ABC123"
-              style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, padding: '12px 13px', borderRadius: 11, border: '1px solid #94a3b8', background: light ? '#fff' : '#111827', color: 'inherit', fontWeight: 800 }} />
-          </label>}
+          {action === 'deposit' && <div style={{ marginTop: 14, padding: 12, borderRadius: 11, border: '1px solid #cbd5e1', background: light ? '#f8fafc' : '#111827' }}>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', opacity: .6, fontWeight: 900 }}>Conta Deriv</div>
+            <div style={{ marginTop: 4, fontSize: 13, fontWeight: 900 }}>{derivNickname || 'A obter…'}</div>
+            <div style={{ marginTop: 4, fontSize: 10, opacity: .62 }}>O depósito será enviado exclusivamente para esta conta autenticada.</div>
+          </div>}
           <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginTop: 14 }}>Valor ({currency})
             <input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00"
               style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, padding: '12px 13px', borderRadius: 11, border: '1px solid #94a3b8', background: light ? '#fff' : '#111827', color: 'inherit', fontWeight: 800 }} />
@@ -162,7 +168,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
         {step === 'confirm' && <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: '1px solid #cbd5e1', background: light ? '#f8fafc' : '#111827' }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', opacity: .6, fontWeight: 900 }}>Confirmar operação</div>
-          {action === 'deposit' && <div style={{ marginTop: 8, fontSize: 13 }}><b>Nickname:</b> {nickname}</div>}
+          {action === 'deposit' && <div style={{ marginTop: 8, fontSize: 13 }}><b>Conta:</b> {derivNickname || '—'}</div>}
           <div style={{ marginTop: 6, fontSize: 15, fontWeight: 900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {currency}</div>
           <div style={{ marginTop: 10, fontSize: 11, opacity: .7 }}>Verifique os dados. A confirmação envia uma operação real ao Payment Agent.</div>
         </div>}
