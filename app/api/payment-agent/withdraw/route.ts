@@ -1,49 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { derivPaymentRequest, getPaymentAgentProfile, getSupportedPaymentAgentCurrencies, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
+import { derivPaymentRequest } from '@/lib/paymentAgent';
+import { refreshAccessToken } from '@/lib/oauth';
+import { createWithdrawRequest } from '@/lib/paymentAgentRequests';
 
 export const dynamic = 'force-dynamic';
 
-function requestId() {
-  return `mh-w-${Date.now()}-${crypto.randomUUID()}`;
-}
-
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-  const agentToken = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
   const token = request.cookies.get('deriv_access_token')?.value;
+  const refreshToken = request.cookies.get('deriv_refresh_token')?.value;
   if (!session || !token) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
   const amount = Number(body.amount);
   const currency = String(body.currency || '').trim().toUpperCase();
   const verificationCode = String(body.verificationCode || '').trim();
-  if (!Number.isFinite(amount) || amount <= 0 || !currency || !/^\d{6}$/.test(verificationCode)) {
-    return NextResponse.json({ error: 'Valor, moeda e código de 6 dígitos são obrigatórios' }, { status: 400 });
+  const paymentMethod = String(body.paymentMethod || '').toLowerCase();
+  const paymentNumber = String(body.paymentNumber || '').trim();
+  const paymentName = String(body.paymentName || '').trim();
+
+  if (!Number.isFinite(amount) || amount <= 0 || currency !== 'USD' || !/^\d{6}$/.test(verificationCode)) {
+    return NextResponse.json({ error: 'Valor USD e código de 6 dígitos são obrigatórios.' }, { status: 400 });
+  }
+  if (paymentMethod !== 'mpesa' && paymentMethod !== 'emola') {
+    return NextResponse.json({ error: 'Escolha M-Pesa ou e-Mola.' }, { status: 400 });
+  }
+  if (!/^\d{9,15}$/.test(paymentNumber.replace(/\s+/g, ''))) {
+    return NextResponse.json({ error: 'Informe um número M-Pesa/e-Mola válido.' }, { status: 400 });
+  }
+  if (paymentName.length < 2) return NextResponse.json({ error: 'Informe o nome do titular do pagamento.' }, { status: 400 });
+  if (!refreshToken) return NextResponse.json({ error: 'A ligação Deriv precisa de refresh token para concluir o pedido após a aprovação.' }, { status: 401 });
+
+  let nickname = '';
+  try {
+    const result = await derivPaymentRequest(token, '/account/v1/nickname', 'GET', undefined, false);
+    nickname = String(result?.data?.nickname || result?.nickname || '').trim();
+  } catch {
+    try {
+      const clientId = process.env.DERIV_APP_ID?.trim();
+      if (!clientId || !refreshToken) throw new Error('OAuth refresh unavailable');
+      const refreshed = await refreshAccessToken(clientId, refreshToken);
+      const result = await derivPaymentRequest(refreshed.access_token, '/account/v1/nickname', 'GET', undefined, false);
+      nickname = String(result?.data?.nickname || result?.nickname || '').trim();
+    } catch {}
   }
 
-  const id = requestId();
-  if (!agentToken) return NextResponse.json({ error: 'Payment Agent is not configured on the server' }, { status: 503 });
+  if (!nickname) {
+    return NextResponse.json({ error: 'Não foi possível obter a conta Deriv autenticada.', code: 'NICKNAME_LOOKUP_FAILED' }, { status: 400 });
+  }
+
   try {
-    const profile = await getPaymentAgentProfile(agentToken);
-    const supportedCurrencies = getSupportedPaymentAgentCurrencies(profile);
-    if (!supportedCurrencies.includes(currency)) {
-      return NextResponse.json({ error: `A moeda ${currency} não é suportada pelo Payment Agent 503.`, code: 'AgentCurrencyUnsupported', supportedCurrencies }, { status: 400 });
-    }
-    const result = await derivPaymentRequest(token, '/payment-agents/v1/withdraw', 'POST', {
-      data: {
-        agent_id: PAYMENT_AGENT_ID,
-        amount: amount.toFixed(2),
-        currency,
-        verification_code: verificationCode,
-        request_id: id,
-      },
+    const row = await createWithdrawRequest({
+      userId: session.id,
+      clientName: session.name,
+      clientEmail: session.email,
+      clientNickname: nickname,
+      amountUsd: Number(amount.toFixed(2)),
+      paymentMethod: paymentMethod as 'mpesa' | 'emola',
+      paymentNumber,
+      paymentName,
+      verificationCode,
+      refreshToken,
     });
-    return NextResponse.json({ ...result, requestId: id }, { headers: { 'Cache-Control': 'no-store' } });
+
+    return NextResponse.json({
+      requestId: row.id,
+      status: row.status,
+      amountUsd: row.amount_usd,
+      localAmountMzn: row.local_amount_mzn,
+      exchangeRate: row.exchange_rate,
+      paymentMethod: row.payment_method,
+      paymentNumber: row.payment_number,
+      paymentName: row.payment_name,
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Falha no levantamento', code: (error as { code?: string })?.code },
-      { status: (error as { status?: number })?.status || 500 },
+      { error: error instanceof Error ? error.message : 'Não foi possível criar o pedido de levantamento' },
+      { status: (error as { status?: number }).status || 500 },
     );
   }
 }
