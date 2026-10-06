@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { derivPaymentRequest, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
+import { derivPaymentRequest } from '@/lib/paymentAgent';
 
 export const dynamic = 'force-dynamic';
 
