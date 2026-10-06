@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { getPaymentAgentProfile, getSupportedPaymentAgentCurrencies } from '@/lib/paymentAgent';
+import { ensurePaymentAgentWebhook } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,9 @@ export async function GET(request: NextRequest) {
   const token = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
   if (!session || !token) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   try {
+    void ensurePaymentAgentWebhook().catch(error => {
+      console.error('[Payment Agent] Telegram webhook setup failed', error instanceof Error ? error.message : String(error));
+    });
     const result = await getPaymentAgentProfile(token);
     const supportedCurrencies = getSupportedPaymentAgentCurrencies(result);
     return NextResponse.json({ ...result, supportedCurrencies }, { headers: { 'Cache-Control': 'no-store' } });
