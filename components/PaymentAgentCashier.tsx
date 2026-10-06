@@ -274,6 +274,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, action, requestId, depositPaid, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
 
+  const actionTitle = action === 'deposit' ? copy.deposit : copy.withdraw;
+
   useEffect(() => {
     if (!open || action !== 'withdraw' || !requestId) return;
 
@@ -321,7 +323,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     onNotice?.(text);
   };
 
-  const actionTitle = action === 'deposit' ? copy.deposit : copy.withdraw;
   const paymentReady = supportedCurrencies.length > 0;
 
   const retryNickname = async () => {
