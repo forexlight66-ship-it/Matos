@@ -31,3 +31,22 @@ export async function derivPaymentRequest(
   }
   return data;
 }
+
+
+export async function getPaymentAgentProfile(token: string) {
+  return derivPaymentRequest(token, `/payment-agents/v1/agents/${PAYMENT_AGENT_ID}`);
+}
+
+export function getSupportedPaymentAgentCurrencies(profile: any): string[] {
+  const currencies = Array.isArray(profile?.data?.currencies)
+    ? profile.data.currencies
+    : Array.isArray(profile?.currencies)
+      ? profile.currencies
+      : [];
+  return [...new Set(
+    currencies
+      .map((item: any) => typeof item === 'string' ? item : item?.currency)
+      .map((value: unknown) => String(value || '').trim().toUpperCase())
+      .filter(Boolean),
+  )];
+}
