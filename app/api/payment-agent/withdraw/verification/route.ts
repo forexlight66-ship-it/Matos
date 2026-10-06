@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { derivPaymentRequest, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   const token = request.cookies.get('deriv_access_token')?.value;
   if (!token) return NextResponse.json({ error: 'Deriv authentication required' }, { status: 401 });
   const body = await request.json().catch(() => ({}));
