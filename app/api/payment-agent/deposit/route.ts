@@ -8,7 +8,13 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-  if (!session || !request.cookies.get('deriv_access_token')?.value || !request.cookies.get('deriv_refresh_token')?.value) {
+  const refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
+  let clientToken = request.cookies.get('deriv_access_token')?.value || '';
+
+  // A sessão da plataforma e a ligação Deriv são a autenticação necessária.
+  // O access token pode ter expirado ou não estar presente; nesse caso,
+  // tenta-se renovar com o refresh token antes de rejeitar o pedido.
+  if (!session || (!clientToken && !refreshToken)) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
 
@@ -24,19 +30,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Escolha M-Pesa ou e-Mola.' }, { status: 400 });
   }
 
-  let clientToken = request.cookies.get('deriv_access_token')?.value || '';
   let nickname = '';
+  let refreshedToken: { access_token: string; refresh_token?: string } | null = null;
   try {
     let result: any;
     try {
       result = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
     } catch (firstError) {
       const first = firstError as { status?: number };
-      const refreshToken = request.cookies.get('deriv_refresh_token')?.value;
       const clientId = process.env.DERIV_APP_ID?.trim();
       if (first.status !== 401 || !refreshToken || !clientId) throw firstError;
-      const refreshed = await refreshAccessToken(clientId, refreshToken);
-      clientToken = refreshed.access_token;
+      refreshedToken = await refreshAccessToken(clientId, refreshToken);
+      clientToken = refreshedToken.access_token;
       result = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
     }
     nickname = String(result?.data?.nickname || result?.nickname || '').trim();
@@ -60,7 +65,7 @@ export async function POST(request: NextRequest) {
       refreshToken: request.cookies.get('deriv_refresh_token')?.value || '',
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       requestId: row.id,
       status: row.status,
       amountUsd: row.amount_usd,
@@ -70,6 +75,19 @@ export async function POST(request: NextRequest) {
       paymentNumber: row.payment_number,
       paymentName: row.payment_name,
     }, { headers: { 'Cache-Control': 'no-store' } });
+
+    if (refreshedToken) {
+      response.cookies.set('deriv_access_token', refreshedToken.access_token, {
+        httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600,
+      });
+      if (refreshedToken.refresh_token) {
+        response.cookies.set('deriv_refresh_token', refreshedToken.refresh_token, {
+          httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30,
+        });
+      }
+    }
+
+    return response;
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Não foi possível criar o pedido de depósito' },
