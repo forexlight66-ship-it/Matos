@@ -229,12 +229,17 @@ export default function AutoBotV4(){
   const iaRecovery=iaPower?Boolean(gestorRef.current.getEstado().emMartingale||Number(gestorRef.current.getEstado().deficitRecuperacao||0)>0.01):false;
   const sonicRecovery=sonic?Boolean(sonicRef.current.getState().inMartingale||Number(sonicRef.current.getState().recoveryDeficit||0)>0.01):false;
   const recoveryActive=iaRecovery||sonicRecovery;
-  // Na recuperação: tenta cobrir todo o défice quando possível.
-  // Se a stake necessária ultrapassar 50% do saldo, usa o máximo seguro
-  // disponível agora e mantém o défice restante para a próxima operação.
-  const amount=recoveryActive
-    ? Math.max(0.35,Math.min(desiredStake,maxStakeByBalance))
-    : Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
+  // Recuperação deve ser uma única operação. Nunca executar uma stake
+  // parcial quando o valor calculado para zerar o défice não cabe no
+  // limite disponível; nesse caso aguarda em vez de criar outra etapa.
+  if(recoveryActive && desiredStake>maxStakeByBalance){
+   requested.current=false;
+   requestStartedAt.current=0;
+   stakeReadyRef.current=true;
+   setNotice('Saldo insuficiente para recuperar o défice numa única operação.');
+   return;
+  }
+  const amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
   if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
   const applySoros=!iaPower&&!sonic;
   if(!getProposal(symbol,contractTypeStr,amount,1,barrier,applySoros)){
