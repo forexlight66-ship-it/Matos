@@ -312,7 +312,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       cancelled = true;
       if (timer) window.clearInterval(timer);
     };
-  }, [open, action, requestId, actionTitle, copy, onNotice]);
+  }, [open, action, requestId, actionTitle, language, onNotice]);
 
   if (!open || !action) return null;
 
