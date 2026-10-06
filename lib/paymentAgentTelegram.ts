@@ -118,7 +118,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
       if (!refreshToken || !clientId) throw new Error('Refresh token do cliente indisponível para transferir Wallet → Options.');
       const refreshed = await refreshAccessToken(clientId, refreshToken);
       if (refreshed.refresh_token) await updateRefreshToken(row.id, refreshed.refresh_token);
-      const platformRequestId = row.platform_transfer_request_id || randomUUID();
+      const platformRequestId = (row.platform_transfer_request_id || randomUUID()) as ReturnType<typeof randomUUID>;
       if (!row.platform_transfer_request_id) await setPlatformTransferRequestId(row.id, platformRequestId);
       try {
         const result = await transferWalletToOptions(refreshed.access_token, Number(row.amount_usd), platformRequestId);
@@ -184,7 +184,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
       if (!refreshToken || !clientId) throw new Error('Refresh token do cliente indisponível para transferir Wallet → Options.');
       const refreshed = await refreshAccessToken(clientId, refreshToken);
       if (refreshed.refresh_token) await updateRefreshToken(id, refreshed.refresh_token);
-      const platformRequestId = pending?.platform_transfer_request_id || randomUUID();
+      const platformRequestId = (pending?.platform_transfer_request_id || randomUUID()) as ReturnType<typeof randomUUID>;
       if (!pending?.platform_transfer_request_id) await setPlatformTransferRequestId(id, platformRequestId);
 
       try {
