@@ -212,6 +212,20 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         perdaAcumuladaMartingale + perda,
       );
       deficitRecuperacao = arredondar(deficitRecuperacao + perda);
+
+      // IA POWER: as 3 primeiras perdas ficam sempre na stake base.
+      // Somente a 4ª perda consecutiva ativa a recuperação.
+      // A partir daí, a próxima operação deve tentar recuperar TODO
+      // o défice atual em uma única operação.
+      const perdasConsecutivas = perdaAcumuladaMartingale > 0
+        ? Math.max(0, Math.round(perdaAcumuladaMartingale / Math.max(MIN_STAKE, stakeBase)))
+        : 0;
+
+      if (!emMartingale && perdasConsecutivas < 4) {
+        stakeAtual = stakeBase;
+        return;
+      }
+
       vezesEntrouMartingale += 1;
       entrarMartingale(deficitRecuperacao);
       return;
