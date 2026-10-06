@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
       'POST',
       {
         data: {
-          agent_id: PAYMENT_AGENT_ID,
           to_nickname: toNickname,
           amount: amount.toFixed(2),
           currency,
