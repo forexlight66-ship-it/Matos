@@ -150,7 +150,26 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    return ta-tb;
   });
 
-  for(const tx of newlyClosed)notifyClosedTransaction(tx);
+  for(const tx of newlyClosed){
+   notifyClosedTransaction(tx);
+
+   // Fallback de encerramento: o profit_table pode confirmar que o contrato
+   // fechou mesmo quando o evento proposal_open_contract de encerramento
+   // foi perdido durante uma atualização/reconexão do WebSocket.
+   if(activeContractRef.current===Number(tx.contract_id)){
+    activeContractRef.current=null;
+    setActiveContractId(null);
+    latestProposalReqRef.current=null;
+    setProposal(null);
+    setBuying(false);
+    setContractClosedSeq(v=>v+1);
+    setContractStage('fechado');
+    window.setTimeout(()=>{
+     if(activeContractRef.current===null)setContractStage('analisando');
+    },1800);
+    wsRef.current?.unsubscribeContract(Number(tx.contract_id));
+   }
+  }
 
   const merged=Array.from(closedContractsRef.current.values())
    .filter(x=>x.sell_time&&Number(x.sell_time)>0)
