@@ -26,7 +26,7 @@ type Copy = {
   processing:string; continue:string; back:string; cancel:string; confirmDeposit:string;
   sendCode:string; confirmWithdraw:string; operation:string; confirm:string; realWarning:string;
   code:string; codeHelp:string; accountHelp:string; fetching:string; closeWindow:string; currency:string; loadingCurrencies:string; unsupportedCurrency:string;
-  invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
+  invalid:string; nicknameMissing:string; nicknameError?:string; retry?:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
   failed:string; accepted:string; request:string; realOperation:string;
