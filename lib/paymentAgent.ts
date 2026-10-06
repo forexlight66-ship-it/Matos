@@ -7,13 +7,14 @@ export async function derivPaymentRequest(
   path: string,
   method: 'GET' | 'POST' | 'PATCH' = 'GET',
   body?: unknown,
+  includeAppId = true,
 ) {
   const headers: Record<string,string> = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
   const appId = process.env.DERIV_APP_ID?.trim();
-  if (appId) headers['Deriv-App-ID'] = appId;
+  if (includeAppId && appId) headers['Deriv-App-ID'] = appId;
 
   const response = await fetch(`${BASE}${path}`, {
     method,
