@@ -47,7 +47,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   } : language === 'es' ? {
     deposit: 'Depositar', withdraw: 'Retirar', paymentAgent: 'Agente de pagos 503', close: 'Cerrar', account: 'Cuenta Deriv', amount: 'Importe', processing: 'Procesando…', continue: 'Continuar', back: 'Volver', cancel: 'Cancelar', confirmDeposit: 'Confirmar depósito', sendCode: 'Enviar código', confirmWithdraw: 'Confirmar retiro', operation: 'Estado de la operación', confirm: 'Confirmar operación', realWarning: 'Verifica los datos. La confirmación envía una operación real al agente de pagos.', code: 'Código de verificación', codeHelp: 'El código corresponde exactamente al importe solicitado.', accountHelp: 'El depósito se enviará exclusivamente a esta cuenta autenticada.', fetching: 'Cargando…', closeWindow: 'Cerrar', invalid: 'Introduce un importe válido.', nicknameMissing: 'No se encontró el nickname de la cuenta Deriv autenticada.', codeDigits: 'El código debe tener exactamente 6 dígitos.', sent: 'Código enviado al contacto registrado en Deriv.', accepted: 'Operación aceptada.', rejected: 'La operación fue rechazada.'
   } : {
-    deposit: 'Depositar', withdraw: 'Levantar', paymentAgent: 'Payment Agent 503', close: 'Fechar', account: 'Conta Deriv', amount: 'Valor', processing: 'A processar…', continue: 'Continuar', back: 'Voltar', cancel: 'Cancelar', confirmDeposit: 'Confirmar depósito', sendCode: 'Enviar código', confirmWithdraw: 'Confirmar levantamento', operation: 'Estado da operação', confirm: 'Confirmar operação', realWarning: '{copy.realWarning}', code: 'Código de verificação', codeHelp: '{copy.codeHelp}', accountHelp: '{copy.accountHelp}', fetching: 'A obter…', closeWindow: 'Fechar', invalid: 'Informe um valor válido.', nicknameMissing: 'A conta Deriv autenticada não disponibilizou o nickname.', codeDigits: 'O código deve ter exatamente 6 dígitos.', sent: 'Código enviado para o contacto registado na Deriv.', accepted: 'Operação aceite.', rejected: 'A operação foi recusada.'
+    deposit: 'Depositar', withdraw: 'Levantar', paymentAgent: 'Payment Agent 503', close: 'Fechar', account: 'Conta Deriv', amount: 'Valor', processing: 'A processar…', continue: 'Continuar', back: 'Voltar', cancel: 'Cancelar', confirmDeposit: 'Confirmar depósito', sendCode: 'Enviar código', confirmWithdraw: 'Confirmar levantamento', operation: 'Estado da operação', confirm: 'Confirmar operação', realWarning: '{copy.realWarning}', code: '{copy.code}', codeHelp: '{copy.codeHelp}', accountHelp: '{copy.accountHelp}', fetching: 'A obter…', closeWindow: 'Fechar', invalid: 'Informe um valor válido.', nicknameMissing: 'A conta Deriv autenticada não disponibilizou o nickname.', codeDigits: 'O código deve ter exatamente 6 dígitos.', sent: 'Código enviado para o contacto registado na Deriv.', accepted: 'Operação aceite.', rejected: 'A operação foi recusada.'
   };
 
   useEffect(() => {
@@ -160,16 +160,16 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <button type="button" disabled={busy} onClick={onClose} aria-label={copy.close} style={{ border: 0, background: 'transparent', color: 'inherit', fontSize: 24, lineHeight: 1, cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.45, marginTop: 16, padding: 12, borderRadius: 12, background: light ? '#f1f5f9' : '#202733' }}>
-          {action === 'deposit' ? 'O depósito é feito pelo Payment Agent diretamente na sua Wallet Deriv. Confirme os dados antes de enviar.' : 'O levantamento move o valor da sua Wallet Deriv para a Wallet do Payment Agent e requer um código de segurança único.'}
+          {action === 'deposit' ? (language === 'en' ? 'The Payment Agent sends the deposit directly to your Deriv Wallet. Check the details before sending.' : language === 'es' ? 'El agente de pagos envía el depósito directamente a tu Wallet Deriv. Comprueba los datos antes de enviar.' : 'O Payment Agent envia o depósito diretamente para a sua Wallet Deriv. Confirme os dados antes de enviar.') : (language === 'en' ? 'The withdrawal moves funds from your Deriv Wallet to the Payment Agent and requires a one-time security code.' : language === 'es' ? 'El retiro mueve fondos de tu Wallet Deriv al agente de pagos y requiere un código de seguridad de un solo uso.' : 'O levantamento move fundos da sua Wallet Deriv para o Payment Agent e requer um código de segurança único.')}
         </div>
 
         {step === 'form' && <>
           {action === 'deposit' && <div style={{ marginTop: 14, padding: 12, borderRadius: 11, border: '1px solid #cbd5e1', background: light ? '#f8fafc' : '#111827' }}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', opacity: .6, fontWeight: 900 }}>{copy.account}</div>
-            <div style={{ marginTop: 4, fontSize: 13, fontWeight: 900 }}>{derivNickname || 'A obter…'}</div>
+            <div style={{ marginTop: 4, fontSize: 13, fontWeight: 900 }}>{derivNickname || copy.fetching}</div>
             <div style={{ marginTop: 4, fontSize: 10, opacity: .62 }}>O depósito será enviado exclusivamente para esta conta autenticada.</div>
           </div>}
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginTop: 14 }}>Valor ({currency})
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginTop: 14 }}>{copy.amount} ({currency})
             <input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00"
               style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, padding: '12px 13px', borderRadius: 11, border: '1px solid #94a3b8', background: light ? '#fff' : '#111827', color: 'inherit', fontWeight: 800 }} />
           </label>
@@ -177,15 +177,15 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
         {step === 'confirm' && <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: '1px solid #cbd5e1', background: light ? '#f8fafc' : '#111827' }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', opacity: .6, fontWeight: 900 }}>{copy.confirm}</div>
-          {action === 'deposit' && <div style={{ marginTop: 8, fontSize: 13 }}><b>Conta:</b> {derivNickname || '—'}</div>}
+          {action === 'deposit' && <div style={{ marginTop: 8, fontSize: 13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
           <div style={{ marginTop: 6, fontSize: 15, fontWeight: 900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {currency}</div>
-          <div style={{ marginTop: 10, fontSize: 11, opacity: .7 }}>Verifique os dados. A confirmação envia uma operação real ao Payment Agent.</div>
+          <div style={{ marginTop: 10, fontSize: 11, opacity: .7 }}>{copy.realWarning}</div>
         </div>}
 
         {step === 'otp' && <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginTop: 16 }}>Código de verificação
           <input autoFocus inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000"
             style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, padding: '13px', borderRadius: 11, border: '1px solid #94a3b8', background: light ? '#fff' : '#111827', color: 'inherit', fontWeight: 900, fontSize: 20, letterSpacing: 6, textAlign: 'center' }} />
-          <span style={{ display: 'block', marginTop: 6, fontSize: 10, opacity: .62 }}>O código corresponde exatamente ao valor solicitado.</span>
+          <span style={{ display: 'block', marginTop: 6, fontSize: 10, opacity: .62 }}>{copy.codeHelp}</span>
         </label>}
 
         {step === 'result' && <div style={{ marginTop: 16, padding: 15, borderRadius: 14, border: '1px solid #22c55e66', background: light ? '#f0fdf4' : '#052e16' }}>
@@ -202,7 +202,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             if (step === 'form') { if (validate()) setStep('confirm'); }
             else if (step === 'confirm') { if (action === 'withdraw') void requestOtp(); else void execute(); }
             else void execute();
-          }} style={{ flex: 1, padding: 12, border: 0, borderRadius: 11, background: '#ff4654', color: '#fff', fontWeight: 900 }}{busy ? copy.processing : primary}/button>
+          }} style={{ flex: 1, padding: 12, border: 0, borderRadius: 11, background: '#ff4654', color: '#fff', fontWeight: 900 }}>{busy ? copy.processing : primary}</button>
         </div>}
 
         {step === 'result' && <button type="button" onClick={onClose} style={{ width: '100%', marginTop: 16, padding: 12, borderRadius: 11, border: '1px solid #64748b', background: 'transparent', color: 'inherit', fontWeight: 800 }}>{copy.closeWindow}</button>}
