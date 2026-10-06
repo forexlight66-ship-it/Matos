@@ -59,7 +59,9 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
 
     if (action === 'confirm') {
       const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'payment_confirmed');
-      await answerTelegramCallback(callbackId, 'Pagamento confirmado.');
+      await answerTelegramCallback(callbackId, 'Pagamento confirmado.').catch(error => {
+        console.error('[Payment Agent Telegram] callback acknowledgement failed', error);
+      });
       await editPaymentMessage(
         query,
         [
@@ -80,7 +82,9 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
 
     if (action === 'reject') {
       const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'rejected');
-      await answerTelegramCallback(callbackId, 'Pedido rejeitado.');
+      await answerTelegramCallback(callbackId, 'Pedido rejeitado.').catch(error => {
+        console.error('[Payment Agent Telegram] callback acknowledgement failed', error);
+      });
       await editPaymentMessage(
         query,
         [
@@ -100,7 +104,9 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
     const paymentAgentToken = agentToken();
     if (!paymentAgentToken) throw new Error('DERIV_PAYMENT_AGENT_TOKEN não está configurado.');
 
-    await answerTelegramCallback(callbackId, 'Transferência a ser processada…');
+    await answerTelegramCallback(callbackId, 'Transferência a ser processada…').catch(error => {
+      console.error('[Payment Agent Telegram] callback acknowledgement failed', error);
+    });
 
     const result = await derivPaymentRequest(
       paymentAgentToken,
