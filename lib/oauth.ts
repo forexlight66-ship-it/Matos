@@ -27,7 +27,7 @@ export function getAuthorizeUrl(
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'trade payment',
+    scope: 'trade payment account_manage',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
