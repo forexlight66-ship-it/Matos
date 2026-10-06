@@ -209,8 +209,6 @@ export async function POST(request: NextRequest) {
 
     const update = await request.json();
     if (update.callback_query) {
-      const handledPaymentAgent = await handlePaymentAgentCallback(update.callback_query);
-      if (handledPaymentAgent) return NextResponse.json({ ok: true });
       await handleCallback(update.callback_query);
       return NextResponse.json({ ok: true });
     }
