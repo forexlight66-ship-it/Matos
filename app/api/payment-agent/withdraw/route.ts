@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { derivPaymentRequest, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
+import { derivPaymentRequest, getPaymentAgentProfile, getSupportedPaymentAgentCurrencies, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +23,11 @@ export async function POST(request: NextRequest) {
 
   const id = requestId();
   try {
+    const profile = await getPaymentAgentProfile(process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim() || '');
+    const supportedCurrencies = getSupportedPaymentAgentCurrencies(profile);
+    if (!supportedCurrencies.includes(currency)) {
+      return NextResponse.json({ error: `A moeda ${currency} não é suportada pelo Payment Agent 503.`, code: 'AgentCurrencyUnsupported', supportedCurrencies }, { status: 400 });
+    }
     const result = await derivPaymentRequest(token, '/payment-agents/v1/withdraw', 'POST', {
       data: {
         agent_id: PAYMENT_AGENT_ID,
