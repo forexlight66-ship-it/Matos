@@ -561,14 +561,20 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           {paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
 
-        {step === 'confirm' && <div style={{ marginTop:16, padding:14, borderRadius:14, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
-          <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
-          {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
-          <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
-          <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
-          {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
-          {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>Valor por receber = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
-        </div>}
+        {step === 'confirm' && <>
+          <style>{`@keyframes paymentConfirmBorderSpin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }`}</style>
+          <div style={{ position:'relative', marginTop:16, padding:2, borderRadius:16, overflow:'hidden', isolation:'isolate', boxShadow:'0 0 18px rgba(255,70,84,.10)' }}>
+            <span aria-hidden="true" style={{ position:'absolute', inset:'-70%', background:'conic-gradient(from 0deg, transparent 0deg, transparent 300deg, #ff4654 334deg, #ff1f3d 350deg, transparent 360deg)', animation:'paymentConfirmBorderSpin 2.4s linear infinite', zIndex:0 }} />
+            <div style={{ position:'relative', zIndex:1, padding:14, borderRadius:14, background:light?'#f8fafc':'#111827' }}>
+              <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
+              {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
+              <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
+              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
+              {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
+              {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>Valor por receber = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
+            </div>
+          </div>
+        </>}
 
         {step === 'otp' && <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:16 }}>
           {copy.code}
