@@ -122,6 +122,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [paymentNumber, setPaymentNumber] = useState('');
   const [paymentName, setPaymentName] = useState('');
   const [depositPaid, setDepositPaid] = useState(false);
+  const [depositStatus, setDepositStatus] = useState<'awaiting_payment' | 'client_marked_paid' | 'payment_confirmed' | 'rejected' | 'completed' | 'failed' | ''>('');
 
   useEffect(() => {
     if (!open || !action) return;
@@ -138,6 +139,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setPaymentNumber('');
     setPaymentName('');
     setDepositPaid(false);
+    setDepositStatus('');
     setSupportedCurrencies([]);
     setPaymentCurrency(currency);
   }, [open, action, currency]);
@@ -244,15 +246,19 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
         const status = String(payload.data?.status || '').toLowerCase();
         if (status === 'payment_confirmed') {
+          setDepositStatus('payment_confirmed');
           setMessage(copy.accepted);
           onNotice?.(copy.accepted);
         } else if (status === 'rejected') {
+          setDepositStatus('rejected');
           setMessage(copy.rejected);
           onNotice?.(copy.rejected);
         } else if (status === 'completed') {
+          setDepositStatus('completed');
           setMessage(copy.depositSuccess);
           onNotice?.(copy.depositSuccess);
         } else if (status === 'failed') {
+          setDepositStatus('failed');
           setMessage(copy.failed);
           onNotice?.(copy.failed);
         }
@@ -386,6 +392,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       const payload: ApiResult = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || copy.failed);
       setDepositPaid(true);
+      setDepositStatus('client_marked_paid');
       setMessage(copy.paymentMarked);
       onNotice?.(copy.paymentMarked);
     } catch (error) {
@@ -527,7 +534,13 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
           {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
           {action === 'deposit' && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
-          {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>{copy.awaitingAgent}</div>}
+          {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
+            {depositStatus === 'payment_confirmed' ? copy.accepted
+              : depositStatus === 'rejected' ? copy.rejected
+              : depositStatus === 'completed' ? copy.depositSuccess
+              : depositStatus === 'failed' ? copy.failed
+              : copy.awaitingAgent}
+          </div>}
         </div>}
 
         {message && step !== 'result' && <div style={{ marginTop:12, padding:10, borderRadius:11, background:light?'#eff6ff':'#172554', fontSize:11 }}>{message}</div>}
