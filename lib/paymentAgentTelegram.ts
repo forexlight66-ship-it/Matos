@@ -183,3 +183,28 @@ export async function verifyPaymentAgentWebhookRequest(request: Request) {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET?.trim() || '';
   return Boolean(expected && request.headers.get('x-telegram-bot-api-secret-token') === expected);
 }
+
+export async function handlePaymentAgentTelegramMessage(message: any) {
+  const chatId = String(message?.chat?.id || '');
+  const agentChatId = configuredAgentChatId();
+  const fromId = String(message?.from?.id || '');
+  if (!agentChatId || chatId !== agentChatId || fromId !== agentChatId) return false;
+
+  const command = String(message?.text || '').trim().toLowerCase();
+  if (!command.startsWith('/start') && command !== '/test' && command !== 'teste') return false;
+
+  await telegramRequest('sendMessage', {
+    chat_id: agentChatId,
+    text: [
+      '✅ <b>Payment Agent 503 — BOT ONLINE</b>',
+      '',
+      'Telegram está ligado ao sistema MozHyper.',
+      'Os próximos pedidos de depósito serão enviados para este chat.',
+      '',
+      'Para confirmar um pagamento, use o botão <b>CONFIRMAR PAGAMENTO</b> no alerta.',
+    ].join('\n'),
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+  });
+  return true;
+}
