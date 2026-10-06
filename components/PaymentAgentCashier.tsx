@@ -334,7 +334,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       return false;
     }
     if (action === 'withdraw') {
-      if (!/^\\d{9,15}$/.test(paymentNumber.replace(/\\s+/g,''))) { showError(copy.recipientNumber); return false; }
+      if (!/^\\d{9,15}$/.test(paymentNumber.replace(/\s+/g,''))) { showError(copy.recipientNumber); return false; }
       if (paymentName.trim().length < 2) { showError(copy.recipientName); return false; }
     }
     return true;
@@ -498,7 +498,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           </div>
           {action === 'withdraw' && <>
             <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>{copy.recipientNumber}
-              <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/\\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+              <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
             <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:12 }}>{copy.recipientName}
               <input value={paymentName} onChange={event=>setPaymentName(event.target.value)} placeholder="Nome do titular" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
