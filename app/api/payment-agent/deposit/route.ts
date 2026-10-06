@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       clientNickname: nickname,
       amountUsd: Number(amount.toFixed(2)),
       paymentMethod: paymentMethod as 'mpesa' | 'emola',
+      refreshToken: request.cookies.get('deriv_refresh_token')?.value || '',
     });
 
     return NextResponse.json({
