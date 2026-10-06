@@ -1,29 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { derivPaymentRequest, getPaymentAgentProfile, getSupportedPaymentAgentCurrencies, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
+import { derivPaymentRequest } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
+import { createDepositRequest } from '@/lib/paymentAgentRequests';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-  if (!session || !request.cookies.get('deriv_access_token')?.value) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
-  const agentToken = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
-  if (!agentToken) return NextResponse.json({ error: 'Payment Agent is not configured on the server' }, { status: 503 });
+  if (!session || !request.cookies.get('deriv_access_token')?.value) {
+    return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  }
 
   const body = await request.json().catch(() => ({}));
   const amount = Number(body.amount);
   const currency = String(body.currency || '').toUpperCase();
+  const paymentMethod = String(body.paymentMethod || '').toLowerCase();
 
-  if (!Number.isFinite(amount) || amount <= 0 || !currency) {
-    return NextResponse.json({ error: 'Amount and currency are required' }, { status: 400 });
+  if (!Number.isFinite(amount) || amount <= 0 || currency !== 'USD') {
+    return NextResponse.json({ error: 'Para o Payment Agent, informe um valor USD válido.' }, { status: 400 });
   }
+  if (paymentMethod !== 'mpesa' && paymentMethod !== 'emola') {
+    return NextResponse.json({ error: 'Escolha M-Pesa ou e-Mola.' }, { status: 400 });
+  }
+
   let clientToken = request.cookies.get('deriv_access_token')?.value || '';
-  let toNickname = '';
+  let nickname = '';
   try {
-    let nicknameResult: any;
+    let result: any;
     try {
-      nicknameResult = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
+      result = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
     } catch (firstError) {
       const first = firstError as { status?: number };
       const refreshToken = request.cookies.get('deriv_refresh_token')?.value;
@@ -31,42 +37,42 @@ export async function POST(request: NextRequest) {
       if (first.status !== 401 || !refreshToken || !clientId) throw firstError;
       const refreshed = await refreshAccessToken(clientId, refreshToken);
       clientToken = refreshed.access_token;
-      nicknameResult = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
+      result = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
     }
-    toNickname = String(nicknameResult?.data?.nickname || nicknameResult?.nickname || '').trim();
+    nickname = String(result?.data?.nickname || result?.nickname || '').trim();
   } catch {}
-  if (!toNickname) return NextResponse.json({ error: 'Não foi possível obter a conta Deriv autenticada. Volte a ligar a Deriv e tente novamente.', code: 'NICKNAME_LOOKUP_FAILED' }, { status: 400 });
+
+  if (!nickname) {
+    return NextResponse.json({
+      error: 'Não foi possível obter a conta Deriv autenticada. Volte a ligar a Deriv e tente novamente.',
+      code: 'NICKNAME_LOOKUP_FAILED',
+    }, { status: 400 });
+  }
 
   try {
-    const profile = await getPaymentAgentProfile(agentToken);
-    const supportedCurrencies = getSupportedPaymentAgentCurrencies(profile);
-    if (!supportedCurrencies.includes(currency)) {
-      return NextResponse.json({
-        error: `A moeda ${currency} não é suportada pelo Payment Agent 503.`,
-        code: 'AgentCurrencyUnsupported',
-        supportedCurrencies,
-      }, { status: 400 });
-    }
-    const requestId = `mh-d-${Date.now()}-${crypto.randomUUID()}`;
-    const result = await derivPaymentRequest(
-      agentToken,
-      '/payment-agents/v1/transfer',
-      'POST',
-      {
-        data: {
-          agent_id: PAYMENT_AGENT_ID,
-          to_nickname: toNickname,
-          amount: amount.toFixed(2),
-          currency,
-          request_id: requestId,
-        },
-      },
-    );
-    return NextResponse.json({ ...result, requestId, recipientNickname: toNickname }, { headers: { 'Cache-Control': 'no-store' } });
+    const row = await createDepositRequest({
+      userId: session.id,
+      clientName: session.name,
+      clientEmail: session.email,
+      clientNickname: nickname,
+      amountUsd: Number(amount.toFixed(2)),
+      paymentMethod: paymentMethod as 'mpesa' | 'emola',
+    });
+
+    return NextResponse.json({
+      requestId: row.id,
+      status: row.status,
+      amountUsd: row.amount_usd,
+      localAmountMzn: row.local_amount_mzn,
+      exchangeRate: row.exchange_rate,
+      paymentMethod: row.payment_method,
+      paymentNumber: row.payment_number,
+      paymentName: row.payment_name,
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Payment Agent deposit failed', code: (error as { code?: string })?.code },
-      { status: (error as { status?: number })?.status || 500 },
+      { error: error instanceof Error ? error.message : 'Não foi possível criar o pedido de depósito' },
+      { status: (error as { status?: number }).status || 500 },
     );
   }
 }
