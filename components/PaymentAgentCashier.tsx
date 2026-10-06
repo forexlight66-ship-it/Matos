@@ -26,7 +26,7 @@ type Copy = {
   processing:string; continue:string; back:string; cancel:string; confirmDeposit:string;
   sendCode:string; confirmWithdraw:string; operation:string; confirm:string; realWarning:string;
   code:string; codeHelp:string; accountHelp:string; fetching:string; closeWindow:string; currency:string; loadingCurrencies:string; unsupportedCurrency:string;
-  invalid:string; nicknameMissing:string; nicknameError?:string; retry?:string; codeDigits:string; sent:string;
+  invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
   failed:string; accepted:string; request:string; realOperation:string;
@@ -80,7 +80,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           confirm:'Confirmar operación', realWarning:'Verifica los datos. La confirmación envía una operación real al agente de pagos.',
           code:'Código de verificación', codeHelp:'El código corresponde exactamente al importe solicitado.',
           accountHelp:'El depósito se enviará exclusivamente a esta cuenta autenticada.', fetching:'Cargando…', closeWindow:'Cerrar',
-          invalid:'Introduce un importe válido.', nicknameMissing:'No se encontró el nickname de la cuenta Deriv autenticada.',
+          invalid:'Introduce un importe válido.', nicknameMissing:'No se encontró el nickname de la cuenta Deriv autenticada.', nicknameError:'No se pudo cargar el nickname de la cuenta Deriv autenticada.', retry:'Reintentar',
           codeDigits:'El código debe tener exactamente 6 dígitos.', sent:'Código enviado al contacto registrado en Deriv.',
           minWithdraw:'El retiro mínimo es', maxWithdraw:'El retiro máximo es',
           depositInfo:'El agente de pagos envía el depósito directamente a tu Wallet Deriv. Comprueba los datos antes de enviar.',
