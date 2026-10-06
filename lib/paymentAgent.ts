@@ -38,15 +38,14 @@ export async function getPaymentAgentProfile(token: string) {
 }
 
 export function getSupportedPaymentAgentCurrencies(profile: any): string[] {
-  const currencies = Array.isArray(profile?.data?.currencies)
+  const currencies: any[] = Array.isArray(profile?.data?.currencies)
     ? profile.data.currencies
     : Array.isArray(profile?.currencies)
       ? profile.currencies
       : [];
-  return [...new Set(
-    currencies
-      .map((item: any) => typeof item === 'string' ? item : item?.currency)
-      .map((value: unknown) => String(value || '').trim().toUpperCase())
-      .filter(Boolean),
-  )];
+  const normalized = currencies
+    .map((item: any) => typeof item === 'string' ? item : item?.currency)
+    .map((value: unknown): string => String(value || '').trim().toUpperCase())
+    .filter((value: string): boolean => Boolean(value));
+  return Array.from(new Set<string>(normalized));
 }
