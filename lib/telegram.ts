@@ -4,7 +4,8 @@ function token() {
   return process.env.PAYMENT_AGENT_TELEGRAM_BOT_TOKEN?.trim()
     || process.env.TELEGRAM_PAYMENT_AGENT_BOT_TOKEN?.trim()
     || process.env.TELEGRAM_BOT_PAYMENT_AGENT_TOKEN?.trim()
-    || process.env.TELEGRAM_BOT_TOKEN?.trim()
+    || process.env.TELEGRAM_PAYMENT_AGENT_TOKEN?.trim()
+    || process.env.PAYMENT_AGENT_BOT_TOKEN?.trim()
     || '';
 }
 
@@ -13,13 +14,27 @@ function chatIds() {
     process.env.PAYMENT_AGENT_TELEGRAM_CHAT_ID?.trim(),
     process.env.TELEGRAM_PAYMENT_AGENT_CHAT_ID?.trim(),
     process.env.TELEGRAM_AGENT_CHAT_ID?.trim(),
-    process.env.TELEGRAM_ADMIN_CHAT_ID?.trim(),
   ].filter(Boolean)));
 }
 
+function webhookSecret() {
+  return process.env.TELEGRAM_WEBHOOK_SECRET?.trim() || '';
+}
+
+function appBaseUrl() {
+  return (
+    process.env.PAYMENT_AGENT_TELEGRAM_WEBHOOK_BASE_URL?.trim()
+    || process.env.RENDER_EXTERNAL_URL?.trim()
+    || process.env.NEXT_PUBLIC_APP_URL?.trim()
+    || 'https://matos-1n.onrender.com'
+  ).replace(/\/$/, '');
+}
+
+let webhookSetup: Promise<void> | null = null;
+
 export async function telegramRequest(method: string, body: Record<string, unknown>) {
   const botToken = token();
-  if (!botToken) throw new Error('TELEGRAM_BOT_TOKEN is not configured');
+  if (!botToken) throw new Error('Payment Agent Telegram bot token is not configured');
   const response = await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -33,9 +48,32 @@ export async function telegramRequest(method: string, body: Record<string, unkno
   return data;
 }
 
+export async function ensurePaymentAgentWebhook() {
+  if (webhookSetup) return webhookSetup;
+  webhookSetup = (async () => {
+    const botToken = token();
+    const secret = webhookSecret();
+    if (!botToken) throw new Error('Payment Agent Telegram bot token is not configured');
+    if (!secret) throw new Error('TELEGRAM_WEBHOOK_SECRET is not configured');
+    const url = `${appBaseUrl()}/api/telegram/payment-agent/webhook`;
+    await telegramRequest('setWebhook', {
+      url,
+      secret_token: secret,
+      allowed_updates: ['callback_query'],
+      drop_pending_updates: false,
+    });
+  })().catch(error => {
+    webhookSetup = null;
+    throw error;
+  });
+  return webhookSetup;
+}
+
 export async function sendAgentAlert(text: string, buttons: Array<Array<{ text: string; callback_data: string }>>) {
   const ids = chatIds();
-  if (!ids.length) throw new Error('TELEGRAM_AGENT_CHAT_ID is not configured');
+  if (!ids.length) throw new Error('Payment Agent Telegram chat ID is not configured');
+
+  await ensurePaymentAgentWebhook();
 
   let lastError: unknown = null;
   for (const id of ids) {
@@ -71,16 +109,17 @@ export async function answerTelegramCallback(callbackQueryId: string, text: stri
   });
 }
 
-export async function editTelegramMessage(chatIdValue: string | number, messageId: number, text: string) {
+export async function editTelegramMessage(chatIdValue: string | number, messageId: number, text: string, buttons?: Array<Array<{ text: string; callback_data: string }>>) {
   return telegramRequest('editMessageText', {
     chat_id: chatIdValue,
     message_id: messageId,
     text,
     parse_mode: 'HTML',
+    reply_markup: buttons ? { inline_keyboard: buttons } : { inline_keyboard: [] },
     disable_web_page_preview: true,
   });
 }
 
 export function telegramConfigured() {
-  return Boolean(token() && chatIds().length);
+  return Boolean(token() && chatIds().length && webhookSecret());
 }
