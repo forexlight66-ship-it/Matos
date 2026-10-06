@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const row = await markDepositPaid(session.id, id);
     try {
       await sendAgentAlert(
-        `🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>\\n\\nCliente: <b>${escapeHtml(row.client_name)}</b>\\nConta Deriv: <b>${escapeHtml(row.client_nickname)}</b>\\nValor: <b>$${row.amount_usd.toFixed(2)} USD</b>\\nCâmbio: <b>1 USD = ${row.exchange_rate.toFixed(0)} MZN</b>\\nA pagar: <b>${row.local_amount_mzn.toFixed(2)} MZN</b>\\nMétodo: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>\\nNúmero: <b>${escapeHtml(row.payment_number || '—')}</b>\\nNome: <b>${escapeHtml(row.payment_name || '—')}</b>\\n\\n⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.`,
+        `🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>\\n\\nCliente: <b>${escapeHtml(row.client_name)}</b>\\nConta Deriv: <b>${escapeHtml(row.client_nickname)}</b>\\nValor: <b>$${Number(row.amount_usd).toFixed(2)} USD</b>\\nCâmbio: <b>1 USD = ${Number(row.exchange_rate).toFixed(0)} MZN</b>\\nA pagar: <b>${Number(row.local_amount_mzn).toFixed(2)} MZN</b>\\nMétodo: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>\\nNúmero: <b>${escapeHtml(row.payment_number || '—')}</b>\\nNome: <b>${escapeHtml(row.payment_name || '—')}</b>\\n\\n⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.`,
         [[
           { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
           { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
