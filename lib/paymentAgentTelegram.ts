@@ -2,6 +2,14 @@ import { getPaymentRequest, transitionPaymentRequest, claimTransfer, completeTra
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
 import { derivPaymentRequest } from '@/lib/paymentAgent';
 
+function callbackBotToken() {
+  return process.env.TELEGRAM_BOT_TOKEN2?.trim()
+    || process.env.PAYMENT_AGENT_TELEGRAM_BOT_TOKEN?.trim()
+    || process.env.TELEGRAM_PAYMENT_AGENT_BOT_TOKEN?.trim()
+    || process.env.TELEGRAM_BOT_TOKEN?.trim()
+    || '';
+}
+
 function configuredAgentChatId() {
   return (
     process.env.PAYMENT_AGENT_TELEGRAM_CHAT_ID?.trim()
