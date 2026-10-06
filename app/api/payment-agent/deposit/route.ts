@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { derivPaymentRequest, getPaymentAgentProfile, getSupportedPaymentAgentCurrencies, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
+import { refreshAccessToken } from '@/lib/oauth';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,13 +18,24 @@ export async function POST(request: NextRequest) {
   if (!Number.isFinite(amount) || amount <= 0 || !currency) {
     return NextResponse.json({ error: 'Amount and currency are required' }, { status: 400 });
   }
-  const clientToken = request.cookies.get('deriv_access_token')?.value;
+  let clientToken = request.cookies.get('deriv_access_token')?.value || '';
   let toNickname = '';
   try {
-    const nicknameResult = await derivPaymentRequest(clientToken || '', '/account/v1/nickname');
-    toNickname = String(nicknameResult?.data?.nickname || '').trim();
+    let nicknameResult: any;
+    try {
+      nicknameResult = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
+    } catch (firstError) {
+      const first = firstError as { status?: number };
+      const refreshToken = request.cookies.get('deriv_refresh_token')?.value;
+      const clientId = process.env.DERIV_APP_ID?.trim();
+      if (first.status !== 401 || !refreshToken || !clientId) throw firstError;
+      const refreshed = await refreshAccessToken(clientId, refreshToken);
+      clientToken = refreshed.access_token;
+      nicknameResult = await derivPaymentRequest(clientToken, '/account/v1/nickname', 'GET', undefined, false);
+    }
+    toNickname = String(nicknameResult?.data?.nickname || nicknameResult?.nickname || '').trim();
   } catch {}
-  if (!toNickname) return NextResponse.json({ error: 'Não foi possível obter a conta Deriv autenticada. Volte a ligar a Deriv e tente novamente.' }, { status: 400 });
+  if (!toNickname) return NextResponse.json({ error: 'Não foi possível obter a conta Deriv autenticada. Volte a ligar a Deriv e tente novamente.', code: 'NICKNAME_LOOKUP_FAILED' }, { status: 400 });
 
   try {
     const profile = await getPaymentAgentProfile(agentToken);
