@@ -29,7 +29,7 @@ type Copy = {
   invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
-  failed:string; accepted:string; request:string; realOperation:string; paymentMethod:string; mpesa:string; emola:string; recipientNumber:string; recipientName:string; exchangeRate:string; localAmount:string; alreadyPaid:string; awaitingAgent:string; paymentMarked:string;
+  failed:string; accepted:string; request:string; realOperation:string; paymentMethod:string; mpesa:string; emola:string; recipientNumber:string; recipientName:string; exchangeRate:string; localAmount:string; alreadyPaid:string; awaitingAgent:string; paymentMarked:string; paymentInstructions:string; transferAmount:string;
 };
 
 interface PaymentAgentCashierProps {
@@ -72,7 +72,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         depositInfo:'Create a deposit request, pay the shown MZN amount, then press “I already paid”. The Payment Agent confirms the payment before the request is processed.',
         withdrawInfo:'Request a withdrawal, provide the M-Pesa/e-Mola destination and the Deriv verification code. The Payment Agent reviews the request before processing.',
         depositSuccess:'Deposit accepted.', withdrawSuccess:'Withdrawal accepted.', pending:'Pending', complete:'Completed',
-        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', realOperation:'This is a real financial operation.', paymentMethod:'Payment method', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Payment number', recipientName:'Account holder name', exchangeRate:'Exchange rate', localAmount:'Amount in MZN', alreadyPaid:'I already paid', awaitingAgent:'Waiting for Payment Agent confirmation.', paymentMarked:'Payment marked as paid. Wait for the agent.', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
+        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', realOperation:'This is a real financial operation.', paymentMethod:'Payment method', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Payment number', recipientName:'Account holder name', exchangeRate:'Exchange rate', localAmount:'Amount in MZN', alreadyPaid:'I already paid', awaitingAgent:'Waiting for Payment Agent confirmation.', paymentMarked:'Payment marked as paid. Wait for the agent.', paymentInstructions:'Make the payment using the details below.', transferAmount:'Amount to transfer', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
       }
     : language === 'es'
       ? {
@@ -88,7 +88,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'Crea el pedido, paga el valor en MZN mostrado y depois pulsa “Ya pagué”. El Payment Agent confirma el pago antes de procesarlo.',
           withdrawInfo:'El retiro mueve fondos de tu Wallet Deriv al agente de pagos y requiere un código de seguridad de un solo uso.',
           depositSuccess:'Depósito aceptado.', withdrawSuccess:'Retiro aceptado.', pending:'Pendiente', complete:'Completado',
-          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
+          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', paymentInstructions:'Realiza el pago con los datos abaixo.', transferAmount:'Importe a transferir', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
         }
       : {
           deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor',
@@ -103,7 +103,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'Crie o pedido, pague o valor em MZN mostrado e depois toque em “JÁ PAGUEI”. O Payment Agent confirma o pagamento antes de processar o pedido.',
           withdrawInfo:'Solicite o levantamento, informe o destino M-Pesa/e-Mola e o código de verificação da Deriv. O Payment Agent analisa o pedido antes de processar.',
           depositSuccess:'Depósito aceite.', withdrawSuccess:'Levantamento aceite.', pending:'Pendente', complete:'Concluída',
-          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
+          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', paymentInstructions:'Faça o pagamento com os dados abaixo.', transferAmount:'Valor a transferir', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
 
   const [step, setStep] = useState<Step>('form');
@@ -558,7 +558,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
           <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
           <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
-          {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.5 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN</div>}
+          {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
           {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.5 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentNumber} · {paymentName}<br/>1 USD = 68 MZN</div>}
         </div>}
 
