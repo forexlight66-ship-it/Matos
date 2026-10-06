@@ -392,7 +392,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
                 </button>
               </div>
             )}
-            {!nicknameError && <div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div>
+            <div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div>
           </div>}
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.currency}</div>
