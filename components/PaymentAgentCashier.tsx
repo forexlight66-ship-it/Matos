@@ -334,7 +334,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       return false;
     }
     if (action === 'withdraw') {
-      if (!/^\\d{9,15}$/.test(paymentNumber.replace(/\s+/g,''))) { showError(copy.recipientNumber); return false; }
+      if (!/^\d{9,15}$/.test(paymentNumber.replace(/\s+/g,''))) { showError(copy.recipientNumber); return false; }
       if (paymentName.trim().length < 2) { showError(copy.recipientName); return false; }
     }
     return true;
