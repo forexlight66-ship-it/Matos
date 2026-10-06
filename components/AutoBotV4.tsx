@@ -225,16 +225,49 @@ export default function AutoBotV4(){
    stakeReadyRef.current=true;
    return;
   }
-  const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
-  const iaRecovery=iaPower?Boolean(gestorRef.current.getEstado().emMartingale||Number(gestorRef.current.getEstado().deficitRecuperacao||0)>0.01):false;
+  const iaState=iaPower?gestorRef.current.getEstado():null;
+  const iaRecovery=iaPower?Boolean(iaState?.emMartingale||Number(iaState?.deficitRecuperacao||0)>0.01):false;
   const sonicRecovery=sonic?Boolean(sonicRef.current.getState().inMartingale||Number(sonicRef.current.getState().recoveryDeficit||0)>0.01):false;
   const recoveryActive=iaRecovery||sonicRecovery;
-  // Se o défice total não couber no limite de saldo disponível,
-  // permitir recuperação parcial usando o máximo permitido pelo saldo.
-  // O gestor mantém o défice restante para a próxima operação.
-  const amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
-  if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
+
+  // Em IA POWER, o payout de recuperação deve ser o payout REAL
+  // da proposta do HyperShield, não o payout padrão/stale de 0.95.
+  // Fazemos uma cotação-semente primeiro; quando a proposta chegar,
+  // o efeito de [proposal] recalcula a stake para recuperar o défice.
+  const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
+  let amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
   const applySoros=!iaPower&&!sonic;
+
+  if(iaPower&&iaRecovery&&proposal){
+    const proposalAsk=Number(proposal.ask_price);
+    const proposalPayout=Number(proposal.payout);
+    const realRatio=proposalAsk>0&&Number.isFinite(proposalPayout)&&proposalPayout>proposalAsk
+      ?(proposalPayout-proposalAsk)/proposalAsk
+      :0;
+    const deficit=Number(iaState?.deficitRecuperacao||0);
+    if(realRatio>0&&deficit>0.01){
+      gestorRef.current.atualizarPayout(realRatio);
+      const exactRecovery=Math.max(0.35,Math.ceil((deficit/realRatio)*100-1e-9)/100);
+      const quotedStake=Math.max(0.35,Number(proposalAsk.toFixed(2)));
+      const tolerance=0.005;
+      if(Math.abs(quotedStake-exactRecovery)>tolerance){
+        amount=Math.max(0.35,Math.min(exactRecovery,maxStakeByBalance));
+        pendingRiskStakeRef.current=Number(amount.toFixed(2));
+        requested.current=false;
+        requestStartedAt.current=Date.now();
+        if(!getProposal(symbol,contractTypeStr,amount,1,barrier,false)){
+          pendingRiskStakeRef.current=null;
+          requested.current=false;
+          requestStartedAt.current=0;
+          stakeReadyRef.current=true;
+        }
+        return;
+      }
+      amount=Math.max(0.35,Math.min(exactRecovery,maxStakeByBalance));
+    }
+  }
+
+  if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
   if(!getProposal(symbol,contractTypeStr,amount,1,barrier,applySoros)){
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
    requested.current=false;
