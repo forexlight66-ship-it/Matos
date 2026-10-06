@@ -34,7 +34,6 @@ function statusLabel(status?: string) {
 export default function PaymentAgentCashier({ open, action, currency, light, onClose, onNotice }: PaymentAgentCashierProps) {
   const [step, setStep] = useState<Step>('form');
   const [amount, setAmount] = useState('');
-  const [nickname, setNickname] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
