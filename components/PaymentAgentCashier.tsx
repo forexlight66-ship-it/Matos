@@ -25,7 +25,7 @@ type Copy = {
   deposit:string; withdraw:string; paymentAgent:string; close:string; account:string; amount:string;
   processing:string; continue:string; back:string; cancel:string; confirmDeposit:string;
   sendCode:string; confirmWithdraw:string; operation:string; confirm:string; realWarning:string;
-  code:string; codeHelp:string; accountHelp:string; fetching:string; closeWindow:string; currency:string; enterNickname:string;
+  code:string; codeHelp:string; accountHelp:string; fetching:string; closeWindow:string; currency:string; loadingCurrencies:string; unsupportedCurrency:string;
   invalid:string; nicknameMissing:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
@@ -70,7 +70,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         depositInfo:'The Payment Agent sends the deposit directly to your Deriv Wallet. Check the details before sending.',
         withdrawInfo:'The withdrawal moves funds from your Deriv Wallet to the Payment Agent and requires a one-time security code.',
         depositSuccess:'Deposit accepted.', withdrawSuccess:'Withdrawal accepted.', pending:'Pending', complete:'Completed',
-        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', realOperation:'This is a real financial operation.', enterNickname:'Enter your Deriv nickname', currency:'Currency'
+        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', realOperation:'This is a real financial operation.', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
       }
     : language === 'es'
       ? {
@@ -86,7 +86,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'El agente de pagos envía el depósito directamente a tu Wallet Deriv. Comprueba los datos antes de enviar.',
           withdrawInfo:'El retiro mueve fondos de tu Wallet Deriv al agente de pagos y requiere un código de seguridad de un solo uso.',
           depositSuccess:'Depósito aceptado.', withdrawSuccess:'Retiro aceptado.', pending:'Pendiente', complete:'Completado',
-          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', realOperation:'Esta es una operación financiera real.', enterNickname:'Introduce tu nickname de Deriv'
+          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', realOperation:'Esta es una operación financiera real.', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
         }
       : {
           deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor',
@@ -101,7 +101,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'O Payment Agent envia o depósito diretamente para a sua Wallet Deriv. Confirme os dados antes de enviar.',
           withdrawInfo:'O levantamento move fundos da sua Wallet Deriv para o Payment Agent e requer um código de segurança único.',
           depositSuccess:'Depósito aceite.', withdrawSuccess:'Levantamento aceite.', pending:'Pendente', complete:'Concluída',
-          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', realOperation:'Esta é uma operação financeira real.', currency:'Moeda', enterNickname:'Informe o nickname da sua conta Deriv'
+          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', realOperation:'Esta é uma operação financeira real.', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
 
   const [step, setStep] = useState<Step>('form');
@@ -114,7 +114,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [supportedCurrencies, setSupportedCurrencies] = useState<string[]>([]);
   const [paymentCurrency, setPaymentCurrency] = useState(currency);
   const [derivNickname, setDerivNickname] = useState('');
-  const [manualNickname, setManualNickname] = useState('');
 
   useEffect(() => {
     if (!open || !action) return;
@@ -127,7 +126,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setDerivNickname('');
     setSupportedCurrencies([]);
     setPaymentCurrency(currency);
-    setManualNickname('');
   }, [open, action, currency]);
 
   useEffect(() => {
@@ -175,12 +173,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       showError(copy.invalid);
       return false;
     }
-    if (action === 'deposit' && !(derivNickname.trim() || manualNickname.trim())) {
+    if (action === 'deposit' && !derivNickname.trim()) {
       showError(copy.nicknameMissing);
       return false;
     }
-    if (!paymentReady) { showError('Não foi possível carregar as moedas suportadas pelo Payment Agent.'); return false; }
-    if (!currencySupported) { showError('A moeda ' + paymentCurrency + ' não é suportada pelo Payment Agent 503.'); return false; }
+    if (!paymentReady) { showError(copy.loadingCurrencies); return false; }
+    if (!currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
     if (action === 'withdraw' && minWithdraw > 0 && value < minWithdraw) {
       showError(copy.minWithdraw + ' ' + minWithdraw.toFixed(2) + ' ' + currency + '.');
       return false;
@@ -303,11 +301,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         {step === 'form' && <>
           {action === 'deposit' && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.account}</div>
-            {derivNickname ? <><div style={{ marginTop:4, fontSize:13, fontWeight:900 }}>{derivNickname}</div><div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div></> : <>
-              <div style={{ marginTop:4, fontSize:10, opacity:.68 }}>{copy.nicknameMissing}</div>
-              <input value={manualNickname} onChange={event=>setManualNickname(event.target.value)} autoComplete="off" placeholder="Ex.: ABC123"
-                style={{ width:'100%', boxSizing:'border-box', marginTop:8, padding:'11px 12px', borderRadius:10, border:'1px solid #94a3b8', background:light?'#fff':'#0f172a', color:'inherit', fontWeight:800 }} />
-            </>}
+            <div style={{ marginTop:4, fontSize:13, fontWeight:900 }}>{derivNickname || copy.fetching}</div>
+            <div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div>
           </div>}
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.currency}</div>
@@ -324,7 +319,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
         {step === 'confirm' && <div style={{ marginTop:16, padding:14, borderRadius:14, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
           <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
-          {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {(derivNickname || manualNickname).trim() || '—'}</div>}
+          {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
           <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
           <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
         </div>}
