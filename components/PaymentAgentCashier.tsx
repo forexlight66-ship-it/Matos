@@ -274,6 +274,46 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, action, requestId, depositPaid, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
 
+  useEffect(() => {
+    if (!open || action !== 'withdraw' || !requestId) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const refreshWithdrawStatus = async () => {
+      try {
+        const response = await fetch(
+          '/api/payment-agent/withdraw/status?request_id=' + encodeURIComponent(requestId),
+          { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } },
+        );
+        const payload: ApiResult = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled) return;
+
+        const status = String(payload.data?.status || '').toLowerCase();
+        if (!status) return;
+
+        const final = status === 'complete' || status === 'rejected' || status === 'failed';
+        setMessage(actionTitle + ': ' + statusText(status, copy) + '.');
+        onNotice?.(actionTitle + ': ' + statusText(status, copy) + '.');
+
+        if (final && timer) {
+          window.clearInterval(timer);
+          timer = undefined;
+        }
+      } catch {
+        // Keep retrying while the withdrawal is pending.
+      }
+    };
+
+    void refreshWithdrawStatus();
+    timer = window.setInterval(() => void refreshWithdrawStatus(), 2500);
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [open, action, requestId, actionTitle, copy, onNotice]);
+
   if (!open || !action) return null;
 
   const showError = (text: string) => {
