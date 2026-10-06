@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { derivPaymentRequest } from '@/lib/paymentAgent';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
+  if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   const token = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
   const requestId = String(request.nextUrl.searchParams.get('request_id') || '').trim();
   if (!token) return NextResponse.json({ error: 'Payment Agent is not configured on the server' }, { status: 503 });
