@@ -202,8 +202,8 @@ Guarde esta senha. Ela será usada para desbloquear o curso.`,
 
 export async function POST(request: NextRequest) {
   try {
-    const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-    if (expectedSecret && request.headers.get('x-telegram-bot-api-secret-token') !== expectedSecret) {
+    const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+    if (!expectedSecret || request.headers.get('x-telegram-bot-api-secret-token') !== expectedSecret) {
       return NextResponse.json({ ok: false }, { status: 401 });
     }
 
