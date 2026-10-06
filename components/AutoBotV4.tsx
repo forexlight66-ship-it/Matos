@@ -113,7 +113,65 @@ export default function AutoBotV4(){
   if((iaPower||sonic)&&Number.isFinite(Number(pendingRiskStakeRef.current)))pendingRiskStakeRef.current=null;
   if(iaPower||sonic)stakeReadyRef.current=true;
  },[running,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake]);
- const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,resetTradingSession}=useDeriv(account,processClosedTradeImmediately); useEffect(()=>{
+ const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,resetTradingSession}=useDeriv(account,processClosedTradeImmediately);
+ const resetAppStateForNewUser=useCallback((userKey:string)=>{
+  const normalized=String(userKey||'').trim().toLowerCase();
+  if(!normalized)return;
+  try{
+   const previous=localStorage.getItem('mozhyper-active-user-v1');
+   if(previous===normalized)return;
+   // Never carry another user's trading/risk state into this session.
+   for(let i=localStorage.length-1;i>=0;i--){
+    const key=localStorage.key(i)||'';
+    if(
+      key.startsWith('mozhyper-stake-state-v2:')||
+      key.startsWith('mozhyper-risk-state-v3:')||
+      key.startsWith('mozhyper-daily-history-v1:')
+    ) localStorage.removeItem(key);
+   }
+   localStorage.setItem('mozhyper-active-user-v1',normalized);
+  }catch{}
+  stopped.current=true;
+  botArmedRef.current=false;
+  requested.current=false;
+  requestStartedAt.current=0;
+  riskAwaitingContractRef.current=null;
+  pendingRiskStakeRef.current=null;
+  stakeReadyRef.current=true;
+  lastProcessedStakeResult.current=null;
+  lastProcessedSonicResult.current=null;
+  lastProcessedRecoveryContractRef.current=null;
+  processedStakeContractsRef.current.clear();
+  processedSonicContractsRef.current.clear();
+  pendingAnalyzerStrategyRef.current=null;
+  setRunning(false);
+  setTicks([]);
+  setSignalNow(null);
+  setLastDigitSeen(null);
+  setTickPipSize(undefined);
+  setDailyHistoryArchive([]);
+  setHistoryOpen(false);
+  setSmartAdvice(null);
+  setAnalyzerNotice(null);
+  setStakeManagerVersion(v=>v+1);
+  gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});
+  sonicRef.current=createSonicStakeManager({baseStake:stake,payout:IA_PAYOUT,maxLevel:maxMartingale});
+  resetTradingSession();
+ },[resetTradingSession,stake,maxMartingale]);
+ useEffect(()=>{
+  let cancelled=false;
+  fetch('/api/auth/me',{cache:'no-store'})
+   .then(r=>r.ok?r.json():null)
+   .then(data=>{
+    if(cancelled)return;
+    const user=data?.user;
+    const identity=String(user?.id??user?.email??'').trim().toLowerCase();
+    if(identity)resetAppStateForNewUser(identity);
+   })
+   .catch(()=>{});
+  return()=>{cancelled=true};
+ },[resetAppStateForNewUser]);
+ useEffect(()=>{
   if(!proposal||!proposal.ask_price)return;
   const ratio=(proposal.payout-proposal.ask_price)/proposal.ask_price;
   if(Number.isFinite(ratio)&&ratio>0){
