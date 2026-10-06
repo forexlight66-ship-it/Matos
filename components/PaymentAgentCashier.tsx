@@ -74,7 +74,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const validate = () => {
     const value = parseMoney(amount);
     if (!Number.isFinite(value) || value <= 0) { showError('Informe um valor válido.'); return false; }
-    if (action === 'deposit' && !nickname.trim()) { showError('Informe o nickname Deriv que receberá o depósito.'); return false; }
+    if (action === 'deposit' && !derivNickname.trim()) { showError('A conta Deriv autenticada não disponibilizou o nickname.'); return false; }
     if (action === 'withdraw' && minWithdraw > 0 && value < minWithdraw) { showError('O mínimo para levantamento é ' + minWithdraw.toFixed(2) + ' ' + currency + '.'); return false; }
     if (action === 'withdraw' && maxWithdraw > 0 && value > maxWithdraw) { showError('O máximo para levantamento é ' + maxWithdraw.toFixed(2) + ' ' + currency + '.'); return false; }
     return true;
