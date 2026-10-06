@@ -47,9 +47,10 @@ function parseMoney(value: string) {
 }
 
 function statusText(status: string | undefined, copy: Copy) {
-  if (status === 'complete') return copy.complete;
+  if (status === 'complete' || status === 'completed') return copy.complete;
   if (status === 'pending' || status === 'client_marked_paid' || status === 'awaiting_payment') return copy.pending;
   if (status === 'payment_confirmed') return copy.accepted;
+  if (status === 'transfer_pending') return copy.processing;
   if (status === 'rejected') return copy.rejected;
   if (status === 'failed') return copy.failed;
   return copy.accepted;
