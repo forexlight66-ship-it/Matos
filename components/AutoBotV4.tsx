@@ -291,7 +291,27 @@ export default function AutoBotV4(){
 
   pendingRiskStakeRef.current=Number(amount.toFixed(2));
   iaRecoveryQuotePendingRef.current=false;
- },[iaPower,running,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,symbol]); useEffect(()=>{if(!botArmedRef.current||!running||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;if(iaPower&&iaRecoveryQuotePendingRef.current)return;if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;const botName=STRATEGY_BOT_NAMES[strategy];if(!buy(proposal.id,Number(proposal.ask_price),botName)){setNotice('Falha ao enviar a operação para a Deriv.');requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}},[proposal,buying,activeContractId,running,isAuthorized,isConnected,strategy,buy]); useEffect(()=>{if(activeContractId!==null){riskAwaitingContractRef.current=activeContractId;stakeReadyRef.current=false;requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now()}},[activeContractId]); useEffect(()=>{if(!smartAnalyzer){setSmartAdvice(null);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice(null);if(analyzerNoticeTimerRef.current!==null){window.clearTimeout(analyzerNoticeTimerRef.current);analyzerNoticeTimerRef.current=null}return}if(ticks.length<100){setSmartAdvice(null);return}if(!analyze100Ticks){setSmartAdvice(null);return}
+ },[iaPower,running,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,symbol]); useEffect(()=>{if(!botArmedRef.current||!running||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;if(iaPower&&iaRecoveryQuotePendingRef.current)return;if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;const botName=STRATEGY_BOT_NAMES[strategy];if(!buy(proposal.id,Number(proposal.ask_price),botName)){setNotice('Falha ao enviar a operação para a Deriv.');requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}},[proposal,buying,activeContractId,running,isAuthorized,isConnected,strategy,buy]); useEffect(()=>{
+   if(activeContractId!==null){
+    riskAwaitingContractRef.current=activeContractId;
+    stakeReadyRef.current=false;
+    requested.current=false;
+    requestStartedAt.current=0;
+    lastActivityAt.current=Date.now();
+    return;
+   }
+
+   // Quando o contrato fecha, activeContractId volta a null.
+   // É obrigatório libertar o bloqueio de risco; caso contrário o bot
+   // acredita que ainda existe uma operação aberta e para para sempre.
+   if(riskAwaitingContractRef.current!==null){
+    riskAwaitingContractRef.current=null;
+    stakeReadyRef.current=true;
+    requested.current=false;
+    requestStartedAt.current=0;
+    lastActivityAt.current=Date.now();
+   }
+  },[activeContractId]); useEffect(()=>{if(!smartAnalyzer){setSmartAdvice(null);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice(null);if(analyzerNoticeTimerRef.current!==null){window.clearTimeout(analyzerNoticeTimerRef.current);analyzerNoticeTimerRef.current=null}return}if(ticks.length<100){setSmartAdvice(null);return}if(!analyze100Ticks){setSmartAdvice(null);return}
   if(lastAnalyzerEvalTickRef.current>0&&totalTickCountRef.current-lastAnalyzerEvalTickRef.current<20)return;
   lastAnalyzerEvalTickRef.current=totalTickCountRef.current;
   setSmartAdvice(analyze100Ticks);
@@ -306,7 +326,7 @@ export default function AutoBotV4(){
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(!enabled);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(!enabled);setStakeManagerVersion(v=>v+1)};
  const start=()=>{iaRecoveryQuotePendingRef.current=false;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return;botArmedRef.current=true;setSorosEnabled(!iaPower&&!sonic);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance*0.5);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance*0.5);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setRunning(true)};
- const stop=()=>{saveStakeState();iaRecoveryQuotePendingRef.current=false;botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setSignalNow(null)};
+ const stop=()=>{saveStakeState();iaRecoveryQuotePendingRef.current=false;botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;setRunning(false);setSignalNow(null)};
  const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
  const iaStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:ia`;
  const sonicStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:sonic`;
