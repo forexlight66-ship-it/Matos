@@ -85,6 +85,54 @@ export async function transferWalletToOptions(token: string, amountUsd: number, 
   );
 }
 
+export async function transferOptionsToWallet(token: string, amountUsd: number, requestId = randomUUID()) {
+  const walletResult: any = await derivPaymentRequest(
+    token,
+    '/wallet/v1/wallets?conversion_currency=USD',
+    'GET',
+    undefined,
+    false,
+  );
+  const wallets = Array.isArray(walletResult?.data) ? walletResult.data : [];
+  const wallet = wallets.find((item: any) => Boolean(item?.wallet_id));
+  if (!wallet?.wallet_id) throw new Error('Wallet USD do cliente não encontrada.');
+
+  const optionsResult: any = await derivPaymentRequest(
+    token,
+    '/trading/v1/options/accounts',
+    'GET',
+    undefined,
+    false,
+  );
+  const accounts = Array.isArray(optionsResult?.data) ? optionsResult.data : [];
+  const optionsAccount = accounts.find((item: any) =>
+    item?.account_type === 'real' &&
+    item?.status === 'active' &&
+    String(item?.currency || '').toUpperCase() === 'USD' &&
+    Number(item?.balance || 0) >= amountUsd
+  );
+  if (!optionsAccount?.account_id) {
+    throw new Error('Conta Options real USD ativa não encontrada ou sem saldo suficiente.');
+  }
+
+  return derivPaymentRequest(
+    token,
+    '/wallet/v1/transfers/platforms',
+    'POST',
+    {
+      wallet_id: String(wallet.wallet_id),
+      amount: Number(amountUsd).toFixed(2),
+      currency: 'USD',
+      direction: 'to_wallet',
+      platform_name: 'options',
+      platform_account_id: String(optionsAccount.account_id),
+      request_id: requestId,
+      description: 'MozHyper Options to Wallet',
+    },
+    false,
+  );
+}
+
 export function getSupportedPaymentAgentCurrencies(profile: any): string[] {
   const currencies: any[] = Array.isArray(profile?.data?.currencies)
     ? profile.data.currencies
