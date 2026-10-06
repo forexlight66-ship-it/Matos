@@ -7,7 +7,10 @@ function token() {
     || process.env.TELEGRAM_PAYMENT_AGENT_TOKEN?.trim()
     || process.env.PAYMENT_AGENT_BOT_TOKEN?.trim()
     || process.env.PAYMENT_AGENT_TELEGRAM_TOKEN?.trim()
-    || process.env.TELEGRAM_PAYMENT_AGENT_TOKEN?.trim()
+    || process.env.TELEGRAM_PAYMENTAGENT_BOT_TOKEN?.trim()
+    || process.env.TELEGRAM_PAYMENTAGENT_TOKEN?.trim()
+    || process.env.PAYMENTAGENT_TELEGRAM_BOT_TOKEN?.trim()
+    || process.env.PAYMENTAGENT_BOT_TOKEN?.trim()
     || process.env.TELEGRAM_BOT_TOKEN_PAYMENT_AGENT?.trim()
     || '';
 }
