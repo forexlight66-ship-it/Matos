@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 const BASE = 'https://api.derivws.com';
 
 export const PAYMENT_AGENT_ID = 503;
@@ -36,6 +38,51 @@ export async function derivPaymentRequest(
 
 export async function getPaymentAgentProfile(token: string) {
   return derivPaymentRequest(token, `/payment-agents/v1/agents/${PAYMENT_AGENT_ID}`);
+}
+
+export async function transferWalletToOptions(token: string, amountUsd: number, requestId = randomUUID()) {
+  const walletResult: any = await derivPaymentRequest(
+    token,
+    '/wallet/v1/wallets?conversion_currency=USD',
+    'GET',
+    undefined,
+    false,
+  );
+  const wallets = Array.isArray(walletResult?.data) ? walletResult.data : [];
+  const wallet = wallets.find((item: any) => Number(item?.balances?.USD?.balance || 0) >= amountUsd);
+  if (!wallet?.wallet_id) throw new Error('Wallet USD do cliente não encontrada ou saldo insuficiente.');
+
+  const optionsResult: any = await derivPaymentRequest(
+    token,
+    '/trading/v1/options/accounts',
+    'GET',
+    undefined,
+    false,
+  );
+  const accounts = Array.isArray(optionsResult?.data) ? optionsResult.data : [];
+  const optionsAccount = accounts.find((item: any) =>
+    item?.account_type === 'real' && item?.status === 'active' && String(item?.currency || '').toUpperCase() === 'USD'
+  );
+  if (!optionsAccount?.account_id) {
+    throw new Error('Conta Options real USD ativa não encontrada para esta conta Deriv.');
+  }
+
+  return derivPaymentRequest(
+    token,
+    '/wallet/v1/transfers/platforms',
+    'POST',
+    {
+      wallet_id: String(wallet.wallet_id),
+      amount: Number(amountUsd).toFixed(2),
+      currency: 'USD',
+      direction: 'from_wallet',
+      platform_name: 'options',
+      platform_account_id: String(optionsAccount.account_id),
+      request_id: requestId,
+      description: 'MozHyper Wallet to Options',
+    },
+    false,
+  );
 }
 
 export function getSupportedPaymentAgentCurrencies(profile: any): string[] {
