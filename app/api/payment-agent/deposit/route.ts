@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Amount and currency are required' }, { status: 400 });
   }
   const clientToken = request.cookies.get('deriv_access_token')?.value;
-  let toNickname = '';
-  try {
-    const nicknameResult = await derivPaymentRequest(clientToken || '', '/account/v1/nickname');
-    toNickname = String(nicknameResult?.data?.nickname || '').trim();
-  } catch {
-    return NextResponse.json({ error: 'Não foi possível validar a conta Deriv autenticada' }, { status: 502 });
+  let toNickname = String(body.toNickname || '').trim();
+  if (!toNickname) {
+    try {
+      const nicknameResult = await derivPaymentRequest(clientToken || '', '/account/v1/nickname');
+      toNickname = String(nicknameResult?.data?.nickname || '').trim();
+    } catch {}
   }
-  if (!toNickname) return NextResponse.json({ error: 'Nickname Deriv não encontrado' }, { status: 404 });
+  if (!toNickname) return NextResponse.json({ error: 'Informe o nickname da sua conta Deriv' }, { status: 400 });
 
   try {
     const requestId = `mh-d-${Date.now()}-${crypto.randomUUID()}`;
