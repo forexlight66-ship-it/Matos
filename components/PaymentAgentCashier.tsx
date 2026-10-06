@@ -224,6 +224,57 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     onNotice?.(text);
   };
 
+  useEffect(() => {
+    if (!open || action !== 'deposit' || !requestId || !depositPaid) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const refreshStatus = async () => {
+      try {
+        const response = await fetch(
+          '/api/payment-agent/deposit/status?request_id=' + encodeURIComponent(requestId),
+          {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' },
+          },
+        );
+        const payload: ApiResult = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled) return;
+
+        const status = String(payload.data?.status || '').toLowerCase();
+        if (status === 'payment_confirmed') {
+          setMessage(copy.accepted);
+          onNotice?.(copy.accepted);
+        } else if (status === 'rejected') {
+          setMessage(copy.rejected);
+          onNotice?.(copy.rejected);
+        } else if (status === 'completed') {
+          setMessage(copy.depositSuccess);
+          onNotice?.(copy.depositSuccess);
+        } else if (status === 'failed') {
+          setMessage(copy.failed);
+          onNotice?.(copy.failed);
+        }
+
+        if (status === 'payment_confirmed' || status === 'rejected' || status === 'completed' || status === 'failed') {
+          if (timer) window.clearInterval(timer);
+          return;
+        }
+      } catch {
+        // Keep retrying while the request is pending.
+      }
+    };
+
+    void refreshStatus();
+    timer = window.setInterval(() => void refreshStatus(), 2000);
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [open, action, requestId, depositPaid, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
+
   const actionTitle = action === 'deposit' ? copy.deposit : copy.withdraw;
   const paymentReady = supportedCurrencies.length > 0;
 
