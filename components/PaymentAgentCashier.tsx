@@ -559,7 +559,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
           <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
           {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
-          {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><br/><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentNumber} · <b>{paymentName}</b><br/>1 USD = 68 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
+          {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>Valor por receber = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
         </div>}
 
         {step === 'otp' && <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:16 }}>
