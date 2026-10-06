@@ -180,11 +180,11 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     if (!paymentReady) { showError(copy.loadingCurrencies); return false; }
     if (!currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
     if (action === 'withdraw' && minWithdraw > 0 && value < minWithdraw) {
-      showError(copy.minWithdraw + ' ' + minWithdraw.toFixed(2) + ' ' + currency + '.');
+      showError(copy.minWithdraw + ' ' + minWithdraw.toFixed(2) + ' ' + paymentCurrency + '.');
       return false;
     }
     if (action === 'withdraw' && maxWithdraw > 0 && value > maxWithdraw) {
-      showError(copy.maxWithdraw + ' ' + maxWithdraw.toFixed(2) + ' ' + currency + '.');
+      showError(copy.maxWithdraw + ' ' + maxWithdraw.toFixed(2) + ' ' + paymentCurrency + '.');
       return false;
     }
     return true;
