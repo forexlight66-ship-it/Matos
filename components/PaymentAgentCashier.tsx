@@ -29,7 +29,7 @@ type Copy = {
   invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
-  failed:string; accepted:string; request:string; realOperation:string;
+  failed:string; accepted:string; request:string; realOperation:string; paymentMethod:string; mpesa:string; emola:string; recipientNumber:string; recipientName:string; exchangeRate:string; localAmount:string; alreadyPaid:string; awaitingAgent:string; paymentMarked:string;
 };
 
 interface PaymentAgentCashierProps {
@@ -70,7 +70,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         depositInfo:'The Payment Agent sends the deposit directly to your Deriv Wallet. Check the details before sending.',
         withdrawInfo:'The withdrawal moves funds from your Deriv Wallet to the Payment Agent and requires a one-time security code.',
         depositSuccess:'Deposit accepted.', withdrawSuccess:'Withdrawal accepted.', pending:'Pending', complete:'Completed',
-        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', realOperation:'This is a real financial operation.', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
+        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', realOperation:'This is a real financial operation.', paymentMethod:'Payment method', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Payment number', recipientName:'Account holder name', exchangeRate:'Exchange rate', localAmount:'Amount in MZN', alreadyPaid:'I already paid', awaitingAgent:'Waiting for Payment Agent confirmation.', paymentMarked:'Payment marked as paid. Wait for the agent.', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
       }
     : language === 'es'
       ? {
@@ -86,7 +86,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'El agente de pagos envía el depósito directamente a tu Wallet Deriv. Comprueba los datos antes de enviar.',
           withdrawInfo:'El retiro mueve fondos de tu Wallet Deriv al agente de pagos y requiere un código de seguridad de un solo uso.',
           depositSuccess:'Depósito aceptado.', withdrawSuccess:'Retiro aceptado.', pending:'Pendiente', complete:'Completado',
-          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', realOperation:'Esta es una operación financiera real.', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
+          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
         }
       : {
           deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor',
@@ -101,7 +101,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'O Payment Agent envia o depósito diretamente para a sua Wallet Deriv. Confirme os dados antes de enviar.',
           withdrawInfo:'O levantamento move fundos da sua Wallet Deriv para o Payment Agent e requer um código de segurança único.',
           depositSuccess:'Depósito aceite.', withdrawSuccess:'Levantamento aceite.', pending:'Pendente', complete:'Concluída',
-          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', realOperation:'Esta é uma operação financeira real.', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
+          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
 
   const [step, setStep] = useState<Step>('form');
@@ -116,6 +116,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [derivNickname, setDerivNickname] = useState('');
   const [nicknameLoading, setNicknameLoading] = useState(false);
   const [nicknameError, setNicknameError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola'>('mpesa');
+  const [paymentNumber, setPaymentNumber] = useState('');
+  const [paymentName, setPaymentName] = useState('');
+  const [depositPaid, setDepositPaid] = useState(false);
 
   useEffect(() => {
     if (!open || !action) return;
@@ -128,6 +132,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setDerivNickname('');
     setNicknameLoading(false);
     setNicknameError('');
+    setPaymentMethod('mpesa');
+    setPaymentNumber('');
+    setPaymentName('');
+    setDepositPaid(false);
     setSupportedCurrencies([]);
     setPaymentCurrency(currency);
   }, [open, action, currency]);
@@ -266,6 +274,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       showError(copy.maxWithdraw + ' ' + maxWithdraw.toFixed(2) + ' ' + paymentCurrency + '.');
       return false;
     }
+    if (action === 'withdraw') {
+      if (!/^\\d{9,15}$/.test(paymentNumber.replace(/\\s+/g,''))) { showError(copy.recipientNumber); return false; }
+      if (paymentName.trim().length < 2) { showError(copy.recipientName); return false; }
+    }
     return true;
   };
 
@@ -311,6 +323,23 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     }
   };
 
+  const markDepositPaid = async () => {
+    if (!requestId || depositPaid) return;
+    setBusy(true);
+    try {
+      const response = await fetch('/api/payment-agent/deposit/mark-paid', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ requestId }),
+      });
+      const payload: ApiResult = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || copy.failed);
+      setDepositPaid(true);
+      setMessage(copy.paymentMarked);
+      onNotice?.(copy.paymentMarked);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : copy.failed);
+    } finally { setBusy(false); }
+  };
+
   const execute = async () => {
     if (!validate()) return;
     if (action === 'withdraw' && !/^\d{6}$/.test(code)) {
@@ -322,8 +351,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     try {
       const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : '/api/payment-agent/withdraw';
       const body = action === 'deposit'
-        ? { amount: parseMoney(amount), currency: paymentCurrency }
-        : { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code };
+        ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod }
+        : { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -400,11 +429,27 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               {supportedCurrencies.map(code=><option key={code} value={code}>{code}</option>)}
             </select> : <div style={{ marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827', fontWeight:900 }}>{supportedCurrencies[0] || copy.fetching}</div>}
           </div>
+          <div style={{ marginTop:14 }}>
+            <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.paymentMethod}</div>
+            <div style={{ display:'flex', gap:8, marginTop:6 }}>
+              <button type="button" onClick={()=>setPaymentMethod('mpesa')} style={{ flex:1, padding:11, borderRadius:11, border: paymentMethod==='mpesa' ? '2px solid #ff4654' : '1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:900 }}>{copy.mpesa}</button>
+              <button type="button" onClick={()=>setPaymentMethod('emola')} style={{ flex:1, padding:11, borderRadius:11, border: paymentMethod==='emola' ? '2px solid #ff4654' : '1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:900 }}>{copy.emola}</button>
+            </div>
+          </div>
+          {action === 'withdraw' && <>
+            <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>{copy.recipientNumber}
+              <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/\\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+            </label>
+            <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:12 }}>{copy.recipientName}
+              <input value={paymentName} onChange={event=>setPaymentName(event.target.value)} placeholder="Nome do titular" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+            </label>
+          </>}
           <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
           </label>
+          {paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{(parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68).toFixed ? ((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2) : '0.00'} MZN</b></div>}
         </>}
 
         {step === 'confirm' && <div style={{ marginTop:16, padding:14, borderRadius:14, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
@@ -412,6 +457,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
           <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
           <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
+          {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.5 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN</div>}
+          {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.5 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentNumber} · {paymentName}<br/>1 USD = 68 MZN</div>
         </div>}
 
         {step === 'otp' && <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:16 }}>
@@ -426,6 +473,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, opacity:.7 }}>{copy.operation}</div>
           <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
           {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
+          {action === 'deposit' && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
+          {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>{copy.awaitingAgent}</div>}
         </div>}
 
         {message && step !== 'result' && <div style={{ marginTop:12, padding:10, borderRadius:11, background:light?'#eff6ff':'#172554', fontSize:11 }}>{message}</div>}
