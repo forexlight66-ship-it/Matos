@@ -12,11 +12,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-const token = () => process.env.PAYMENT_AGENT_TELEGRAM_BOT_TOKEN?.trim()
-  || process.env.TELEGRAM_PAYMENT_AGENT_BOT_TOKEN?.trim()
-  || process.env.TELEGRAM_BOT_PAYMENT_AGENT_TOKEN?.trim()
-  || process.env.TELEGRAM_BOT_TOKEN?.trim()
-  || '';
+const token = () => process.env.TELEGRAM_BOT_TOKEN?.trim() || '';
 const adminChatId = () => process.env.TELEGRAM_ADMIN_CHAT_ID || '';
 const price = () => process.env.COURSE_PRICE_MZN || '—';
 const emola = () => process.env.EMOLA_NUMBER || '—';
