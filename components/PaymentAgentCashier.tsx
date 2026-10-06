@@ -219,13 +219,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const minWithdraw = Number(limits?.withdrawal_minimum ?? 0);
   const maxWithdraw = Number(limits?.withdrawal_maximum ?? 0);
 
-  if (!open || !action) return null;
-
-  const showError = (text: string) => {
-    setMessage(text);
-    onNotice?.(text);
-  };
-
   useEffect(() => {
     if (!open || action !== 'deposit' || !requestId || !depositPaid) return;
 
@@ -280,6 +273,13 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       if (timer) window.clearInterval(timer);
     };
   }, [open, action, requestId, depositPaid, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
+
+  if (!open || !action) return null;
+
+  const showError = (text: string) => {
+    setMessage(text);
+    onNotice?.(text);
+  };
 
   const actionTitle = action === 'deposit' ? copy.deposit : copy.withdraw;
   const paymentReady = supportedCurrencies.length > 0;
