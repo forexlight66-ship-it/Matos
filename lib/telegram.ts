@@ -80,7 +80,9 @@ export async function sendAgentAlert(text: string, buttons: Array<Array<{ text: 
   const ids = chatIds();
   if (!ids.length) throw new Error('Payment Agent Telegram chat ID is not configured');
 
-  await ensurePaymentAgentWebhook();
+  void ensurePaymentAgentWebhook().catch(error => {
+    console.error('[Payment Agent Telegram] webhook setup failed', error instanceof Error ? error.message : String(error));
+  });
 
   let lastError: unknown = null;
   for (const id of ids) {
