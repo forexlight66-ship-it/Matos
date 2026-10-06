@@ -1,7 +1,10 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 
 function token() {
-  return process.env.PAYMENT_AGENT_TELEGRAM_BOT_TOKEN?.trim()
+  // Payment Agent 503 uses the second Telegram bot configured in Render.
+  // Keep the course bot completely separate.
+  return process.env.TELEGRAM_BOT_TOKEN2?.trim()
+    || process.env.PAYMENT_AGENT_TELEGRAM_BOT_TOKEN?.trim()
     || process.env.TELEGRAM_PAYMENT_AGENT_BOT_TOKEN?.trim()
     || process.env.TELEGRAM_BOT_PAYMENT_AGENT_TOKEN?.trim()
     || process.env.TELEGRAM_PAYMENT_AGENT_TOKEN?.trim()
