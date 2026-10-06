@@ -231,6 +231,29 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
 
  useEffect(()=>{let cancelled=false;let connectionCheck:ReturnType<typeof setInterval>|null=null;let initialProfitLoaded=false;let lastProfitRefresh=0;let storedStart=0;try{storedStart=Number(sessionStorage.getItem(TRADING_SESSION_STORAGE)||0)}catch{};sessionStartedAtRef.current=Number.isFinite(storedStart)&&storedStart>0?storedStart:Math.floor(Date.now()/1000);try{sessionStorage.setItem(TRADING_SESSION_STORAGE,String(sessionStartedAtRef.current))}catch{};closedContractsRef.current.clear();sessionContractIdsRef.current.clear();processedSorosContractsRef.current.clear();setProfitTransactions([]);setProfitCount(0);setLastClosedTransaction(null);setBalance(null);balanceCacheRef.current=null;restoreTradingCache();for(const id of closedContractsRef.current.keys())processedSorosContractsRef.current.add(id);setProposal(null);setError(null);setBuying(false);setContractClosedSeq(0);setActiveContractId(null);setContractStage('analisando');const restoredSoros=loadSoros()||defaultSoros();sorosRef.current=restoredSoros;setSoros(restoredSoros);
    const refresh=(force=false)=>{const now=Date.now();if(!force&&now-lastProfitRefresh<2000)return;lastProfitRefresh=now;setLoadingProfit(true);refreshProfitTable()};
+
+   // Android/iOS suspendem timers e WebSockets quando a aplicação fica
+   // minimizada. Ao voltar ao foreground, recriar a ligação e sincronizar
+   // imediatamente o saldo e as operações fechadas.
+   const resumeApp=()=>{
+     if(cancelled)return;
+     wsRef.current?.resumeConnection();
+     setIsConnected(false);
+     setIsAuthorized(false);
+     setBuying(false);
+     refresh(true);
+     window.setTimeout(()=>{
+       if(cancelled)return;
+       wsRef.current?.subscribeBalance();
+       refresh(true);
+     },1200);
+   };
+   const handleVisibility=()=>{
+     if(document.visibilityState==='visible')resumeApp();
+   };
+   const handlePageShow=()=>resumeApp();
+   document.addEventListener('visibilitychange',handleVisibility);
+   window.addEventListener('pageshow',handlePageShow);
    const start=async()=>{try{const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return;const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
      ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.echo_req?.forget!==undefined)return;if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy){setBuying(false);setProposal(null);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null}if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null}setError(message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
      ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});ws.subscribe('balance',data=>{if(data.balance){balanceCacheRef.current=data.balance;setBalance(data.balance);saveTradingCache()}});ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});ws.subscribe('transaction',data=>{if(data.transaction)setTransaction(data.transaction)});ws.subscribe('profit_table',data=>{if(data.profit_table){mergeProfitTransactions(data.profit_table.transactions||[]);setLoadingProfit(false)}});
@@ -240,7 +263,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
      connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();setIsConnected(connected);if(connected){setIsAuthorized(true);setError(prev=>prev==='Not authorized'?null:prev);ws.subscribeBalance();if(!initialProfitLoaded){initialProfitLoaded=true;refresh(true)}else refresh(false)}else setIsAuthorized(false)},500);
    }catch(err){if(!cancelled){setIsConnected(false);setIsAuthorized(false);setError(err instanceof Error?err.message:'Unable to initialize Deriv connection')}}};
    start();
-   return()=>{cancelled=true;if(connectionCheck)clearInterval(connectionCheck);wsRef.current?.disconnect();wsRef.current=null;activeContractRef.current=null;pendingBuyBotRef.current=null;contractBotRef.current.clear();latestProposalReqRef.current=null;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();emittedClosedContractsRef.current.clear();processedSorosContractsRef.current.clear();setActiveContractId(null)};
+   return()=>{cancelled=true;if(connectionCheck)clearInterval(connectionCheck);document.removeEventListener('visibilitychange',handleVisibility);window.removeEventListener('pageshow',handlePageShow);wsRef.current?.disconnect();wsRef.current=null;activeContractRef.current=null;pendingBuyBotRef.current=null;contractBotRef.current.clear();latestProposalReqRef.current=null;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();emittedClosedContractsRef.current.clear();processedSorosContractsRef.current.clear();setActiveContractId(null)};
  },[accountType,refreshProfitTable,mergeProfitTransactions,processSorosResult,restoreTradingCache]);
  const subscribeTicks=useCallback((symbol:string)=>wsRef.current?.subscribeTicks(symbol),[]);
  const fetchProfitTable=useCallback((options?:{limit?:number;offset?:number;sort?:'ASC'|'DESC'})=>{setLoadingProfit(true);wsRef.current?.getProfitTable({description:1,...options})},[]);
