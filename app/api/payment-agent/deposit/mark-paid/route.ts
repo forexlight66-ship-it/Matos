@@ -27,8 +27,11 @@ export async function POST(request: NextRequest) {
           { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
         ]],
       );
-    } catch {
-      // The request is already safely persisted; Telegram delivery can be retried later.
+    } catch (telegramError) {
+      console.error('[Payment Agent] Telegram alert failed', {
+        requestId: row.id,
+        error: telegramError instanceof Error ? telegramError.message : String(telegramError),
+      });
     }
     return NextResponse.json({ requestId: row.id, status: row.status }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
