@@ -96,6 +96,24 @@ export class DerivWebSocket {
   isConnected(): boolean { return this.isReady && this.ws?.readyState === WebSocket.OPEN; }
   isAuthorized(): boolean { return this.isConnected(); }
 
+  // Mobile browsers can suspend an apparently-open WebSocket while the app
+  // is minimized. Force a fresh socket when the page becomes visible again,
+  // while preserving tick/contract subscriptions for resubscription.
+  resumeConnection() {
+    if (!this.reconnectEnabled) return;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    const old = this.ws;
+    this.ws = null;
+    this.isReady = false;
+    this.balanceSubscribed = false;
+    this.contractSubscriptionIds.clear();
+    try { old?.close(); } catch {}
+    window.setTimeout(() => this.connect(), 50);
+  }
+
   subscribe(msgType: string, handler: MessageHandler) {
     if (!this.handlers.has(msgType)) this.handlers.set(msgType, new Set());
     this.handlers.get(msgType)!.add(handler);
