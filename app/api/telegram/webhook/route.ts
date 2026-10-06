@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPaymentRequest, transitionPaymentRequest } from '@/lib/paymentAgentRequests';
 import {
   approvePayment,
   createPaymentRequest,
@@ -43,6 +44,51 @@ const texts = {
 function courseIntro(firstName?: string, lang: Lang = 'pt') { const t=texts[lang]; const name=String(firstName||'').trim(); return [`👋 ${t.welcome}${name ? `, ${name}` : ''} — ${t.course}!`, '', t.intro, '', t.proof].join(String.fromCharCode(10)); }
 async function sendLanguageMenu(chatId:number){ return telegram('sendMessage',{chat_id:chatId,text:texts.pt.language,reply_markup:{inline_keyboard:[[{text:texts.pt.portuguese,callback_data:'course_lang:pt'},{text:texts.pt.english,callback_data:'course_lang:en'},{text:texts.pt.spanish,callback_data:'course_lang:es'}]]}}); }
 async function sendCourse(chatId:number,firstName?:string,lang:Lang='pt'){const t=texts[lang];return telegram('sendMessage',{chat_id:chatId,text:courseIntro(firstName,lang)+String.fromCharCode(10,10)+t.choose,reply_markup:{inline_keyboard:[[{text:t.emola,callback_data:`course_method:${lang}:emola`}],[{text:t.mpesa,callback_data:`course_method:${lang}:mpesa`}],[{text:t.binance,callback_data:`course_method:${lang}:binance`}],[{text:'🌐 Language / Idioma',callback_data:'course_language'}]]}});}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[char] || char));
+}
+
+async function handlePaymentAgentCallback(query: any) {
+  const callbackId = String(query.id || '');
+  const data = String(query.data || '');
+  const fromId = String(query.from?.id || '');
+  const agentChatId = String(process.env.TELEGRAM_AGENT_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
+  const chatId = String(query.message?.chat?.id || '');
+  if (!agentChatId || fromId !== agentChatId || chatId !== agentChatId) return false;
+
+  const match = data.match(/^pa:(confirm|reject):([A-Za-z0-9_-]{1,128})$/);
+  if (!match) return false;
+  const action = match[1];
+  const id = match[2];
+
+  try {
+    const row = await getPaymentRequest(id);
+    if (!row) throw new Error('Pedido não encontrado.');
+    if (action === 'confirm') {
+      const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'payment_confirmed');
+      await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: 'Pagamento confirmado.' });
+      await telegram('editMessageText', {
+        chat_id: agentChatId,
+        message_id: query.message.message_id,
+        text: `✅ <b>PAGAMENTO CONFIRMADO</b>\\n\\nCliente: <b>${escapeHtml(updated.client_name)}</b>\\nValor: <b>${updated.amount_usd.toFixed(2)} USD</b>\\nA pagar/receber: <b>${updated.local_amount_mzn.toFixed(2)} MZN</b>\\n\\nO pedido está confirmado. A transferência real deve ser executada através do fluxo seguro do Payment Agent.`,
+        parse_mode: 'HTML',
+      });
+    } else {
+      const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'rejected');
+      await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: 'Pedido rejeitado.' });
+      await telegram('editMessageText', {
+        chat_id: agentChatId,
+        message_id: query.message.message_id,
+        text: `❌ <b>PEDIDO REJEITADO</b>\\n\\nCliente: <b>${escapeHtml(updated.client_name)}</b>\\nValor: <b>${updated.amount_usd.toFixed(2)} USD</b>`,
+        parse_mode: 'HTML',
+      });
+    }
+  } catch (error) {
+    await telegram('answerCallbackQuery', { callback_query_id: callbackId, text: error instanceof Error ? error.message : 'Não foi possível executar.', show_alert: true }).catch(() => undefined);
+  }
+  return true;
+}
 
 async function handleCallback(query: any) {
   const callbackId = String(query.id || '');
@@ -163,6 +209,8 @@ export async function POST(request: NextRequest) {
 
     const update = await request.json();
     if (update.callback_query) {
+      const handledPaymentAgent = await handlePaymentAgentCallback(update.callback_query);
+      if (handledPaymentAgent) return NextResponse.json({ ok: true });
       await handleCallback(update.callback_query);
       return NextResponse.json({ ok: true });
     }
