@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-  if (!session || !request.cookies.get('deriv_access_token')?.value) {
+  if (!session || !request.cookies.get('deriv_access_token')?.value || !request.cookies.get('deriv_refresh_token')?.value) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
 
