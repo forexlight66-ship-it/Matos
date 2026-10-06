@@ -136,12 +136,13 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       fetch('/api/payment-agent/nickname', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
     ]).then(([profile, nickname]) => {
       if (cancelled) return;
-      const currencies: string[] = Array.isArray(profile?.supportedCurrencies)
+      const currencies = Array.isArray(profile?.supportedCurrencies)
         ? profile.supportedCurrencies.map((value: unknown): string => String(value).toUpperCase())
         : Array.isArray(profile?.data?.currencies)
           ? profile.data.currencies.map((item: any): string => String(item?.currency || item).toUpperCase())
-          : [];
-      setSupportedCurrencies([...new Set(currencies.filter(Boolean))]);
+          : [] as string[];
+      const normalizedCurrencies: string[] = currencies;
+      setSupportedCurrencies([...new Set<string>(normalizedCurrencies.filter(Boolean))]);
       setAgentCurrencies(Array.isArray(profile?.data?.currencies) ? profile.data.currencies : []);
       if (currencies.length) setPaymentCurrency(currencies.includes(currency.toUpperCase()) ? currency.toUpperCase() : currencies[0]);
       if (nickname?.nickname) setDerivNickname(String(nickname.nickname));
