@@ -125,8 +125,7 @@ export default function AutoBotV4(){
     const key=localStorage.key(i)||'';
     if(
       key.startsWith('mozhyper-stake-state-v2:')||
-      key.startsWith('mozhyper-risk-state-v3:')||
-      key.startsWith('mozhyper-daily-history-v1:')
+      key.startsWith('mozhyper-risk-state-v3:')
     ) localStorage.removeItem(key);
    }
    localStorage.setItem('mozhyper-active-user-v1',normalized);
