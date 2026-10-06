@@ -3,6 +3,7 @@ import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { derivPaymentRequest } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
 import { createWithdrawRequest } from '@/lib/paymentAgentRequests';
+import { sendAgentAlert } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,16 @@ export async function POST(request: NextRequest) {
       verificationCode,
       refreshToken,
     });
+
+    try {
+      await sendAgentAlert(
+        `🔔 <b>NOVO LEVANTAMENTO</b>\\n\\nCliente: <b>${session.name.replace(/[&<>"]/g, '')}</b>\\nConta Deriv: <b>${nickname}</b>\\nValor: <b>${row.amount_usd.toFixed(2)} USD</b>\\nCâmbio: <b>1 USD = 68 MZN</b>\\nA pagar ao cliente: <b>${row.local_amount_mzn.toFixed(2)} MZN</b>\\nMétodo: <b>${paymentMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>\\nNúmero: <b>${paymentNumber}</b>\\nNome: <b>${paymentName.replace(/[&<>"]/g, '')}</b>\\n\\n⚠️ Pedido aguardando sua confirmação. A confirmação não executa automaticamente a transferência.`,
+        [[
+          { text: '✅ CONFIRMAR PEDIDO', callback_data: `pa:confirm:${row.id}` },
+          { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
+        ]],
+      );
+    } catch {}
 
     return NextResponse.json({
       requestId: row.id,
