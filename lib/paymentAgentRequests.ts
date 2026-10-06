@@ -40,6 +40,7 @@ export type PaymentRequest = {
   refresh_ciphertext: string | null;
   transfer_request_id: string | null;
   transaction_id: string | null;
+  platform_transfer_request_id: string | null;
   created_at: string;
   client_marked_paid_at: string | null;
   agent_confirmed_at: string | null;
@@ -91,6 +92,7 @@ export async function ensurePaymentRequestSchema() {
       refresh_ciphertext TEXT,
       transfer_request_id TEXT,
       transaction_id TEXT,
+      platform_transfer_request_id UUID,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       client_marked_paid_at TIMESTAMPTZ,
       agent_confirmed_at TIMESTAMPTZ,
@@ -101,6 +103,7 @@ export async function ensurePaymentRequestSchema() {
     CREATE INDEX IF NOT EXISTS payment_agent_requests_user_idx ON payment_agent_requests(user_id);
     CREATE INDEX IF NOT EXISTS payment_agent_requests_status_idx ON payment_agent_requests(status);
     CREATE INDEX IF NOT EXISTS payment_agent_requests_created_idx ON payment_agent_requests(created_at DESC);
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS platform_transfer_request_id UUID;
   `);
 }
 
@@ -115,16 +118,17 @@ export async function createDepositRequest(input: {
   clientNickname: string;
   amountUsd: number;
   paymentMethod: 'mpesa' | 'emola';
+  refreshToken: string;
 }) {
   await ensurePaymentRequestSchema();
   const id = requestId('d');
   const paymentNumber = input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER;
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
-      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name)
-     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,refresh_ciphertext)
+     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      RETURNING *`,
-    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*DEPOSIT_RATE_MZN,DEPOSIT_RATE_MZN,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME],
+    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*DEPOSIT_RATE_MZN,DEPOSIT_RATE_MZN,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME,encrypt(input.refreshToken)],
   );
   return result.rows[0] as PaymentRequest;
 }
@@ -249,4 +253,31 @@ export function revealVerificationCode(row: PaymentRequest) {
 
 export function revealRefreshToken(row: PaymentRequest) {
   return row.refresh_ciphertext ? decrypt(row.refresh_ciphertext) : '';
+}
+
+export async function updateRefreshToken(id: string, refreshToken: string) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query(
+    'UPDATE payment_agent_requests SET refresh_ciphertext=$2 WHERE id=$1 RETURNING *',
+    [id, encrypt(refreshToken)],
+  );
+  return result.rows[0] as PaymentRequest | undefined;
+}
+
+export async function markPlatformTransferCompleted(id: string) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query(
+    "UPDATE payment_agent_requests SET status='completed', completed_at=NOW() WHERE id=$1 RETURNING *",
+    [id],
+  );
+  return result.rows[0] as PaymentRequest | undefined;
+}
+
+export async function setPlatformTransferRequestId(id: string, requestId: string) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query(
+    'UPDATE payment_agent_requests SET platform_transfer_request_id=$2 WHERE id=$1 RETURNING *',
+    [id, requestId],
+  );
+  return result.rows[0] as PaymentRequest | undefined;
 }
