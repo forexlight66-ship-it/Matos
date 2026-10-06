@@ -184,7 +184,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
       }
 
       await answerTelegramCallback(callbackId, 'Options → Wallet concluído. A enviar para o Payment Agent…').catch(() => undefined);
-      const withdrawalRequestId = row.transfer_request_id || requestId(`w`);
+      const withdrawalRequestId = row.transfer_request_id || randomUUID();
       const result = await derivPaymentRequest(
         refreshed.access_token,
         '/payment-agents/v1/withdraw',
