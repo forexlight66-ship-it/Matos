@@ -26,7 +26,7 @@ type Copy = {
   processing:string; continue:string; back:string; cancel:string; confirmDeposit:string;
   sendCode:string; confirmWithdraw:string; operation:string; confirm:string; realWarning:string;
   code:string; codeHelp:string; accountHelp:string; fetching:string; closeWindow:string; currency:string; loadingCurrencies:string; unsupportedCurrency:string;
-  invalid:string; nicknameMissing:string; codeDigits:string; sent:string;
+  invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
   failed:string; accepted:string; request:string; realOperation:string;
@@ -64,7 +64,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         confirm:'Confirm operation', realWarning:'Check the details. Confirmation sends a real operation to the Payment Agent.',
         code:'Verification code', codeHelp:'The code matches exactly the requested amount.',
         accountHelp:'The deposit will be sent exclusively to this authenticated account.', fetching:'Loading…', closeWindow:'Close',
-        invalid:'Please enter a valid amount.', nicknameMissing:'The authenticated Deriv account nickname is unavailable.',
+        invalid:'Please enter a valid amount.', nicknameMissing:'The authenticated Deriv account nickname is unavailable.', nicknameError:'Could not load the authenticated Deriv account nickname.', retry:'Retry',
         codeDigits:'The code must contain exactly 6 digits.', sent:'Verification code sent to the contact registered with Deriv.',
         minWithdraw:'The minimum withdrawal is', maxWithdraw:'The maximum withdrawal is',
         depositInfo:'The Payment Agent sends the deposit directly to your Deriv Wallet. Check the details before sending.',
@@ -95,7 +95,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           confirm:'Confirmar operação', realWarning:'Verifique os dados. A confirmação envia uma operação real ao Payment Agent.',
           code:'Código de verificação', codeHelp:'O código corresponde exatamente ao valor solicitado.',
           accountHelp:'O depósito será enviado exclusivamente para esta conta autenticada.', fetching:'A obter…', closeWindow:'Fechar',
-          invalid:'Informe um valor válido.', nicknameMissing:'A conta Deriv autenticada não disponibilizou o nickname.',
+          invalid:'Informe um valor válido.', nicknameMissing:'A conta Deriv autenticada não disponibilizou o nickname.', nicknameError:'Não foi possível carregar o nickname da conta Deriv autenticada.', retry:'Tentar novamente',
           codeDigits:'O código deve ter exatamente 6 dígitos.', sent:'Código enviado para o contacto registado na Deriv.',
           minWithdraw:'O mínimo para levantamento é', maxWithdraw:'O máximo para levantamento é',
           depositInfo:'O Payment Agent envia o depósito diretamente para a sua Wallet Deriv. Confirme os dados antes de enviar.',
@@ -114,6 +114,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [supportedCurrencies, setSupportedCurrencies] = useState<string[]>([]);
   const [paymentCurrency, setPaymentCurrency] = useState(currency);
   const [derivNickname, setDerivNickname] = useState('');
+  const [nicknameLoading, setNicknameLoading] = useState(false);
+  const [nicknameError, setNicknameError] = useState('');
 
   useEffect(() => {
     if (!open || !action) return;
@@ -124,6 +126,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setMessage('');
     setRequestId('');
     setDerivNickname('');
+    setNicknameLoading(false);
+    setNicknameError('');
     setSupportedCurrencies([]);
     setPaymentCurrency(currency);
   }, [open, action, currency]);
@@ -131,24 +135,70 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    Promise.all([
-      fetch('/api/payment-agent/profile', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
-      fetch('/api/payment-agent/nickname', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
-    ]).then(([profile, nickname]) => {
-      if (cancelled) return;
-      const currencies = Array.isArray(profile?.supportedCurrencies)
-        ? profile.supportedCurrencies.map((value: unknown): string => String(value).toUpperCase())
-        : Array.isArray(profile?.data?.currencies)
-          ? profile.data.currencies.map((item: any): string => String(item?.currency || item).toUpperCase())
-          : [] as string[];
-      const normalizedCurrencies: string[] = currencies;
-      setSupportedCurrencies([...new Set<string>(normalizedCurrencies.filter(Boolean))]);
-      setAgentCurrencies(Array.isArray(profile?.data?.currencies) ? profile.data.currencies : []);
-      if (currencies.length) setPaymentCurrency(currencies.includes(currency.toUpperCase()) ? currency.toUpperCase() : currencies[0]);
-      if (nickname?.nickname) setDerivNickname(String(nickname.nickname));
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [open]);
+
+    const loadProfile = async () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch('/api/payment-agent/profile', { cache: 'no-store', signal: controller.signal });
+        const profile = await response.json().catch(() => null);
+        if (cancelled) return;
+        if (!response.ok) return;
+
+        const currencies = Array.isArray(profile?.supportedCurrencies)
+          ? profile.supportedCurrencies.map((value: unknown): string => String(value).toUpperCase())
+          : Array.isArray(profile?.data?.currencies)
+            ? profile.data.currencies.map((item: any): string => String(item?.currency || item).toUpperCase())
+            : [] as string[];
+        const normalizedCurrencies: string[] = currencies;
+        setSupportedCurrencies([...new Set<string>(normalizedCurrencies.filter(Boolean))]);
+        setAgentCurrencies(Array.isArray(profile?.data?.currencies) ? profile.data.currencies : []);
+        if (currencies.length) {
+          setPaymentCurrency(currencies.includes(currency.toUpperCase()) ? currency.toUpperCase() : currencies[0]);
+        }
+      } catch {
+        // The nickname flow must remain independent from the profile request.
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
+    const loadNickname = async () => {
+      setNicknameLoading(true);
+      setNicknameError('');
+      setDerivNickname('');
+
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch('/api/payment-agent/nickname', { cache: 'no-store', signal: controller.signal });
+        const payload = await response.json().catch(() => null);
+        if (cancelled) return;
+
+        if (!response.ok) {
+          const code = payload?.code ? ' [' + String(payload.code) + ']' : '';
+          throw new Error(String(payload?.error || copy.nicknameError) + code);
+        }
+
+        const nickname = String(payload?.nickname || '').trim();
+        if (!nickname) throw new Error(copy.nicknameMissing);
+        setDerivNickname(nickname);
+      } catch (error) {
+        if (cancelled) return;
+        setNicknameError(error instanceof Error ? error.message : copy.nicknameError);
+      } finally {
+        window.clearTimeout(timeout);
+        if (!cancelled) setNicknameLoading(false);
+      }
+    };
+
+    void loadProfile();
+    void loadNickname();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, currency, copy.nicknameError, copy.nicknameMissing]);
 
   const limits = useMemo(
     () => agentCurrencies.find(item => String(item.currency || '').toUpperCase() === paymentCurrency.toUpperCase()),
@@ -166,6 +216,34 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
   const actionTitle = action === 'deposit' ? copy.deposit : copy.withdraw;
   const paymentReady = supportedCurrencies.length > 0;
+
+  const retryNickname = async () => {
+    setNicknameLoading(true);
+    setNicknameError('');
+    setDerivNickname('');
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch('/api/payment-agent/nickname?retry=1', {
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const code = payload?.code ? ' [' + String(payload.code) + ']' : '';
+        throw new Error(String(payload?.error || copy.nicknameError) + code);
+      }
+      const nickname = String(payload?.nickname || '').trim();
+      if (!nickname) throw new Error(copy.nicknameMissing);
+      setDerivNickname(nickname);
+    } catch (error) {
+      setNicknameError(error instanceof Error ? error.message : copy.nicknameError);
+    } finally {
+      window.clearTimeout(timeout);
+      setNicknameLoading(false);
+    }
+  };
   const currencySupported = supportedCurrencies.includes(paymentCurrency.toUpperCase());
 
   const validate = () => {
@@ -302,8 +380,19 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         {step === 'form' && <>
           {action === 'deposit' && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.account}</div>
-            <div style={{ marginTop:4, fontSize:13, fontWeight:900 }}>{derivNickname || copy.fetching}</div>
-            <div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div>
+            <div style={{ marginTop:4, fontSize:13, fontWeight:900 }}>
+              {nicknameLoading ? copy.fetching : derivNickname || copy.nicknameError}
+            </div>
+            {nicknameError && (
+              <div style={{ marginTop:6, fontSize:10, lineHeight:1.4, color:light ? '#b91c1c' : '#fca5a5' }}>
+                {nicknameError}
+                <button type="button" onClick={() => void retryNickname()} disabled={nicknameLoading}
+                  style={{ marginLeft:8, border:0, background:'transparent', color:'inherit', textDecoration:'underline', cursor:nicknameLoading?'default':'pointer', fontWeight:900 }}>
+                  {nicknameLoading ? copy.processing : copy.retry}
+                </button>
+              </div>
+            )}
+            {!nicknameError && <div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div>
           </div>}
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.currency}</div>
