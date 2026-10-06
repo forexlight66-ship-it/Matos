@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { derivPaymentRequest } from '@/lib/paymentAgent';
+import { derivPaymentRequest, getPaymentAgentProfile, getSupportedPaymentAgentCurrencies, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,16 +18,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Amount and currency are required' }, { status: 400 });
   }
   const clientToken = request.cookies.get('deriv_access_token')?.value;
-  let toNickname = String(body.toNickname || '').trim();
-  if (!toNickname) {
-    try {
-      const nicknameResult = await derivPaymentRequest(clientToken || '', '/account/v1/nickname');
-      toNickname = String(nicknameResult?.data?.nickname || '').trim();
-    } catch {}
-  }
-  if (!toNickname) return NextResponse.json({ error: 'Informe o nickname da sua conta Deriv' }, { status: 400 });
+  let toNickname = '';
+  try {
+    const nicknameResult = await derivPaymentRequest(clientToken || '', '/account/v1/nickname');
+    toNickname = String(nicknameResult?.data?.nickname || '').trim();
+  } catch {}
+  if (!toNickname) return NextResponse.json({ error: 'Não foi possível obter a conta Deriv autenticada. Volte a ligar a Deriv e tente novamente.' }, { status: 400 });
 
   try {
+    const profile = await getPaymentAgentProfile(agentToken);
+    const supportedCurrencies = getSupportedPaymentAgentCurrencies(profile);
+    if (!supportedCurrencies.includes(currency)) {
+      return NextResponse.json({
+        error: `A moeda ${currency} não é suportada pelo Payment Agent 503.`,
+        code: 'AgentCurrencyUnsupported',
+        supportedCurrencies,
+      }, { status: 400 });
+    }
     const requestId = `mh-d-${Date.now()}-${crypto.randomUUID()}`;
     const result = await derivPaymentRequest(
       agentToken,
@@ -35,6 +42,7 @@ export async function POST(request: NextRequest) {
       'POST',
       {
         data: {
+          agent_id: PAYMENT_AGENT_ID,
           to_nickname: toNickname,
           amount: amount.toFixed(2),
           currency,
