@@ -4,6 +4,22 @@ const BASE = 'https://api.derivws.com';
 
 export const PAYMENT_AGENT_ID = 503;
 
+export const PAYMENT_AGENT_ALLOWED_COUNTRIES = new Set(['MZ', 'ZA']);
+export const PAYMENT_AGENT_ALLOWED_CURRENCIES = new Set(['MZN', 'ZAR']);
+
+export function isPaymentAgentCountryAllowed(country?: string | null): boolean {
+  return PAYMENT_AGENT_ALLOWED_COUNTRIES.has(String(country || '').trim().toUpperCase());
+}
+
+export function paymentAgentCurrencyForCountry(country?: string | null): string {
+  const code = String(country || '').trim().toUpperCase();
+  return code === 'ZA' ? 'ZAR' : code === 'MZ' ? 'MZN' : '';
+}
+
+export function isPaymentAgentCurrencyAllowed(currency?: string | null): boolean {
+  return PAYMENT_AGENT_ALLOWED_CURRENCIES.has(String(currency || '').trim().toUpperCase());
+}
+
 export async function derivPaymentRequest(
   token: string,
   path: string,
