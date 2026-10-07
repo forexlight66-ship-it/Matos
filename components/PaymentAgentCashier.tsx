@@ -637,6 +637,27 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, opacity:.7 }}>{copy.operation}</div>
           <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
           {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
+
+          {action === 'deposit' && requestId && <div style={{ marginTop:14, padding:13, borderRadius:12, background:light?'#fff':'#0f172a', border:'1px solid rgba(148,163,184,.35)' }}>
+            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, opacity:.7 }}>{copy.paymentInstructions}</div>
+            <div style={{ marginTop:9, fontSize:14, fontWeight:900 }}>
+              {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}
+            </div>
+            <div style={{ marginTop:5, fontSize:18, fontWeight:900, letterSpacing:.4 }}>
+              {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}
+            </div>
+            <div style={{ marginTop:4, fontSize:12, fontWeight:800 }}>Mistério João</div>
+            <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>
+              {copy.exchangeRate}: <b>1 USD = 80 MZN</b>
+            </div>
+            <div style={{ marginTop:5, fontSize:14, fontWeight:900 }}>
+              {copy.transferAmount}: {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN
+            </div>
+            <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>
+              {copy.paymentInstructions} {copy.alreadyPaid}
+            </div>
+          </div>}
+
           {action === 'deposit' && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
           {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
             {depositStatus === 'payment_confirmed' ? copy.accepted
