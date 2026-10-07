@@ -222,6 +222,35 @@ export async function getAIAnalystAccess(userId: string | number, derivNickname?
         derivNickname: row.deriv_nickname,
       };
     }
+
+    // Migrate subscriptions created by the previous placeholder identity
+    // ("AI Analyst service") to the verified Deriv nickname of the same user.
+    const legacy = await pool.query(
+      `SELECT expires_at, deriv_nickname
+       FROM ai_analyst_subscriptions
+       WHERE user_id=$1
+         AND expires_at>NOW()
+         AND (deriv_nickname IS NULL OR LOWER(deriv_nickname)=LOWER('AI Analyst service'))
+       LIMIT 1`,
+      [userId],
+    );
+    const legacyRow = legacy.rows[0];
+    if (legacyRow) {
+      const updated = await pool.query(
+        `UPDATE ai_analyst_subscriptions
+         SET deriv_nickname=$2
+         WHERE user_id=$1
+         RETURNING expires_at, deriv_nickname`,
+        [userId, nickname],
+      );
+      const migrated = updated.rows[0];
+      return {
+        active: true,
+        expiresAt: migrated.expires_at,
+        derivNickname: migrated.deriv_nickname,
+      };
+    }
+
     return { active: false, expiresAt: null, derivNickname: nickname };
   }
 
