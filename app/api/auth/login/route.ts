@@ -15,10 +15,15 @@ export async function GET(request: NextRequest) {
   const challenge = generateCodeChallenge(verifier);
   const state = generateState();
   const redirectUri = PRODUCTION_CALLBACK_URL;
+  const requestedReturnTo = request.nextUrl.searchParams.get('return_to') || '/';
+  const returnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//')
+    ? requestedReturnTo
+    : '/';
 
   const response = NextResponse.redirect(getAuthorizeUrl(clientId, redirectUri, challenge, state), { status: 302 });
   response.cookies.set('oauth_verifier', verifier, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
   response.cookies.set('oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
   response.cookies.set('oauth_redirect_uri', redirectUri, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
+  response.cookies.set('oauth_return_to', returnTo, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
   return response;
 }
