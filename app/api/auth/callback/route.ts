@@ -30,7 +30,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const { access_token, refresh_token } = await exchangeCode(clientId, PRODUCTION_CALLBACK_URL, code, verifier);
-    const response = NextResponse.redirect(PRODUCTION_APP_URL + '/', { status: 302 });
+    const requestedReturnTo = request.cookies.get('oauth_return_to')?.value || '/';
+    const returnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//')
+      ? requestedReturnTo
+      : '/';
+    const response = NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
     let oauthSessionId = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value || '';
     let oauthUserId = platformSession?.id;
     if (!platformSession) {
@@ -48,6 +52,7 @@ export async function GET(request: NextRequest) {
     response.cookies.delete('oauth_verifier');
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_redirect_uri');
+    response.cookies.delete('oauth_return_to');
     return response;
   } catch (error) {
     console.error('[OAuth] Callback/token exchange failed:', error);
