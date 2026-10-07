@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const { access_token, refresh_token } = await exchangeCode(clientId, PRODUCTION_CALLBACK_URL, code, verifier);
+    await consumeDerivOAuthState(state);
+    console.info('[OAuth] Deriv authorization code exchanged successfully; access token cookie will be set.', { returnTo });
     const response = NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
     let oauthSessionId = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value || '';
     let oauthUserId = platformSession?.id;
@@ -68,6 +70,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[OAuth] Callback/token exchange failed:', error);
     const message = error instanceof Error ? error.message : String(error);
+    if (/authorization code has already been used|authorization grant.*already been used/i.test(message)) {
+      console.warn('[OAuth] Duplicate callback detected; returning to requested page.');
+      return NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
+    }
     const safeReason = message.replace(/https?:\/\/[^\s]+/gi, '[url]').slice(0, 220);
     return errorRedirect(`oauth_exchange_failed:${safeReason}`);
   }
