@@ -1,5 +1,5 @@
 // lib/platform-auth.ts
-import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import { Pool } from 'pg';
 
@@ -17,6 +17,7 @@ async function ensureSchema() {
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       country TEXT,
+      deriv_refresh_ciphertext TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS platform_sessions (
@@ -35,6 +36,29 @@ async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS platform_password_resets_expires_at_idx ON platform_password_resets(expires_at);
   `);
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS country TEXT');
+  await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_refresh_ciphertext TEXT');
+}
+
+function derivTokenEncryptionKey() {
+  const seed = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
+  if (!seed) throw new Error('DERIV_PAYMENT_AGENT_TOKEN is not configured');
+  return createHash('sha256').update(`matos-deriv-oauth-v1:${seed}`).digest();
+}
+
+function encryptDerivRefreshToken(value: string) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', derivTokenEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return [iv.toString('base64url'), tag.toString('base64url'), encrypted.toString('base64url')].join('.');
+}
+
+function decryptDerivRefreshToken(value: string) {
+  const [ivRaw, tagRaw, encryptedRaw] = value.split('.');
+  if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error('Invalid encrypted Deriv refresh token');
+  const decipher = createDecipheriv('aes-256-gcm', derivTokenEncryptionKey(), Buffer.from(ivRaw, 'base64url'));
+  decipher.setAuthTag(Buffer.from(tagRaw, 'base64url'));
+  return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, 'base64url')), decipher.final()]).toString('utf8');
 }
 
 function normalizeEmail(email: string) {
@@ -172,4 +196,23 @@ export async function createDerivOAuthSession() {
     ['Deriv User', `deriv-${suffix}@oauth.matos.local`, await hashPassword(randomBytes(32).toString('base64url'))]
   );
   return createSession(result.rows[0].id);
+}
+
+export async function saveDerivRefreshToken(userId: string | number, refreshToken: string) {
+  const value = refreshToken.trim();
+  if (!value) return;
+  await ensureSchema();
+  await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2', [encryptDerivRefreshToken(value), userId]);
+}
+
+export async function getDerivRefreshToken(userId: string | number) {
+  await ensureSchema();
+  const result = await pool.query('SELECT deriv_refresh_ciphertext FROM platform_users WHERE id=$1', [userId]);
+  const encrypted = result.rows[0]?.deriv_refresh_ciphertext;
+  if (!encrypted) return null;
+  try {
+    return decryptDerivRefreshToken(String(encrypted));
+  } catch {
+    return null;
+  }
 }
