@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>{children}</LanguageProvider>
         <RiskDisclosure />
         <PwaInstallPrompt />
-        <script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));` }} />
+        <script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=2',{updateViaCache:'none'}).catch(()=>{}));` }} />
       </body>
     </html>
   );
