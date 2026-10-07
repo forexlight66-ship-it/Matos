@@ -108,11 +108,17 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', authExpired:'A autenticação Deriv desta conta expirou. Faça login com Deriv novamente para continuar.', reauthenticate:'Autenticar novamente com Deriv', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', paymentInstructions:'Faça o pagamento com os dados abaixo.', transferAmount:'Valor a transferir', withdrawalDestination:'Os fundos serão enviados para', paymentInstructionsTitle:'Pagamento do depósito', amountToReceive:'Valor por receber', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
 
-  const aiInfo = language === 'en'
-    ? 'AI Analyst monthly subscription. Choose a payment method and pay 250 MZN or 3 USDT. This payment is for the AI Analyst service and is not a Deriv deposit or withdrawal.'
-    : language === 'es'
-      ? 'Suscripción mensual de AI Analyst. Elige un método de pago y paga 250 MZN o 3 USDT. Este pago es por el servicio AI Analyst y no es un depósito ni un retiro de Deriv.'
-      : 'Assinatura mensal do AI Analyst. Escolha um método de pagamento e pague 250 MZN ou 3 USDT. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.';
+  const aiInfo = currency.toUpperCase() === 'MZN'
+    ? language === 'en'
+      ? 'AI Analyst monthly subscription. Pay 250 MZN. This payment is for the AI Analyst service and is not a Deriv deposit or withdrawal.'
+      : language === 'es'
+        ? 'Suscripción mensual de AI Analyst. Paga 250 MZN. Este pago es por el servicio AI Analyst y no es un depósito ni un retiro de Deriv.'
+        : 'Assinatura mensal do AI Analyst. Pague 250 MZN. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.'
+    : language === 'en'
+      ? 'AI Analyst monthly subscription. Choose a payment method and pay 3 USDT. This payment is for the AI Analyst service and is not a Deriv deposit or withdrawal.'
+      : language === 'es'
+        ? 'Suscripción mensual de AI Analyst. Elige un método de pago y paga 3 USDT. Este pago es por el servicio AI Analyst y no es un depósito ni un retiro de Deriv.'
+        : 'Assinatura mensal do AI Analyst. Escolha um método de pagamento e pague 3 USDT. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.';
 
   const [step, setStep] = useState<Step>('form');
   const [amount, setAmount] = useState('');
@@ -670,7 +676,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
-          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>AI Analyst — assinatura mensal</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>$3 USD <span style={{fontSize:12,opacity:.7}}>ou 250 MZN</span></div><div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso por 30 dias após confirmação do Payment Agent.</div></div>}
+          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>AI Analyst — assinatura mensal</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso por 30 dias após confirmação do Payment Agent.</div></div>}
           {!isAiAnalyst && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
 
