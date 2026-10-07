@@ -4,9 +4,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 const DERIV_AFFILIATE_LINK = 'https://t.deriv.link?t=JAZWN4WCY6JS';
 
-// Temporary: English uses the same video as Portuguese until the replacement link is supplied.
 const VIDEO_URL_PT = 'https://www.youtube.com/embed/0-uSXkLBH0Q?enablejsapi=1&playsinline=1&rel=0';
-const VIDEO_URL_EN = VIDEO_URL_PT;
+const VIDEO_URL_EN = 'https://www.youtube.com/embed/E4ripWokAPo?enablejsapi=1&playsinline=1&rel=0';
 
 export default function TutorialSection() {
   const { language, t } = useLanguage();
