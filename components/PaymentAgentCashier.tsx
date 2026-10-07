@@ -29,7 +29,7 @@ type Copy = {
   invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
-  failed:string; accepted:string; request:string; realOperation:string; paymentMethod:string; mpesa:string; emola:string; recipientNumber:string; recipientName:string; exchangeRate:string; localAmount:string; alreadyPaid:string; awaitingAgent:string; paymentMarked:string; paymentInstructions:string; transferAmount:string; withdrawalDestination:string;
+  failed:string; accepted:string; request:string; authExpired:string; reauthenticate:string; realOperation:string; paymentMethod:string; mpesa:string; emola:string; recipientNumber:string; recipientName:string; exchangeRate:string; localAmount:string; alreadyPaid:string; awaitingAgent:string; paymentMarked:string; paymentInstructions:string; transferAmount:string; withdrawalDestination:string;
 };
 
 interface PaymentAgentCashierProps {
@@ -72,7 +72,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         depositInfo:'Create a deposit request, pay the shown MZN amount, then press “I already paid”. The Payment Agent confirms the payment before the request is processed.',
         withdrawInfo:'Request a withdrawal, provide the M-Pesa/e-Mola destination and the Deriv verification code. The Payment Agent reviews the request before processing.',
         depositSuccess:'Deposit accepted.', withdrawSuccess:'Withdrawal accepted.', pending:'Pending', complete:'Completed',
-        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', realOperation:'This is a real financial operation.', paymentMethod:'Payment method', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Payment number', recipientName:'Account holder name', exchangeRate:'Exchange rate', localAmount:'Amount in MZN', alreadyPaid:'I already paid', awaitingAgent:'Waiting for Payment Agent confirmation.', paymentMarked:'Payment marked as paid. Wait for the agent.', paymentInstructions:'Make the payment using the details below.', transferAmount:'Amount to transfer', withdrawalDestination:'Funds will be sent to', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
+        rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', authExpired:'Deriv authentication expired. Sign in with Deriv again to continue.', reauthenticate:'Authenticate with Deriv', realOperation:'This is a real financial operation.', paymentMethod:'Payment method', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Payment number', recipientName:'Account holder name', exchangeRate:'Exchange rate', localAmount:'Amount in MZN', alreadyPaid:'I already paid', awaitingAgent:'Waiting for Payment Agent confirmation.', paymentMarked:'Payment marked as paid. Wait for the agent.', paymentInstructions:'Make the payment using the details below.', transferAmount:'Amount to transfer', withdrawalDestination:'Funds will be sent to', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
       }
     : language === 'es'
       ? {
@@ -88,7 +88,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'Crea el pedido, paga el valor en MZN mostrado y depois pulsa “Ya pagué”. El Payment Agent confirma el pago antes de procesarlo.',
           withdrawInfo:'El retiro mueve fondos de tu Wallet Deriv al agente de pagos y requiere un código de seguridad de un solo uso.',
           depositSuccess:'Depósito aceptado.', withdrawSuccess:'Retiro aceptado.', pending:'Pendiente', complete:'Completado',
-          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', paymentInstructions:'Realiza el pago con los datos abajo.', transferAmount:'Importe a transferir', withdrawalDestination:'Los fondos se enviarán a', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
+          rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', authExpired:'La autenticación de Deriv expiró. Inicia sesión con Deriv nuevamente para continuar.', reauthenticate:'Autenticar con Deriv', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', paymentInstructions:'Realiza el pago con los datos abajo.', transferAmount:'Importe a transferir', withdrawalDestination:'Los fondos se enviarán a', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
         }
       : {
           deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor',
@@ -103,7 +103,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           depositInfo:'Crie o pedido, pague o valor em MZN mostrado e depois toque em “JÁ PAGUEI”. O Payment Agent confirma o pagamento antes de processar o pedido.',
           withdrawInfo:'Solicite o levantamento, informe o destino M-Pesa/e-Mola e o código de verificação da Deriv. O Payment Agent analisa o pedido antes de processar.',
           depositSuccess:'Depósito aceite.', withdrawSuccess:'Levantamento aceite.', pending:'Pendente', complete:'Concluída',
-          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', paymentInstructions:'Faça o pagamento com os dados abaixo.', transferAmount:'Valor a transferir', withdrawalDestination:'Os fundos serão enviados para', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
+          rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', authExpired:'A autenticação Deriv desta conta expirou. Faça login com Deriv novamente para continuar.', reauthenticate:'Autenticar novamente com Deriv', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', paymentInstructions:'Faça o pagamento com os dados abaixo.', transferAmount:'Valor a transferir', withdrawalDestination:'Os fundos serão enviados para', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
 
   const [step, setStep] = useState<Step>('form');
@@ -122,6 +122,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [paymentNumber, setPaymentNumber] = useState('');
   const [paymentName, setPaymentName] = useState('');
   const [depositPaid, setDepositPaid] = useState(false);
+  const [authExpired, setAuthExpired] = useState(false);
   const [depositStatus, setDepositStatus] = useState<'awaiting_payment' | 'client_marked_paid' | 'payment_confirmed' | 'rejected' | 'completed' | 'failed' | ''>('');
 
   useEffect(() => {
@@ -140,6 +141,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setPaymentName('');
     setDepositPaid(false);
     setDepositStatus('');
+    setAuthExpired(false);
     setSupportedCurrencies([]);
     setPaymentCurrency(currency);
   }, [open, action, currency]);
@@ -461,7 +463,13 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         body: JSON.stringify(body),
       });
       const payload: ApiResult = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || copy.failed);
+      if (!response.ok) {
+        if (response.status === 401 && action === 'withdraw') {
+          setAuthExpired(true);
+          throw new Error(copy.authExpired);
+        }
+        throw new Error(payload.error || copy.failed);
+      }
 
       const id = String(payload.requestId || '');
       const status = payload.data?.status || 'pending';
@@ -474,6 +482,22 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     } finally {
       setBusy(false);
     }
+  };
+
+  const reauthenticate = () => {
+    try {
+      sessionStorage.setItem('mozhyper_payment_agent_draft', JSON.stringify({
+        action,
+        amount,
+        paymentCurrency,
+        paymentMethod,
+        paymentNumber,
+        paymentName,
+        savedAt: Date.now(),
+      }));
+    } catch {}
+    const returnTo = '/?paymentAgent=' + encodeURIComponent(action || 'withdraw');
+    window.location.assign('/api/auth/login?return_to=' + encodeURIComponent(returnTo));
   };
 
   const primary = step === 'otp'
@@ -506,6 +530,15 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         <div style={{ fontSize:12, lineHeight:1.45, marginTop:16, padding:12, borderRadius:12, background:light?'#f1f5f9':'#202733' }}>
           {action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
+
+        {authExpired && (
+          <div style={{ marginTop:14, padding:12, borderRadius:12, border:'1px solid #fca5a5', background:light?'#fff1f2':'#3f1d24', color:light?'#991b1b':'#fecaca' }}>
+            <div style={{ fontSize:12, fontWeight:800, lineHeight:1.45 }}>{copy.authExpired}</div>
+            <button type="button" onClick={reauthenticate} style={{ marginTop:10, width:'100%', padding:'11px 12px', border:0, borderRadius:10, background:'#ff444f', color:'#fff', fontWeight:900, cursor:'pointer' }}>
+              {copy.reauthenticate}
+            </button>
+          </div>
+        )}
 
         {step === 'form' && <>
           {action === 'deposit' && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
