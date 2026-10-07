@@ -1,6 +1,5 @@
 export type BoosterStrategy =
   | 'PAR_IMPAR'
-  | 'RISE_FALL'
   | 'MATCH0'
   | 'ACIMA5_BAIXO4'
   | 'DIFERENTE'
@@ -33,8 +32,6 @@ export const BOOSTER_BOTS: Array<{
   barrier: number;
   label: string;
 }> = [
-  {strategy:'RISE_FALL',bot:'HyperForce',contractType:'CALL',barrier:0,label:'SUBIR'},
-  {strategy:'RISE_FALL',bot:'HyperForce',contractType:'PUT',barrier:0,label:'DESCER'},
   {strategy:'MATCH0',bot:'HyperFlow',contractType:'DIGITMATCH',barrier:0,label:'MATCH 0'},
   {strategy:'PAR_IMPAR',bot:'HyperDrive',contractType:'DIGITEVEN',barrier:0,label:'PAR'},
   {strategy:'PAR_IMPAR',bot:'HyperDrive',contractType:'DIGITODD',barrier:0,label:'ÍMPAR'},
@@ -55,11 +52,10 @@ export function boosterSignal(digits:number[], candidate:BoosterCandidate, thres
   const odd=100-even;
   const over=d.filter(x=>x>5).length/5*100;
   const under=d.filter(x=>x<4).length/5*100;
-  const diff=d.filter(x=>x!==0).length/5*100;const match0=d.filter(x=>x===0).length/5*100;let up=0,down=0;for(let i=1;i<d.length;i++){if(d[i]>d[i-1])up++;else if(d[i]<d[i-1])down++;}const rise=up/Math.max(1,up+down)*100;const fall=down/Math.max(1,up+down)*100;
+  const diff=d.filter(x=>x!==0).length/5*100;const match0=d.filter(x=>x===0).length/5*100;
   const gt4=d.filter(x=>x>4).length/5*100;
   const lt8=d.filter(x=>x<8).length/5*100;
   switch(candidate.strategy){
-    case 'RISE_FALL': return candidate.contractType==='CALL'?rise>=threshold:fall>=threshold;
     case 'MATCH0': return match0>=threshold;
     case 'PAR_IMPAR': return candidate.contractType==='DIGITEVEN'?even>=threshold:odd>=threshold;
     case 'ACIMA5_BAIXO4': return candidate.contractType==='DIGITOVER'?over>=threshold:under>=threshold;
@@ -74,9 +70,8 @@ export function boosterSignal(digits:number[], candidate:BoosterCandidate, thres
 export function boosterStrength(digits:number[], candidate:BoosterCandidate){
   const d=digits.slice(-5);
   if(d.length<5)return 0;
-  const pct=(fn:(n:number)=>boolean)=>d.filter(fn).length/5*100;const match0=d.filter(x=>x===0).length/5*100;let up=0,down=0;for(let i=1;i<d.length;i++){if(d[i]>d[i-1])up++;else if(d[i]<d[i-1])down++;}const rise=up/Math.max(1,up+down)*100;const fall=down/Math.max(1,up+down)*100;
+  const pct=(fn:(n:number)=>boolean)=>d.filter(fn).length/5*100;const match0=d.filter(x=>x===0).length/5*100;
   switch(candidate.strategy){
-    case 'RISE_FALL': return candidate.contractType==='CALL'?rise:fall;
     case 'MATCH0': return match0;
     case 'PAR_IMPAR': return candidate.contractType==='DIGITEVEN'?pct(n=>n%2===0):pct(n=>n%2!==0);
     case 'ACIMA5_BAIXO4': return candidate.contractType==='DIGITOVER'?pct(n=>n>5):pct(n=>n<4);
