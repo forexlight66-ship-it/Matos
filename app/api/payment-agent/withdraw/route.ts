@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getDerivRefreshToken, getSession, PLATFORM_SESSION_COOKIE, saveDerivRefreshToken } from '@/lib/platform-auth';
 import { derivPaymentRequest, isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
 import { createWithdrawRequest } from '@/lib/paymentAgentRequests';
@@ -9,9 +9,22 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-  const token = request.cookies.get('deriv_access_token')?.value;
-  const refreshToken = request.cookies.get('deriv_refresh_token')?.value;
-  if (!session || !token) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  let token = request.cookies.get('deriv_access_token')?.value || '';
+  let refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
+  if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  if (!refreshToken) refreshToken = (await getDerivRefreshToken(session.id)) || '';
+  if (!token && refreshToken) {
+    const clientId = process.env.DERIV_APP_ID?.trim();
+    if (clientId) {
+      try {
+        const refreshed = await refreshAccessToken(clientId, refreshToken);
+        token = refreshed.access_token;
+        refreshToken = refreshed.refresh_token || refreshToken;
+        await saveDerivRefreshToken(session.id, refreshToken);
+      } catch {}
+    }
+  }
+  if (!token || !refreshToken) return NextResponse.json({ error: 'A autenticação Deriv desta conta expirou. Faça login com Deriv novamente para continuar.', code: 'DERIV_REAUTH_REQUIRED' }, { status: 401 });
   if (!isPaymentAgentCountryAllowed(session.country)) return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
 
   const body = await request.json().catch(() => ({}));
