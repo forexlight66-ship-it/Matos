@@ -228,6 +228,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, currency, copy.nicknameError, copy.nicknameMissing]);
 
+  const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
+  const binanceFallback = action === 'ai_analyst' && !isPaymentAgentCurrencyAllowed(currency);
   const limits = useMemo(
     () => agentCurrencies.find(item => String(item.currency || '').toUpperCase() === paymentCurrency.toUpperCase()),
     [agentCurrencies, paymentCurrency],
@@ -290,8 +292,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, action, requestId, depositPaid, binanceFallback, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
 
-  const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
-  const binanceFallback = action === 'ai_analyst' && !isPaymentAgentCurrencyAllowed(currency);
   const BINANCE_USDT_ADDRESS = 'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu';
 
   useEffect(() => {
