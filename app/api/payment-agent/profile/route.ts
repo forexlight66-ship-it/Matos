@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { getPaymentAgentProfile, getSupportedPaymentAgentCurrencies } from '@/lib/paymentAgent';
+import { getPaymentAgentProfile, getSupportedPaymentAgentCurrencies, isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { ensurePaymentAgentWebhook } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const token = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
+  if (!isPaymentAgentCountryAllowed(session.country)) {
+    return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
+  }
   if (!session || !token) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   try {
     void ensurePaymentAgentWebhook().catch(error => {
