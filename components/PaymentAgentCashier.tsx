@@ -236,7 +236,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const maxWithdraw = Number(limits?.withdrawal_maximum ?? 0);
 
   useEffect(() => {
-    if (!open || action !== 'deposit' || !requestId || !depositPaid) return;
+    if (!open || (action !== 'deposit' && action !== 'ai_analyst') || !requestId || !depositPaid) return;
 
     let cancelled = false;
     let timer: number | undefined;
@@ -662,12 +662,64 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <span aria-hidden="true" style={{ position:'absolute', right:-2, bottom:0, color:'#ff3949', fontSize:17, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
             </div>
             <div style={{ fontSize:25, lineHeight:1.15, fontWeight:950, letterSpacing:-.5 }}>Transferência bem-sucedida</div>
-            <div style={{ marginTop:12, fontSize:13, lineHeight:1.5, opacity:.9 }}>O seu depósito foi confirmado pelo nosso Payment Agent.</div>
+            <div style={{ marginTop:12, fontSize:13, lineHeight:1.5, opacity:.9 }}>A sua assinatura do AI Analyst foi confirmada pelo nosso Payment Agent.</div>
             <div style={{ marginTop:18, padding:'13px 14px', borderRadius:14, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', textAlign:'left' }}>
               <div style={{ fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>NICKNAME DERIV</div>
               <div style={{ marginTop:4, fontSize:16, fontWeight:900 }}>{derivNickname || '—'}</div>
-              <div style={{ marginTop:12, fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>VALOR DO DEPÓSITO</div>
-              <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>${(parseMoney(amount) || 0).toFixed(2)}</div>
+              <div style={{ marginTop:12, fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>VALOR DA ASSINATURA</div>
+              <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>${action === 'ai_analyst' ? '$3.00' : '</div>
+            </div>
+            <div style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:10, textAlign:'left' }}>
+              <div aria-hidden="true" style={{ width:42, height:42, flex:'0 0 42px', borderRadius:'50%', background:'linear-gradient(145deg,#22c55e,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:950, boxShadow:'0 6px 16px rgba(34,197,94,.25)' }}>✓</div>
+              <div style={{ fontSize:11, lineHeight:1.45, opacity:.9 }}>Pagamento confirmado. O AI Analyst está disponível por 30 dias.</div>
+            </div>
+            <button type="button" onClick={onClose}
+              style={{ width:'100%', marginTop:18, padding:13, border:0, borderRadius:12, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:15, cursor:'pointer' }}>
+              Fechar
+            </button>
+          </div>
+        ) : step === 'result' ? (
+          <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
+            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.operation}</div>
+            <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
+            {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
+            {(action === 'deposit' || action === 'ai_analyst') && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
+            {(action === 'deposit' || action === 'ai_analyst') && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
+              {depositStatus === 'payment_confirmed' ? copy.accepted : depositStatus === 'rejected' ? copy.rejected : depositStatus === 'completed' ? copy.depositSuccess : depositStatus === 'failed' ? copy.failed : copy.awaitingAgent}
+            </div>}
+          </div>
+        ) : null
+
+        {message && step !== 'result' && <div style={{ marginTop:12, padding:10, borderRadius:11, background:light?'#eff6ff':'#172554', fontSize:11 }}>{message}</div>}
+
+        {step !== 'result' && <div style={{ display:'flex', gap:8, marginTop:16 }}>
+          <button type="button" disabled={busy} onClick={step === 'form' ? onClose : () => setStep(step === 'otp' ? 'confirm' : 'form')}
+            style={{ flex:1, padding:12, borderRadius:11, border:'1px solid #64748b', background:'transparent', color:'inherit', fontWeight:800 }}>
+            {step === 'form' ? copy.cancel : copy.back}
+          </button>
+          <button type="button" disabled={busy} onClick={() => {
+            if (step === 'form') {
+              if (validate()) setStep('confirm');
+            } else if (step === 'confirm') {
+              if (action === 'withdraw') void requestOtp();
+              else void execute();
+            } else {
+              void execute();
+            }
+          }} style={{ flex:1, padding:12, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>
+            {busy ? copy.processing : primary}
+          </button>
+        </div>}
+
+        {step === 'result' && <button type="button" onClick={onClose}
+          style={{ width:'100%', marginTop:16, padding:12, borderRadius:11, border:'1px solid #64748b', background:'transparent', color:'inherit', fontWeight:800 }}>
+          {copy.closeWindow}
+        </button>}
+      </div>
+    </div>
+  );
+}
+ + (parseMoney(amount) || 0).toFixed(2)}</div>
             </div>
             <div style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:10, textAlign:'left' }}>
               <div aria-hidden="true" style={{ width:42, height:42, flex:'0 0 42px', borderRadius:'50%', background:'linear-gradient(145deg,#22c55e,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:950, boxShadow:'0 6px 16px rgba(34,197,94,.25)' }}>✓</div>
@@ -683,8 +735,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.operation}</div>
             <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
             {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
-            {action === 'deposit' && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
-            {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
+            {(action === 'deposit' || action === 'ai_analyst') && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
+            {(action === 'deposit' || action === 'ai_analyst') && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
               {depositStatus === 'payment_confirmed' ? copy.accepted : depositStatus === 'rejected' ? copy.rejected : depositStatus === 'completed' ? copy.depositSuccess : depositStatus === 'failed' ? copy.failed : copy.awaitingAgent}
             </div>}
           </div>
