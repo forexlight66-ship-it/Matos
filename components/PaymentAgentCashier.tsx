@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { isPaymentAgentCurrencyAllowed } from '@/lib/paymentAgent';
 
 type Action = 'deposit' | 'withdraw' | 'ai_analyst';
 type Step = 'form' | 'confirm' | 'otp' | 'result';
@@ -60,6 +59,7 @@ function statusText(status: string | undefined, copy: Copy) {
 
 export default function PaymentAgentCashier({ open, action, currency, light, onClose, onNotice }: PaymentAgentCashierProps) {
   const { language } = useLanguage();
+  const isAiAnalyst = action === 'ai_analyst';
   const copy: Copy = language === 'en'
     ? {
         deposit:'Deposit', withdraw:'Withdraw', paymentAgent:'Payment Agent 503', close:'Close', account:'Deriv account', amount:'Amount',
@@ -231,7 +231,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   }, [open, currency, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
 
   const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
-  const isAiAnalyst = action === 'ai_analyst';
   const binanceFallback = isAiAnalyst && paymentMethod === 'binance_usdt_trc20';
   const limits = useMemo(
     () => agentCurrencies.find(item => String(item.currency || '').toUpperCase() === paymentCurrency.toUpperCase()),
