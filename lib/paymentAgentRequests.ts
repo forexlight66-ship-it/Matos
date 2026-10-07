@@ -66,7 +66,7 @@ function encrypt(value: string) {
 function decrypt(value: string) {
   const [ivRaw, tagRaw, encryptedRaw] = value.split('.');
   if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error('Invalid encrypted payment-agent secret');
-  const decipher = createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(ivRaw, 'base64url'));
+  const decipher = createDecipheriv('aes-256-gcm', encryptionKey(), ivRaw ? Buffer.from(ivRaw, 'base64url') : Buffer.alloc(0));
   decipher.setAuthTag(Buffer.from(tagRaw, 'base64url'));
   return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, 'base64url')), decipher.final()]).toString('utf8');
 }
@@ -169,22 +169,20 @@ export async function createWithdrawRequest(input: {
   paymentNumber: string;
   paymentName: string;
   verificationCode: string;
-  refreshToken: string;
   requestId?: string;
-  status?: 'client_marked_paid' | 'transfer_pending' | 'completed' | 'failed';
+  status?: 'rejected' | 'transfer_pending' | 'completed' | 'failed';
   transactionId?: string | null;
 }) {
   await ensurePaymentRequestSchema();
   const id = input.requestId?.trim() || requestId('w');
   const paymentMethod = input.paymentMethod;
-  const status = input.status || 'client_marked_paid';
-  const refreshCiphertext = encrypt(input.refreshToken);
+  const status = input.status || 'transfer_pending';
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
-      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,verification_ciphertext,refresh_ciphertext,transaction_id)
-     VALUES ($1,'withdraw',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,verification_ciphertext,refresh_ciphertext,transfer_request_id,transaction_id)
+     VALUES ($1,'withdraw',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULL,$1,$14)
      RETURNING *`,
-    [id,status,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*WITHDRAW_RATE_MZN,WITHDRAW_RATE_MZN,paymentMethod,input.paymentNumber.trim(),input.paymentName.trim(),encrypt(input.verificationCode),refreshCiphertext,input.transactionId || null],
+    [id,status,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*WITHDRAW_RATE_MZN,WITHDRAW_RATE_MZN,paymentMethod,input.paymentNumber.trim(),input.paymentName.trim(),encrypt(input.verificationCode),input.transactionId || null],
   );
   return result.rows[0] as PaymentRequest;
 }
@@ -243,7 +241,7 @@ export async function claimTransfer(id: string) {
   }
 }
 
-export async function completeTransfer(id: string, transactionId: string | null, status: 'completed' | 'failed' | 'transfer_pending') {
+export async function completeTransfer(id: string, transactionId: string | null, status: 'completed' | 'failed' | 'transfer_pending' | 'rejected') {
   await ensurePaymentRequestSchema();
   const result = await pool.query(
     `UPDATE payment_agent_requests SET status=$2, transaction_id=$3, completed_at=CASE WHEN $2='completed' THEN NOW() ELSE completed_at END WHERE id=$1 RETURNING *`,
