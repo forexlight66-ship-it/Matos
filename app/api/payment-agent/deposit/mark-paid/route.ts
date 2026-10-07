@@ -26,13 +26,40 @@ export async function POST(request: NextRequest) {
     if (!isPaymentAgentCountryAllowed(session.country) && !isBinanceAi) return NextResponse.json({ error: 'Pedido não elegível para este fluxo.' }, { status: 403 });
     const row = await markDepositPaid(session.id, id);
     try {
-      await sendAgentAlert(
-        isBinanceAi ? `🔔 <b>AI ANALYST — USDT ENVIADO</b>\n\nCliente:` : `🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>\n\nCliente: <b>${escapeHtml(row.client_name)}</b>\nConta Deriv: <b>${escapeHtml(row.client_nickname)}</b>\nValor: <b>$${Number(row.amount_usd).toFixed(2)} USD</b>\nCâmbio: <b>1 USD = ${Number(row.exchange_rate).toFixed(0)} MZN</b>\nA pagar: <b>${Number(row.local_amount_mzn).toFixed(2)} MZN</b>\nMétodo: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>\nNúmero: <b>${escapeHtml(row.payment_number || '—')}</b>\nNome: <b>${escapeHtml(row.payment_name || '—')}</b>\n\n⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.`,
-        [[
-          { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
-          { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
-        ]],
-      );
+      const isAiAnalyst = row.purpose === 'ai_analyst';
+      const alertText = isAiAnalyst
+        ? [
+            '🔔 <b>AI ANALYST — PAGAMENTO INFORMADO</b>',
+            '',
+            `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+            `Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,
+            'Serviço: <b>AI Analyst</b>',
+            'Plano: <b>30 dias</b>',
+            `Valor: <b>${row.payment_method === 'binance_usdt_trc20' ? '3 USDT' : '250 MZN'}</b>`,
+            `Método: <b>${row.payment_method === 'binance_usdt_trc20' ? 'Binance — TRC20' : row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
+            `Número: <b>${escapeHtml(row.payment_number || '—')}</b>`,
+            `Nome: <b>${escapeHtml(row.payment_name || '—')}</b>`,
+            '',
+            '⚠️ O cliente clicou em “JÁ PAGUEI”. Confirme o recebimento antes de ativar o serviço.',
+          ].join('\\n')
+        : [
+            '🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>',
+            '',
+            `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+            `Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,
+            `Valor: <b>${Number(row.amount_usd).toFixed(2)} USD</b>`,
+            `Câmbio: <b>1 USD = ${Number(row.exchange_rate).toFixed(0)} MZN</b>`,
+            `A pagar: <b>${Number(row.local_amount_mzn).toFixed(2)} MZN</b>`,
+            `Método: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
+            `Número: <b>${escapeHtml(row.payment_number || '—')}</b>`,
+            `Nome: <b>${escapeHtml(row.payment_name || '—')}</b>`,
+            '',
+            '⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.',
+          ].join('\\n');
+      await sendAgentAlert(alertText, [[
+        { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
+        { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
+      ]]);
     } catch (telegramError) {
       console.error('[Payment Agent] Telegram alert failed', {
         requestId: row.id,
