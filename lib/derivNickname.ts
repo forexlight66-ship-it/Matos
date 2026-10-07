@@ -2,13 +2,15 @@ import { refreshAccessToken } from '@/lib/oauth';
 
 const DERIV_API_BASE = 'https://api.derivws.com';
 
-export async function getDerivNickname(accessToken: string) {
+export async function getDerivNickname(accessToken: string, appId?: string) {
   const token = accessToken.trim();
+  const derivAppId = (appId || process.env.DERIV_APP_ID || '').trim();
+  if (!derivAppId) throw new Error('DERIV_APP_ID is required');
   if (!token) throw new Error('Deriv access token is required');
 
   const response = await fetch(`${DERIV_API_BASE}/account/v1/nickname`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, 'Deriv-App-ID': derivAppId },
     cache: 'no-store',
   });
   const payload = await response.json().catch(() => null);
@@ -41,7 +43,7 @@ export async function getAuthenticatedDerivNickname(input: {
   if (accessToken) {
     try {
       return {
-        nickname: await getDerivNickname(accessToken),
+        nickname: await getDerivNickname(accessToken, input.appId),
         accessToken,
         refreshToken: input.refreshToken || undefined,
         refreshed: false,
