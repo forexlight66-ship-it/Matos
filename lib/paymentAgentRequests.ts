@@ -11,6 +11,8 @@ export const WITHDRAW_RATE_MZN = 68;
 export const EMOLA_NUMBER = '879084091';
 export const MPESA_NUMBER = '849084091';
 export const PAYMENT_RECIPIENT_NAME = 'Mistério João';
+export const BINANCE_USDT_TRC20_ADDRESS = 'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu';
+export const BINANCE_USDT_TRC20_NETWORK = 'TRC20';
 
 export type PaymentRequestType = 'deposit' | 'withdraw';
 export type PaymentRequestStatus =
@@ -37,6 +39,10 @@ export type PaymentRequest = {
   payment_number: string | null;
   payment_name: string | null;
   purpose?: string;
+  crypto_asset?: string | null;
+  crypto_network?: string | null;
+  crypto_address?: string | null;
+  crypto_tx_hash?: string | null;
   verification_ciphertext: string | null;
   refresh_ciphertext: string | null;
   transfer_request_id: string | null;
@@ -107,6 +113,10 @@ export async function ensurePaymentRequestSchema() {
     CREATE INDEX IF NOT EXISTS payment_agent_requests_created_idx ON payment_agent_requests(created_at DESC);
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS platform_transfer_request_id UUID;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'deposit';
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_asset TEXT;
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_network TEXT;
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_address TEXT;
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_tx_hash TEXT;
     CREATE TABLE IF NOT EXISTS ai_analyst_subscriptions (
       user_id BIGINT PRIMARY KEY REFERENCES platform_users(id) ON DELETE CASCADE,
       payment_request_id TEXT NOT NULL,
@@ -162,6 +172,26 @@ export async function createAIAnalystRequest(input: {
      VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'ai_analyst')
      RETURNING *`,
     [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,exchangeRate,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME],
+  );
+  return result.rows[0] as PaymentRequest;
+}
+
+export async function createAIAnalystBinanceRequest(input: {
+  userId: string | number;
+  clientName: string;
+  clientEmail: string;
+  clientNickname: string;
+}) {
+  await ensurePaymentRequestSchema();
+  const id = requestId('aib');
+  const amountUsd = 3;
+  const localAmountMzn = 250;
+  const result = await pool.query(
+    `INSERT INTO payment_agent_requests
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,purpose,crypto_asset,crypto_network,crypto_address)
+     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,'binance_usdt_trc20',$9,$10,'ai_analyst','USDT','TRC20',$9)
+     RETURNING *`,
+    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,localAmountMzn/amountUsd,BINANCE_USDT_TRC20_ADDRESS,'Binance USDT TRC20'],
   );
   return result.rows[0] as PaymentRequest;
 }
