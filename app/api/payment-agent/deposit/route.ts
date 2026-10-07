@@ -9,14 +9,13 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
+  let clientToken = request.cookies.get('deriv_access_token')?.value || '';
   if (!session || (!clientToken && !refreshToken)) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
   }
-  let clientToken = request.cookies.get('deriv_access_token')?.value || '';
-
   // A sessão da plataforma e a ligação Deriv são a autenticação necessária.
   // O access token pode ter expirado ou não estar presente; nesse caso,
   // tenta-se renovar com o refresh token antes de rejeitar o pedido.
