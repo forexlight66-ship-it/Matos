@@ -20,14 +20,32 @@ export class DerivWebSocket {
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   private lastMessageAt = 0;
   private lastTickAt = 0;
+  private reconnectUrlProvider: (() => Promise<string>) | null = null;
+  private reconnectGeneration = 0;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
-  connect() {
+  setReconnectUrlProvider(provider: (() => Promise<string>) | null) {
+    this.reconnectUrlProvider = provider;
+  }
+
+  async connect() {
     if (!this.reconnectEnabled) return;
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
 
-    const socket = new WebSocket(this.url);
+    const generation = ++this.reconnectGeneration;
+    let url = this.url;
+    try {
+      if (this.reconnectUrlProvider) url = await this.reconnectUrlProvider();
+    } catch (error) {
+      console.error('[DerivWS] Failed to refresh WebSocket URL:', error);
+      if (this.reconnectEnabled) this.scheduleReconnect();
+      return;
+    }
+    if (!this.reconnectEnabled || generation !== this.reconnectGeneration) return;
+    this.url = url;
+
+    const socket = new WebSocket(url);
     this.ws = socket;
 
     socket.onopen = () => {
@@ -163,7 +181,7 @@ export class DerivWebSocket {
 
   // True when the connection looks alive but market-data traffic has stopped.
   // This catches "silent" WebSocket failures that do not emit onclose/onerror.
-  isStale(maxTickAgeMs = 12000): boolean {
+  isStale(maxTickAgeMs = 25000): boolean {
     if (!this.isConnected() || this.tickSubscriptions.size === 0) return false;
     return Date.now() - this.lastTickAt > maxTickAgeMs;
   }
@@ -193,7 +211,7 @@ export class DerivWebSocket {
     this.balanceSubscribed = false;
     this.contractSubscriptionIds.clear();
 
-    window.setTimeout(() => this.connect(), 50);
+    window.setTimeout(() => { void this.connect(); }, 50);
   }
 
   subscribe(msgType: string, handler: MessageHandler) {
@@ -284,6 +302,7 @@ export class DerivWebSocket {
 
   disconnect() {
     this.reconnectEnabled = false;
+    this.reconnectGeneration++;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     this.stopKeepAlive();
