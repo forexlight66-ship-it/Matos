@@ -134,6 +134,9 @@ export async function ensurePaymentRequestSchema() {
       ON ai_analyst_subscriptions(LOWER(deriv_nickname))
       WHERE deriv_nickname IS NOT NULL;
     CREATE INDEX IF NOT EXISTS ai_analyst_subscriptions_expires_idx ON ai_analyst_subscriptions(expires_at);
+    ALTER TABLE ai_analyst_subscriptions ADD COLUMN IF NOT EXISTS deriv_nickname TEXT;
+    UPDATE ai_analyst_subscriptions s SET deriv_nickname=LOWER(TRIM(p.client_nickname)) FROM payment_agent_requests p WHERE s.payment_request_id=p.id AND (s.deriv_nickname IS NULL OR TRIM(s.deriv_nickname)='');
+    CREATE UNIQUE INDEX IF NOT EXISTS ai_analyst_subscriptions_deriv_nickname_idx ON ai_analyst_subscriptions(LOWER(deriv_nickname)) WHERE deriv_nickname IS NOT NULL;
   `);
 }
 
