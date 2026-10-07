@@ -34,6 +34,15 @@ async function ensureSchema() {
     );
     CREATE INDEX IF NOT EXISTS platform_password_resets_user_id_idx ON platform_password_resets(user_id);
     CREATE INDEX IF NOT EXISTS platform_password_resets_expires_at_idx ON platform_password_resets(expires_at);
+    CREATE TABLE IF NOT EXISTS deriv_oauth_states (
+      state TEXT PRIMARY KEY,
+      verifier TEXT NOT NULL,
+      redirect_uri TEXT NOT NULL,
+      return_to TEXT NOT NULL DEFAULT '/',
+      expires_at TIMESTAMPTZ NOT NULL,
+      consumed_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS deriv_oauth_states_expires_idx ON deriv_oauth_states(expires_at);
   `);
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS country TEXT');
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_refresh_ciphertext TEXT');
