@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-type Action = 'deposit' | 'withdraw';
+type Action = 'deposit' | 'withdraw' | 'ai_analyst';
 type Step = 'form' | 'confirm' | 'otp' | 'result';
 
 type AgentCurrency = {
@@ -128,7 +128,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   useEffect(() => {
     if (!open || !action) return;
     setStep('form');
-    setAmount('');
+    setAmount(action === 'ai_analyst' ? '3' : '');
     setCode('');
     setBusy(false);
     setMessage('');
@@ -143,7 +143,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setDepositStatus('');
     setAuthExpired(false);
     setSupportedCurrencies([]);
-    setPaymentCurrency(currency);
+    setPaymentCurrency(action === 'ai_analyst' ? 'USD' : currency);
     try {
       const raw = sessionStorage.getItem('mozhyper_payment_agent_draft');
       if (raw) {
@@ -290,7 +290,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, action, requestId, depositPaid, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
 
-  const actionTitle = action === 'deposit' ? copy.deposit : copy.withdraw;
+  const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
 
   useEffect(() => {
     if (!open || action !== 'withdraw' || !requestId) return;
@@ -376,12 +376,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       showError(copy.invalid);
       return false;
     }
-    if (action === 'deposit' && !derivNickname.trim()) {
+    if ((action === 'deposit' || action === 'ai_analyst') && !derivNickname.trim()) {
       showError(copy.nicknameMissing);
       return false;
     }
-    if (!paymentReady) { showError(copy.loadingCurrencies); return false; }
-    if (!currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
+    if (action !== 'ai_analyst' && !paymentReady) { showError(copy.loadingCurrencies); return false; }
+    if (action !== 'ai_analyst' && !currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
     if (action === 'withdraw' && minWithdraw > 0 && value < minWithdraw) {
       showError(copy.minWithdraw + ' ' + minWithdraw.toFixed(2) + ' ' + paymentCurrency + '.');
       return false;
@@ -467,10 +467,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setMessage('');
     setAuthExpired(false);
     try {
-      const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : '/api/payment-agent/withdraw';
+      const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : action === 'withdraw' ? '/api/payment-agent/withdraw' : '/api/ai-analyst/purchase';
       const body = action === 'deposit'
         ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod }
-        : { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName };
+        : action === 'withdraw'
+          ? { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName }
+          : { paymentMethod };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -547,7 +549,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           {action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
 
-        {action === 'deposit' && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
+        {(action === 'deposit' || action === 'ai_analyst') && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
           <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{copy.paymentInstructionsTitle}</div>
           <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>{copy.paymentInstructions}</div>
           <div style={{ marginTop:10, display:'grid', gap:6, fontSize:13 }}>
@@ -570,7 +572,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         )}
 
         {step === 'form' && <>
-          {action === 'deposit' && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
+          {(action === 'deposit' || action === 'ai_analyst') && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.account}</div>
             <div style={{ marginTop:4, fontSize:13, fontWeight:900 }}>
               {nicknameLoading ? copy.fetching : derivNickname || copy.nicknameError}
@@ -615,12 +617,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <input value={paymentName} onChange={event=>setPaymentName(event.target.value)} placeholder="Nome do titular" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
           </>}
-          <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
+          {action !== 'ai_analyst' ?           <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
-          </label>
-          {paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
+          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>AI Analyst — assinatura mensal</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>$3 USD <span style={{fontSize:12,opacity:.7}}>ou 250 MZN</span></div><div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso por 30 dias após confirmação do Payment Agent.</div></div>}
+          {action !== 'ai_analyst' && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
 
         {step === 'confirm' && <>
