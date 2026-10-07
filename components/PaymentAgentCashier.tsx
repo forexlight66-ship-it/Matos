@@ -244,7 +244,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     const refreshStatus = async () => {
       try {
         const response = await fetch(
-          '/api/payment-agent/deposit/status?request_id=' + encodeURIComponent(requestId),
+          (binanceFallback ? '/api/ai-analyst/access' : '/api/payment-agent/deposit/status?request_id=' + encodeURIComponent(requestId)),
           {
             cache: 'no-store',
             headers: { 'Cache-Control': 'no-cache' },
@@ -253,7 +253,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         const payload: ApiResult = await response.json().catch(() => ({}));
         if (!response.ok || cancelled) return;
 
-        const status = String(payload.data?.status || '').toLowerCase();
+        const status = binanceFallback ? (payload?.active ? 'payment_confirmed' : 'awaiting_payment') : String(payload.data?.status || '').toLowerCase();
         if (status === 'payment_confirmed') {
           setDepositStatus('payment_confirmed');
           setMessage(copy.accepted);
@@ -288,9 +288,11 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       cancelled = true;
       if (timer) window.clearInterval(timer);
     };
-  }, [open, action, requestId, depositPaid, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
+  }, [open, action, requestId, depositPaid, binanceFallback, copy.accepted, copy.rejected, copy.depositSuccess, copy.failed, onNotice]);
 
   const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
+  const binanceFallback = action === 'ai_analyst' && !isPaymentAgentCurrencyAllowed(currency);
+  const BINANCE_USDT_ADDRESS = 'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu';
 
   useEffect(() => {
     if (!open || action !== 'withdraw' || !requestId) return;
@@ -443,7 +445,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     if (!requestId || depositPaid) return;
     setBusy(true);
     try {
-      const response = await fetch('/api/payment-agent/deposit/mark-paid', {
+      const response = await fetch(binanceFallback ? '/api/payment-agent/deposit/mark-paid?request_id=' + encodeURIComponent(requestId) : '/api/payment-agent/deposit/mark-paid', {
         method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ requestId }),
       });
       const payload: ApiResult = await response.json().catch(() => ({}));
@@ -472,7 +474,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod }
         : action === 'withdraw'
           ? { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName }
-          : { paymentMethod };
+          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -550,16 +552,24 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         </div>
 
         {(action === 'deposit' || action === 'ai_analyst') && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
-          <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{copy.paymentInstructionsTitle}</div>
-          <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>{copy.paymentInstructions}</div>
-          <div style={{ marginTop:10, display:'grid', gap:6, fontSize:13 }}>
-            <div><b>{copy.paymentMethod}:</b> {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</div>
-            <div><b>{copy.recipientNumber}:</b> <span style={{ fontSize:17, fontWeight:900 }}>{paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}</span></div>
-            <div><b>{copy.recipientName}:</b> Mistério João</div>
-            <div><b>{copy.exchangeRate}:</b> 1 USD = 80 MZN</div>
-            <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{copy.transferAmount}: {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div>
-          </div>
-          <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>{copy.alreadyPaid}</div>
+          <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{binanceFallback ? 'BINANCE USDT' : copy.paymentInstructionsTitle}</div>
+          {binanceFallback ? <>
+            <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>Pague <b>3 USDT</b> usando exclusivamente a rede <b>TRON (TRC20)</b>.</div>
+            <div style={{ marginTop:10, fontSize:10, opacity:.7 }}>Endereço Binance USDT:</div>
+            <div style={{ marginTop:5, padding:10, borderRadius:10, background:light?'#fff':'#111827', fontSize:11, fontWeight:900, wordBreak:'break-all' }}>{BINANCE_USDT_ADDRESS}</div>
+            <button type="button" onClick={()=>navigator.clipboard?.writeText(BINANCE_USDT_ADDRESS)} style={{ width:'100%', marginTop:8, padding:10, border:0, borderRadius:10, background:'#f3ba2f', color:'#111827', fontWeight:900 }}>Copiar endereço</button>
+            <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>Depois de enviar exatamente 3 USDT, clique em “JÁ PAGUEI”. O agente verifica o recebimento na Binance antes de ativar o AI Analyst.</div>
+          </> : <>
+            <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>{copy.paymentInstructions}</div>
+            <div style={{ marginTop:10, display:'grid', gap:6, fontSize:13 }}>
+              <div><b>{copy.paymentMethod}:</b> {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</div>
+              <div><b>{copy.recipientNumber}:</b> <span style={{ fontSize:17, fontWeight:900 }}>{paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}</span></div>
+              <div><b>{copy.recipientName}:</b> Mistério João</div>
+              <div><b>{copy.exchangeRate}:</b> 1 USD = 80 MZN</div>
+              <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{copy.transferAmount}: {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div>
+            </div>
+            <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>{copy.alreadyPaid}</div>
+          </>}
         </div>}
 
         {authExpired && (
