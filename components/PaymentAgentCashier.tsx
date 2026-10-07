@@ -18,6 +18,7 @@ type ApiResult = {
   requestId?: string;
   error?: string;
   code?: string;
+  active?: boolean;
   next_request_at?: number;
   expires_at?: number;
 };
