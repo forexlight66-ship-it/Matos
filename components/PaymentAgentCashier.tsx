@@ -547,6 +547,19 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           {action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
 
+        {action === 'deposit' && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
+          <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>PAGAMENTO DO DEPÓSITO</div>
+          <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>{copy.paymentInstructions}</div>
+          <div style={{ marginTop:10, display:'grid', gap:6, fontSize:13 }}>
+            <div><b>{copy.paymentMethod}:</b> {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</div>
+            <div><b>{copy.recipientNumber}:</b> <span style={{ fontSize:17, fontWeight:900 }}>{paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}</span></div>
+            <div><b>{copy.recipientName}:</b> Mistério João</div>
+            <div><b>{copy.exchangeRate}:</b> 1 USD = 80 MZN</div>
+            <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{copy.transferAmount}: {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div>
+          </div>
+          <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>{copy.alreadyPaid}</div>
+        </div>}
+
         {authExpired && (
           <div style={{ marginTop:14, padding:12, borderRadius:12, border:'1px solid #fca5a5', background:light?'#fff1f2':'#3f1d24', color:light?'#991b1b':'#fecaca' }}>
             <div style={{ fontSize:12, fontWeight:800, lineHeight:1.45 }}>{copy.authExpired}</div>
@@ -637,26 +650,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, opacity:.7 }}>{copy.operation}</div>
           <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
           {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
-
-          {action === 'deposit' && requestId && <div style={{ marginTop:14, padding:13, borderRadius:12, background:light?'#fff':'#0f172a', border:'1px solid rgba(148,163,184,.35)' }}>
-            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, opacity:.7 }}>{copy.paymentInstructions}</div>
-            <div style={{ marginTop:9, fontSize:14, fontWeight:900 }}>
-              {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}
-            </div>
-            <div style={{ marginTop:5, fontSize:18, fontWeight:900, letterSpacing:.4 }}>
-              {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}
-            </div>
-            <div style={{ marginTop:4, fontSize:12, fontWeight:800 }}>Mistério João</div>
-            <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>
-              {copy.exchangeRate}: <b>1 USD = 80 MZN</b>
-            </div>
-            <div style={{ marginTop:5, fontSize:14, fontWeight:900 }}>
-              {copy.transferAmount}: {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN
-            </div>
-            <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>
-              {copy.paymentInstructions} {copy.alreadyPaid}
-            </div>
-          </div>}
 
           {action === 'deposit' && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
           {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
