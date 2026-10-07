@@ -1,33 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRefreshToken } from '@/lib/platform-auth';
-import { refreshAccessToken } from '@/lib/oauth';
+import { getAuthenticatedDerivNickname } from '@/lib/derivNickname';
 import { isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { createAIAnalystRequest, createAIAnalystBinanceRequest } from '@/lib/paymentAgentRequests';
 import { sendAgentAlert } from '@/lib/telegram';
 export const dynamic='force-dynamic';
-async function getAuthenticatedDerivNickname(input:{accessToken:string;refreshToken:string;appId:string}){
- let accessToken=input.accessToken.trim();
- let refreshToken=input.refreshToken.trim();
- let refreshed=false;
- async function requestNickname(token:string){
-  const response=await fetch('https://api.derivws.com/account/v1/nickname',{headers:{Authorization:'Bearer '+token,'Deriv-App-ID':input.appId},cache:'no-store'});
-  const data=await response.json().catch(()=>null);
-  if(!response.ok) throw Object.assign(new Error(data?.message||data?.error||'Deriv nickname request failed'),{status:response.status});
-  const nickname=String(data?.nickname||data?.data?.nickname||'').trim();
-  if(!nickname) throw new Error('Deriv não devolveu o nickname da conta autenticada.');
-  return nickname;
- }
- if(accessToken){
-  try{return {nickname:await requestNickname(accessToken),accessToken,refreshToken,refreshed};}catch(error){if(Number((error as {status?:number})?.status||0)!==401)throw error;}
- }
- if(!refreshToken) throw Object.assign(new Error('Conta Deriv não autenticada.'),{status:401});
- const refreshedToken=await refreshAccessToken(input.appId,refreshToken);
- accessToken=refreshedToken.access_token;
- refreshToken=refreshedToken.refresh_token||refreshToken;
- refreshed=true;
- return {nickname:await requestNickname(accessToken),accessToken,refreshToken,refreshed};
-}
-
 function escapeHtml(value:string){return value.replace(/[&<>"]/g,char=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[char]||char))}
 export async function POST(request:NextRequest){
  const session=await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
