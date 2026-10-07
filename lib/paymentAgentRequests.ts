@@ -169,17 +169,21 @@ export async function createWithdrawRequest(input: {
   paymentNumber: string;
   paymentName: string;
   verificationCode: string;
-  refreshToken: string;
+  requestId?: string;
+  status?: 'transfer_pending' | 'completed' | 'failed';
+  transactionId?: string | null;
 }) {
   await ensurePaymentRequestSchema();
-  const id = requestId('w');
+  const id = input.requestId?.trim() || requestId('w');
   const paymentMethod = input.paymentMethod;
+  const status = input.status || 'transfer_pending';
+  const refreshCiphertext = null;
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
-      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,verification_ciphertext,refresh_ciphertext)
-     VALUES ($1,'withdraw','client_marked_paid',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,verification_ciphertext,refresh_ciphertext,transaction_id)
+     VALUES ($1,'withdraw',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
      RETURNING *`,
-    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*WITHDRAW_RATE_MZN,WITHDRAW_RATE_MZN,paymentMethod,input.paymentNumber.trim(),input.paymentName.trim(),encrypt(input.verificationCode),encrypt(input.refreshToken)],
+    [id,status,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*WITHDRAW_RATE_MZN,WITHDRAW_RATE_MZN,paymentMethod,input.paymentNumber.trim(),input.paymentName.trim(),encrypt(input.verificationCode),refreshCiphertext,input.transactionId || null],
   );
   return result.rows[0] as PaymentRequest;
 }
