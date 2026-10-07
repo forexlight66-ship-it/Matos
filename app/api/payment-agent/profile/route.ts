@@ -8,10 +8,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const token = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
+  if (!session || !token) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
   }
-  if (!session || !token) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   try {
     void ensurePaymentAgentWebhook().catch(error => {
       console.error('[Payment Agent] Telegram webhook setup failed', error instanceof Error ? error.message : String(error));
