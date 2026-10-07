@@ -36,6 +36,7 @@ export type PaymentRequest = {
   payment_method: string | null;
   payment_number: string | null;
   payment_name: string | null;
+  purpose?: string;
   verification_ciphertext: string | null;
   refresh_ciphertext: string | null;
   transfer_request_id: string | null;
@@ -88,6 +89,7 @@ export async function ensurePaymentRequestSchema() {
       payment_method TEXT,
       payment_number TEXT,
       payment_name TEXT,
+      purpose TEXT NOT NULL DEFAULT 'deposit',
       verification_ciphertext TEXT,
       refresh_ciphertext TEXT,
       transfer_request_id TEXT,
@@ -104,6 +106,14 @@ export async function ensurePaymentRequestSchema() {
     CREATE INDEX IF NOT EXISTS payment_agent_requests_status_idx ON payment_agent_requests(status);
     CREATE INDEX IF NOT EXISTS payment_agent_requests_created_idx ON payment_agent_requests(created_at DESC);
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS platform_transfer_request_id UUID;
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'deposit';
+    CREATE TABLE IF NOT EXISTS ai_analyst_subscriptions (
+      user_id BIGINT PRIMARY KEY REFERENCES platform_users(id) ON DELETE CASCADE,
+      payment_request_id TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ai_analyst_subscriptions_expires_idx ON ai_analyst_subscriptions(expires_at);
   `);
 }
 
@@ -125,12 +135,56 @@ export async function createDepositRequest(input: {
   const paymentNumber = input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER;
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
-      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,refresh_ciphertext)
-     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,refresh_ciphertext,purpose)
+     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'deposit')
      RETURNING *`,
     [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*DEPOSIT_RATE_MZN,DEPOSIT_RATE_MZN,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME,encrypt(input.refreshToken)],
   );
   return result.rows[0] as PaymentRequest;
+}
+
+export async function createAIAnalystRequest(input: {
+  userId: string | number;
+  clientName: string;
+  clientEmail: string;
+  clientNickname: string;
+  paymentMethod: 'mpesa' | 'emola';
+}) {
+  await ensurePaymentRequestSchema();
+  const id = requestId('ai');
+  const amountUsd = 3;
+  const localAmountMzn = 250;
+  const exchangeRate = localAmountMzn / amountUsd;
+  const paymentNumber = input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER;
+  const result = await pool.query(
+    `INSERT INTO payment_agent_requests
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,purpose)
+     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'ai_analyst')
+     RETURNING *`,
+    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,exchangeRate,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME],
+  );
+  return result.rows[0] as PaymentRequest;
+}
+
+export async function getAIAnalystAccess(userId: string | number) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query('SELECT expires_at FROM ai_analyst_subscriptions WHERE user_id=$1', [userId]);
+  const row = result.rows[0];
+  return row ? { active: new Date(row.expires_at).getTime() > Date.now(), expiresAt: row.expires_at } : { active: false, expiresAt: null };
+}
+
+export async function activateAIAnalystSubscription(userId: string | number, paymentRequestId: string) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query(
+    `INSERT INTO ai_analyst_subscriptions (user_id,payment_request_id,expires_at)
+     VALUES ($1,$2,NOW()+INTERVAL '30 days')
+     ON CONFLICT (user_id) DO UPDATE SET
+       payment_request_id=EXCLUDED.payment_request_id,
+       expires_at=CASE WHEN ai_analyst_subscriptions.expires_at>NOW() THEN ai_analyst_subscriptions.expires_at+INTERVAL '30 days' ELSE EXCLUDED.expires_at END
+     RETURNING *`,
+    [userId,paymentRequestId],
+  );
+  return result.rows[0];
 }
 
 export async function markDepositPaid(userId: string | number, id: string) {
