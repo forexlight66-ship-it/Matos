@@ -337,7 +337,26 @@ export default function AutoBotV4(){
     requestStartedAt.current=0;
     lastActivityAt.current=Date.now();
    }
-  },[activeContractId]); useEffect(()=>{if(!smartAnalyzer){setSmartAdvice(null);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice(null);if(analyzerNoticeTimerRef.current!==null){window.clearTimeout(analyzerNoticeTimerRef.current);analyzerNoticeTimerRef.current=null}return}if(ticks.length<25){setSmartAdvice(null);pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice('A recolher 25 ticks...');return}if(!analyze100Ticks){setSmartAdvice(null);pendingAnalyzerStrategyRef.current=null;return}
+  },[activeContractId]); useEffect(()=>{if(!smartAnalyzer){setSmartAdvice(null);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice(null);if(analyzerNoticeTimerRef.current!==null){window.clearTimeout(analyzerNoticeTimerRef.current);analyzerNoticeTimerRef.current=null}return}if(ticks.length<25){setSmartAdvice(null);pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice('A recolher 25 ticks...');return}if(!analyze100Ticks){
+  const hadSelectedBot=Boolean(smartAdvice&&ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]===strategy);
+  setSmartAdvice(null);
+  pendingAnalyzerStrategyRef.current=null;
+  if(hadSelectedBot){
+    // The selected bot lost its required phase/percentage. Stop opening
+    // new contracts and force a completely fresh 25-tick analysis cycle.
+    setTicks([]);
+    setSignalNow(null);
+    totalTickCountRef.current=0;
+    lastAnalyzerEvalTickRef.current=0;
+    analyzerStableKeyRef.current=null;
+    analyzerStableCountRef.current=0;
+    setAnalyzerNoticeColor('#ff444f');
+    setAnalyzerNotice('Fase caiu — aguardando nova análise de 25 ticks');
+    if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
+    analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},3000);
+  }
+  return
+}
   if(lastAnalyzerEvalTickRef.current>0&&totalTickCountRef.current-lastAnalyzerEvalTickRef.current<5)return;
   lastAnalyzerEvalTickRef.current=totalTickCountRef.current;
   setSmartAdvice(analyze100Ticks);
