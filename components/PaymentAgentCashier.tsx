@@ -79,7 +79,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           deposit:'Depositar', withdraw:'Retirar', paymentAgent:'Agente de pagos 503', close:'Cerrar', account:'Cuenta Deriv', amount:'Importe',
           processing:'Procesando…', continue:'Continuar', back:'Volver', cancel:'Cancelar', confirmDeposit:'Confirmar depósito',
           sendCode:'Enviar código', confirmWithdraw:'Confirmar retiro', operation:'Estado de la operación',
-          confirm:'Confirmar operación', realWarning:'Verifica los datos. La confirmación crea un pedido para revisión; todavía no mueve fondos.',
+          confirm:'Confirmar operación', realWarning:'Verifica los datos. La confirmación crea un pedido de depósito; esta confirmación no mueve fondos del cliente.', withdrawWarning:'Verifica los datos. Confirmar el retiro envía un pedido real directamente desde tu Wallet Deriv al Payment Agent 503.',
           code:'Código de verificación', codeHelp:'El código corresponde exactamente al importe solicitado.',
           accountHelp:'El depósito se enviará exclusivamente a esta cuenta autenticada.', fetching:'Cargando…', closeWindow:'Cerrar',
           invalid:'Introduce un importe válido.', nicknameMissing:'No se encontró el nickname de la cuenta Deriv autenticada.', nicknameError:'No se pudo cargar el nickname de la cuenta Deriv autenticada.', retry:'Reintentar',
