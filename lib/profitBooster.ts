@@ -74,7 +74,7 @@ export function boosterSignal(digits:number[], candidate:BoosterCandidate, thres
 export function boosterStrength(digits:number[], candidate:BoosterCandidate){
   const d=digits.slice(-5);
   if(d.length<5)return 0;
-  const pct=(fn:(n:number)=>boolean)=>d.filter(fn).length/5*100;
+  const pct=(fn:(n:number)=>boolean)=>d.filter(fn).length/5*100;const match0=d.filter(x=>x===0).length/5*100;let up=0,down=0;for(let i=1;i<d.length;i++){if(d[i]>d[i-1])up++;else if(d[i]<d[i-1])down++;}const rise=up/Math.max(1,up+down)*100;const fall=down/Math.max(1,up+down)*100;
   switch(candidate.strategy){
     case 'RISE_FALL': return candidate.contractType==='CALL'?rise:fall;
     case 'MATCH0': return match0;
