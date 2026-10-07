@@ -144,6 +144,20 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setAuthExpired(false);
     setSupportedCurrencies([]);
     setPaymentCurrency(currency);
+    try {
+      const raw = sessionStorage.getItem('mozhyper_payment_agent_draft');
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft?.action === action && Date.now() - Number(draft.savedAt || 0) < 15 * 60 * 1000) {
+          setAmount(String(draft.amount || ''));
+          setPaymentCurrency(String(draft.paymentCurrency || currency));
+          setPaymentMethod(draft.paymentMethod === 'emola' ? 'emola' : 'mpesa');
+          setPaymentNumber(String(draft.paymentNumber || ''));
+          setPaymentName(String(draft.paymentName || ''));
+        }
+        sessionStorage.removeItem('mozhyper_payment_agent_draft');
+      }
+    } catch {}
   }, [open, action, currency]);
 
   useEffect(() => {
