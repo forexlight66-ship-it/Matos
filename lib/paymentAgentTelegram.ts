@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getPaymentRequest, transitionPaymentRequest, claimTransfer, completeTransfer, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
+import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIAnalystSubscription, completeTransfer, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
 import { derivPaymentRequest, transferWalletToOptions, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
@@ -69,6 +69,23 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
 
     if (action === 'confirm') {
       const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'payment_confirmed');
+      if (String((updated as any).purpose || '') === 'ai_analyst') {
+        const subscription = await activateAIAnalystSubscription(updated.user_id, updated.id);
+        await answerTelegramCallback(callbackId, 'AI Analyst confirmado por 30 dias.').catch(() => undefined);
+        await editPaymentMessage(query, [
+          '🧠 <b>AI ANALYST ATIVADO</b>',
+          '',
+          `Cliente: <b>${escapeHtml(updated.client_name)}</b>`,
+          `Conta Deriv: <b>${escapeHtml(updated.client_nickname)}</b>`,
+          'Plano: <b>AI Analyst — 30 dias</b>',
+          'Valor: <b>$3 USD / 250 MZN</b>',
+          '',
+          `Expira em: <b>${escapeHtml(new Date(subscription.expires_at).toLocaleString('pt-PT'))}</b>`,
+          '',
+          'Nenhuma transferência para a Wallet/Options será executada para este produto.',
+        ].join('\\n'));
+        return true;
+      }
       await answerTelegramCallback(callbackId, updated.type === 'deposit' ? 'Pagamento confirmado.' : 'Levantamento confirmado.').catch(error => {
         console.error('[Payment Agent Telegram] callback acknowledgement failed', error);
       });
