@@ -667,8 +667,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div style={{ fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>NICKNAME DERIV</div>
               <div style={{ marginTop:4, fontSize:16, fontWeight:900 }}>{derivNickname || '—'}</div>
               <div style={{ marginTop:12, fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>VALOR DA ASSINATURA</div>
-              <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>{action === 'ai_analyst' ? '$3.00' : '
-            </div>
+              <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>{action === 'ai_analyst' ? '$3.00' : '$' + (parseMoney(amount) || 0).toFixed(2)}</div>
             <div style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:10, textAlign:'left' }}>
               <div aria-hidden="true" style={{ width:42, height:42, flex:'0 0 42px', borderRadius:'50%', background:'linear-gradient(145deg,#22c55e,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:950, boxShadow:'0 6px 16px rgba(34,197,94,.25)' }}>✓</div>
               <div style={{ fontSize:11, lineHeight:1.45, opacity:.9 }}>Pagamento confirmado. O AI Analyst está disponível por 30 dias.</div>
