@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { isPaymentAgentCurrencyAllowed } from '@/lib/paymentAgentCompat';
 
 type Action = 'deposit' | 'withdraw' | 'ai_analyst';
 type Step = 'form' | 'confirm' | 'otp' | 'result';
