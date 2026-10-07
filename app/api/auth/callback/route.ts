@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCode } from '@/lib/oauth';
-import { getSession, PLATFORM_SESSION_COOKIE, createDerivOAuthSession, saveDerivRefreshToken } from '@/lib/platform-auth';
+import { getSession, PLATFORM_SESSION_COOKIE, createDerivOAuthSession, saveDerivRefreshToken, consumeDerivOAuthState } from '@/lib/platform-auth';
 
 const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
 const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
@@ -22,18 +22,29 @@ export async function GET(request: NextRequest) {
 
   const storedState = request.cookies.get('oauth_state')?.value;
   if (!storedState || state !== storedState) return errorRedirect('invalid_oauth_state');
-  const verifier = request.cookies.get('oauth_verifier')?.value;
-  if (!verifier) return errorRedirect('missing_oauth_verifier');
+
+  const oauthState = await consumeDerivOAuthState(state);
+  if (!oauthState) {
+    const requestedReturnTo = request.cookies.get('oauth_return_to')?.value || '/';
+    const returnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//')
+      ? requestedReturnTo
+      : '/';
+    console.warn('[OAuth] Ignoring replayed or expired callback state.');
+    return NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
+  }
+
+  const { verifier, redirect_uri: storedRedirectUri, return_to: storedReturnTo } = oauthState;
+  if (storedRedirectUri !== PRODUCTION_CALLBACK_URL) return errorRedirect('invalid_oauth_redirect_uri');
+
+  const returnTo = storedReturnTo.startsWith('/') && !storedReturnTo.startsWith('//')
+    ? storedReturnTo
+    : '/';
 
   const clientId = process.env.DERIV_APP_ID?.trim();
   if (!clientId) return NextResponse.json({ error: 'OAuth server configuration is incomplete' }, { status: 500 });
 
   try {
     const { access_token, refresh_token } = await exchangeCode(clientId, PRODUCTION_CALLBACK_URL, code, verifier);
-    const requestedReturnTo = request.cookies.get('oauth_return_to')?.value || '/';
-    const returnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//')
-      ? requestedReturnTo
-      : '/';
     const response = NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
     let oauthSessionId = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value || '';
     let oauthUserId = platformSession?.id;
