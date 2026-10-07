@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { markDepositPaid } from '@/lib/paymentAgentRequests';
+import { markDepositPaid, getPaymentRequest } from '@/lib/paymentAgentRequests';
 import { isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { sendAgentAlert } from '@/lib/telegram';
 
@@ -13,17 +13,21 @@ function escapeHtml(value: string) {
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
-  if (!isPaymentAgentCountryAllowed(session.country)) return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
+  const requestedId = String(new URL(request.url).searchParams.get('request_id') || '').trim();
+ if (!isPaymentAgentCountryAllowed(session.country) && !requestedId) return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes elegíveis.', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED' }, { status: 403 });
 
   const body = await request.json().catch(() => ({}));
-  const id = String(body.requestId || '').trim();
+  const id = String(body.requestId || requestedId || '').trim();
   if (!id) return NextResponse.json({ error: 'requestId é obrigatório' }, { status: 400 });
 
   try {
+    const existing = await getPaymentRequest(id);
+    const isBinanceAi = existing?.purpose === 'ai_analyst' && existing?.payment_method === 'binance_usdt_trc20';
+    if (!isPaymentAgentCountryAllowed(session.country) && !isBinanceAi) return NextResponse.json({ error: 'Pedido não elegível para este fluxo.' }, { status: 403 });
     const row = await markDepositPaid(session.id, id);
     try {
       await sendAgentAlert(
-        `🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>\n\nCliente: <b>${escapeHtml(row.client_name)}</b>\nConta Deriv: <b>${escapeHtml(row.client_nickname)}</b>\nValor: <b>$${Number(row.amount_usd).toFixed(2)} USD</b>\nCâmbio: <b>1 USD = ${Number(row.exchange_rate).toFixed(0)} MZN</b>\nA pagar: <b>${Number(row.local_amount_mzn).toFixed(2)} MZN</b>\nMétodo: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>\nNúmero: <b>${escapeHtml(row.payment_number || '—')}</b>\nNome: <b>${escapeHtml(row.payment_name || '—')}</b>\n\n⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.`,
+        isBinanceAi ? `🔔 <b>AI ANALYST — USDT ENVIADO</b>\n\nCliente:` : `🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>\n\nCliente: <b>${escapeHtml(row.client_name)}</b>\nConta Deriv: <b>${escapeHtml(row.client_nickname)}</b>\nValor: <b>$${Number(row.amount_usd).toFixed(2)} USD</b>\nCâmbio: <b>1 USD = ${Number(row.exchange_rate).toFixed(0)} MZN</b>\nA pagar: <b>${Number(row.local_amount_mzn).toFixed(2)} MZN</b>\nMétodo: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>\nNúmero: <b>${escapeHtml(row.payment_number || '—')}</b>\nNome: <b>${escapeHtml(row.payment_name || '—')}</b>\n\n⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.`,
         [[
           { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
           { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
