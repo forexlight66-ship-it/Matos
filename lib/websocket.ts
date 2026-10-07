@@ -253,6 +253,30 @@ export class DerivWebSocket {
     this.contractSubscriptions.delete(contractId);
   }
 
+  getTicksHistory(symbol: string, count = 5): Promise<number[]> {
+    return new Promise((resolve, reject) => {
+      const reqId = ++this.proposalRequestId;
+      const handler = (data: any) => {
+        const responseReqId = Number(data?.req_id ?? data?.echo_req?.req_id);
+        if (responseReqId !== reqId) return;
+        this.unsubscribe('history', handler);
+        if (data?.error) {
+          reject(new Error(String(data.error.message || 'Failed to load tick history')));
+          return;
+        }
+        const prices = Array.isArray(data?.history?.prices)
+          ? data.history.prices.map((value: unknown) => Number(value)).filter((value: number) => Number.isFinite(value))
+          : [];
+        resolve(prices.slice(-Math.max(1, count)));
+      };
+      this.subscribe('history', handler);
+      if (!this.send({ ticks_history: symbol, count: Math.max(1, count), end: 'latest', style: 'ticks', req_id: reqId })) {
+        this.unsubscribe('history', handler);
+        reject(new Error('WebSocket not connected'));
+      }
+    });
+  }
+
   getProfitTable(options?: { limit?: number; offset?: number; sort?: 'ASC' | 'DESC'; description?: 0 | 1 }) {
     const now = Date.now();
     if (now - this.lastProfitTableRequest < 10000) return false;
