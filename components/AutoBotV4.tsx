@@ -62,6 +62,15 @@ export default function AutoBotV4(){
  const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[smartAdvice,setSmartAdvice]=useState<{strategy:string;label:string;strength:number;edge:number}|null>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|null>(null);
  const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null);
+ useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requestedAction = params.get('paymentAgent');
+  if (requestedAction !== 'withdraw' && requestedAction !== 'deposit') return;
+  setCashierAction(requestedAction);
+  params.delete('paymentAgent');
+  const nextQuery = params.toString();
+  window.history.replaceState({}, '', window.location.pathname + (nextQuery ? '?' + nextQuery : '') + window.location.hash);
+ }, []);
  const barrierStateRef=useRef<BarrierState|null>(null);
  const gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));
  const lastPayoutRatioRef=useRef(IA_PAYOUT);
