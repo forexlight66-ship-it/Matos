@@ -236,6 +236,34 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, currency, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
 
+  useEffect(() => {
+    if (!open || !isAiAnalyst) return;
+    let cancelled = false;
+    const loadAiAnalystIdentity = async () => {
+      setNicknameLoading(true);
+      setNicknameError('');
+      setDerivNickname('');
+      try {
+        const response = await fetch('/api/ai-analyst/access', { cache:'no-store', headers:{'Cache-Control':'no-cache'} });
+        const payload = await response.json().catch(() => null);
+        if (cancelled) return;
+        const nickname = String(payload?.derivNickname || '').trim();
+        if (!nickname) {
+          throw new Error(String(payload?.code || '') === 'DERIV_NICKNAME_REQUIRED'
+            ? copy.nicknameMissing
+            : copy.nicknameError);
+        }
+        setDerivNickname(nickname);
+      } catch (error) {
+        if (!cancelled) setNicknameError(error instanceof Error ? error.message : copy.nicknameError);
+      } finally {
+        if (!cancelled) setNicknameLoading(false);
+      }
+    };
+    void loadAiAnalystIdentity();
+    return () => { cancelled = true; };
+  }, [open, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
+
   const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
   const binanceFallback = isAiAnalyst && paymentMethod === 'binance_usdt_trc20';
   const limits = useMemo(
