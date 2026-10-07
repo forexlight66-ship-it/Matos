@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { isPaymentAgentCountryAllowed, derivPaymentRequest } from '@/lib/paymentAgent';
-import { createAIAnalystRequest } from '@/lib/paymentAgentRequests';
+import { createAIAnalystRequest, createAIAnalystBinanceRequest } from '@/lib/paymentAgentRequests';
 import { sendAgentAlert } from '@/lib/telegram';
 export const dynamic='force-dynamic';
 function escapeHtml(value:string){return value.replace(/[&<>"]/g,char=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[char]||char))}
@@ -11,7 +11,13 @@ export async function POST(request:NextRequest){
  if(!isPaymentAgentCountryAllowed(session.country))return NextResponse.json({error:'O Payment Agent está disponível apenas para clientes de Moçambique e África do Sul.'},{status:403});
  const body=await request.json().catch(()=>({}));
  const method=String(body.paymentMethod||'').toLowerCase();
- if(method!=='mpesa'&&method!=='emola')return NextResponse.json({error:'Escolha M-Pesa ou e-Mola.'},{status:400});
+ const isBinance=method==='binance_usdt_trc20';
+ if(method!=='mpesa'&&method!=='emola'&&!isBinance)return NextResponse.json({error:'Escolha M-Pesa, e-Mola ou Binance USDT (TRC20).'},{status:400});
+ if(isBinance){
+  const cryptoRow=await createAIAnalystBinanceRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname});
+  try{await sendAgentAlert(['🟡 <b>NOVO AI ANALYST — BINANCE USDT</b>','',`Cliente: <b>${escapeHtml(cryptoRow.client_name)}</b>`,`Conta Deriv: <b>${escapeHtml(cryptoRow.client_nickname)}</b>`,'Plano: <b>AI Analyst — 30 dias</b>','Valor: <b>3 USDT</b>','Rede: <b>TRON (TRC20)</b>',`Endereço: <code>TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu</code>`,'','Confirme somente depois de verificar o recebimento na Binance.'].join('\\n'),[[{text:'✅ CONFIRMAR USDT',callback_data:`pa:confirm:${cryptoRow.id}`},{text:'❌ REJEITAR',callback_data:`pa:reject:${cryptoRow.id}`}]]);}catch(error){console.error('[AI Analyst Binance] Telegram alert failed',error)}
+  return NextResponse.json({requestId:cryptoRow.id,status:cryptoRow.status,amountUsdt:3,asset:'USDT',network:'TRC20',address:'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu'},{headers:{'Cache-Control':'no-store'}});
+ }
  let nickname='';
  try{
   const token=request.cookies.get('deriv_access_token')?.value||'';
