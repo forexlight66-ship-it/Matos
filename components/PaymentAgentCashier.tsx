@@ -659,6 +659,29 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               : depositStatus === 'failed' ? copy.failed
               : copy.awaitingAgent}
           </div>}
+          {action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') && (
+            <div style={{ marginTop:16, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg,#241323 0%,#0d111a 100%)', color:'#fff', textAlign:'center', padding:'22px 18px 20px', boxShadow:'0 16px 45px rgba(0,0,0,.25)' }}>
+              <div style={{ width:112, height:82, margin:'0 auto 14px', position:'relative' }} aria-hidden="true">
+                <div style={{ position:'absolute', left:7, top:18, width:72, height:50, borderRadius:'8px 8px 16px 10px', background:'linear-gradient(145deg,#ff3949,#a90d19)', transform:'rotate(-24deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
+                  <div style={{ position:'absolute', inset:7, borderRadius:5, background:'linear-gradient(145deg,#e8e8e8,#8e8e8e)' }} />
+                  <div style={{ position:'absolute', left:27, top:14, width:25, height:25, borderRadius:'50%', background:'#b51220' }} />
+                </div>
+                <div style={{ position:'absolute', right:3, top:4, width:78, height:54, borderRadius:'9px 10px 14px 10px', background:'#fff', border:'7px solid #ff3949', transform:'rotate(20deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
+                  <div style={{ position:'absolute', left:24, top:7, width:27, height:27, borderRadius:'50%', background:'#ff3949' }} />
+                </div>
+                <span style={{ position:'absolute', left:0, top:0, color:'#ff3949', fontSize:22, fontWeight:900, transform:'rotate(-25deg)' }}>✦</span>
+                <span style={{ position:'absolute', right:-2, bottom:0, color:'#ff3949', fontSize:17, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
+              </div>
+              <div style={{ fontSize:25, lineHeight:1.15, fontWeight:950, letterSpacing:-.5 }}>Transferência bem-sucedida</div>
+              <div style={{ marginTop:18, padding:'13px 14px', borderRadius:14, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', textAlign:'left' }}>
+                <div style={{ fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>Nickname</div>
+                <div style={{ marginTop:4, fontSize:16, fontWeight:900 }}>{derivNickname || '—'}</div>
+                <div style={{ marginTop:12, fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>Valor do depósito</div>
+                <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>{((parseMoney(amount) || 0) * (paymentCurrency === 'USD' ? 80 : 1)).toFixed(2)} {paymentCurrency === 'USD' ? 'MZN' : paymentCurrency}</div>
+              </div>
+              <div style={{ marginTop:12, fontSize:10, opacity:.62 }}>Pagamento confirmado pelo Payment Agent.</div>
+            </div>
+          )}
         </div>}
 
         {message && step !== 'result' && <div style={{ marginTop:12, padding:10, borderRadius:11, background:light?'#eff6ff':'#172554', fontSize:11 }}>{message}</div>}
