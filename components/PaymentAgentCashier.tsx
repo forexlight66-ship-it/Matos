@@ -646,43 +646,47 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <span style={{ display:'block', marginTop:6, fontSize:10, opacity:.62 }}>{copy.codeHelp}</span>
         </label>}
 
-        {step === 'result' && <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
-          <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, opacity:.7 }}>{copy.operation}</div>
-          <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
-          {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
-
-          {action === 'deposit' && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
-          {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
-            {depositStatus === 'payment_confirmed' ? copy.accepted
-              : depositStatus === 'rejected' ? copy.rejected
-              : depositStatus === 'completed' ? copy.depositSuccess
-              : depositStatus === 'failed' ? copy.failed
-              : copy.awaitingAgent}
-          </div>}
-          {action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') && (
-            <div style={{ marginTop:16, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg,#241323 0%,#0d111a 100%)', color:'#fff', textAlign:'center', padding:'22px 18px 20px', boxShadow:'0 16px 45px rgba(0,0,0,.25)' }}>
-              <div style={{ width:112, height:82, margin:'0 auto 14px', position:'relative' }} aria-hidden="true">
-                <div style={{ position:'absolute', left:7, top:18, width:72, height:50, borderRadius:'8px 8px 16px 10px', background:'linear-gradient(145deg,#ff3949,#a90d19)', transform:'rotate(-24deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
-                  <div style={{ position:'absolute', inset:7, borderRadius:5, background:'linear-gradient(145deg,#e8e8e8,#8e8e8e)' }} />
-                  <div style={{ position:'absolute', left:27, top:14, width:25, height:25, borderRadius:'50%', background:'#b51220' }} />
-                </div>
-                <div style={{ position:'absolute', right:3, top:4, width:78, height:54, borderRadius:'9px 10px 14px 10px', background:'#fff', border:'7px solid #ff3949', transform:'rotate(20deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
-                  <div style={{ position:'absolute', left:24, top:7, width:27, height:27, borderRadius:'50%', background:'#ff3949' }} />
-                </div>
-                <span style={{ position:'absolute', left:0, top:0, color:'#ff3949', fontSize:22, fontWeight:900, transform:'rotate(-25deg)' }}>✦</span>
-                <span style={{ position:'absolute', right:-2, bottom:0, color:'#ff3949', fontSize:17, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
+        {step === 'result' && action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') ? (
+          <div style={{ marginTop:16, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg,#241323 0%,#0d111a 100%)', color:'#fff', textAlign:'center', padding:'22px 18px 20px', boxShadow:'0 16px 45px rgba(0,0,0,.25)' }}>
+            <div style={{ width:112, height:82, margin:'0 auto 14px', position:'relative' }} aria-hidden="true">
+              <div style={{ position:'absolute', left:7, top:18, width:72, height:50, borderRadius:'8px 8px 16px 10px', background:'linear-gradient(145deg,#ff3949,#a90d19)', transform:'rotate(-24deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
+                <div style={{ position:'absolute', inset:7, borderRadius:5, background:'linear-gradient(145deg,#e8e8e8,#8e8e8e)' }} />
+                <div style={{ position:'absolute', left:27, top:14, width:25, height:25, borderRadius:'50%', background:'#b51220' }} />
               </div>
-              <div style={{ fontSize:25, lineHeight:1.15, fontWeight:950, letterSpacing:-.5 }}>Transferência bem-sucedida</div>
-              <div style={{ marginTop:18, padding:'13px 14px', borderRadius:14, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', textAlign:'left' }}>
-                <div style={{ fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>Nickname</div>
-                <div style={{ marginTop:4, fontSize:16, fontWeight:900 }}>{derivNickname || '—'}</div>
-                <div style={{ marginTop:12, fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>Valor do depósito</div>
-                <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>{((parseMoney(amount) || 0) * (paymentCurrency === 'USD' ? 80 : 1)).toFixed(2)} {paymentCurrency === 'USD' ? 'MZN' : paymentCurrency}</div>
+              <div style={{ position:'absolute', right:3, top:4, width:78, height:54, borderRadius:'9px 10px 14px 10px', background:'#fff', border:'7px solid #ff3949', transform:'rotate(20deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
+                <div style={{ position:'absolute', left:24, top:7, width:27, height:27, borderRadius:'50%', background:'#ff3949' }} />
               </div>
-              <div style={{ marginTop:12, fontSize:10, opacity:.62 }}>Pagamento confirmado pelo Payment Agent.</div>
+              <span aria-hidden="true" style={{ position:'absolute', left:0, top:0, color:'#ff3949', fontSize:22, fontWeight:900, transform:'rotate(-25deg)' }}>✦</span>
+              <span aria-hidden="true" style={{ position:'absolute', right:-2, bottom:0, color:'#ff3949', fontSize:17, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
             </div>
-          )}
-        </div>}
+            <div style={{ fontSize:25, lineHeight:1.15, fontWeight:950, letterSpacing:-.5 }}>Transferência bem-sucedida</div>
+            <div style={{ marginTop:12, fontSize:13, lineHeight:1.5, opacity:.9 }}>O seu depósito foi confirmado pelo nosso Payment Agent.</div>
+            <div style={{ marginTop:18, padding:'13px 14px', borderRadius:14, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', textAlign:'left' }}>
+              <div style={{ fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>NICKNAME DERIV</div>
+              <div style={{ marginTop:4, fontSize:16, fontWeight:900 }}>{derivNickname || '—'}</div>
+              <div style={{ marginTop:12, fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>VALOR DO DEPÓSITO</div>
+              <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>${(parseMoney(amount) || 0).toFixed(2)}</div>
+            </div>
+            <div style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:10, textAlign:'left' }}>
+              <div aria-hidden="true" style={{ width:42, height:42, flex:'0 0 42px', borderRadius:'50%', background:'linear-gradient(145deg,#22c55e,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:950, boxShadow:'0 6px 16px rgba(34,197,94,.25)' }}>✓</div>
+              <div style={{ fontSize:11, lineHeight:1.45, opacity:.9 }}>O pagamento foi confirmado e o valor já foi adicionado à sua conta Deriv.</div>
+            </div>
+            <button type="button" onClick={onClose}
+              style={{ width:'100%', marginTop:18, padding:13, border:0, borderRadius:12, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:15, cursor:'pointer' }}>
+              Fechar
+            </button>
+          </div>
+        ) : step === 'result' ? (
+          <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
+            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.operation}</div>
+            <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
+            {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
+            {action === 'deposit' && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
+            {action === 'deposit' && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
+              {depositStatus === 'payment_confirmed' ? copy.accepted : depositStatus === 'rejected' ? copy.rejected : depositStatus === 'completed' ? copy.depositSuccess : depositStatus === 'failed' ? copy.failed : copy.awaitingAgent}
+            </div>}
+          </div>
+        ) : null
 
         {message && step !== 'result' && <div style={{ marginTop:12, padding:10, borderRadius:11, background:light?'#eff6ff':'#172554', fontSize:11 }}>{message}</div>}
 
