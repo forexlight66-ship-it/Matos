@@ -3,7 +3,6 @@ import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRef
 import { getAuthenticatedDerivNickname } from '@/lib/derivNickname';
 import { isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { createAIAnalystRequest, createAIAnalystBinanceRequest } from '@/lib/paymentAgentRequests';
-import { sendAgentAlert } from '@/lib/telegram';
 export const dynamic='force-dynamic';
 function escapeHtml(value:string){return value.replace(/[&<>"]/g,char=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[char]||char))}
 export async function POST(request:NextRequest){
