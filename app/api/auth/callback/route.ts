@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCode } from '@/lib/oauth';
-import { getSession, PLATFORM_SESSION_COOKIE, createDerivOAuthSession } from '@/lib/platform-auth';
+import { getSession, PLATFORM_SESSION_COOKIE, createDerivOAuthSession, saveDerivRefreshToken } from '@/lib/platform-auth';
 
 const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
 const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
@@ -31,9 +31,16 @@ export async function GET(request: NextRequest) {
   try {
     const { access_token, refresh_token } = await exchangeCode(clientId, PRODUCTION_CALLBACK_URL, code, verifier);
     const response = NextResponse.redirect(PRODUCTION_APP_URL + '/', { status: 302 });
+    let oauthSessionId = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value || '';
+    let oauthUserId = platformSession?.id;
     if (!platformSession) {
-      const sessionId = await createDerivOAuthSession();
-      response.cookies.set(PLATFORM_SESSION_COOKIE, sessionId, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+      oauthSessionId = await createDerivOAuthSession();
+      response.cookies.set(PLATFORM_SESSION_COOKIE, oauthSessionId, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+      const createdSession = await getSession(oauthSessionId);
+      oauthUserId = createdSession?.id;
+    }
+    if (refresh_token && oauthUserId) {
+      await saveDerivRefreshToken(oauthUserId, refresh_token);
     }
     response.cookies.set('deriv_access_token', access_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
     if (platformSession?.country) response.cookies.set('matos_country', String(platformSession.country).toUpperCase(), { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 });
