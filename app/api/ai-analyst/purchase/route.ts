@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRefreshToken } from '@/lib/platform-auth';
 import { isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { createAIAnalystRequest, createAIAnalystBinanceRequest } from '@/lib/paymentAgentRequests';
 import { sendAgentAlert } from '@/lib/telegram';
