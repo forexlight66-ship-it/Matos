@@ -216,3 +216,25 @@ export async function getDerivRefreshToken(userId: string | number) {
     return null;
   }
 }
+
+
+export async function createDerivOAuthState(state: string, verifier: string, redirectUri: string, returnTo: string) {
+  await ensureSchema();
+  await pool.query('DELETE FROM deriv_oauth_states WHERE expires_at <= NOW() OR consumed_at IS NOT NULL');
+  await pool.query(
+    'INSERT INTO deriv_oauth_states (state, verifier, redirect_uri, return_to, expires_at) VALUES ($1,$2,$3,$4,NOW() + INTERVAL \'10 minutes\')',
+    [state, verifier, redirectUri, returnTo],
+  );
+}
+
+export async function consumeDerivOAuthState(state: string) {
+  await ensureSchema();
+  const result = await pool.query(
+    `UPDATE deriv_oauth_states
+     SET consumed_at = NOW()
+     WHERE state = $1 AND consumed_at IS NULL AND expires_at > NOW()
+     RETURNING verifier, redirect_uri, return_to`,
+    [state],
+  );
+  return result.rows[0] || null;
+}
