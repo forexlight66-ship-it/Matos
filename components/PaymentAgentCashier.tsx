@@ -29,7 +29,7 @@ type Copy = {
   invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
   depositSuccess:string; withdrawSuccess:string; pending:string; complete:string; rejected:string;
-  failed:string; accepted:string; request:string; authExpired:string; reauthenticate:string; realOperation:string; paymentMethod:string; mpesa:string; emola:string; recipientNumber:string; recipientName:string; exchangeRate:string; localAmount:string; alreadyPaid:string; awaitingAgent:string; paymentMarked:string; paymentInstructions:string; transferAmount:string; withdrawalDestination:string;
+  failed:string; accepted:string; request:string; authExpired:string; reauthenticate:string; realOperation:string; paymentMethod:string; mpesa:string; emola:string; recipientNumber:string; recipientName:string; exchangeRate:string; localAmount:string; alreadyPaid:string; awaitingAgent:string; paymentMarked:string; paymentInstructions:string; transferAmount:string; withdrawalDestination:string; paymentInstructionsTitle:string; amountToReceive:string;
 };
 
 interface PaymentAgentCashierProps {
