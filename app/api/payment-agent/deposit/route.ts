@@ -9,6 +9,9 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
+  if (!session || (!clientToken && !refreshToken)) {
+    return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  }
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
   }
