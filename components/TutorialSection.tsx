@@ -1,16 +1,41 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const DERIV_AFFILIATE_LINK = 'https://t.deriv.link?t=JAZWN4WCY6JS';
 
 const VIDEO_URL_PT = 'https://www.youtube.com/embed/0-uSXkLBH0Q?enablejsapi=1&playsinline=1&rel=0';
+const VIDEO_URL_PT_MZN = 'https://www.youtube.com/embed/JiDzX1Mu09k?enablejsapi=1&playsinline=1&rel=0';
 const VIDEO_URL_EN = 'https://www.youtube.com/embed/E4ripWokAPo?enablejsapi=1&playsinline=1&rel=0';
 
 export default function TutorialSection() {
   const { language, t } = useLanguage();
+  const [currency, setCurrency] = useState('USD');
   const isPortuguese = language === 'pt';
-  const videoUrl = isPortuguese ? VIDEO_URL_PT : VIDEO_URL_EN;
+
+  useEffect(() => {
+    let alive = true;
+    const loadCurrency = async () => {
+      try {
+        const response = await fetch('/api/currency', { cache: 'no-store' });
+        const data = response.ok ? await response.json() : null;
+        const code = String(data?.currency || localStorage.getItem('mozhyper-currency') || 'USD').toUpperCase();
+        if (alive) {
+          setCurrency(code);
+          try { localStorage.setItem('mozhyper-currency', code); } catch {}
+        }
+      } catch {
+        const code = String(localStorage.getItem('mozhyper-currency') || 'USD').toUpperCase();
+        if (alive) setCurrency(code);
+      }
+    };
+    void loadCurrency();
+    return () => { alive = false; };
+  }, []);
+
+  const isMzn = currency === 'MZN';
+  const videoUrl = isPortuguese ? (isMzn ? VIDEO_URL_PT_MZN : VIDEO_URL_PT) : VIDEO_URL_EN;
   const videoLabel = isPortuguese ? '📺 Aula português' : '📺 Aula English';
   const videoTitle = isPortuguese ? 'Aula em português' : 'English lesson';
 
