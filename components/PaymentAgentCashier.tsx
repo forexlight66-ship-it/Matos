@@ -151,7 +151,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setDepositStatus('');
     setAuthExpired(false);
     setSupportedCurrencies([]);
-    setPaymentCurrency(action === 'ai_analyst' ? 'USD' : currency);
+    setPaymentCurrency(action === 'ai_analyst' ? 'MZN' : currency);
     try {
       const raw = sessionStorage.getItem('mozhyper_payment_agent_draft');
       if (raw) {
@@ -642,17 +642,17 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{isAiAnalyst ? 'Método para pagar a assinatura' : copy.paymentMethod}</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:8 }}>
-              <button type="button" onClick={()=>{setPaymentMethod('mpesa'); if(isAiAnalyst) setAmount('250')}} aria-label={copy.mpesa}
+              <button type="button" onClick={()=>{setPaymentMethod('mpesa'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); }}} aria-label={copy.mpesa}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='mpesa' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#ed1b24', boxShadow: paymentMethod==='mpesa' ? '0 0 0 3px #ff4654, 0 10px 25px rgba(237,27,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src="/payment-agent/mpesa.svg" alt={copy.mpesa} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='mpesa' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#ed1b24', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
               </button>
-              <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst) setAmount('250')}} aria-label={copy.emola}
+              <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); }}} aria-label={copy.emola}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='emola' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#f97824', boxShadow: paymentMethod==='emola' ? '0 0 0 3px #ff7a24, 0 10px 25px rgba(249,120,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src="/payment-agent/emola.svg" alt={copy.emola} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='emola' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#f97824', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
               </button>
-              {isAiAnalyst && <button type="button" onClick={()=>{setPaymentMethod('binance_usdt_trc20'); setAmount('3')}} aria-label="Binance USDT TRC20"
+              {isAiAnalyst && currency.toUpperCase() !== 'MZN' && <button type="button" onClick={()=>{setPaymentMethod('binance_usdt_trc20'); setAmount('3'); setPaymentCurrency('USDT')}} aria-label="Binance USDT TRC20"
                 style={{ position:'relative', gridColumn:'1 / -1', height:58, borderRadius:14, border: paymentMethod==='binance_usdt_trc20' ? '3px solid #111827' : '1px solid #94a3b8', background:paymentMethod==='binance_usdt_trc20' ? '#f3ba2f' : (light?'#fff':'#111827'), color:'#111827', fontWeight:900, cursor:'pointer' }}>
                 Binance — 3 USDT (TRC20){paymentMethod==='binance_usdt_trc20' && <span style={{ marginLeft:8 }}>✓</span>}
               </button>}
@@ -681,7 +681,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <div style={{ position:'relative', zIndex:1, padding:14, borderRadius:14, background:light?'#f8fafc':'#111827' }}>
               <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
               {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
-              <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
+              <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {isAiAnalyst ? (binanceFallback ? 'USDT' : 'MZN') : paymentCurrency}</div>
               <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{isAiAnalyst ? 'Pagamento do serviço AI Analyst. Nenhum saldo da Wallet Deriv é movimentado.' : action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
               {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
               {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.amountToReceive} = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
