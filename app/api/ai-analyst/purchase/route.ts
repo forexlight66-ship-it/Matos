@@ -40,7 +40,6 @@ export async function POST(request:NextRequest){
  const nickname=derivIdentity.nickname;
  if(isBinance){
   const cryptoRow=await createAIAnalystBinanceRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname});
-  try{await sendAgentAlert(['🟡 <b>NOVO AI ANALYST — BINANCE USDT</b>','',`Cliente: <b>${escapeHtml(cryptoRow.client_name)}</b>`,'Serviço: <b>AI Analyst</b>','Plano: <b>AI Analyst — 30 dias</b>','Valor: <b>3 USDT</b>','Rede: <b>TRON (TRC20)</b>',`Endereço: <code>TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu</code>`,'','Confirme somente depois de verificar o recebimento na Binance.'].join('\\n'),[[{text:'✅ CONFIRMAR USDT',callback_data:`pa:confirm:${cryptoRow.id}`},{text:'❌ REJEITAR',callback_data:`pa:reject:${cryptoRow.id}`}]]);}catch(error){console.error('[AI Analyst Binance] Telegram alert failed',error)}
   const response=NextResponse.json({requestId:cryptoRow.id,status:cryptoRow.status,amountUsdt:3,asset:'USDT',network:'TRC20',address:'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu',derivNickname:nickname},{headers:{'Cache-Control':'no-store'}});
   if(derivIdentity.refreshed){
    response.cookies.set('deriv_access_token',derivIdentity.accessToken,{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:3600});
