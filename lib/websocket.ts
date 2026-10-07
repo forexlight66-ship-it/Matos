@@ -17,21 +17,38 @@ export class DerivWebSocket {
   private reconnectDelay = 1000;
   private lastProfitTableRequest = 0;
   private lastBalanceRequest = 0;
+  private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+  private lastMessageAt = 0;
+  private lastTickAt = 0;
 
   constructor(wsUrl: string) { this.url = wsUrl; }
 
   connect() {
     if (!this.reconnectEnabled) return;
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
-    this.ws = new WebSocket(this.url);
-    this.ws.onopen = () => {
+
+    const socket = new WebSocket(this.url);
+    this.ws = socket;
+
+    socket.onopen = () => {
+      if (this.ws !== socket) {
+        try { socket.close(); } catch {}
+        return;
+      }
       this.isReady = true;
       this.reconnectDelay = 1000;
+      this.lastMessageAt = Date.now();
+      this.lastTickAt = Date.now();
+      this.startKeepAlive(socket);
       this.resubscribeAll();
     };
-    this.ws.onmessage = (event) => {
+
+    socket.onmessage = (event) => {
+      if (this.ws !== socket) return;
+      this.lastMessageAt = Date.now();
       try {
         let data = JSON.parse(event.data);
+
         if (data.msg_type === 'balance' && Number.isFinite(Number(data?.balance))) {
           data = {
             ...data,
@@ -42,9 +59,22 @@ export class DerivWebSocket {
             },
           };
         }
-        if (data.msg_type === 'proposal_open_contract' && data.proposal_open_contract?.contract_id && data.subscription?.id) {
-          this.contractSubscriptionIds.set(Number(data.proposal_open_contract.contract_id), String(data.subscription.id));
+
+        if (data.msg_type === 'tick' && data.tick) {
+          this.lastTickAt = Date.now();
         }
+
+        if (
+          data.msg_type === 'proposal_open_contract' &&
+          data.proposal_open_contract?.contract_id &&
+          data.subscription?.id
+        ) {
+          this.contractSubscriptionIds.set(
+            Number(data.proposal_open_contract.contract_id),
+            String(data.subscription.id)
+          );
+        }
+
         const msgType = data.msg_type;
         if (msgType && this.handlers.has(msgType)) {
           for (const fn of this.handlers.get(msgType)!) fn(data);
@@ -56,14 +86,41 @@ export class DerivWebSocket {
         console.error('[DerivWS] Parse error:', error);
       }
     };
-    this.ws.onclose = () => {
+
+    socket.onclose = () => {
+      // Ignore events from an obsolete socket. This prevents an old socket
+      // closing after a reconnect from orphaning the current socket reference.
+      if (this.ws !== socket) return;
+
+      this.stopKeepAlive();
       this.isReady = false;
       this.ws = null;
       this.balanceSubscribed = false;
       this.contractSubscriptionIds.clear();
       if (this.reconnectEnabled) this.scheduleReconnect();
     };
-    this.ws.onerror = (error) => console.error('[DerivWS] Error:', error);
+
+    socket.onerror = (error) => {
+      if (this.ws !== socket) return;
+      console.error('[DerivWS] Error:', error);
+    };
+  }
+
+  private startKeepAlive(socket: WebSocket) {
+    this.stopKeepAlive();
+    this.keepAliveTimer = setInterval(() => {
+      if (this.ws !== socket || !this.isReady || socket.readyState !== WebSocket.OPEN) return;
+      try {
+        socket.send(JSON.stringify({ ping: 1, req_id: 900000 + Date.now() % 100000 }));
+      } catch {
+        try { socket.close(); } catch {}
+      }
+    }, 30000);
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
+    this.keepAliveTimer = null;
   }
 
   private scheduleReconnect() {
@@ -77,9 +134,12 @@ export class DerivWebSocket {
 
   private resubscribeAll() {
     if (!this.isReady) return;
+
     if (this.send({ balance: 1, subscribe: 1 })) this.balanceSubscribed = true;
     for (const symbol of this.tickSubscriptions) this.send({ ticks: symbol, subscribe: 1 });
-    for (const contractId of this.contractSubscriptions) this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
+    for (const contractId of this.contractSubscriptions) {
+      this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
+    }
   }
 
   send(payload: any) {
@@ -93,24 +153,46 @@ export class DerivWebSocket {
     }
   }
 
-  isConnected(): boolean { return this.isReady && this.ws?.readyState === WebSocket.OPEN; }
-  isAuthorized(): boolean { return this.isConnected(); }
+  isConnected(): boolean {
+    return this.isReady && this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  isAuthorized(): boolean {
+    return this.isConnected();
+  }
+
+  // True when the connection looks alive but market-data traffic has stopped.
+  // This catches "silent" WebSocket failures that do not emit onclose/onerror.
+  isStale(maxTickAgeMs = 12000): boolean {
+    if (!this.isConnected() || this.tickSubscriptions.size === 0) return false;
+    return Date.now() - this.lastTickAt > maxTickAgeMs;
+  }
 
   // Mobile browsers can suspend an apparently-open WebSocket while the app
   // is minimized. Force a fresh socket when the page becomes visible again,
   // while preserving tick/contract subscriptions for resubscription.
   resumeConnection() {
     if (!this.reconnectEnabled) return;
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+
     const old = this.ws;
+    if (old) {
+      // Detach the old close handler so its asynchronous close event cannot
+      // mutate the state of the replacement socket.
+      old.onclose = null;
+      try { old.close(); } catch {}
+    }
+
+    this.stopKeepAlive();
     this.ws = null;
     this.isReady = false;
     this.balanceSubscribed = false;
     this.contractSubscriptionIds.clear();
-    try { old?.close(); } catch {}
+
     window.setTimeout(() => this.connect(), 50);
   }
 
@@ -169,9 +251,25 @@ export class DerivWebSocket {
   getProposal(symbol: string, contractType: string, amount: number, duration: number, barrier?: number) {
     const req_id = ++this.proposalRequestId;
     const payload: Record<string, any> = {
-      proposal: 1, req_id, amount, basis: 'stake', contract_type: contractType, currency: 'USD', duration, duration_unit: 't', underlying_symbol: symbol,
+      proposal: 1,
+      req_id,
+      amount,
+      basis: 'stake',
+      contract_type: contractType,
+      currency: 'USD',
+      duration,
+      duration_unit: 't',
+      underlying_symbol: symbol,
     };
-    if (barrier !== undefined && (contractType === 'DIGITMATCH' || contractType === 'DIGITDIFF' || contractType === 'DIGITOVER' || contractType === 'DIGITUNDER')) payload.barrier = String(barrier);
+    if (
+      barrier !== undefined &&
+      (contractType === 'DIGITMATCH' ||
+        contractType === 'DIGITDIFF' ||
+        contractType === 'DIGITOVER' ||
+        contractType === 'DIGITUNDER')
+    ) {
+      payload.barrier = String(barrier);
+    }
     return this.send(payload) ? req_id : null;
   }
 
@@ -180,13 +278,22 @@ export class DerivWebSocket {
     return this.send({ buy: proposalId, price });
   }
 
-  sellContract(contractId: number) { return this.send({ sell: contractId, price: 0 }); }
+  sellContract(contractId: number) {
+    return this.send({ sell: contractId, price: 0 });
+  }
 
   disconnect() {
     this.reconnectEnabled = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
-    if (this.ws) this.ws.close();
+    this.stopKeepAlive();
+
+    const old = this.ws;
+    if (old) {
+      old.onclose = null;
+      try { old.close(); } catch {}
+    }
+
     this.ws = null;
     this.isReady = false;
     this.balanceSubscribed = false;
