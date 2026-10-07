@@ -119,10 +119,20 @@ export async function ensurePaymentRequestSchema() {
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_tx_hash TEXT;
     CREATE TABLE IF NOT EXISTS ai_analyst_subscriptions (
       user_id BIGINT PRIMARY KEY REFERENCES platform_users(id) ON DELETE CASCADE,
+      deriv_nickname TEXT,
       payment_request_id TEXT NOT NULL,
       expires_at TIMESTAMPTZ NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE ai_analyst_subscriptions ADD COLUMN IF NOT EXISTS deriv_nickname TEXT;
+    UPDATE ai_analyst_subscriptions s
+      SET deriv_nickname = NULLIF(TRIM(p.client_nickname), '')
+      FROM payment_agent_requests p
+      WHERE s.payment_request_id = p.id
+        AND (s.deriv_nickname IS NULL OR TRIM(s.deriv_nickname) = '');
+    CREATE UNIQUE INDEX IF NOT EXISTS ai_analyst_subscriptions_nickname_idx
+      ON ai_analyst_subscriptions(LOWER(deriv_nickname))
+      WHERE deriv_nickname IS NOT NULL;
     CREATE INDEX IF NOT EXISTS ai_analyst_subscriptions_expires_idx ON ai_analyst_subscriptions(expires_at);
   `);
 }
@@ -196,23 +206,62 @@ export async function createAIAnalystBinanceRequest(input: {
   return result.rows[0] as PaymentRequest;
 }
 
-export async function getAIAnalystAccess(userId: string | number) {
+export async function getAIAnalystAccess(userId: string | number, derivNickname?: string | null) {
   await ensurePaymentRequestSchema();
-  const result = await pool.query('SELECT expires_at FROM ai_analyst_subscriptions WHERE user_id=$1', [userId]);
+  const nickname = derivNickname?.trim() || '';
+  if (nickname) {
+    const byNickname = await pool.query(
+      'SELECT expires_at, deriv_nickname FROM ai_analyst_subscriptions WHERE LOWER(deriv_nickname)=LOWER($1) LIMIT 1',
+      [nickname],
+    );
+    const row = byNickname.rows[0];
+    if (row) {
+      return {
+        active: new Date(row.expires_at).getTime() > Date.now(),
+        expiresAt: row.expires_at,
+        derivNickname: row.deriv_nickname,
+      };
+    }
+    return { active: false, expiresAt: null, derivNickname: nickname };
+  }
+
+  const result = await pool.query(
+    'SELECT expires_at, deriv_nickname FROM ai_analyst_subscriptions WHERE user_id=$1',
+    [userId],
+  );
   const row = result.rows[0];
-  return row ? { active: new Date(row.expires_at).getTime() > Date.now(), expiresAt: row.expires_at } : { active: false, expiresAt: null };
+  return row
+    ? {
+        active: new Date(row.expires_at).getTime() > Date.now(),
+        expiresAt: row.expires_at,
+        derivNickname: row.deriv_nickname || null,
+      }
+    : { active: false, expiresAt: null, derivNickname: null };
 }
 
 export async function activateAIAnalystSubscription(userId: string | number, paymentRequestId: string) {
   await ensurePaymentRequestSchema();
+  const payment = await pool.query(
+    'SELECT id, purpose, client_nickname FROM payment_agent_requests WHERE id=$1 AND user_id=$2 LIMIT 1',
+    [paymentRequestId, userId],
+  );
+  const request = payment.rows[0];
+  if (!request || String(request.purpose || '') !== 'ai_analyst') {
+    throw new Error('Pedido AI Analyst inválido.');
+  }
+
+  const derivNickname = String(request.client_nickname || '').trim();
+  if (!derivNickname) throw new Error('O pedido AI Analyst não possui nickname Deriv.');
+
   const result = await pool.query(
-    `INSERT INTO ai_analyst_subscriptions (user_id,payment_request_id,expires_at)
-     VALUES ($1,$2,NOW()+INTERVAL '30 days')
+    `INSERT INTO ai_analyst_subscriptions (user_id,deriv_nickname,payment_request_id,expires_at)
+     VALUES ($1,$2,$3,NOW()+INTERVAL '30 days')
      ON CONFLICT (user_id) DO UPDATE SET
+       deriv_nickname=EXCLUDED.deriv_nickname,
        payment_request_id=EXCLUDED.payment_request_id,
        expires_at=CASE WHEN ai_analyst_subscriptions.expires_at>NOW() THEN ai_analyst_subscriptions.expires_at+INTERVAL '30 days' ELSE EXCLUDED.expires_at END
      RETURNING *`,
-    [userId,paymentRequestId],
+    [userId,derivNickname,paymentRequestId],
   );
   return result.rows[0];
 }
