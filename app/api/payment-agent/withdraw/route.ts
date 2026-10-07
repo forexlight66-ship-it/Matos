@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
           'Não existe transferência Options → Wallet neste fluxo.',
           'O agente deve liquidar o equivalente ao cliente por M-Pesa/e-Mola após a conclusão na Deriv.',
         ].join('\\n'),
+        [] ,
       );
     } catch {}
 
