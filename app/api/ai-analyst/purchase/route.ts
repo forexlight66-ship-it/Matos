@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
-import { isPaymentAgentCountryAllowed, derivPaymentRequest } from '@/lib/paymentAgent';
+import { isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { createAIAnalystRequest, createAIAnalystBinanceRequest } from '@/lib/paymentAgentRequests';
 import { sendAgentAlert } from '@/lib/telegram';
 export const dynamic='force-dynamic';
@@ -13,20 +13,15 @@ export async function POST(request:NextRequest){
  const method=String(body.paymentMethod||'').toLowerCase();
  const isBinance=method==='binance_usdt_trc20';
  if(method!=='mpesa'&&method!=='emola'&&!isBinance)return NextResponse.json({error:'Escolha M-Pesa ou e-Mola.'},{status:400});
- let nickname='';
- try{
-  const token=request.cookies.get('deriv_access_token')?.value||'';
-  if(token){const result=await derivPaymentRequest(token,'/account/v1/nickname','GET',undefined,false);nickname=String(result?.data?.nickname||result?.nickname||'').trim();}
- }catch{}
- if(!nickname)return NextResponse.json({error:'Não foi possível obter o nickname da conta Deriv.'},{status:400});
+ const nickname='AI Analyst service';
  if(isBinance){
   const cryptoRow=await createAIAnalystBinanceRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname});
-  try{await sendAgentAlert(['🟡 <b>NOVO AI ANALYST — BINANCE USDT</b>','',`Cliente: <b>${escapeHtml(cryptoRow.client_name)}</b>`,`Conta Deriv: <b>${escapeHtml(cryptoRow.client_nickname)}</b>`,'Plano: <b>AI Analyst — 30 dias</b>','Valor: <b>3 USDT</b>','Rede: <b>TRON (TRC20)</b>',`Endereço: <code>TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu</code>`,'','Confirme somente depois de verificar o recebimento na Binance.'].join('\\n'),[[{text:'✅ CONFIRMAR USDT',callback_data:`pa:confirm:${cryptoRow.id}`},{text:'❌ REJEITAR',callback_data:`pa:reject:${cryptoRow.id}`}]]);}catch(error){console.error('[AI Analyst Binance] Telegram alert failed',error)}
+  try{await sendAgentAlert(['🟡 <b>NOVO AI ANALYST — BINANCE USDT</b>','',`Cliente: <b>${escapeHtml(cryptoRow.client_name)}</b>`,'Serviço: <b>AI Analyst</b>','Plano: <b>AI Analyst — 30 dias</b>','Valor: <b>3 USDT</b>','Rede: <b>TRON (TRC20)</b>',`Endereço: <code>TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu</code>`,'','Confirme somente depois de verificar o recebimento na Binance.'].join('\\n'),[[{text:'✅ CONFIRMAR USDT',callback_data:`pa:confirm:${cryptoRow.id}`},{text:'❌ REJEITAR',callback_data:`pa:reject:${cryptoRow.id}`}]]);}catch(error){console.error('[AI Analyst Binance] Telegram alert failed',error)}
   return NextResponse.json({requestId:cryptoRow.id,status:cryptoRow.status,amountUsdt:3,asset:'USDT',network:'TRC20',address:'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu'},{headers:{'Cache-Control':'no-store'}});
  }
  const row=await createAIAnalystRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname,paymentMethod:method});
  try{
-  const text=['🧠 <b>NOVO AI ANALYST — ASSINATURA MENSAL</b>','',`Cliente: <b>${escapeHtml(row.client_name)}</b>`,`Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,'Plano: <b>AI Analyst — 30 dias</b>','Valor: <b>250 MZN / $3 USD</b>',`Método: <b>${row.payment_method==='mpesa'?'M-Pesa':'e-Mola'}</b>`,`Número: <b>${escapeHtml(row.payment_number||'—')}</b>`,`Nome: <b>${escapeHtml(row.payment_name||'—')}</b>`,'','Confirme somente depois de receber o pagamento.'].join('\\n');
+  const text=['🧠 <b>NOVO AI ANALYST — ASSINATURA MENSAL</b>','',`Cliente: <b>${escapeHtml(row.client_name)}</b>`,'Serviço: <b>AI Analyst</b>','Plano: <b>AI Analyst — 30 dias</b>','Valor: <b>250 MZN / $3 USD</b>',`Método: <b>${row.payment_method==='mpesa'?'M-Pesa':'e-Mola'}</b>`,`Número: <b>${escapeHtml(row.payment_number||'—')}</b>`,`Nome: <b>${escapeHtml(row.payment_name||'—')}</b>`,'','Confirme somente depois de receber o pagamento.'].join('\\n');
   await sendAgentAlert(text,[[{text:'✅ CONFIRMAR PAGAMENTO',callback_data:'pa:confirm:'+row.id},{text:'❌ REJEITAR',callback_data:'pa:reject:'+row.id}]]);
  }catch{}
  return NextResponse.json({requestId:row.id,status:row.status,amountUsd:3,localAmountMzn:250,paymentMethod:row.payment_method,paymentNumber:row.payment_number,paymentName:row.payment_name},{headers:{'Cache-Control':'no-store'}});
