@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
-import { getPaymentRequest, transitionPaymentRequest, claimTransfer, completeTransfer, revealVerificationCode, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
+import { getPaymentRequest, transitionPaymentRequest, claimTransfer, completeTransfer, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
-import { derivPaymentRequest, transferWalletToOptions, transferOptionsToWallet, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
+import { derivPaymentRequest, transferWalletToOptions, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
 
 function callbackBotToken() {
@@ -162,71 +162,20 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
     }
 
     if (action === 'approve' && row.type === 'withdraw') {
-      if (row.status !== 'payment_confirmed') throw Object.assign(new Error('O levantamento ainda não foi confirmado pelo agente.'), { status: 409 });
-      const refreshToken = revealRefreshToken(row);
-      const clientId = process.env.DERIV_APP_ID?.trim();
-      if (!refreshToken || !clientId) throw new Error('Refresh token do cliente indisponível para transferir Options → Wallet.');
-      await answerTelegramCallback(callbackId, 'A preparar Options → Wallet…').catch(() => undefined);
-      const refreshed = await refreshAccessToken(clientId, refreshToken);
-      if (refreshed.refresh_token) await updateRefreshToken(row.id, refreshed.refresh_token);
-      const platformRequestId = (row.platform_transfer_request_id || randomUUID()) as ReturnType<typeof randomUUID>;
-      if (!row.platform_transfer_request_id) await setPlatformTransferRequestId(row.id, platformRequestId);
-
-      try {
-        await transferOptionsToWallet(refreshed.access_token, Number(row.amount_usd), platformRequestId);
-      } catch (error) {
-        const code = String((error as { code?: string })?.code || '');
-        if (code === 'DuplicateRequestID') {
-          // The idempotency key indicates the Options → Wallet transfer was already submitted.
-        } else {
-          throw error;
-        }
-      }
-
-      await answerTelegramCallback(callbackId, 'Options → Wallet concluído. A enviar para o Payment Agent…').catch(() => undefined);
-      const withdrawalRequestId = row.transfer_request_id || randomUUID();
-      const result = await derivPaymentRequest(
-        refreshed.access_token,
-        '/payment-agents/v1/withdraw',
-        'POST',
-        {
-          data: {
-            agent_id: PAYMENT_AGENT_ID,
-            amount: amountUsd(row.amount_usd),
-            currency: 'USD',
-            verification_code: revealVerificationCode(row),
-            request_id: withdrawalRequestId,
-            notes: `MozHyper Payment Agent ${row.id}`,
-          },
-        },
-        false,
+      await answerTelegramCallback(callbackId, 'Este levantamento já deve ter sido submetido diretamente pela Wallet do cliente.', true).catch(() => undefined);
+      await editPaymentMessage(
+        query,
+        [
+          'ℹ️ <b>LEVANTAMENTO — FLUXO ATUALIZADO</b>',
+          '',
+          `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+          `Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,
+          `Valor: <b>$${amountUsd(row.amount_usd)} USD</b>`,
+          '',
+          'O levantamento agora é enviado diretamente pelo cliente para o Payment Agent 503.',
+          'Não é necessária confirmação no Telegram e não existe Options → Wallet neste fluxo.',
+        ].join('\\n'),
       );
-      const transferStatus = String(result?.data?.status || 'pending');
-      const transactionId = result?.data?.transaction_id ?? null;
-      const saved = await completeTransfer(id, transactionId == null ? null : String(transactionId), transferStatus === 'complete' ? 'completed' : 'transfer_pending');
-
-      if (transferStatus === 'complete') {
-        await editPaymentMessage(query, [
-          '✅ <b>LEVANTAMENTO CONCLUÍDO</b>',
-          '',
-          `Cliente: <b>${escapeHtml(saved?.client_name || row.client_name)}</b>`,
-          `Valor levantado: <b>$${amountUsd(saved?.amount_usd || row.amount_usd)} USD</b>`,
-          `Enviado para Wallet do agente: <b>Payment Agent 503</b>`,
-          '',
-          'O valor foi retirado da conta Options e enviado para a Wallet do Payment Agent.',
-          'O agente deve liquidar o equivalente ao cliente por M-Pesa/e-Mola.',
-        ].join('\n'));
-      } else {
-        await editPaymentMessage(query, [
-          '⏳ <b>LEVANTAMENTO EM PROCESSAMENTO</b>',
-          '',
-          `Cliente: <b>${escapeHtml(saved?.client_name || row.client_name)}</b>`,
-          `Valor: <b>$${amountUsd(saved?.amount_usd || row.amount_usd)} USD</b>`,
-          `Request ID: <b>${escapeHtml(withdrawalRequestId)}</b>`,
-          '',
-          'Options → Wallet foi executado. O Payment Agent está a processar o levantamento.',
-        ].join('\n'));
-      }
       return true;
     }
 
