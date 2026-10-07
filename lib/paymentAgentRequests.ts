@@ -171,13 +171,13 @@ export async function createWithdrawRequest(input: {
   verificationCode: string;
   refreshToken: string;
   requestId?: string;
-  status?: 'transfer_pending' | 'completed' | 'failed';
+  status?: 'client_marked_paid' | 'transfer_pending' | 'completed' | 'failed';
   transactionId?: string | null;
 }) {
   await ensurePaymentRequestSchema();
   const id = input.requestId?.trim() || requestId('w');
   const paymentMethod = input.paymentMethod;
-  const status = input.status || 'transfer_pending';
+  const status = input.status || 'client_marked_paid';
   const refreshCiphertext = encrypt(input.refreshToken);
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
