@@ -24,7 +24,7 @@ type ApiResult = {
 type Copy = {
   deposit:string; withdraw:string; paymentAgent:string; close:string; account:string; amount:string;
   processing:string; continue:string; back:string; cancel:string; confirmDeposit:string;
-  sendCode:string; confirmWithdraw:string; operation:string; confirm:string; realWarning:string;
+  sendCode:string; confirmWithdraw:string; operation:string; confirm:string; realWarning:string; withdrawWarning:string;
   code:string; codeHelp:string; accountHelp:string; fetching:string; closeWindow:string; currency:string; loadingCurrencies:string; unsupportedCurrency:string;
   invalid:string; nicknameMissing:string; nicknameError:string; retry:string; codeDigits:string; sent:string;
   minWithdraw:string; maxWithdraw:string; depositInfo:string; withdrawInfo:string;
@@ -63,14 +63,14 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         deposit:'Deposit', withdraw:'Withdraw', paymentAgent:'Payment Agent 503', close:'Close', account:'Deriv account', amount:'Amount',
         processing:'Processing…', continue:'Continue', back:'Back', cancel:'Cancel', confirmDeposit:'Confirm deposit',
         sendCode:'Send verification code', confirmWithdraw:'Confirm withdrawal', operation:'Operation status',
-        confirm:'Confirm operation', realWarning:'Check the details. This creates a request for Payment Agent review; it does not move funds yet.',
+        confirm:'Confirm operation', realWarning:'Check the details. This creates a deposit request; no client funds are moved by this confirmation.', withdrawWarning:'Check the details. Confirming the withdrawal submits a real request directly from your Deriv Wallet to Payment Agent 503.',
         code:'Verification code', codeHelp:'The code matches exactly the requested amount.',
         accountHelp:'The deposit will be sent exclusively to this authenticated account.', fetching:'Loading…', closeWindow:'Close',
         invalid:'Please enter a valid amount.', nicknameMissing:'The authenticated Deriv account nickname is unavailable.', nicknameError:'Could not load the authenticated Deriv account nickname.', retry:'Retry',
         codeDigits:'The code must contain exactly 6 digits.', sent:'Verification code sent to the contact registered with Deriv.',
         minWithdraw:'The minimum withdrawal is', maxWithdraw:'The maximum withdrawal is',
         depositInfo:'Create a deposit request, pay the shown MZN amount, then press “I already paid”. The Payment Agent confirms the payment before the request is processed.',
-        withdrawInfo:'Request a withdrawal, provide the M-Pesa/e-Mola destination and the Deriv verification code. The Payment Agent reviews the request before processing.',
+        withdrawInfo:'Request a withdrawal, provide the M-Pesa/e-Mola destination and the Deriv verification code. After confirmation, the withdrawal is submitted directly from your Deriv Wallet to Payment Agent 503.',
         depositSuccess:'Deposit accepted.', withdrawSuccess:'Withdrawal accepted.', pending:'Pending', complete:'Completed',
         rejected:'Rejected', failed:'Failed', accepted:'Accepted', request:'Request', authExpired:'Deriv authentication expired. Sign in with Deriv again to continue.', reauthenticate:'Authenticate with Deriv', realOperation:'This is a real financial operation.', paymentMethod:'Payment method', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Payment number', recipientName:'Account holder name', exchangeRate:'Exchange rate', localAmount:'Amount in MZN', alreadyPaid:'I already paid', awaitingAgent:'Waiting for Payment Agent confirmation.', paymentMarked:'Payment marked as paid. Wait for the agent.', paymentInstructions:'Make the payment using the details below.', transferAmount:'Amount to transfer', withdrawalDestination:'Funds will be sent to', currency:'Currency', loadingCurrencies:'Loading Payment Agent currencies…', unsupportedCurrency:'This currency is not supported by the Payment Agent.'
       }
@@ -86,7 +86,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           codeDigits:'El código debe tener exactamente 6 dígitos.', sent:'Código enviado al contacto registrado en Deriv.',
           minWithdraw:'El retiro mínimo es', maxWithdraw:'El retiro máximo es',
           depositInfo:'Crea el pedido, paga el valor en MZN mostrado y depois pulsa “Ya pagué”. El Payment Agent confirma el pago antes de procesarlo.',
-          withdrawInfo:'El retiro mueve fondos de tu Wallet Deriv al agente de pagos y requiere un código de seguridad de un solo uso.',
+          withdrawInfo:'Solicita el retiro, indica el destino M-Pesa/e-Mola y el código de verificación de Deriv. Después de confirmar, el retiro se envía directamente desde tu Wallet Deriv al Payment Agent 503.',
           depositSuccess:'Depósito aceptado.', withdrawSuccess:'Retiro aceptado.', pending:'Pendiente', complete:'Completado',
           rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', authExpired:'La autenticación de Deriv expiró. Inicia sesión con Deriv nuevamente para continuar.', reauthenticate:'Autenticar con Deriv', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', paymentInstructions:'Realiza el pago con los datos abajo.', transferAmount:'Importe a transferir', withdrawalDestination:'Los fondos se enviarán a', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
         }
@@ -94,14 +94,14 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor',
           processing:'A processar…', continue:'Continuar', back:'Voltar', cancel:'Cancelar', confirmDeposit:'Confirmar depósito',
           sendCode:'Enviar código', confirmWithdraw:'Confirmar levantamento', operation:'Estado da operação',
-          confirm:'Confirmar operação', realWarning:'Verifique os dados. A confirmação cria um pedido para revisão; ainda não movimenta fundos.',
+          confirm:'Confirmar operação', realWarning:'Verifique os dados. A confirmação cria um pedido de depósito; esta confirmação não movimenta fundos do cliente.', withdrawWarning:'Verifique os dados. Confirmar o levantamento envia um pedido real diretamente da sua Wallet Deriv para o Payment Agent 503.',
           code:'Código de verificação', codeHelp:'O código corresponde exatamente ao valor solicitado.',
           accountHelp:'O depósito será enviado exclusivamente para esta conta autenticada.', fetching:'A obter…', closeWindow:'Fechar',
           invalid:'Informe um valor válido.', nicknameMissing:'A conta Deriv autenticada não disponibilizou o nickname.', nicknameError:'Não foi possível carregar o nickname da conta Deriv autenticada.', retry:'Tentar novamente',
           codeDigits:'O código deve ter exatamente 6 dígitos.', sent:'Código enviado para o contacto registado na Deriv.',
           minWithdraw:'O mínimo para levantamento é', maxWithdraw:'O máximo para levantamento é',
           depositInfo:'Crie o pedido, pague o valor em MZN mostrado e depois toque em “JÁ PAGUEI”. O Payment Agent confirma o pagamento antes de processar o pedido.',
-          withdrawInfo:'Solicite o levantamento, informe o destino M-Pesa/e-Mola e o código de verificação da Deriv. O Payment Agent analisa o pedido antes de processar.',
+          withdrawInfo:'Solicite o levantamento, informe o destino M-Pesa/e-Mola e o código de verificação da Deriv. Depois de confirmar, o levantamento é enviado diretamente da sua Wallet Deriv para o Payment Agent 503.',
           depositSuccess:'Depósito aceite.', withdrawSuccess:'Levantamento aceite.', pending:'Pendente', complete:'Concluída',
           rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', authExpired:'A autenticação Deriv desta conta expirou. Faça login com Deriv novamente para continuar.', reauthenticate:'Autenticar novamente com Deriv', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', paymentInstructions:'Faça o pagamento com os dados abaixo.', transferAmount:'Valor a transferir', withdrawalDestination:'Os fundos serão enviados para', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
@@ -465,6 +465,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     }
     setBusy(true);
     setMessage('');
+    setAuthExpired(false);
     try {
       const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : '/api/payment-agent/withdraw';
       const body = action === 'deposit'
@@ -478,13 +479,14 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       });
       const payload: ApiResult = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (response.status === 401 && action === 'withdraw') {
+        if (action === 'withdraw' && (payload.code === 'DERIV_REAUTH_REQUIRED' || response.status === 401)) {
           setAuthExpired(true);
           throw new Error(copy.authExpired);
         }
         throw new Error(payload.error || copy.failed);
       }
 
+      setAuthExpired(false);
       const id = String(payload.requestId || '');
       const status = payload.data?.status || 'pending';
       setRequestId(id);
@@ -616,7 +618,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
               {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
               <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
-              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{copy.realWarning}</div>
+              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
               {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
               {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>Valor por receber = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
             </div>
