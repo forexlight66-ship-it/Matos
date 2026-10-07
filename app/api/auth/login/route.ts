@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCodeVerifier, generateCodeChallenge, generateState, getAuthorizeUrl } from '@/lib/oauth';
+import { createDerivOAuthState } from '@/lib/platform-auth';
 
 const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
 const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
     ? requestedReturnTo
     : '/';
 
+  await createDerivOAuthState(state, verifier, redirectUri, returnTo);
   const response = NextResponse.redirect(getAuthorizeUrl(clientId, redirectUri, challenge, state), { status: 302 });
   response.cookies.set('oauth_verifier', verifier, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
   response.cookies.set('oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
