@@ -659,33 +659,18 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         </label>}
 
         {step === 'result' && action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') ? (
-          <div style={{ marginTop:16, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg,#241323 0%,#0d111a 100%)', color:'#fff', textAlign:'center', padding:'22px 18px 20px', boxShadow:'0 16px 45px rgba(0,0,0,.25)' }}>
-            <div style={{ width:112, height:82, margin:'0 auto 14px', position:'relative' }} aria-hidden="true">
-              <div style={{ position:'absolute', left:7, top:18, width:72, height:50, borderRadius:'8px 8px 16px 10px', background:'linear-gradient(145deg,#ff3949,#a90d19)', transform:'rotate(-24deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
-                <div style={{ position:'absolute', inset:7, borderRadius:5, background:'linear-gradient(145deg,#e8e8e8,#8e8e8e)' }} />
-                <div style={{ position:'absolute', left:27, top:14, width:25, height:25, borderRadius:'50%', background:'#b51220' }} />
-              </div>
-              <div style={{ position:'absolute', right:3, top:4, width:78, height:54, borderRadius:'9px 10px 14px 10px', background:'#fff', border:'7px solid #ff3949', transform:'rotate(20deg)', boxShadow:'0 8px 14px rgba(255,57,73,.18)' }}>
-                <div style={{ position:'absolute', left:24, top:7, width:27, height:27, borderRadius:'50%', background:'#ff3949' }} />
-              </div>
-              <span aria-hidden="true" style={{ position:'absolute', left:0, top:0, color:'#ff3949', fontSize:22, fontWeight:900, transform:'rotate(-25deg)' }}>✦</span>
-              <span aria-hidden="true" style={{ position:'absolute', right:-2, bottom:0, color:'#ff3949', fontSize:17, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
-            </div>
-            <div style={{ fontSize:25, lineHeight:1.15, fontWeight:950, letterSpacing:-.5 }}>Transferência bem-sucedida</div>
-            <div style={{ marginTop:12, fontSize:13, lineHeight:1.5, opacity:.9 }}>A sua assinatura do AI Analyst foi confirmada pelo nosso Payment Agent.</div>
-            <div style={{ marginTop:18, padding:'13px 14px', borderRadius:14, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', textAlign:'left' }}>
-              <div style={{ fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>NICKNAME DERIV</div>
-              <div style={{ marginTop:4, fontSize:16, fontWeight:900 }}>{derivNickname || '—'}</div>
-              <div style={{ marginTop:12, fontSize:9, textTransform:'uppercase', letterSpacing:1.1, opacity:.62, fontWeight:900 }}>VALOR DA ASSINATURA</div>
-              <div style={{ marginTop:4, fontSize:20, fontWeight:950 }}>{action === 'ai_analyst' ? '$3.00' : '$' + (parseMoney(amount) || 0).toFixed(2)}</div>
-            <div style={{ marginTop:14, display:'flex', alignItems:'center', justifyContent:'center', gap:10, textAlign:'left' }}>
-              <div aria-hidden="true" style={{ width:42, height:42, flex:'0 0 42px', borderRadius:'50%', background:'linear-gradient(145deg,#22c55e,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:950, boxShadow:'0 6px 16px rgba(34,197,94,.25)' }}>✓</div>
-              <div style={{ fontSize:11, lineHeight:1.45, opacity:.9 }}>Pagamento confirmado. O AI Analyst está disponível por 30 dias.</div>
-            </div>
-            <button type="button" onClick={onClose}
-              style={{ width:'100%', marginTop:18, padding:13, border:0, borderRadius:12, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:15, cursor:'pointer' }}>
-              Fechar
-            </button>
+          <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
+            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.operation}</div>
+            <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
+            <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>
+            <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>{copy.accepted}</div>
+          </div>
+        ) : step === 'result' && action === 'ai_analyst' && depositStatus === 'payment_confirmed' ? (
+          <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
+            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>AI Analyst</div>
+            <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>Pagamento confirmado</div>
+            <div style={{ marginTop:7, fontSize:11 }}>O AI Analyst está disponível por 30 dias.</div>
+            <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>
           </div>
         ) : step === 'result' ? (
           <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
@@ -697,7 +682,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               {depositStatus === 'payment_confirmed' ? copy.accepted : depositStatus === 'rejected' ? copy.rejected : depositStatus === 'completed' ? copy.depositSuccess : depositStatus === 'failed' ? copy.failed : copy.awaitingAgent}
             </div>}
           </div>
-        ) : null
+        ) : null}
 
         {message && step !== 'result' && <div style={{ marginTop:12, padding:10, borderRadius:11, background:light?'#eff6ff':'#172554', fontSize:11 }}>{message}</div>}
 
