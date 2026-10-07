@@ -108,6 +108,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', authExpired:'A autenticação Deriv desta conta expirou. Faça login com Deriv novamente para continuar.', reauthenticate:'Autenticar novamente com Deriv', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', paymentInstructions:'Faça o pagamento com os dados abaixo.', transferAmount:'Valor a transferir', withdrawalDestination:'Os fundos serão enviados para', paymentInstructionsTitle:'Pagamento do depósito', amountToReceive:'Valor por receber', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
 
+  const aiInfo = language === 'en'
+    ? 'AI Analyst monthly subscription. Choose a payment method and pay 250 MZN or 3 USDT. This payment is for the AI Analyst service and is not a Deriv deposit or withdrawal.'
+    : language === 'es'
+      ? 'Suscripción mensual de AI Analyst. Elige un método de pago y paga 250 MZN o 3 USDT. Este pago es por el servicio AI Analyst y no es un depósito ni un retiro de Deriv.'
+      : 'Assinatura mensal do AI Analyst. Escolha um método de pagamento e pague 250 MZN ou 3 USDT. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.';
+
   const [step, setStep] = useState<Step>('form');
   const [amount, setAmount] = useState('');
   const [code, setCode] = useState('');
@@ -543,14 +549,14 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
           <div>
             <div id="payment-agent-title" style={{ fontSize:19, fontWeight:900 }}>{actionTitle}</div>
-            <div style={{ fontSize:11, opacity:.62, marginTop:2 }}>Forex Moçambique · {copy.paymentAgent}</div>
+            <div style={{ fontSize:11, opacity:.62, marginTop:2 }}>Forex Moçambique · {isAiAnalyst ? 'AI Analyst' : copy.paymentAgent}</div>
           </div>
           <button type="button" disabled={busy} onClick={onClose} aria-label={copy.close}
             style={{ border:0, background:'transparent', color:'inherit', fontSize:24, lineHeight:1, cursor:'pointer' }}>×</button>
         </div>
 
         <div style={{ fontSize:12, lineHeight:1.45, marginTop:16, padding:12, borderRadius:12, background:light?'#f1f5f9':'#202733' }}>
-          {isAiAnalyst ? 'Assinatura mensal do AI Analyst. Escolha um método de pagamento e pague 250 MZN ou 3 USDT. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.' : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
+          {isAiAnalyst ? aiInfo : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
 
         {(action === 'deposit' || isAiAnalyst) && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
