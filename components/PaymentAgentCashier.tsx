@@ -120,7 +120,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [derivNickname, setDerivNickname] = useState('');
   const [nicknameLoading, setNicknameLoading] = useState(false);
   const [nicknameError, setNicknameError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola'>('mpesa');
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola' | 'binance_usdt_trc20'>('mpesa');
   const [paymentNumber, setPaymentNumber] = useState('');
   const [paymentName, setPaymentName] = useState('');
   const [depositPaid, setDepositPaid] = useState(false);
@@ -163,7 +163,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   }, [open, action, currency]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || isAiAnalyst) return;
     let cancelled = false;
 
     const loadProfile = async () => {
@@ -228,10 +228,11 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     return () => {
       cancelled = true;
     };
-  }, [open, currency, copy.nicknameError, copy.nicknameMissing]);
+  }, [open, currency, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
 
   const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
-  const binanceFallback = action === 'ai_analyst' && !isPaymentAgentCurrencyAllowed(currency); 
+  const isAiAnalyst = action === 'ai_analyst';
+  const binanceFallback = isAiAnalyst && paymentMethod === 'binance_usdt_trc20';
   const limits = useMemo(
     () => agentCurrencies.find(item => String(item.currency || '').toUpperCase() === paymentCurrency.toUpperCase()),
     [agentCurrencies, paymentCurrency],
@@ -525,8 +526,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const primary = step === 'otp'
     ? copy.confirmWithdraw
     : step === 'confirm'
-      ? (action === 'deposit' ? copy.confirmDeposit : copy.sendCode)
-      : copy.continue;
+      ? (action === 'deposit' ? copy.confirmDeposit : isAiAnalyst ? 'Confirmar pagamento' : copy.sendCode)
+      : (isAiAnalyst ? 'Pagar AI Analyst' : copy.continue);
 
   return (
     <div
@@ -550,10 +551,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         </div>
 
         <div style={{ fontSize:12, lineHeight:1.45, marginTop:16, padding:12, borderRadius:12, background:light?'#f1f5f9':'#202733' }}>
-          {action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
+          {isAiAnalyst ? 'Assinatura mensal do AI Analyst. Escolha um método de pagamento e pague 250 MZN ou 3 USDT. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.' : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
 
-        {(action === 'deposit' || action === 'ai_analyst') && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
+        {(action === 'deposit' || isAiAnalyst) && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
           <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{binanceFallback ? 'BINANCE USDT' : copy.paymentInstructionsTitle}</div>
           {binanceFallback ? <>
             <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>Pague <b>3 USDT</b> usando exclusivamente a rede <b>TRON (TRC20)</b>.</div>
@@ -584,7 +585,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         )}
 
         {step === 'form' && <>
-          {(action === 'deposit' || action === 'ai_analyst') && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
+          {action === 'deposit' && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.account}</div>
             <div style={{ marginTop:4, fontSize:13, fontWeight:900 }}>
               {nicknameLoading ? copy.fetching : derivNickname || copy.nicknameError}
@@ -600,14 +601,14 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             )}
             <div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div>
           </div>}
-          <div style={{ marginTop:14 }}>
+          {!isAiAnalyst && <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.currency}</div>
             {supportedCurrencies.length > 1 ? <select value={paymentCurrency} onChange={event=>setPaymentCurrency(event.target.value)} style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }}>
               {supportedCurrencies.map(code=><option key={code} value={code}>{code}</option>)}
             </select> : <div style={{ marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827', fontWeight:900 }}>{supportedCurrencies[0] || copy.fetching}</div>}
-          </div>
+          </div>}
           <div style={{ marginTop:14 }}>
-            <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.paymentMethod}</div>
+            <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{isAiAnalyst ? 'Método para pagar a assinatura' : copy.paymentMethod}</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:8 }}>
               <button type="button" onClick={()=>setPaymentMethod('mpesa')} aria-label={copy.mpesa}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='mpesa' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#ed1b24', boxShadow: paymentMethod==='mpesa' ? '0 0 0 3px #ff4654, 0 10px 25px rgba(237,27,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -619,6 +620,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
                 <img src="/payment-agent/emola.svg" alt={copy.emola} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='emola' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#f97824', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
               </button>
+              {isAiAnalyst && <button type="button" onClick={()=>setPaymentMethod('binance_usdt_trc20')} aria-label="Binance USDT TRC20"
+                style={{ position:'relative', gridColumn:'1 / -1', height:58, borderRadius:14, border: paymentMethod==='binance_usdt_trc20' ? '3px solid #111827' : '1px solid #94a3b8', background:paymentMethod==='binance_usdt_trc20' ? '#f3ba2f' : (light?'#fff':'#111827'), color:'#111827', fontWeight:900, cursor:'pointer' }}>
+                Binance — 3 USDT (TRC20){paymentMethod==='binance_usdt_trc20' && <span style={{ marginLeft:8 }}>✓</span>}
+              </button>}
             </div>
           </div>
           {action === 'withdraw' && <>
@@ -634,7 +639,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
           </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>AI Analyst — assinatura mensal</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>$3 USD <span style={{fontSize:12,opacity:.7}}>ou 250 MZN</span></div><div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso por 30 dias após confirmação do Payment Agent.</div></div>}
-          {action !== 'ai_analyst' && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
+          {!isAiAnalyst && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
 
         {step === 'confirm' && <>
@@ -645,7 +650,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
               {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
               <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {paymentCurrency}</div>
-              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
+              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{isAiAnalyst ? 'Pagamento do serviço AI Analyst. Nenhum saldo da Wallet Deriv é movimentado.' : action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
               {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
               {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.amountToReceive} = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
             </div>
