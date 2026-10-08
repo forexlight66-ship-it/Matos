@@ -99,7 +99,7 @@ export async function sendAgentPhotoAlert(
         const form = new FormData();
         form.append('chat_id', String(id));
         form.append('photo', photo, 'payment-proof.jpg');
-        form.append('caption', caption);
+        form.append('caption', caption.replace(/\\\\n/g, '\n'));
         form.append('parse_mode', 'HTML');
         form.append('reply_markup', JSON.stringify({ inline_keyboard: buttons }));
         const response = await fetch(`${TELEGRAM_API}/bot${token()}/sendPhoto`, {
