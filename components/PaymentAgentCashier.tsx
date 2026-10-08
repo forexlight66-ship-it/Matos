@@ -609,8 +609,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   ? aiInfo
   : isCourse
     ? (language === 'en'
-        ? 'Complete Course payment via MozHyper. Pay 999 MZN with M-Pesa or e-Mola, then upload the payment screenshot and click “I PAID”.'
-        : 'Pagamento do Complete Course via MozHyper. Pague 999 MZN por M-Pesa ou e-Mola, depois envie o screenshot do pagamento e clique em “JÁ PAGUEI”.')
+        ? (courseMznEligible ? 'Complete Course payment via MozHyper. Pay 999 MZN with M-Pesa or e-Mola, then upload the payment screenshot and click “I PAID”.' : 'Complete Course payment via MozHyper. Pay 15 USDT on Binance using TRON (TRC20), then upload the payment screenshot and click “I PAID”.')
+        : (courseMznEligible ? 'Pagamento do Complete Course via MozHyper. Pague 999 MZN por M-Pesa ou e-Mola, depois envie o screenshot do pagamento e clique em “JÁ PAGUEI”.' : 'Pagamento do Complete Course via MozHyper. Pague 15 USDT na Binance pela rede TRON (TRC20), depois envie o screenshot do pagamento e clique em “JÁ PAGUEI”.'))
     : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
 
@@ -628,7 +628,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div><b>{copy.paymentMethod}:</b> {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</div>
               <div><b>{copy.recipientNumber}:</b> <span style={{ fontSize:17, fontWeight:900 }}>{paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}</span></div>
               <div><b>{copy.recipientName}:</b> Mistério João</div>
-              <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{isCourse ? 'Valor do curso: 999 MZN' : isAiAnalyst ? copy.aiSubscriptionValue + ': 250 MZN' : copy.transferAmount + ': ' + ((parseMoney(amount) || 0) * 80).toFixed(2) + ' MZN'}</div>
+              <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{isCourse ? ((language === 'en' ? 'Course price: ' : 'Preço do curso: ') + (courseMznEligible ? '999 MZN' : '15 USDT')) : isAiAnalyst ? copy.aiSubscriptionValue + ': 250 MZN' : copy.transferAmount + ': ' + ((parseMoney(amount) || 0) * 80).toFixed(2) + ' MZN'}</div>
             </div>
             <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>{copy.alreadyPaid}</div>
           </>}
