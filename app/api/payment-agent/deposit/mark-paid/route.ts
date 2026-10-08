@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
             'Plano: <b>30 dias</b>',
             `Valor: <b>${row.payment_method === 'binance_usdt_trc20' ? '3 USDT' : '250 MZN'}</b>`,
             `Método: <b>${row.payment_method === 'binance_usdt_trc20' ? 'Binance — TRC20' : row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
+            ...(row.payer_name || row.payer_number ? [`Seu nome: <b>${escapeHtml(row.payer_name || '—')}</b>`,`Número usado para pagamento: <b>${escapeHtml(row.payer_number || '—')}</b>`] : []),
             `Número: <b>${escapeHtml(row.payment_number || '—')}</b>`,
             `Nome: <b>${escapeHtml(row.payment_name || '—')}</b>`,
             '',
