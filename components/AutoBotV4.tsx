@@ -91,10 +91,22 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const phaseScore=(strength+confidence+stability)/3;
   const phase=phaseOf(phaseScore,recent*100,olderMean*100,trend,acceleration,consistency);
   const earlyMomentum=trend>=68&&acceleration>=6&&recent>=45&&recent>olderMean*100+6&&consistency>=40;
-  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0));
+
+  // HyperStrike ABAIXO 4 recebe proteção dinâmica quando o sinal recente perde força.
+  // A direção não é removida: ela só perde prioridade enquanto os últimos blocos mostram
+  // enfraquecimento, evitando entradas repetidas em uma fase ruim.
+  const isHyperStrikeBelow4=x.strategy==='HyperStrike'&&x.label==='ABAIXO 4';
+  const weakRecentPenalty=isHyperStrikeBelow4
+    ? Math.min(30,
+        (recent<0.60?Math.round((0.60-recent)*100):0)*0.45+
+        (acceleration<0?Math.min(10,Math.round(Math.abs(acceleration)*0.45)):0)+
+        (consistency<40?8:0)+
+        (recent<olderMean-0.08?6:0))
+    : 0;
+  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0)-weakRecentPenalty);
   return{
    strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,acceleration,consistency,score,
-   risk:100-stability,direction:x.direction,regimeChange:recent-olderMean>=0.20||earlyMomentum,
+   risk:aiClamp(100-stability+weakRecentPenalty),direction:x.direction,regimeChange:recent-olderMean>=0.20||earlyMomentum,
    recentStrength:recent*100,olderStrength:olderMean*100,phase,earlyMomentum
   };
  });
@@ -112,7 +124,8 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  const recentLead=second?best.recentStrength-second.recentStrength:0;
  const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=75);
  const earlyEntry=best.phase==='EMERGENTE'&&Boolean(best.earlyMomentum)&&best.score>=55&&best.confidence>=52&&best.stability>=35;
- const noTrade=(!earlyEntry&&(best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE'));
+ const protectedBelow4=best.strategy==='HyperStrike'&&best.label==='ABAIXO 4'&&best.recentStrength<60&&best.acceleration<0;
+ const noTrade=(!earlyEntry&&(best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE'||protectedBelow4));
  return{
   ...best,rankings:ranked,secondStrategy:second?.strategy??null,secondScore:second?.score??0,
   advantage,regimeChange,earlyEntry,noTrade,confidenceBand:confidenceBand(best.score)
