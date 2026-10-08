@@ -23,7 +23,7 @@ type ApiResult = {
 };
 
 type Copy = {
-  deposit:string; withdraw:string; paymentAgent:string; close:string; account:string; amount:string;
+  deposit:string; withdraw:string; paymentAgent:string; close:string; account:string; amount:string; yourName:string; paymentPhone:string; aiPaymentMethod:string; aiAccessInfo:string;
   processing:string; continue:string; back:string; cancel:string; confirmDeposit:string;
   sendCode:string; confirmWithdraw:string; operation:string; confirm:string; realWarning:string; withdrawWarning:string;
   code:string; codeHelp:string; accountHelp:string; fetching:string; closeWindow:string; currency:string; loadingCurrencies:string; unsupportedCurrency:string;
@@ -62,7 +62,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const isAiAnalyst = action === 'ai_analyst';
   const copy: Copy = language === 'en'
     ? {
-        deposit:'Deposit', withdraw:'Withdraw', paymentAgent:'Payment Agent 503', close:'Close', account:'Deriv account', amount:'Amount',
+        deposit:'Deposit', withdraw:'Withdraw', paymentAgent:'Payment Agent 503', close:'Close', account:'Deriv account', amount:'Amount', yourName:'Your name', paymentPhone:'Phone number used for payment', aiPaymentMethod:'Payment method', aiAccessInfo:'Access for 30 days after MozHyper administrator confirmation.',
         processing:'Processing…', continue:'Continue', back:'Back', cancel:'Cancel', confirmDeposit:'Confirm deposit',
         sendCode:'Send verification code', confirmWithdraw:'Confirm withdrawal', operation:'Operation status',
         confirm:'Confirm operation', realWarning:'Check the details. This creates a deposit request; no client funds are moved by this confirmation.', withdrawWarning:'Check the details. Confirming the withdrawal submits a real request directly from your Deriv Wallet to Payment Agent 503.',
@@ -78,7 +78,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       }
     : language === 'es'
       ? {
-          deposit:'Depositar', withdraw:'Retirar', paymentAgent:'Agente de pagos 503', close:'Cerrar', account:'Cuenta Deriv', amount:'Importe',
+          deposit:'Depositar', withdraw:'Retirar', paymentAgent:'Agente de pagos 503', close:'Cerrar', account:'Cuenta Deriv', amount:'Importe', yourName:'Tu nombre', paymentPhone:'Número usado para el pago', aiPaymentMethod:'Método para pagar la suscripción', aiAccessInfo:'Acceso por 30 días después de la confirmación del administrador de MozHyper.',
           processing:'Procesando…', continue:'Continuar', back:'Volver', cancel:'Cancelar', confirmDeposit:'Confirmar depósito',
           sendCode:'Enviar código', confirmWithdraw:'Confirmar retiro', operation:'Estado de la operación',
           confirm:'Confirmar operación', realWarning:'Verifica los datos. La confirmación crea un pedido de depósito; esta confirmación no mueve fondos del cliente.', withdrawWarning:'Verifica los datos. Confirmar el retiro envía un pedido real directamente desde tu Wallet Deriv al Payment Agent 503.',
@@ -93,7 +93,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', authExpired:'La autenticación de Deriv expiró. Inicia sesión con Deriv nuevamente para continuar.', reauthenticate:'Autenticar con Deriv', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', paymentInstructions:'Realiza el pago con los datos abajo.', transferAmount:'Importe a transferir', withdrawalDestination:'Los fondos se enviarán a', paymentInstructionsTitle:'Pago del depósito', amountToReceive:'Importe a recibir', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
         }
       : {
-          deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor',
+          deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor', yourName:'Seu nome', paymentPhone:'Seu número que usou para pagamento', aiPaymentMethod:'Método para pagar a assinatura', aiAccessInfo:'{copy.aiAccessInfo}',
           processing:'A processar…', continue:'Continuar', back:'Voltar', cancel:'Cancelar', confirmDeposit:'Confirmar depósito',
           sendCode:'Enviar código', confirmWithdraw:'Confirmar levantamento', operation:'Estado da operação',
           confirm:'Confirmar operação', realWarning:'Verifique os dados. A confirmação cria um pedido de depósito; esta confirmação não movimenta fundos do cliente.', withdrawWarning:'Verifique os dados. Confirmar o levantamento envia um pedido real diretamente da sua Wallet Deriv para o Payment Agent 503.',
@@ -108,17 +108,11 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           rejected:'Rejeitada', failed:'Falhou', accepted:'Aceite', request:'Pedido', authExpired:'A autenticação Deriv desta conta expirou. Faça login com Deriv novamente para continuar.', reauthenticate:'Autenticar novamente com Deriv', realOperation:'Esta é uma operação financeira real.', paymentMethod:'Método de pagamento', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número para pagamento', recipientName:'Nome do titular', exchangeRate:'Câmbio', localAmount:'Valor em MZN', alreadyPaid:'JÁ PAGUEI', awaitingAgent:'A aguardar confirmação do Payment Agent.', paymentMarked:'Pagamento marcado. Aguarde a confirmação do agente.', paymentInstructions:'Faça o pagamento com os dados abaixo.', transferAmount:'Valor a transferir', withdrawalDestination:'Os fundos serão enviados para', paymentInstructionsTitle:'Pagamento do depósito', amountToReceive:'Valor por receber', currency:'Moeda', loadingCurrencies:'A carregar moedas do Payment Agent…', unsupportedCurrency:'Esta moeda não é suportada pelo Payment Agent.'
         };
 
-  const aiInfo = currency.toUpperCase() === 'MZN'
-    ? language === 'en'
-      ? 'AI Analyst monthly subscription. Pay 250 MZN. This payment is for the AI Analyst service and is not a Deriv deposit or withdrawal.'
-      : language === 'es'
-        ? 'Suscripción mensual de AI Analyst. Paga 250 MZN. Este pago es por el servicio AI Analyst y no es un depósito ni un retiro de Deriv.'
-        : 'Assinatura mensal do AI Analyst. Pague 250 MZN. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.'
-    : language === 'en'
-      ? 'AI Analyst monthly subscription. Choose a payment method and pay 3 USDT. This payment is for the AI Analyst service and is not a Deriv deposit or withdrawal.'
-      : language === 'es'
-        ? 'Suscripción mensual de AI Analyst. Elige un método de pago y paga 3 USDT. Este pago es por el servicio AI Analyst y no es un depósito ni un retiro de Deriv.'
-        : 'Assinatura mensal do AI Analyst. Escolha um método de pagamento e pague 3 USDT. Este pagamento é pelo serviço AI Analyst e não é um depósito nem um levantamento da Deriv.';
+  const aiInfo = language === 'en'
+    ? 'AI Analyst monthly subscription. Choose a payment method and pay the subscription. This payment is for the AI Analyst service.'
+    : language === 'es'
+      ? 'Suscripción mensual de AI Analyst. Elige un método de pago y paga la suscripción. Este pago es por el servicio AI Analyst.'
+      : 'Assinatura mensal do AI Analyst. Escolha um método de pagamento e pague a assinatura. Este pagamento é pelo serviço AI Analyst.'
 
   const [step, setStep] = useState<Step>('form');
   const [amount, setAmount] = useState('');
@@ -132,6 +126,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [derivNickname, setDerivNickname] = useState('');
   const [nicknameLoading, setNicknameLoading] = useState(false);
   const [nicknameError, setNicknameError] = useState('');
+  const [payerName, setPayerName] = useState('');
+  const [payerNumber, setPayerNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola' | 'binance_usdt_trc20'>('mpesa');
   const [paymentNumber, setPaymentNumber] = useState('');
   const [paymentName, setPaymentName] = useState('');
@@ -150,24 +146,33 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setDerivNickname('');
     setNicknameLoading(false);
     setNicknameError('');
-    setPaymentMethod('mpesa');
+    setPayerName('');
+    setPayerNumber('');
+    setPaymentMethod(action === 'ai_analyst' && currency.toUpperCase() !== 'MZN' ? 'binance_usdt_trc20' : 'mpesa');
     setPaymentNumber('');
     setPaymentName('');
     setDepositPaid(false);
     setDepositStatus('');
     setAuthExpired(false);
     setSupportedCurrencies([]);
-    setPaymentCurrency(action === 'ai_analyst' ? 'MZN' : currency);
+    setPaymentCurrency(action === 'ai_analyst' ? (currency.toUpperCase() === 'MZN' ? 'MZN' : 'USDT') : currency);
     try {
       const raw = sessionStorage.getItem('mozhyper_payment_agent_draft');
       if (raw) {
         const draft = JSON.parse(raw);
         if (draft?.action === action && Date.now() - Number(draft.savedAt || 0) < 15 * 60 * 1000) {
-          setAmount(String(draft.amount || ''));
-          setPaymentCurrency(String(draft.paymentCurrency || currency));
-          setPaymentMethod(draft.paymentMethod === 'emola' ? 'emola' : 'mpesa');
-          setPaymentNumber(String(draft.paymentNumber || ''));
-          setPaymentName(String(draft.paymentName || ''));
+          if (action === 'ai_analyst') {
+            const mznEligible = currency.toUpperCase() === 'MZN';
+            setAmount(mznEligible ? '250' : '3');
+            setPaymentCurrency(mznEligible ? 'MZN' : 'USDT');
+            setPaymentMethod(!mznEligible ? 'binance_usdt_trc20' : (draft.paymentMethod === 'emola' ? 'emola' : 'mpesa'));
+          } else {
+            setAmount(String(draft.amount || ''));
+            setPaymentCurrency(String(draft.paymentCurrency || currency));
+            setPaymentMethod(draft.paymentMethod === 'emola' ? 'emola' : 'mpesa');
+            setPaymentNumber(String(draft.paymentNumber || ''));
+            setPaymentName(String(draft.paymentName || ''));
+          }
         }
         sessionStorage.removeItem('mozhyper_payment_agent_draft');
       }
@@ -242,34 +247,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, currency, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
 
-  useEffect(() => {
-    if (!open || !isAiAnalyst) return;
-    let cancelled = false;
-    const loadAiAnalystIdentity = async () => {
-      setNicknameLoading(true);
-      setNicknameError('');
-      setDerivNickname('');
-      try {
-        const response = await fetch('/api/ai-analyst/access', { cache:'no-store', headers:{'Cache-Control':'no-cache'} });
-        const payload = await response.json().catch(() => null);
-        if (cancelled) return;
-        const nickname = String(payload?.derivNickname || '').trim();
-        if (!nickname) {
-          throw new Error(String(payload?.code || '') === 'DERIV_NICKNAME_REQUIRED'
-            ? copy.nicknameMissing
-            : copy.nicknameError);
-        }
-        setDerivNickname(nickname);
-      } catch (error) {
-        if (!cancelled) setNicknameError(error instanceof Error ? error.message : copy.nicknameError);
-      } finally {
-        if (!cancelled) setNicknameLoading(false);
-      }
-    };
-    void loadAiAnalystIdentity();
-    return () => { cancelled = true; };
-  }, [open, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
-
   const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
   const binanceFallback = isAiAnalyst && paymentMethod === 'binance_usdt_trc20';
   const limits = useMemo(
@@ -288,7 +265,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     const refreshStatus = async () => {
       try {
         const response = await fetch(
-          (binanceFallback ? '/api/ai-analyst/access' : '/api/payment-agent/deposit/status?request_id=' + encodeURIComponent(requestId)),
+          '/api/payment-agent/deposit/status?request_id=' + encodeURIComponent(requestId),
           {
             cache: 'no-store',
             headers: { 'Cache-Control': 'no-cache' },
@@ -297,7 +274,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         const payload: ApiResult = await response.json().catch(() => ({}));
         if (!response.ok || cancelled) return;
 
-        const status = binanceFallback ? (payload?.active ? 'payment_confirmed' : 'awaiting_payment') : String(payload.data?.status || '').toLowerCase();
+        const status = String(payload.data?.status || '').toLowerCase();
         if (status === 'payment_confirmed') {
           setDepositStatus('payment_confirmed');
           setMessage(copy.accepted);
@@ -384,6 +361,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   };
 
   const paymentReady = supportedCurrencies.length > 0;
+  const aiAnalystMznEligible = isAiAnalyst && currency.toUpperCase() === 'MZN';
 
   const retryNickname = async () => {
     setNicknameLoading(true);
@@ -420,9 +398,9 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       showError(copy.invalid);
       return false;
     }
-    if ((action === 'deposit' || action === 'ai_analyst') && !derivNickname.trim()) {
-      showError(copy.nicknameMissing);
-      return false;
+    if (aiAnalystMznEligible) {
+      if (payerName.trim().length < 2) { showError(copy.yourName); return false; }
+      if (!/^\d{9,15}$/.test(payerNumber.replace(/\s+/g,''))) { showError(copy.paymentPhone); return false; }
     }
     if (action !== 'ai_analyst' && !paymentReady) { showError(copy.loadingCurrencies); return false; }
     if (action !== 'ai_analyst' && !currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
@@ -516,7 +494,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod }
         : action === 'withdraw'
           ? { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName }
-          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod };
+          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency, payerName: aiAnalystMznEligible ? payerName.trim() : undefined, payerNumber: aiAnalystMznEligible ? payerNumber.replace(/\s+/g,'') : undefined };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -646,24 +624,34 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             </select> : <div style={{ marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827', fontWeight:900 }}>{supportedCurrencies[0] || copy.fetching}</div>}
           </div>}
           <div style={{ marginTop:14 }}>
-            <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{isAiAnalyst ? 'Método para pagar a assinatura' : copy.paymentMethod}</div>
+            <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{isAiAnalyst ? copy.aiPaymentMethod : copy.paymentMethod}</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:8 }}>
-              <button type="button" onClick={()=>{setPaymentMethod('mpesa'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); }}} aria-label={copy.mpesa}
+              {(!isAiAnalyst || aiAnalystMznEligible) && <button type="button" onClick={()=>{setPaymentMethod('mpesa'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); }}} aria-label={copy.mpesa}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='mpesa' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#ed1b24', boxShadow: paymentMethod==='mpesa' ? '0 0 0 3px #ff4654, 0 10px 25px rgba(237,27,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src="/payment-agent/mpesa.svg" alt={copy.mpesa} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='mpesa' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#ed1b24', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
-              </button>
-              <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); }}} aria-label={copy.emola}
+              </button>}
+              {(!isAiAnalyst || aiAnalystMznEligible) && <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); }}} aria-label={copy.emola}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='emola' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#f97824', boxShadow: paymentMethod==='emola' ? '0 0 0 3px #ff7a24, 0 10px 25px rgba(249,120,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src="/payment-agent/emola.svg" alt={copy.emola} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='emola' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#f97824', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
-              </button>
-              {isAiAnalyst && currency.toUpperCase() !== 'MZN' && <button type="button" onClick={()=>{setPaymentMethod('binance_usdt_trc20'); setAmount('3'); setPaymentCurrency('USDT')}} aria-label="Binance USDT TRC20"
+              </button>}
+              {isAiAnalyst && !aiAnalystMznEligible && <button type="button" onClick={()=>{setPaymentMethod('binance_usdt_trc20'); setAmount('3'); setPaymentCurrency('USDT')}} aria-label="Binance USDT TRC20"
                 style={{ position:'relative', gridColumn:'1 / -1', height:58, borderRadius:14, border: paymentMethod==='binance_usdt_trc20' ? '3px solid #111827' : '1px solid #94a3b8', background:paymentMethod==='binance_usdt_trc20' ? '#f3ba2f' : (light?'#fff':'#111827'), color:'#111827', fontWeight:900, cursor:'pointer' }}>
                 Binance — 3 USDT (TRC20){paymentMethod==='binance_usdt_trc20' && <span style={{ marginLeft:8 }}>✓</span>}
               </button>}
             </div>
           </div>
+          {aiAnalystMznEligible && <div style={{ marginTop:12, display:'grid', gap:10 }}>
+            <label style={{ display:'block', fontSize:12, fontWeight:800 }}>
+              {copy.yourName}
+              <input value={payerName} onChange={event=>setPayerName(event.target.value)} placeholder={copy.yourName} style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+            </label>
+            <label style={{ display:'block', fontSize:12, fontWeight:800 }}>
+              {copy.paymentPhone}
+              <input inputMode="numeric" value={payerNumber} onChange={event=>setPayerNumber(event.target.value.replace(/\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+            </label>
+          </div>}
           {action === 'withdraw' && <>
             <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>{copy.recipientNumber}
               <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
@@ -676,7 +664,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
-          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>AI Analyst — assinatura mensal</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso por 30 dias após confirmação do Payment Agent.</div></div>}
+          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>AI Analyst — assinatura mensal</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div></div>}
           {!isAiAnalyst && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
 
@@ -690,6 +678,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {isAiAnalyst ? (binanceFallback ? 'USDT' : 'MZN') : paymentCurrency}</div>
               <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{isAiAnalyst ? 'Pagamento do serviço AI Analyst. Nenhum saldo da Wallet Deriv é movimentado.' : action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
               {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
+              {aiAnalystMznEligible && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.yourName}:</b> {payerName}<br/><b>{copy.paymentPhone}:</b> {payerNumber}</div>}
               {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.amountToReceive} = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
             </div>
           </div>
