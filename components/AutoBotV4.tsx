@@ -35,9 +35,12 @@ type AnalyzerCandidate = {
 };
 function aiClamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
 function confidenceBand(score:number){if(score>=90)return 'Muito forte';if(score>=80)return 'Forte';if(score>=70)return 'Moderado';if(score>=60)return 'Fraco';return 'Não operar'}
-function phaseOf(score:number,recent:number,older:number){
- if(score>=78&&recent>=70)return 'FORTE';
- if(score>=68&&recent>=60)return 'CONFIRMADA';
+function phaseOf(score:number,recent:number,older:number,trend:number,acceleration:number,consistency:number){
+ // A percentage that is still moderate can be an early entry when the signal is clearly accelerating.
+ if(trend>=68&&acceleration>=6&&recent>=45&&recent>older+6&&consistency>=40)return 'EMERGENTE';
+ if(score>=78&&recent>=70&&trend>=55)return 'FORTE';
+ if(score>=68&&recent>=60&&trend>=52)return 'CONFIRMADA';
+ if(trend<42||acceleration<=-8)return 'ENFRAQUECENDO';
  if(score>=60&&recent>=older-8)return 'ENFRAQUECENDO';
  return 'FORA DA FASE';
 }
@@ -83,12 +86,16 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const strength=aiClamp(50+edge*1.05);
   const confidence=aiClamp(50+edge*1.30);
   const trend=aiClamp(50+(recent-olderMean)*180);
-  const phase=phaseOf((strength+confidence+stability)/3,recent*100,olderMean*100);
-  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15);
+  const previousRecent=x.series[3];
+  const acceleration=aiClamp((recent-previousRecent)*220);
+  const phaseScore=(strength+confidence+stability)/3;
+  const phase=phaseOf(phaseScore,recent*100,olderMean*100,trend,acceleration,consistency);
+  const earlyMomentum=trend>=68&&acceleration>=6&&recent>=45&&recent>olderMean*100+6&&consistency>=40;
+  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0));
   return{
-   strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,consistency,score,
-   risk:100-stability,direction:x.direction,regimeChange:recent-olderMean>=0.20,
-   recentStrength:recent*100,olderStrength:olderMean*100,phase
+   strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,acceleration,consistency,score,
+   risk:100-stability,direction:x.direction,regimeChange:recent-olderMean>=0.20||earlyMomentum,
+   recentStrength:recent*100,olderStrength:olderMean*100,phase,earlyMomentum
   };
  });
 
@@ -104,10 +111,11 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  const advantage=second?best.score-second.score:100;
  const recentLead=second?best.recentStrength-second.recentStrength:0;
  const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=75);
- const noTrade=best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE';
+ const earlyEntry=best.phase==='EMERGENTE'&&Boolean(best.earlyMomentum)&&best.score>=55&&best.confidence>=52&&best.stability>=35;
+ const noTrade=(!earlyEntry&&(best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE'));
  return{
   ...best,rankings:ranked,secondStrategy:second?.strategy??null,secondScore:second?.score??0,
-  advantage,regimeChange,noTrade,confidenceBand:confidenceBand(best.score)
+  advantage,regimeChange,earlyEntry,noTrade,confidenceBand:confidenceBand(best.score)
  };
 }
 const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap'};let lastAnalyzerAlertAt=0;
@@ -296,7 +304,8 @@ export default function AutoBotV4(){
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // AI Analyst must finish the 25-tick analysis and select the bot before trading.
   if(smartAnalyzer){
-   if(!smartAdvice||smartAdvice.noTrade||Number(smartAdvice.score)<65)return;
+   if(!smartAdvice||smartAdvice.noTrade)return;
+   if(Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
    const analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];
    if(!analystStrategy||strategy!==analystStrategy)return;
   }
