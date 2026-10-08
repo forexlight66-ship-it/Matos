@@ -704,7 +704,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div>
             <div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div>
           </div>}
-          {!isAiAnalyst && !isCourse && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>
+          {!isAiAnalyst && !isCourse && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
           </>
         )}
