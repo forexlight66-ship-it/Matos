@@ -695,26 +695,38 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         </label>}
 
         {step === 'result' && action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') ? (
-          <div style={{ marginTop:16, overflow:'hidden', borderRadius:20, background:'linear-gradient(180deg,#241323 0%,#0d111a 100%)', color:'#fff', textAlign:'center', padding:'30px 20px 24px', boxShadow:'0 16px 45px rgba(0,0,0,.25)' }}>
-            <div style={{ width:170, height:125, margin:'0 auto 20px', position:'relative' }} aria-hidden="true">
-              <div style={{ position:'absolute', left:10, top:35, width:105, height:72, borderRadius:'10px 10px 22px 12px', background:'linear-gradient(145deg,#ff3949,#a90d19)', transform:'rotate(-24deg)', boxShadow:'0 10px 20px rgba(255,57,73,.22)' }}>
-                <div style={{ position:'absolute', inset:10, borderRadius:7, background:'linear-gradient(145deg,#e8e8e8,#8e8e8e)' }} />
-                <div style={{ position:'absolute', left:39, top:20, width:36, height:36, borderRadius:'50%', background:'#b51220' }} />
+          <div style={{ marginTop:16, overflow:'hidden', borderRadius:22, background:'linear-gradient(180deg,#241323 0%,#0d111a 100%)', color:'#fff', textAlign:'center', padding:'28px 20px 22px', boxShadow:'0 16px 45px rgba(0,0,0,.28)' }}>
+            <div style={{ width:150, height:118, margin:'0 auto 14px', position:'relative' }} aria-hidden="true">
+              <div style={{ position:'absolute', left:8, top:34, width:92, height:62, borderRadius:'9px 9px 19px 11px', background:'linear-gradient(145deg,#ff3949,#a90d19)', transform:'rotate(-24deg)', boxShadow:'0 10px 20px rgba(255,57,73,.22)' }}>
+                <div style={{ position:'absolute', inset:9, borderRadius:6, background:'linear-gradient(145deg,#e8e8e8,#8e8e8e)' }} />
+                <div style={{ position:'absolute', left:34, top:17, width:32, height:32, borderRadius:'50%', background:'#b51220' }} />
               </div>
-              <div style={{ position:'absolute', right:0, top:4, width:112, height:78, borderRadius:'12px 13px 20px 13px', background:'#fff', border:'9px solid #ff3949', transform:'rotate(20deg)', boxShadow:'0 10px 20px rgba(255,57,73,.22)' }}>
-                <div style={{ position:'absolute', left:35, top:10, width:38, height:38, borderRadius:'50%', background:'#ff3949' }} />
+              <div style={{ position:'absolute', right:0, top:2, width:101, height:70, borderRadius:'11px 12px 18px 12px', background:'#fff', border:'8px solid #ff3949', transform:'rotate(20deg)', boxShadow:'0 10px 20px rgba(255,57,73,.22)' }}>
+                <div style={{ position:'absolute', left:31, top:9, width:34, height:34, borderRadius:'50%', background:'#ff3949' }} />
               </div>
-              <span aria-hidden="true" style={{ position:'absolute', left:0, top:0, color:'#ff3949', fontSize:28, fontWeight:900, transform:'rotate(-25deg)' }}>✦</span>
-              <span aria-hidden="true" style={{ position:'absolute', right:0, bottom:0, color:'#ff3949', fontSize:22, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
+              <span aria-hidden="true" style={{ position:'absolute', left:0, top:0, color:'#ff3949', fontSize:27, fontWeight:900, transform:'rotate(-25deg)' }}>✦</span>
+              <span aria-hidden="true" style={{ position:'absolute', right:0, bottom:2, color:'#ff3949', fontSize:20, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
             </div>
-            <div style={{ fontSize:27, lineHeight:1.12, fontWeight:950, letterSpacing:-.6 }}>Transferência bem-sucedida</div>
-            <div style={{ marginTop:14, fontSize:15, lineHeight:1.45, opacity:.92 }}>O seu depósito foi confirmado pelo nosso Payment Agent.</div>
-            <div style={{ marginTop:22, display:'flex', alignItems:'center', justifyContent:'center', gap:12 }}>
-              <div aria-hidden="true" style={{ width:48, height:48, flex:'0 0 48px', borderRadius:'50%', background:'linear-gradient(145deg,#22c55e,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:950, boxShadow:'0 6px 18px rgba(34,197,94,.28)' }}>✓</div>
-              <div style={{ fontSize:13, lineHeight:1.45, opacity:.92, textAlign:'left' }}>O pagamento foi confirmado e o valor já foi adicionado à sua conta Deriv.</div>
+
+            <div style={{ fontSize:27, lineHeight:1.12, fontWeight:950, letterSpacing:-.7 }}>Transferência bem-<br/>sucedida</div>
+            <div style={{ marginTop:14, fontSize:15, lineHeight:1.45, opacity:.92 }}>
+              O seu depósito foi confirmado pelo nosso<br/>Payment Agent.
             </div>
+
+            <div style={{ marginTop:24, padding:'20px 20px 22px', borderRadius:20, background:'rgba(255,255,255,.075)', border:'1px solid rgba(255,255,255,.16)', boxShadow:'inset 0 1px 0 rgba(255,255,255,.04)', textAlign:'left' }}>
+              <div style={{ fontSize:11, letterSpacing:2.2, opacity:.68, fontWeight:900 }}>NICKNAME DERIV</div>
+              <div style={{ marginTop:7, fontSize:20, lineHeight:1.2, fontWeight:950 }}>{derivNickname || '—'}</div>
+              <div style={{ marginTop:20, fontSize:11, letterSpacing:2.2, opacity:.68, fontWeight:900 }}>VALOR DO DEPÓSITO</div>
+              <div style={{ marginTop:7, fontSize:26, lineHeight:1.15, fontWeight:950 }}>${(parseMoney(amount) || 0).toFixed(2)}</div>
+            </div>
+
+            <div style={{ marginTop:20, display:'flex', alignItems:'center', gap:14, textAlign:'left', padding:'0 2px' }}>
+              <div aria-hidden="true" style={{ width:54, height:54, flex:'0 0 54px', borderRadius:'50%', background:'linear-gradient(145deg,#22d36a,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:31, fontWeight:950, boxShadow:'0 7px 18px rgba(34,197,94,.28)' }}>✓</div>
+              <div style={{ fontSize:13, lineHeight:1.5, opacity:.94 }}>O pagamento foi confirmado e o valor já foi<br/>adicionado à sua conta Deriv.</div>
+            </div>
+
             <button type="button" onClick={onClose}
-              style={{ width:'100%', marginTop:24, padding:14, border:0, borderRadius:13, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:16, cursor:'pointer' }}>
+              style={{ width:'100%', marginTop:22, padding:'15px 14px', border:0, borderRadius:14, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:17, cursor:'pointer', boxShadow:'0 8px 20px rgba(255,31,61,.18)' }}>
               Fechar
             </button>
           </div>
@@ -758,10 +770,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           </button>
         </div>}
 
-        {step === 'result' && <button type="button" onClick={onClose}
-          style={{ width:'100%', marginTop:16, padding:12, borderRadius:11, border:'1px solid #64748b', background:'transparent', color:'inherit', fontWeight:800 }}>
-          {copy.closeWindow}
-        </button>}
       </div>
     </div>
   );
