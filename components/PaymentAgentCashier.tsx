@@ -699,7 +699,11 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
-          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>{copy.aiTitle} — {copy.aiSubscription}</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div></div>}
+          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}>
+            <div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>{copy.aiTitle} — {copy.aiSubscription}</div>
+            <div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div>
+            <div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div>
+          </div>}
           {!isAiAnalyst && !isCourse && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>
         </>}
           </>
