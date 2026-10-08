@@ -565,7 +565,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const primary = step === 'otp'
     ? copy.confirmWithdraw
     : step === 'confirm'
-      ? (action === 'deposit' ? copy.confirmDeposit : isAiAnalyst ? copy.aiConfirm : copy.sendCode)
+      ? (action === 'withdraw' ? copy.sendCode : (action === 'deposit' ? copy.confirmDeposit : isAiAnalyst ? copy.aiConfirm : copy.confirmDeposit))
       : (isAiAnalyst ? copy.aiPay : copy.continue);
 
   return (
