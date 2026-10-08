@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
             `Método: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
             `Número: <b>${escapeHtml(row.payment_number || '—')}</b>`,
             `Nome: <b>${escapeHtml(row.payment_name || '—')}</b>`,
+            `Seu nome: <b>${escapeHtml(row.payer_name || '—')}</b>`,
+            `Número usado para pagamento: <b>${escapeHtml(row.payer_number || '—')}</b>`,
             '',
             '⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.',
           ].join('\n');
