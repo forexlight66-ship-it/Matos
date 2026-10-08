@@ -103,11 +103,12 @@ function analyzeStrategies100(v:number[],pipSize?:number){
         (consistency<40?8:0)+
         (recent<olderMean-0.08?6:0))
     : 0;
-  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0)-weakRecentPenalty);
+  const quality=signalQuality(all,x.strategy,x.label,pipSize);
+  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0)-weakRecentPenalty-quality.penalty);
   return{
    strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,acceleration,consistency,score,
-   risk:aiClamp(100-stability+weakRecentPenalty),direction:x.direction,regimeChange:recent-olderMean>=0.20||earlyMomentum,
-   recentStrength:recent*100,olderStrength:olderMean*100,phase,earlyMomentum
+   risk:aiClamp(100-stability+weakRecentPenalty+quality.penalty),direction:x.direction,regimeChange:recent-olderMean>=0.20||earlyMomentum,
+   recentStrength:recent*100,olderStrength:olderMean*100,phase,earlyMomentum,qualityPenalty:quality.penalty,qualityBlocked:!quality.allowed,qualityReason:quality.reason
   };
  });
 
@@ -125,7 +126,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=75);
  const earlyEntry=best.phase==='EMERGENTE'&&Boolean(best.earlyMomentum)&&best.score>=55&&best.confidence>=52&&best.stability>=35;
  const protectedBelow4=best.strategy==='HyperStrike'&&best.label==='ABAIXO 4'&&best.recentStrength<60&&best.acceleration<0;
- const noTrade=(!earlyEntry&&(best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE'||protectedBelow4));
+ const noTrade=(!earlyEntry&&(best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE'||best.qualityBlocked||protectedBelow4));
  return{
   ...best,rankings:ranked,secondStrategy:second?.strategy??null,secondScore:second?.score??0,
   advantage,regimeChange,earlyEntry,noTrade,confidenceBand:confidenceBand(best.score)
