@@ -562,6 +562,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         style={{ width:'min(430px,100%)', maxHeight:'calc(100vh - 24px)', overflowY:'auto', WebkitOverflowScrolling:'touch', borderRadius:20, background:light?'#fff':'#171c24', color:light?'#0f172a':'#fff', padding:20, boxShadow:'0 24px 70px rgba(0,0,0,.35)' }}
         onClick={event => event.stopPropagation()}
       >
+        {step === 'result' && action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') ? null : (
+          <>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
           <div>
             <div id="payment-agent-title" style={{ fontSize:19, fontWeight:900 }}>{actionTitle}</div>
@@ -653,49 +655,25 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             </label>
             <label style={{ display:'block', fontSize:12, fontWeight:800 }}>
               {copy.paymentPhone}
-              <input inputMode="numeric" value={payerNumber} onChange={event=>setPayerNumber(event.target.value.replace(/\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+              <input inputMode="numeric" value={payerNumber} onChange={event=>setPayerNumber(event.target.value.replace(/D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
           </div>}
           {action === 'withdraw' && <>
             <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>{copy.recipientNumber}
-              <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+              <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
             <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:12 }}>{copy.recipientName}
               <input value={paymentName} onChange={event=>setPaymentName(event.target.value)} placeholder="Nome do titular" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
           </>}
-          {action !== 'ai_analyst' ?           <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
+          {action !== 'ai_analyst' ? <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
           </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>{copy.aiTitle} — {copy.aiSubscription}</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div></div>}
           {!isAiAnalyst && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
-
-        {step === 'confirm' && <>
-          <style>{`@keyframes paymentConfirmBorderSpin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }`}</style>
-          <div style={{ position:'relative', marginTop:16, padding:2, borderRadius:16, overflow:'hidden', isolation:'isolate', boxShadow:'0 0 18px rgba(255,70,84,.10)' }}>
-            <span aria-hidden="true" style={{ position:'absolute', inset:'-70%', background:'conic-gradient(from 0deg, transparent 0deg, transparent 300deg, #ff4654 334deg, #ff1f3d 350deg, transparent 360deg)', animation:'paymentConfirmBorderSpin 2.4s linear infinite', zIndex:0 }} />
-            <div style={{ position:'relative', zIndex:1, padding:14, borderRadius:14, background:light?'#f8fafc':'#111827' }}>
-              <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
-              {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
-              <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {isAiAnalyst ? (binanceFallback ? 'USDT' : 'MZN') : paymentCurrency}</div>
-              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{isAiAnalyst ? 'copy.aiNoDerivMovement' : action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
-              {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
-              {(action === 'deposit' || aiAnalystMznEligible) && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.yourName}:</b> {payerName}<br/><b>{copy.paymentPhone}:</b> {payerNumber}</div>}
-              {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.amountToReceive} = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
-            </div>
-          </div>
-        </>}
-
-        {step === 'otp' && <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:16 }}>
-          {copy.code}
-          <input autoFocus inputMode="numeric" maxLength={6} value={code}
-            onChange={event => setCode(event.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"
-            style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:900, fontSize:20, letterSpacing:6, textAlign:'center' }} />
-          <span style={{ display:'block', marginTop:6, fontSize:10, opacity:.62 }}>{copy.codeHelp}</span>
-        </label>}
-
+          </>
         )}
 
         {step === 'result' && action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') ? (
