@@ -28,85 +28,88 @@ const digit=(v:number|string|null|undefined,pipSize?:number)=>{if(v==null)return
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
 function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return null;const x=stats(v,pipSize),t=65;if(isRecoveryStrategy(s))return v.length>=2?{contract:'OVER' as Contract,label:s,strength:100}:null;if(s==='HYPERLITE')return x.even>=t?{contract:'EVEN' as Contract,label:'PAR',strength:x.even}:null;if(s==='PAR_IMPAR')return x.even>=t?{contract:'EVEN' as Contract,label:'PAR',strength:x.even}:x.odd>=t?{contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}:null;if(s==='ACIMA5_BAIXO4')return x.above5>=t?{contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5}:x.below4>=t?{contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}:null;if(s==='RISE_FALL')return x.rise>=t?{contract:'RISE' as Contract,label:'SUBIR',strength:x.rise}:x.fall>=t?{contract:'FALL' as Contract,label:'DESCER',strength:x.fall}:null;if(s==='DIFERENTE')return x.diff>=t?{contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}:null;const zeroIsDominant=x.match0>=30&&x.match0>Math.max(...x.probs.slice(1));return zeroIsDominant?{contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}:null}
 const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(d:number[],strategy:string,label:string){if(d.length<5)return false;const recent=d.slice(-5);if(strategy==='HyperDrive')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<recent.length;i++){if(recent[i]>recent[i-1])up++;else if(recent[i]<recent[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;return false}
+type AnalyzerCandidate = {
+ strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
+ trend:number; consistency:number; score:number; baseScore:number; risk:number; direction:string;
+ regimeChange:boolean; recentStrength:number; olderStrength:number;
+};
+function clamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
+function confidenceBand(score:number){if(score>=90)return 'Muito forte';if(score>=80)return 'Forte';if(score>=70)return 'Moderado';if(score>=60)return 'Fraco';return 'Não operar'}
+function weightedMean(values:number[]){const weights=[0.08,0.12,0.15,0.25,0.40];return values.reduce((sum,v,i)=>sum+v*weights[i],0)}
+function weightedStability(values:number[],mean:number){
+ const weights=[0.08,0.12,0.15,0.25,0.40];
+ const variance=values.reduce((sum,v,i)=>sum+weights[i]*Math.pow(v-mean,2),0);
+ return clamp(100-Math.sqrt(variance)*170);
+}
 function analyzeStrategies100(v:number[],pipSize?:number){
  if(v.length<25)return null;
- const SAMPLE_SIZE=25;
- const w=v.slice(-SAMPLE_SIZE);
- const all=w.map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);
- if(all.length<SAMPLE_SIZE)return null;
+ const all=v.slice(-25).map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);
+ if(all.length<25)return null;
+
  const windows=Array.from({length:5},(_,i)=>all.slice(i*5,(i+1)*5));
- const above5Total=all.filter(n=>n>5).length;
- const below4Total=all.filter(n=>n<4).length;
- const hyperStrikeLabel=above5Total>=below4Total?'ACIMA 5':'ABAIXO 4';
- const hyperStrikeRates=windows.map(d=>{
-   const count=hyperStrikeLabel==='ACIMA 5'?d.filter(n=>n>5).length:d.filter(n=>n<4).length;
-   return count/5;
+ const riseFall=windows.map(d=>{
+  let up=0,down=0;
+  for(let i=1;i<d.length;i++){if(d[i]>d[i-1])up++;else if(d[i]<d[i-1])down++}
+  return {up:up/4,down:down/4};
  });
- const rates={
-   hyperdrive:windows.map(d=>d.filter(n=>n%2===0).length/5),
-   hyperstrike:hyperStrikeRates,
-   hyperforce:windows.map(d=>{
-     let up=0,down=0;
-     for(let j=1;j<d.length;j++){
-       if(d[j]>d[j-1])up++;
-       else if(d[j]<d[j-1])down++;
-     }
-     return Math.max(up,down)/Math.max(1,up+down);
-   }),
-   hypernova:windows.map(d=>d.filter(n=>n!==0).length/5),
-   hyperlite:windows.map(d=>d.filter(n=>n%2===0).length/5),
-   hyperguard:windows.map(d=>d.filter(n=>n>0).length/5),
-   hypershield:windows.map(d=>d.filter(n=>n>4).length/5),
-   hyperbreak:windows.map(d=>d.filter(n=>n<8).length/5)
- };
- const baseline={hyperdrive:.5,hyperstrike:.4,hyperforce:.5,hypernova:.9,hyperlite:.5,hyperguard:.9,hypershield:.5,hyperbreak:.8};
- const candidates=[
-   ['HyperDrive','PAR',rates.hyperdrive,'hyperdrive'],
-   ['HyperStrike',hyperStrikeLabel,rates.hyperstrike,'hyperstrike'],
-   ['HyperForce',rates.hyperforce[rates.hyperforce.length-1]>=.5?'SUBIR':'DESCER',rates.hyperforce,'hyperforce'],
-   ['HyperNova','DIFERENTE DE 0',rates.hypernova,'hypernova'],
-   ['Hyperlite','PAR',rates.hyperlite,'hyperlite'],
-   ['HyperGuard','ACIMA 0',rates.hyperguard,'hyperguard'],
-   ['HyperShield','ACIMA 4',rates.hypershield,'hypershield'],
-   ['HyperBreak','ABAIXO 8',rates.hyperbreak,'hyperbreak']
- ].map(([strategy,label,series,key])=>{
-   const r=series as number[];
-   const base=baseline[key as keyof typeof baseline];
-   const mean=r.reduce((a,c)=>a+c,0)/r.length;
-   const positive=r.filter(x=>x>base).length;
-   const variance=r.reduce((a,c)=>a+(c-mean)**2,0)/r.length;
-   // The analyzer evaluates exactly 25 ticks (5 blocks of 5).
-   // Use n=25 in the standard error; n=100 artificially inflated the z-score.
-   const se=Math.sqrt(Math.max(base*(1-base)/SAMPLE_SIZE,0.0001));
-   const z=(mean-base)/se;
-   const consistency=positive/5;
-   const recent=r[r.length-1]-base;
-   const recentConfirmed=confirmAnalyzerRecent(all,String(strategy),String(label));
-   return{
-     strategy:String(strategy),
-     label:String(label),
-     strength:mean*100,
-     edge:(mean-base)*100,
-     z,
-     consistency,
-     recent,
-     recentConfirmed,
-     eligible:z>=1.35&&consistency>=.8&&recent>=-.02&&recentConfirmed
-   };
+ const series=(predicate:(n:number)=>boolean)=>windows.map(d=>d.filter(predicate).length/5);
+ const inputs=[
+  {strategy:'HyperDrive',label:'PAR',contract:'EVEN' as Contract,direction:'PAR',series:series(n=>n%2===0),base:.5},
+  {strategy:'HyperDrive',label:'ÍMPAR',contract:'ODD' as Contract,direction:'ÍMPAR',series:series(n=>n%2!==0),base:.5},
+  {strategy:'HyperStrike',label:'ACIMA 5',contract:'OVER' as Contract,direction:'ACIMA 5',series:series(n=>n>5),base:.4},
+  {strategy:'HyperStrike',label:'ABAIXO 4',contract:'UNDER' as Contract,direction:'ABAIXO 4',series:series(n=>n<4),base:.3},
+  {strategy:'HyperForce',label:'SUBIR',contract:'RISE' as Contract,direction:'SUBIR',series:riseFall.map(x=>x.up),base:.5},
+  {strategy:'HyperForce',label:'DESCER',contract:'FALL' as Contract,direction:'DESCER',series:riseFall.map(x=>x.down),base:.5},
+  {strategy:'HyperNova',label:'DIFERENTE DE 0',contract:'DIFFER' as Contract,direction:'DIFERENTE DE 0',series:series(n=>n!==0),base:.9},
+  {strategy:'Hyperlite',label:'PAR',contract:'EVEN' as Contract,direction:'PAR',series:series(n=>n%2===0),base:.5},
+  {strategy:'HyperGuard',label:'ACIMA 0',contract:'OVER' as Contract,direction:'ACIMA 0',series:series(n=>n>0),base:.9},
+  {strategy:'HyperShield',label:'ACIMA 4',contract:'OVER' as Contract,direction:'ACIMA 4',series:series(n=>n>4),base:.5},
+  {strategy:'HyperBreak',label:'ABAIXO 8',contract:'UNDER' as Contract,direction:'ABAIXO 8',series:series(n=>n<8),base:.8}
+ ];
+ const candidates:AnalyzerCandidate[]=inputs.map(x=>{
+  const weighted=weightedMean(x.series);
+  const olderMean=(x.series[0]+x.series[1]+x.series[2]+x.series[3])/4;
+  const recentStrength=x.series[4]*100;
+  const olderStrength=olderMean*100;
+  const trend=clamp(50+(x.series[4]-olderMean)*220);
+  const stability=weightedStability(x.series,weighted);
+  const consistency=x.series.filter(n=>n>=x.base).length/5*100;
+  const se=Math.sqrt(Math.max(x.base*(1-x.base)/25,0.0001));
+  const z=(weighted-x.base)/se;
+  const confidence=clamp(50+z*12);
+  const strength=clamp(50+z*15);
+  const edgeScore=clamp(50+(weighted-x.base)*180);
+  const baseScore=clamp(edgeScore*.28+confidence*.22+stability*.20+trend*.12+consistency*.10+strength*.08);
+  return{
+   strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,consistency,
+   score:baseScore,baseScore,risk:100-stability,direction:x.direction,
+   regimeChange:recentStrength-olderStrength>=20,recentStrength,olderStrength
+  };
  });
- const ranked=[...candidates].sort((a,b)=>(b.z+b.consistency+b.recent*2)-(a.z+a.consistency+a.recent*2));
- const rankedStrong=ranked.filter(c=>c.eligible);
- const rankedConfirmed=ranked.filter(c=>c.recentConfirmed&&c.consistency>=.6&&c.z>=.5&&c.recent>=-.02);
- const pool=rankedStrong.length?rankedStrong:rankedConfirmed;
- const best=pool[0];
+
+ const byBot=new Map<string,AnalyzerCandidate>();
+ for(const candidate of candidates){
+  const current=byBot.get(candidate.strategy);
+  if(!current||candidate.baseScore>current.baseScore)byBot.set(candidate.strategy,candidate);
+ }
+ const initial=[...byBot.values()].sort((a,b)=>b.baseScore-a.baseScore);
+ const secondBase=initial[1]?.baseScore??initial[0]?.baseScore??0;
+ const ranked=initial.map((candidate,index)=>{
+  const lead=index===0?clamp(candidate.baseScore-secondBase,0,20):0;
+  return {...candidate,score:clamp(candidate.baseScore+lead*.45)};
+ }).sort((a,b)=>b.score-a.score);
+ const best=ranked[0],second=ranked[1];
  if(!best)return null;
- const second=pool[1];
- const margin=second?(best.z+best.consistency+best.recent*2)-(second.z+second.consistency+second.recent*2):Infinity;
- if(best.strategy==='HyperStrike'&&(!best.recentConfirmed||best.strength<60||best.consistency<.8||best.edge<5))return null;
- if(best.strategy!=='HyperStrike'&&(!best.recentConfirmed||best.strength<55||best.consistency<.6))return null;
- if(margin<.15)return null;
- return best;
-}const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap'};let lastAnalyzerAlertAt=0;
+ const advantage=second?best.score-second.score:100;
+ const recentLead=second?best.recentStrength-second.recentStrength:0;
+ const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=82);
+ const noTrade=best.score<60||best.confidence<60||best.stability<42;
+ return{
+  ...best,rankings:ranked,secondStrategy:second?.strategy??null,secondScore:second?.score??0,
+  advantage,regimeChange,noTrade,confidenceBand:confidenceBand(best.score)
+ };
+}
+const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap'};let lastAnalyzerAlertAt=0;
 function analyzerAlertSound(){try{const nowMs=Date.now();if(nowMs-lastAnalyzerAlertAt<1500)return;lastAnalyzerAlertAt=nowMs;const C=window.AudioContext||(window as any).webkitAudioContext,c=new C();if(c.state==='suspended')c.resume();const now=c.currentTime,master=c.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.16,now+.02);master.gain.exponentialRampToValueAtTime(.0001,now+.52);master.connect(c.destination);[880,1174,1568].forEach((freq,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now+i*.12);g.gain.exponentialRampToValueAtTime(.2,now+i*.12+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.12+.17);o.connect(g);g.connect(master);o.start(now+i*.12);o.stop(now+i*.12+.2)});setTimeout(()=>c.close(),750)}catch{}}
 function sound(kind:'win'|'loss'|'target'){try{const C=window.AudioContext||(window as any).webkitAudioContext,c=new C();if(c.state==='suspended')c.resume();const now=c.currentTime;if(kind==='win'){const master=c.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.16,now+.025);master.gain.exponentialRampToValueAtTime(.0001,now+1.05);master.connect(c.destination);const notes=[659.25,783.99,987.77,1318.51];notes.forEach((freq,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(freq,now+i*.12);o.frequency.exponentialRampToValueAtTime(freq*1.015,now+i*.12+.18);g.gain.setValueAtTime(.0001,now+i*.12);g.gain.exponentialRampToValueAtTime(.22,now+i*.12+.025);g.gain.exponentialRampToValueAtTime(.0001,now+i*.12+.32);o.connect(g);g.connect(master);o.start(now+i*.12);o.stop(now+i*.12+.34)});const sparkle=c.createOscillator(),sg=c.createGain();sparkle.type='triangle';sparkle.frequency.setValueAtTime(1760,now+.48);sparkle.frequency.exponentialRampToValueAtTime(2640,now+.82);sg.gain.setValueAtTime(.0001,now+.48);sg.gain.exponentialRampToValueAtTime(.09,now+.52);sg.gain.exponentialRampToValueAtTime(.0001,now+.9);sparkle.connect(sg);sg.connect(master);sparkle.start(now+.48);sparkle.stop(now+.92);setTimeout(()=>c.close(),1300)}else{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=kind==='loss'?180:1040;g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.12,now+.02);g.gain.exponentialRampToValueAtTime(.0001,now+.35);o.connect(g);g.connect(c.destination);o.start(now);o.stop(now+.4);setTimeout(()=>c.close(),500)}}catch{}}
 function TrashIcon({ size = 15, color = 'currentColor' }) {
@@ -298,9 +301,11 @@ export default function AutoBotV4(){
   }
   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
-  const freshSignal=isRecoveryStrategy(strategy)
-   ? {contract:'OVER' as Contract,label:strategy,strength:100}
-   : makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize);
+  const freshSignal=smartAnalyzer&&smartAdvice&&!smartAdvice.noTrade
+   ? {contract:smartAdvice.contract as Contract,label:String(smartAdvice.label),strength:Number(smartAdvice.score)||0}
+   : isRecoveryStrategy(strategy)
+     ? {contract:'OVER' as Contract,label:strategy,strength:100}
+     : makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize);
   if(!freshSignal)return;
   if(requested.current)return;
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current))return;
