@@ -158,16 +158,18 @@ export async function createDepositRequest(input: {
   amountUsd: number;
   paymentMethod: 'mpesa' | 'emola';
   refreshToken: string;
+  payerName: string;
+  payerNumber: string;
 }) {
   await ensurePaymentRequestSchema();
   const id = requestId('d');
   const paymentNumber = input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER;
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
-      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,refresh_ciphertext,purpose)
-     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'deposit')
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,payer_name,payer_number,refresh_ciphertext,purpose)
+     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'deposit')
      RETURNING *`,
-    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*DEPOSIT_RATE_MZN,DEPOSIT_RATE_MZN,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME,encrypt(input.refreshToken)],
+    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,input.amountUsd,input.amountUsd*DEPOSIT_RATE_MZN,DEPOSIT_RATE_MZN,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME,input.payerName.trim(),input.payerNumber.replace(/\D/g,''),encrypt(input.refreshToken)],
   );
   return result.rows[0] as PaymentRequest;
 }
