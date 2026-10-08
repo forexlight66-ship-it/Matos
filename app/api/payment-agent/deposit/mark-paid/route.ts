@@ -103,10 +103,9 @@ export async function POST(request: NextRequest) {
         { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
         { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
       ]];
-      await sendAgentAlert(alertText, buttons);
       await sendAgentPhotoAlert(
         proof!,
-        `📎 <b>COMPROVATIVO DE PAGAMENTO</b>\n\nPedido: <b>${escapeHtml(row.id)}</b>\\nCliente: <b>${escapeHtml(row.client_name)}</b>\\nServiço: <b>${escapeHtml(isCourse ? 'Complete Course' : isAiAnalyst ? 'AI Analyst' : 'Depósito')}</b>`,
+        `${alertText}\n\n📎 <b>COMPROVATIVO DE PAGAMENTO ANEXADO</b>`,
         buttons,
       );
     } catch (telegramError) {
