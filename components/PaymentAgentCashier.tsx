@@ -404,7 +404,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const currencySupported = supportedCurrencies.includes(paymentCurrency.toUpperCase());
 
   const validate = () => {
-    const value = parseMoney(amount);
+    if (isCourse) {
+      setAmount(courseMznEligible ? '999' : '15');
+      setPaymentCurrency(courseMznEligible ? 'MZN' : 'USDT');
+      if (courseMznEligible && paymentMethod === 'binance_usdt_trc20') setPaymentMethod('mpesa');
+    }
+    const value = parseMoney(isCourse ? (courseMznEligible ? '999' : '15') : amount);
     if (!Number.isFinite(value) || value <= 0) {
       showError(copy.invalid);
       return false;
@@ -512,7 +517,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod, payerName: payerName.trim(), payerNumber: payerNumber.replace(/\s+/g,'') }
         : action === 'withdraw'
           ? { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName }
-          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency: isCourse ? paymentCurrency : currency, payerName: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerName.trim() : undefined, payerNumber: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerNumber.replace(/\s+/g,'') : undefined };
+          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency: isCourse ? (courseMznEligible ? 'MZN' : 'USDT') : currency, payerName: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerName.trim() : undefined, payerNumber: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerNumber.replace(/\s+/g,'') : undefined };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -585,7 +590,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
           <div>
             <div id="payment-agent-title" style={{ fontSize:19, fontWeight:900 }}>{actionTitle}</div>
-            <div style={{ fontSize:11, opacity:.62, marginTop:2 }}>Forex Moçambique · {isAiAnalyst ? 'AI Analyst' : copy.paymentAgent}</div>
+            <div style={{ fontSize:11, opacity:.62, marginTop:2 }}>Forex Moçambique · {isAiAnalyst ? 'AI Analyst' : isCourse ? 'MozHyper' : copy.paymentAgent}</div>
           </div>
           <button type="button" disabled={busy} onClick={onClose} aria-label={copy.close}
             style={{ border:0, background:'transparent', color:'inherit', fontSize:24, lineHeight:1, cursor:'pointer' }}>×</button>
@@ -596,8 +601,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   ? aiInfo
   : isCourse
     ? (language === 'en'
-        ? 'Complete Course payment via Payment Agent. Pay 999 MZN with M-Pesa or e-Mola, then upload the payment screenshot and click “I PAID”.'
-        : 'Pagamento do Complete Course via Payment Agent. Pague 999 MZN por M-Pesa ou e-Mola, depois envie o screenshot do pagamento e clique em “JÁ PAGUEI”.')
+        ? 'Complete Course payment via MozHyper. Pay 999 MZN with M-Pesa or e-Mola, then upload the payment screenshot and click “I PAID”.'
+        : 'Pagamento do Complete Course via MozHyper. Pague 999 MZN por M-Pesa ou e-Mola, depois envie o screenshot do pagamento e clique em “JÁ PAGUEI”.')
     : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
 
@@ -647,7 +652,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             )}
             <div style={{ marginTop:4, fontSize:10, opacity:.62 }}>{copy.accountHelp}</div>
           </div>}
-          {!isAiAnalyst && <div style={{ marginTop:14 }}>
+          {!isAiAnalyst && !isCourse && <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.currency}</div>
             {supportedCurrencies.length > 1 ? <select value={paymentCurrency} onChange={event=>setPaymentCurrency(event.target.value)} style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }}>
               {supportedCurrencies.map(code=><option key={code} value={code}>{code}</option>)}
@@ -692,9 +697,9 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             </label>
           </>}
           {isCourse ? <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}>
-            <div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>Complete Course — Payment Agent</div>
+            <div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>Complete Course — MozHyper</div>
             <div style={{marginTop:5,fontSize:18,fontWeight:950}}>{paymentCurrency === 'MZN' ? '999 MZN' : '15 USDT'}</div>
-            <div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso ilimitado após confirmação do Payment Agent.</div>
+            <div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso ilimitado após confirmação do MozHyper.</div>
           </div> : action !== 'ai_analyst' ? <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
