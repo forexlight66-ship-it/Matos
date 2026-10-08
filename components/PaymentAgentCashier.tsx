@@ -747,7 +747,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div style={{ marginTop:14, padding:12, borderRadius:12, border:'1px solid #94a3b8', background:light?'#f8fafc':'#111827' }}>
                 <div style={{ fontSize:12, fontWeight:900 }}>📎 {language === 'en' ? 'Payment proof' : 'Comprovativo do pagamento'}</div>
                 <div style={{ marginTop:4, fontSize:11, lineHeight:1.4, opacity:.72 }}>
-                  {language === 'en' ? 'Upload the screenshot of your payment. It will be sent to the Payment Agent on Telegram for confirmation.' : 'Envie o screenshot do pagamento. O comprovativo será enviado ao Payment Agent no Telegram para confirmação.'}
+                  {language === 'en' ? 'Upload the payment screenshot. Then click “I PAID”.' : 'Envie o screenshot do pagamento. E clique em “JÁ PAGUEI”.'}
                 </div>
                 <input
                   type="file"
