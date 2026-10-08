@@ -714,7 +714,14 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               Fechar
             </button>
           </div>
-        ) : step === 'result' && (action === 'ai_analyst' || action === 'course') && depositStatus === 'payment_confirmed' ? (
+        ) : step === 'result' && action === 'course' && depositStatus === 'payment_confirmed' ? (
+          <div style={{ marginTop:16, padding:20, borderRadius:18, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16', textAlign:'center' }}>
+            <div style={{ fontSize:34 }}>🎓</div>
+            <div style={{ marginTop:8, fontSize:22, fontWeight:950 }}>Pagamento confirmado</div>
+            <div style={{ marginTop:7, fontSize:13, lineHeight:1.45 }}>O seu <b>Complete Course</b> foi ativado por 30 dias.</div>
+            <button type="button" onClick={onClose} style={{ width:'100%', marginTop:18, padding:'13px 14px', border:0, borderRadius:12, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:16, cursor:'pointer' }}>Fechar</button>
+          </div>
+        ) : step === 'result' && action === 'ai_analyst' && depositStatus === 'payment_confirmed' ? (
           <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
             <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.aiTitle}</div>
             <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{copy.aiConfirmed}</div>
