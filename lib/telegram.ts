@@ -97,7 +97,7 @@ export async function sendAgentPhotoAlert(
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
         const form = new FormData();
-        form.append('chat_id', id);
+        form.append('chat_id', String(id));
         form.append('photo', photo, 'payment-proof.jpg');
         form.append('caption', caption);
         form.append('parse_mode', 'HTML');
