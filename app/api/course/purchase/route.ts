@@ -17,7 +17,7 @@ export async function POST(request:NextRequest){
   if(!isMzn && !isBinance) return NextResponse.json({error:'Para a sua moeda, use Binance — 15 USDT (TRC20).'},{status:400});
   if(isMzn && isBinance) return NextResponse.json({error:'Clientes elegíveis em MZN devem usar M-Pesa ou e-Mola.'},{status:400});
   const payerName=String(body.payerName||'').trim();
-  const payerNumber=String(body.payerNumber||'').replace(/\\D/g,'');
+  const payerNumber=String(body.payerNumber||'').replace(/\D/g,'');
   if(isMzn){
     if(payerName.length<2) return NextResponse.json({error:'Informe o seu nome.'},{status:400});
     if(!/^\\d{9,15}$/.test(payerNumber)) return NextResponse.json({error:'Informe o número usado para fazer o pagamento.'},{status:400});
