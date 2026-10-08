@@ -169,6 +169,13 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             setAmount(mznEligible ? '250' : '3');
             setPaymentCurrency(mznEligible ? 'MZN' : 'USDT');
             setPaymentMethod(!mznEligible ? 'binance_usdt_trc20' : (draft.paymentMethod === 'emola' ? 'emola' : 'mpesa'));
+          } else if (action === 'course') {
+            const mznEligible = currency.toUpperCase() === 'MZN';
+            setAmount(mznEligible ? '999' : '15');
+            setPaymentCurrency(mznEligible ? 'MZN' : 'USDT');
+            setPaymentMethod(mznEligible ? (draft.paymentMethod === 'emola' ? 'emola' : 'mpesa') : 'binance_usdt_trc20');
+            setPaymentNumber(String(draft.paymentNumber || ''));
+            setPaymentName(String(draft.paymentName || ''));
           } else {
             setAmount(String(draft.amount || ''));
             setPaymentCurrency(String(draft.paymentCurrency || currency));
@@ -684,12 +691,16 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <input value={paymentName} onChange={event=>setPaymentName(event.target.value)} placeholder="Nome do titular" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
           </>}
-          {action !== 'ai_analyst' ? <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
+          {isCourse ? <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}>
+            <div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>Complete Course — Payment Agent</div>
+            <div style={{marginTop:5,fontSize:18,fontWeight:950}}>{paymentCurrency === 'MZN' ? '999 MZN' : '15 USDT'}</div>
+            <div style={{marginTop:4,fontSize:10,opacity:.7}}>Acesso ilimitado após confirmação do Payment Agent.</div>
+          </div> : action !== 'ai_analyst' ? <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
-          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>{copy.aiTitle} — {copy.aiSubscription}</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{isCourse ? (currency.toUpperCase()==='MZN' ? '999 MZN' : '15 USDT') : (currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT')}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div></div>}
-          {!isAiAnalyst && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
+          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>{copy.aiTitle} — {copy.aiSubscription}</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div></div>}
+          {!isAiAnalyst && !isCourse && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>
         </>}
           </>
         )}
