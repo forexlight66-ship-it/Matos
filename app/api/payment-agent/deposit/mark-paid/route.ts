@@ -28,21 +28,33 @@ export async function POST(request: NextRequest) {
     try {
       const isAiAnalyst = row.purpose === 'ai_analyst';
       const alertText = isAiAnalyst
-        ? [
-            '🔔 <b>AI ANALYST — PAGAMENTO INFORMADO</b>',
-            '',
-            `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
-            `Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,
-            'Serviço: <b>AI Analyst</b>',
-            'Plano: <b>30 dias</b>',
-            `Valor: <b>${row.payment_method === 'binance_usdt_trc20' ? '3 USDT' : '250 MZN'}</b>`,
-            `Método: <b>${row.payment_method === 'binance_usdt_trc20' ? 'Binance — TRC20' : row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
-            ...(row.payer_name || row.payer_number ? [`Seu nome: <b>${escapeHtml(row.payer_name || '—')}</b>`,`Número usado para pagamento: <b>${escapeHtml(row.payer_number || '—')}</b>`] : []),
-            `Número: <b>${escapeHtml(row.payment_number || '—')}</b>`,
-            `Nome: <b>${escapeHtml(row.payment_name || '—')}</b>`,
-            '',
-            '⚠️ O cliente clicou em “JÁ PAGUEI”. Confirme o recebimento antes de ativar o serviço.',
-          ].join('\\n')
+        ? row.payment_method === 'binance_usdt_trc20'
+          ? [
+              '🔔 <b>AI ANALYST — PAGAMENTO INFORMADO</b>',
+              '',
+              `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+              `Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,
+              'Serviço: <b>AI Analyst</b>',
+              'Plano: <b>30 dias</b>',
+              'Valor: <b>3 USDT</b>',
+              'Método: <b>Binance — TRC20</b>',
+              '',
+              '⚠️ O cliente informou o pagamento. Confirme o recebimento antes de ativar o serviço.',
+            ].join('\\n')
+          : [
+              '🔔 <b>AI ANALYST — PAGAMENTO INFORMADO</b>',
+              '',
+              `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+              `Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,
+              'Serviço: <b>AI Analyst</b>',
+              'Plano: <b>30 dias</b>',
+              'Valor: <b>250 MZN</b>',
+              `Método: <b>${row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
+              `Seu nome: <b>${escapeHtml(row.payer_name || '—')}</b>`,
+              `Número usado para pagamento: <b>${escapeHtml(row.payer_number || '—')}</b>`,
+              '',
+              '⚠️ O cliente clicou em “JÁ PAGUEI”. Confirme o recebimento antes de ativar o serviço.',
+            ].join('\\n')
         : [
             '🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>',
             '',
