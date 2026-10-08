@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           ? [
               '🔔 <b>AI ANALYST — PAGAMENTO INFORMADO</b>',
               '',
-              `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+              `Nome do cliente: <b>${escapeHtml(row.client_name)}</b>`,
               `Conta Deriv: <b>${escapeHtml(row.client_nickname)}</b>`,
               'Serviço: <b>AI Analyst</b>',
               'Plano: <b>30 dias</b>',
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
               'Método: <b>Binance — TRC20</b>',
               '',
               '⚠️ O cliente informou o pagamento. Confirme o recebimento antes de ativar o serviço.',
-            ].join('\\n')
+            ].join('\n')
           : [
               '🔔 <b>AI ANALYST — PAGAMENTO INFORMADO</b>',
               '',
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
               `Número usado para pagamento: <b>${escapeHtml(row.payer_number || '—')}</b>`,
               '',
               '⚠️ O cliente clicou em “JÁ PAGUEI”. Confirme o recebimento antes de ativar o serviço.',
-            ].join('\\n')
+            ].join('\n')
         : [
             '🔔 <b>NOVO DEPÓSITO — PAGAMENTO INFORMADO</b>',
             '',
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             `Nome: <b>${escapeHtml(row.payment_name || '—')}</b>`,
             '',
             '⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.',
-          ].join('\\n');
+          ].join('\n');
       await sendAgentAlert(alertText, [[
         { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
         { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
