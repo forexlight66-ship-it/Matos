@@ -13,6 +13,8 @@ export const MPESA_NUMBER = '849084091';
 export const PAYMENT_RECIPIENT_NAME = 'Mistério João';
 export const BINANCE_USDT_TRC20_ADDRESS = 'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu';
 export const BINANCE_USDT_TRC20_NETWORK = 'TRC20';
+export const COURSE_PRICE_MZN = 999;
+export const COURSE_PRICE_USDT = 15;
 
 export type PaymentRequestType = 'deposit' | 'withdraw';
 export type PaymentRequestStatus =
@@ -123,6 +125,13 @@ export async function ensurePaymentRequestSchema() {
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_network TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_address TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_tx_hash TEXT;
+    CREATE TABLE IF NOT EXISTS course_access (
+      user_id BIGINT PRIMARY KEY REFERENCES platform_users(id) ON DELETE CASCADE,
+      payment_request_id TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS course_access_expires_idx ON course_access(expires_at);
     CREATE TABLE IF NOT EXISTS ai_analyst_subscriptions (
       user_id BIGINT PRIMARY KEY REFERENCES platform_users(id) ON DELETE CASCADE,
       deriv_nickname TEXT,
@@ -197,6 +206,33 @@ export async function createAIAnalystRequest(input: {
      VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'ai_analyst')
      RETURNING *`,
     [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,exchangeRate,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME,payerName,payerNumber],
+  );
+  return result.rows[0] as PaymentRequest;
+}
+
+export async function createCourseRequest(input: {
+  userId: string | number;
+  clientName: string;
+  clientEmail: string;
+  clientNickname: string;
+  paymentMethod: 'mpesa' | 'emola' | 'binance_usdt_trc20';
+  payerName?: string;
+  payerNumber?: string;
+}) {
+  await ensurePaymentRequestSchema();
+  const id = requestId('course');
+  const isBinance = input.paymentMethod === 'binance_usdt_trc20';
+  const amountUsd = COURSE_PRICE_USDT;
+  const localAmountMzn = COURSE_PRICE_MZN;
+  const exchangeRate = localAmountMzn / amountUsd;
+  const paymentNumber = isBinance ? BINANCE_USDT_TRC20_ADDRESS : (input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER);
+  const paymentName = isBinance ? 'Binance USDT TRC20' : PAYMENT_RECIPIENT_NAME;
+  const result = await pool.query(
+    `INSERT INTO payment_agent_requests
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,payer_name,payer_number,purpose,crypto_asset,crypto_network,crypto_address)
+     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'complete_course',CASE WHEN $9='binance_usdt_trc20' THEN 'USDT' ELSE NULL END,CASE WHEN $9='binance_usdt_trc20' THEN 'TRC20' ELSE NULL END,CASE WHEN $9='binance_usdt_trc20' THEN $10 ELSE NULL END)
+     RETURNING *`,
+    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,exchangeRate,input.paymentMethod,paymentNumber,paymentName,input.payerName?.trim()||null,input.payerNumber?.replace(/\\D/g,'')||null],
   );
   return result.rows[0] as PaymentRequest;
 }
@@ -430,4 +466,21 @@ export async function setPlatformTransferRequestId(id: string, requestId: string
     [id, requestId],
   );
   return result.rows[0] as PaymentRequest | undefined;
+}
+
+export async function activateCourseAccess(userId: string | number, paymentRequestId: string) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query(
+    `INSERT INTO course_access (user_id,payment_request_id,expires_at)
+     VALUES ($1,$2,NOW()+INTERVAL '30 days')
+     ON CONFLICT (user_id) DO UPDATE SET payment_request_id=EXCLUDED.payment_request_id,
+       expires_at=CASE WHEN course_access.expires_at>NOW() THEN course_access.expires_at+INTERVAL '30 days' ELSE EXCLUDED.expires_at END
+     RETURNING expires_at`, [userId,paymentRequestId]);
+  return result.rows[0];
+}
+export async function getCourseAccess(userId: string | number) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query('SELECT expires_at FROM course_access WHERE user_id=$1 LIMIT 1',[userId]);
+  const row=result.rows[0];
+  return row ? {active:new Date(row.expires_at).getTime()>Date.now(),expiresAt:row.expires_at} : {active:false,expiresAt:null};
 }
