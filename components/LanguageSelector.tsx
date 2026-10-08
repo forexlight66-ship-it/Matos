@@ -7,7 +7,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 const options = [
   { code: 'en' as const, flag: '🇬🇧', label: 'English' },
   { code: 'pt' as const, flag: '🇵🇹', label: 'Português' },
-  { code: 'es' as const, flag: '🇪🇸', label: 'Español' },
 ];
 
 export default function LanguageSelector() {
