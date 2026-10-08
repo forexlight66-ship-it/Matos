@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
             ...(row.payer_name || row.payer_number ? [`Seu nome: <b>${escapeHtml(row.payer_name || '—')}</b>`,`Número usado para pagamento: <b>${escapeHtml(row.payer_number || '—')}</b>`] : []),
             '',
             '⚠️ O cliente clicou em “JÁ PAGUEI”. O comprovativo está anexado. Confirme o recebimento antes de ativar o curso.',
-          ].join('\\n')
+          ].join('\n')
         : isAiAnalyst
         ? row.payment_method === 'binance_usdt_trc20'
           ? [
