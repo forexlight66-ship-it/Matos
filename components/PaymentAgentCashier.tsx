@@ -173,7 +173,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             const mznEligible = currency.toUpperCase() === 'MZN';
             setAmount(mznEligible ? '999' : '15');
             setPaymentCurrency(mznEligible ? 'MZN' : 'USDT');
-            setPaymentMethod(mznEligible ? (draft.paymentMethod === 'emola' ? 'emola' : 'mpesa') : 'binance_usdt_trc20');
+            setPaymentMethod(mznEligible ? 'mpesa' : 'binance_usdt_trc20');
             setPaymentNumber(String(draft.paymentNumber || ''));
             setPaymentName(String(draft.paymentName || ''));
           } else {
@@ -674,7 +674,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
                 <img src="/payment-agent/mpesa.svg" alt={copy.mpesa} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='mpesa' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#ed1b24', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
               </button>}
-              {(!isAiAnalyst || aiAnalystMznEligible) && <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); } else if(isCourse) { setAmount('999'); setPaymentCurrency('MZN'); }}} aria-label={copy.emola}
+              {(!isAiAnalyst && !isCourse) || aiAnalystMznEligible ? <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); } else if(isCourse) { setAmount('999'); setPaymentCurrency('MZN'); }}} aria-label={copy.emola}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='emola' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#f97824', boxShadow: paymentMethod==='emola' ? '0 0 0 3px #ff7a24, 0 10px 25px rgba(249,120,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src="/payment-agent/emola.svg" alt={copy.emola} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='emola' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#f97824', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
