@@ -562,7 +562,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         style={{ width:'min(430px,100%)', maxHeight:'calc(100vh - 24px)', overflowY:'auto', WebkitOverflowScrolling:'touch', borderRadius:20, background:light?'#fff':'#171c24', color:light?'#0f172a':'#fff', padding:20, boxShadow:'0 24px 70px rgba(0,0,0,.35)' }}
         onClick={event => event.stopPropagation()}
       >
-        {!depositSuccess && <>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
           <div>
             <div id="payment-agent-title" style={{ fontSize:19, fontWeight:900 }}>{actionTitle}</div>
@@ -572,13 +571,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             style={{ border:0, background:'transparent', color:'inherit', fontSize:24, lineHeight:1, cursor:'pointer' }}>×</button>
         </div>
 
-        </>}
-
-        {!depositSuccess && <div style={{ fontSize:12, lineHeight:1.45, marginTop:16, padding:12, borderRadius:12, background:light?'#f1f5f9':'#202733' }}>
+        <div style={{ fontSize:12, lineHeight:1.45, marginTop:16, padding:12, borderRadius:12, background:light?'#f1f5f9':'#202733' }}>
           {isAiAnalyst ? aiInfo : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
-        </div>}
+        </div>
 
-        {!depositSuccess && (
         {(action === 'deposit' || isAiAnalyst) && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
           <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{binanceFallback ? 'BINANCE USDT' : isAiAnalyst ? 'PAGAMENTO AI ANALYST' : copy.paymentInstructionsTitle}</div>
           {binanceFallback ? <>
@@ -599,8 +595,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           </>}
         </div>}
 
-        )}
-
         {authExpired && (
           <div style={{ marginTop:14, padding:12, borderRadius:12, border:'1px solid #fca5a5', background:light?'#fff1f2':'#3f1d24', color:light?'#991b1b':'#fecaca' }}>
             <div style={{ fontSize:12, fontWeight:800, lineHeight:1.45 }}>{copy.authExpired}</div>
@@ -610,7 +604,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           </div>
         )}
 
-        {!depositSuccess && (
         {step === 'form' && <>
           {action === 'deposit' && <div style={{ marginTop:14, padding:12, borderRadius:11, border:'1px solid #cbd5e1', background:light?'#f8fafc':'#111827' }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.account}</div>
