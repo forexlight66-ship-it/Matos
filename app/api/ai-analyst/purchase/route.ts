@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRefreshToken } from '@/lib/platform-auth';
 import { getAuthenticatedDerivNickname } from '@/lib/derivNickname';
-import { isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { createAIAnalystRequest, createAIAnalystBinanceRequest } from '@/lib/paymentAgentRequests';
 export const dynamic='force-dynamic';
 function escapeHtml(value:string){return value.replace(/[&<>"]/g,char=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[char]||char))}
 export async function POST(request:NextRequest){
  const session=await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
  if(!session)return NextResponse.json({error:'Autenticação necessária'},{status:401});
- if(!isPaymentAgentCountryAllowed(session.country))return NextResponse.json({error:'O Payment Agent está disponível apenas para clientes de Moçambique e África do Sul.'},{status:403});
  const body=await request.json().catch(()=>({}));
  const method=String(body.paymentMethod||'').toLowerCase();
+ const clientCurrency=String(body.currency||'').trim().toUpperCase();
  const isBinance=method==='binance_usdt_trc20';
+ const isMzn=clientCurrency==='MZN';
  if(method!=='mpesa'&&method!=='emola'&&!isBinance)return NextResponse.json({error:'Escolha M-Pesa, e-Mola ou Binance USDT TRC20.'},{status:400});
+ if(isMzn && !isBinance && String(session.country||'').trim().toUpperCase()!=='MZ')return NextResponse.json({error:'Para a sua moeda, use Binance — 3 USDT (TRC20). M-Pesa e e-Mola estão disponíveis apenas para clientes elegíveis em MZN.'},{status:403});
+ if(!isMzn && !isBinance)return NextResponse.json({error:'Para moedas diferentes de MZN, o AI Analyst deve ser pago em 3 USDT pela Binance (TRC20).'},{status:400});
+ if(!clientCurrency)return NextResponse.json({error:'Moeda do cliente não identificada.'},{status:400});
 
  const appId=process.env.DERIV_APP_ID?.trim();
  if(!appId)return NextResponse.json({error:'DERIV_APP_ID não está configurado.'},{status:500});
@@ -49,11 +52,12 @@ export async function POST(request:NextRequest){
   }
   return response;
  }
- const row=await createAIAnalystRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname,paymentMethod:method});
- try{
-  const text=['🧠 <b>NOVO AI ANALYST — ASSINATURA MENSAL</b>','',`Cliente: <b>${escapeHtml(row.client_name)}</b>`,'Serviço: <b>AI Analyst</b>','Plano: <b>AI Analyst — 30 dias</b>','Valor: <b>250 MZN / $3 USD</b>',`Método: <b>${row.payment_method==='mpesa'?'M-Pesa':'e-Mola'}</b>`,`Número: <b>${escapeHtml(row.payment_number||'—')}</b>`,`Nome: <b>${escapeHtml(row.payment_name||'—')}</b>`,'','Confirme somente depois de receber o pagamento.'].join('\\n');
-  await sendAgentAlert(text,[[{text:'✅ CONFIRMAR PAGAMENTO',callback_data:'pa:confirm:'+row.id},{text:'❌ REJEITAR',callback_data:'pa:reject:'+row.id}]]);
- }catch{}
+ const payerName=String(body.payerName||'').trim();
+ const payerNumber=String(body.payerNumber||'').replace(/\D/g,'');
+ if(!isMzn)return NextResponse.json({error:'Pagamento AI Analyst indisponível neste método.'},{status:400});
+ if(payerName.length<2)return NextResponse.json({error:'Informe o seu nome.'},{status:400});
+ if(!/^\d{9,15}$/.test(payerNumber))return NextResponse.json({error:'Informe o número usado para fazer o pagamento.'},{status:400});
+ const row=await createAIAnalystRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname,paymentMethod:method,payerName,payerNumber});
  const response=NextResponse.json({requestId:row.id,status:row.status,amountUsd:3,localAmountMzn:250,paymentMethod:row.payment_method,paymentNumber:row.payment_number,paymentName:row.payment_name,derivNickname:nickname},{headers:{'Cache-Control':'no-store'}});
  if(derivIdentity.refreshed){
   response.cookies.set('deriv_access_token',derivIdentity.accessToken,{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:3600});
