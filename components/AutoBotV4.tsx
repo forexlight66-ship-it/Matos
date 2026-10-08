@@ -33,20 +33,20 @@ type AnalyzerCandidate = {
  trend:number; consistency:number; score:number; baseScore:number; risk:number; direction:string;
  regimeChange:boolean; recentStrength:number; olderStrength:number;
 };
-function clamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
+function aiClamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
 function confidenceBand(score:number){if(score>=90)return 'Muito forte';if(score>=80)return 'Forte';if(score>=70)return 'Moderado';if(score>=60)return 'Fraco';return 'Não operar'}
 function weightedMean(values:number[]){const weights=[0.08,0.12,0.15,0.25,0.40];return values.reduce((sum,v,i)=>sum+v*weights[i],0)}
 function weightedStability(values:number[],mean:number){
  const weights=[0.08,0.12,0.15,0.25,0.40];
  const variance=values.reduce((sum,v,i)=>sum+weights[i]*Math.pow(v-mean,2),0);
- return clamp(100-Math.sqrt(variance)*170);
+ return aiClamp(100-Math.sqrt(variance)*170);
 }
 type AnalyzerCandidate = {
  strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
  trend:number; consistency:number; score:number; risk:number; direction:string;
  regimeChange:boolean; recentStrength:number; olderStrength:number; phase:string;
 };
-function clamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
+function aiClamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
 function confidenceBand(score:number){if(score>=90)return 'Muito forte';if(score>=80)return 'Forte';if(score>=70)return 'Moderado';if(score>=60)return 'Fraco';return 'Não operar'}
 function phaseOf(score:number,recent:number,older:number){
  if(score>=78&&recent>=70)return 'FORTE';
@@ -58,7 +58,7 @@ function weightedMean(values:number[]){const weights=[0.08,0.12,0.15,0.25,0.40];
 function weightedStability(values:number[],mean:number){
  const weights=[0.08,0.12,0.15,0.25,0.40];
  const variance=values.reduce((sum,v,i)=>sum+weights[i]*Math.pow(v-mean,2),0);
- return clamp(100-Math.sqrt(variance)*170);
+ return aiClamp(100-Math.sqrt(variance)*170);
 }
 function analyzeStrategies100(v:number[],pipSize?:number){
  if(v.length<25)return null;
@@ -93,11 +93,11 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const stability=weightedStability(x.series,weighted);
   const consistency=x.series.filter(n=>n>=x.base).length/5*100;
   const edge=(weighted-x.base)*100;
-  const strength=clamp(50+edge*1.05);
-  const confidence=clamp(50+edge*1.30);
-  const trend=clamp(50+(recent-olderMean)*180);
+  const strength=aiClamp(50+edge*1.05);
+  const confidence=aiClamp(50+edge*1.30);
+  const trend=aiClamp(50+(recent-olderMean)*180);
   const phase=phaseOf((strength+confidence+stability)/3,recent*100,olderMean*100);
-  const score=clamp(
+  const score=aiClamp(
     strength*.28+
     confidence*.24+
     stability*.18+
