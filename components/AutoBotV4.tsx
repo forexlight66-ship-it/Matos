@@ -26,7 +26,55 @@ const TYPES:Record<Contract,string>={EVEN:'DIGITEVEN',ODD:'DIGITODD',OVER:'DIGIT
 const decimalPlaces=(pipSize:number)=>{if(!Number.isFinite(pipSize)||pipSize<=0)return 0;return Math.max(0,Math.min(10,Math.round(-Math.log10(pipSize))))};
 const digit=(v:number|string|null|undefined,pipSize?:number)=>{if(v==null)return null;let s=String(v).trim();if(pipSize&&Number.isFinite(pipSize)&&pipSize>0&&typeof v==='number'){const places=decimalPlaces(pipSize);s=v.toFixed(places)}const chars=s.match(/\d/g);return chars?.length?Number(chars[chars.length-1]):null};
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
-function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return null;const x=stats(v,pipSize),t=65;if(isRecoveryStrategy(s))return v.length>=2?{contract:'OVER' as Contract,label:s,strength:100}:null;if(s==='HYPERLITE')return x.even>=t?{contract:'EVEN' as Contract,label:'PAR',strength:x.even}:null;if(s==='PAR_IMPAR')return x.even>=t?{contract:'EVEN' as Contract,label:'PAR',strength:x.even}:x.odd>=t?{contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}:null;if(s==='ACIMA5_BAIXO4')return x.above5>=t?{contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5}:x.below4>=t?{contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}:null;if(s==='RISE_FALL')return x.rise>=t?{contract:'RISE' as Contract,label:'SUBIR',strength:x.rise}:x.fall>=t?{contract:'FALL' as Contract,label:'DESCER',strength:x.fall}:null;if(s==='DIFERENTE')return x.diff>=t?{contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}:null;const zeroIsDominant=x.match0>=30&&x.match0>Math.max(...x.probs.slice(1));return zeroIsDominant?{contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}:null}
+function signalQuality(v:number[],s:Strategy,label?:string,pipSize?:number){
+ const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null);
+ const r=d.slice(-5);
+ if(r.length<5)return {allowed:true,penalty:0,reason:''};
+ const last=r[r.length-1];
+ let penalty=0,reason='';
+ const count=(fn:(n:number)=>boolean)=>r.filter(fn).length;
+ if(s==='ACIMA5_BAIXO4'&&label==='ABAIXO 4'){
+   const threes=count(n=>n===3),lower=count(n=>n<=2);
+   if(last===3&&threes>=2&&lower===0){penalty=30;reason='3 repetido no limite';}
+   else if(last===3&&threes>=2){penalty=15;reason='concentração no 3';}
+ }else if(s==='ACIMA5_BAIXO4'&&label==='ACIMA 5'){
+   const sixes=count(n=>n===6),higher=count(n=>n>=7);
+   if(last===6&&sixes>=2&&higher===0){penalty=30;reason='6 repetido no limite';}
+   else if(last===6&&sixes>=2){penalty=15;reason='concentração no 6';}
+ }else if(s==='PAR_IMPAR'||s==='HYPERLITE'){
+   if(count(n=>n===last)>=3){penalty=12;reason='concentração em um dígito';}
+ }else if(s==='DIFERENTE'||s==='HYPERSWAP'){
+   if(last===0&&count(n=>n===0)>=2){penalty=25;reason='0 repetido contra DIFERENTE';}
+ }else if(s==='HYPERGUARD'){
+   const ones=count(n=>n===1),higher=count(n=>n>=2);
+   if(last===1&&ones>=2&&higher===0){penalty=25;reason='1 repetido no limite';}
+ }else if(s==='HYPERSHIELD'){
+   const fives=count(n=>n===5),higher=count(n=>n>=6);
+   if(last===5&&fives>=2&&higher===0){penalty=25;reason='5 repetido no limite';}
+ }else if(s==='HYPERBREAK'){
+   const sevens=count(n=>n===7),lower=count(n=>n<=6);
+   if(last===7&&sevens>=2&&lower===0){penalty=25;reason='7 repetido no limite';}
+ }else if(s==='RISE_FALL'){
+   let up=0,down=0;
+   for(let k=1;k<r.length;k++){if(r[k]>r[k-1])up++;else if(r[k]<r[k-1])down++}
+   const wanted=label==='SUBIR'?up:down;
+   if(wanted<=1){penalty=20;reason='movimento sem continuidade';}
+ }
+ return {allowed:penalty<25,penalty,reason};
+}
+function makeSignal(v:number[],s:Strategy,pipSize?:number){
+ if(v.length<2)return null;
+ const x=stats(v,pipSize),t=65;
+ if(isRecoveryStrategy(s))return v.length>=2?{contract:'OVER' as Contract,label:s,strength:100}:null;
+ const pick=(candidate:any)=>{const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
+ if(s==='HYPERLITE')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):null;
+ if(s==='PAR_IMPAR')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
+ if(s==='ACIMA5_BAIXO4')return x.above5>=t?pick({contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5}):x.below4>=t?pick({contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}):null;
+ if(s==='RISE_FALL')return x.rise>=t?pick({contract:'RISE' as Contract,label:'SUBIR',strength:x.rise}):x.fall>=t?pick({contract:'FALL' as Contract,label:'DESCER',strength:x.fall}):null;
+ if(s==='DIFERENTE')return x.diff>=t?pick({contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}):null;
+ const zeroIsDominant=x.match0>=30&&x.match0>Math.max(...x.probs.slice(1));
+ return zeroIsDominant?pick({contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}):null;
+}
 const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(d:number[],strategy:string,label:string){if(d.length<5)return false;const recent=d.slice(-5);if(strategy==='HyperDrive')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<recent.length;i++){if(recent[i]>recent[i-1])up++;else if(recent[i]<recent[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;return false}
 type AnalyzerCandidate = {
  strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
