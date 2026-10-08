@@ -28,8 +28,85 @@ const digit=(v:number|string|null|undefined,pipSize?:number)=>{if(v==null)return
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
 function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return null;const x=stats(v,pipSize),t=65;if(isRecoveryStrategy(s))return v.length>=2?{contract:'OVER' as Contract,label:s,strength:100}:null;if(s==='HYPERLITE')return x.even>=t?{contract:'EVEN' as Contract,label:'PAR',strength:x.even}:null;if(s==='PAR_IMPAR')return x.even>=t?{contract:'EVEN' as Contract,label:'PAR',strength:x.even}:x.odd>=t?{contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}:null;if(s==='ACIMA5_BAIXO4')return x.above5>=t?{contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5}:x.below4>=t?{contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}:null;if(s==='RISE_FALL')return x.rise>=t?{contract:'RISE' as Contract,label:'SUBIR',strength:x.rise}:x.fall>=t?{contract:'FALL' as Contract,label:'DESCER',strength:x.fall}:null;if(s==='DIFERENTE')return x.diff>=t?{contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}:null;const zeroIsDominant=x.match0>=30&&x.match0>Math.max(...x.probs.slice(1));return zeroIsDominant?{contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}:null}
 const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(d:number[],strategy:string,label:string){if(d.length<5)return false;const recent=d.slice(-5);if(strategy==='HyperDrive')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<recent.length;i++){if(recent[i]>recent[i-1])up++;else if(recent[i]<recent[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;return false}
-function analyzeStrategies100(v:number[],pipSize?:number){if(v.length<25)return null;const w=v.slice(-25),all=w.map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);if(all.length<25)return null;const windows=Array.from({length:5},(_,i)=>all.slice(i*5,(i+1)*5));const rates={hyperdrive:windows.map(d=>d.filter(n=>n%2===0).length/5),hyperstrike:windows.map(d=>Math.max(d.filter(n=>n>5).length,d.filter(n=>n<4).length)/5),hyperforce:windows.map(d=>{let up=0,down=0;for(let j=1;j<d.length;j++){if(d[j]>d[j-1])up++;else if(d[j]<d[j-1])down++}return Math.max(up,down)/Math.max(1,up+down)}),hypernova:windows.map(d=>d.filter(n=>n!==0).length/5),hyperlite:windows.map(d=>d.filter(n=>n%2===0).length/5),hyperguard:windows.map(d=>d.filter(n=>n>0).length/5),hypershield:windows.map(d=>d.filter(n=>n>4).length/5),hyperbreak:windows.map(d=>d.filter(n=>n<8).length/5)};const baseline={hyperdrive:.5,hyperstrike:.4,hyperforce:.5,hypernova:.9,hyperlite:.5,hyperguard:.9,hypershield:.5,hyperbreak:.8};const candidates=[['HyperDrive','PAR',rates.hyperdrive,'hyperdrive'],['HyperStrike',all.filter(n=>n>5).length>=all.filter(n=>n<4).length?'ACIMA 5':'ABAIXO 4',rates.hyperstrike,'hyperstrike'],['HyperForce',rates.hyperforce[rates.hyperforce.length-1]>=.5?'SUBIR':'DESCER',rates.hyperforce,'hyperforce'],['HyperNova','DIFERENTE DE 0',rates.hypernova,'hypernova'],['Hyperlite','PAR',rates.hyperlite,'hyperlite'],['HyperGuard','ACIMA 0',rates.hyperguard,'hyperguard'],['HyperShield','ACIMA 4',rates.hypershield,'hypershield'],['HyperBreak','ABAIXO 8',rates.hyperbreak,'hyperbreak']].map(([strategy,label,series,key])=>{const r=series as number[],base=baseline[key as keyof typeof baseline],mean=r.reduce((a,c)=>a+c,0)/r.length,positive=r.filter(x=>x>base).length,variance=r.reduce((a,c)=>a+(c-mean)**2,0)/r.length,se=Math.sqrt(Math.max(base*(1-base)/100,0.0001)),z=(mean-base)/se,consistency=positive/5,recent=r[r.length-1]-base,recentConfirmed=confirmAnalyzerRecent(all,String(strategy),String(label));return{strategy:String(strategy),label:String(label),strength:mean*100,edge:(mean-base)*100,z,consistency,recent,recentConfirmed,eligible:z>=1.35&&consistency>=.8&&recent>=-.02&&recentConfirmed}});const ranked=[...candidates].sort((a,b)=>(b.z+b.consistency+b.recent*2)-(a.z+a.consistency+a.recent*2));const rankedStrong=ranked.filter(c=>c.eligible);const rankedConfirmed=ranked.filter(c=>c.recentConfirmed&&c.consistency>=.6&&c.z>=.5&&c.recent>=-.02);const pool=rankedStrong.length?rankedStrong:rankedConfirmed;const best=pool[0];if(!best)return null;const second=pool[1];const margin=second?(best.z+best.consistency+best.recent*2)-(second.z+second.consistency+second.recent*2):Infinity;if(best.strategy==='HyperStrike'&&(!best.recentConfirmed||best.strength<60||best.consistency<.8||best.edge<5))return null;if(best.strategy!=='HyperStrike'&&(!best.recentConfirmed||best.strength<55||best.consistency<.6))return null;if(margin<.15)return null;return best}
-const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap'};let lastAnalyzerAlertAt=0;
+function analyzeStrategies100(v:number[],pipSize?:number){
+ if(v.length<25)return null;
+ const SAMPLE_SIZE=25;
+ const w=v.slice(-SAMPLE_SIZE);
+ const all=w.map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);
+ if(all.length<SAMPLE_SIZE)return null;
+ const windows=Array.from({length:5},(_,i)=>all.slice(i*5,(i+1)*5));
+ const above5Total=all.filter(n=>n>5).length;
+ const below4Total=all.filter(n=>n<4).length;
+ const hyperStrikeLabel=above5Total>=below4Total?'ACIMA 5':'ABAIXO 4';
+ const hyperStrikeRates=windows.map(d=>{
+   const count=hyperStrikeLabel==='ACIMA 5'?d.filter(n=>n>5).length:d.filter(n=>n<4).length;
+   return count/5;
+ });
+ const rates={
+   hyperdrive:windows.map(d=>d.filter(n=>n%2===0).length/5),
+   hyperstrike:hyperStrikeRates,
+   hyperforce:windows.map(d=>{
+     let up=0,down=0;
+     for(let j=1;j<d.length;j++){
+       if(d[j]>d[j-1])up++;
+       else if(d[j]<d[j-1])down++;
+     }
+     return Math.max(up,down)/Math.max(1,up+down);
+   }),
+   hypernova:windows.map(d=>d.filter(n=>n!==0).length/5),
+   hyperlite:windows.map(d=>d.filter(n=>n%2===0).length/5),
+   hyperguard:windows.map(d=>d.filter(n=>n>0).length/5),
+   hypershield:windows.map(d=>d.filter(n=>n>4).length/5),
+   hyperbreak:windows.map(d=>d.filter(n=>n<8).length/5)
+ };
+ const baseline={hyperdrive:.5,hyperstrike:.4,hyperforce:.5,hypernova:.9,hyperlite:.5,hyperguard:.9,hypershield:.5,hyperbreak:.8};
+ const candidates=[
+   ['HyperDrive','PAR',rates.hyperdrive,'hyperdrive'],
+   ['HyperStrike',hyperStrikeLabel,rates.hyperstrike,'hyperstrike'],
+   ['HyperForce',rates.hyperforce[rates.hyperforce.length-1]>=.5?'SUBIR':'DESCER',rates.hyperforce,'hyperforce'],
+   ['HyperNova','DIFERENTE DE 0',rates.hypernova,'hypernova'],
+   ['Hyperlite','PAR',rates.hyperlite,'hyperlite'],
+   ['HyperGuard','ACIMA 0',rates.hyperguard,'hyperguard'],
+   ['HyperShield','ACIMA 4',rates.hypershield,'hypershield'],
+   ['HyperBreak','ABAIXO 8',rates.hyperbreak,'hyperbreak']
+ ].map(([strategy,label,series,key])=>{
+   const r=series as number[];
+   const base=baseline[key as keyof typeof baseline];
+   const mean=r.reduce((a,c)=>a+c,0)/r.length;
+   const positive=r.filter(x=>x>base).length;
+   const variance=r.reduce((a,c)=>a+(c-mean)**2,0)/r.length;
+   // The analyzer evaluates exactly 25 ticks (5 blocks of 5).
+   // Use n=25 in the standard error; n=100 artificially inflated the z-score.
+   const se=Math.sqrt(Math.max(base*(1-base)/SAMPLE_SIZE,0.0001));
+   const z=(mean-base)/se;
+   const consistency=positive/5;
+   const recent=r[r.length-1]-base;
+   const recentConfirmed=confirmAnalyzerRecent(all,String(strategy),String(label));
+   return{
+     strategy:String(strategy),
+     label:String(label),
+     strength:mean*100,
+     edge:(mean-base)*100,
+     z,
+     consistency,
+     recent,
+     recentConfirmed,
+     eligible:z>=1.35&&consistency>=.8&&recent>=-.02&&recentConfirmed
+   };
+ });
+ const ranked=[...candidates].sort((a,b)=>(b.z+b.consistency+b.recent*2)-(a.z+a.consistency+a.recent*2));
+ const rankedStrong=ranked.filter(c=>c.eligible);
+ const rankedConfirmed=ranked.filter(c=>c.recentConfirmed&&c.consistency>=.6&&c.z>=.5&&c.recent>=-.02);
+ const pool=rankedStrong.length?rankedStrong:rankedConfirmed;
+ const best=pool[0];
+ if(!best)return null;
+ const second=pool[1];
+ const margin=second?(best.z+best.consistency+best.recent*2)-(second.z+second.consistency+second.recent*2):Infinity;
+ if(best.strategy==='HyperStrike'&&(!best.recentConfirmed||best.strength<60||best.consistency<.8||best.edge<5))return null;
+ if(best.strategy!=='HyperStrike'&&(!best.recentConfirmed||best.strength<55||best.consistency<.6))return null;
+ if(margin<.15)return null;
+ return best;
+}const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap'};let lastAnalyzerAlertAt=0;
 function analyzerAlertSound(){try{const nowMs=Date.now();if(nowMs-lastAnalyzerAlertAt<1500)return;lastAnalyzerAlertAt=nowMs;const C=window.AudioContext||(window as any).webkitAudioContext,c=new C();if(c.state==='suspended')c.resume();const now=c.currentTime,master=c.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.16,now+.02);master.gain.exponentialRampToValueAtTime(.0001,now+.52);master.connect(c.destination);[880,1174,1568].forEach((freq,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now+i*.12);g.gain.exponentialRampToValueAtTime(.2,now+i*.12+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.12+.17);o.connect(g);g.connect(master);o.start(now+i*.12);o.stop(now+i*.12+.2)});setTimeout(()=>c.close(),750)}catch{}}
 function sound(kind:'win'|'loss'|'target'){try{const C=window.AudioContext||(window as any).webkitAudioContext,c=new C();if(c.state==='suspended')c.resume();const now=c.currentTime;if(kind==='win'){const master=c.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.16,now+.025);master.gain.exponentialRampToValueAtTime(.0001,now+1.05);master.connect(c.destination);const notes=[659.25,783.99,987.77,1318.51];notes.forEach((freq,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(freq,now+i*.12);o.frequency.exponentialRampToValueAtTime(freq*1.015,now+i*.12+.18);g.gain.setValueAtTime(.0001,now+i*.12);g.gain.exponentialRampToValueAtTime(.22,now+i*.12+.025);g.gain.exponentialRampToValueAtTime(.0001,now+i*.12+.32);o.connect(g);g.connect(master);o.start(now+i*.12);o.stop(now+i*.12+.34)});const sparkle=c.createOscillator(),sg=c.createGain();sparkle.type='triangle';sparkle.frequency.setValueAtTime(1760,now+.48);sparkle.frequency.exponentialRampToValueAtTime(2640,now+.82);sg.gain.setValueAtTime(.0001,now+.48);sg.gain.exponentialRampToValueAtTime(.09,now+.52);sg.gain.exponentialRampToValueAtTime(.0001,now+.9);sparkle.connect(sg);sg.connect(master);sparkle.start(now+.48);sparkle.stop(now+.92);setTimeout(()=>c.close(),1300)}else{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=kind==='loss'?180:1040;g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.12,now+.02);g.gain.exponentialRampToValueAtTime(.0001,now+.35);o.connect(g);g.connect(c.destination);o.start(now);o.stop(now+.4);setTimeout(()=>c.close(),500)}}catch{}}
 function TrashIcon({ size = 15, color = 'currentColor' }) {
@@ -61,7 +138,7 @@ export default function AutoBotV4(){
  const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('1HZ100V'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('PAR_IMPAR'),[tickWindow,setTickWindow]=useState(5),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(33),[lossLimit,setLossLimit]=useState(62.50),[metas,setMetas]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[notice,setNotice]=useState<string|null>(null),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]);
  const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<{strategy:string;label:string;strength:number;edge:number}|null>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|'ai_analyst'|null>(null);
- const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null);
+ const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null);
  useEffect(() => {
   const params = new URLSearchParams(window.location.search);
   const requestedAction = params.get('paymentAgent');
@@ -208,16 +285,18 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!iaPower&&!sonic)setSorosStake(stake)},[stake,iaPower,sonic,setSorosStake]);
  useEffect(()=>{setSorosEnabled(!iaPower&&!sonic)},[iaPower,sonic,setSorosEnabled]);
  useEffect(()=>{if(!running){gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setStakeManagerVersion(v=>v+1)}},[stake,maxMartingale,running]);
- useEffect(()=>{setSignalNow(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy]); useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[symbol]);
+ useEffect(()=>{setSignalNow(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();analyzerConfirmedRef.current=false;analyzerConfirmedStrategyRef.current=null;barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy]); useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;analyzerConfirmedRef.current=false;analyzerConfirmedStrategyRef.current=null;barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[symbol]);
  useEffect(()=>{if((!running&&!smartAnalyzer)||!isConnected)return;const id=window.setInterval(()=>fetchProfitTable({limit:500,offset:0,sort:'DESC'}),5000);return()=>clearInterval(id)},[running,smartAnalyzer,isConnected,fetchProfitTable]);
  useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&requestStartedAt.current>0&&!proposal&&!buying&&activeContractId===null&&Date.now()-requestStartedAt.current>5000){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic)||riskAwaitingContractRef.current===null)stakeReadyRef.current=true}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic]);
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // AI Analyst must finish the 25-tick analysis and select the bot before trading.
   if(smartAnalyzer){
-   if(!smartAdvice||!analyze100Ticks)return;
+   if(!analyzerConfirmedRef.current||!smartAdvice||!analyze100Ticks)return;
+   const confirmedStrategy=analyzerConfirmedStrategyRef.current;
+   if(!confirmedStrategy)return;
    const analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];
-   if(!analystStrategy||strategy!==analystStrategy)return;
+   if(!analystStrategy||confirmedStrategy!==analystStrategy||strategy!==analystStrategy)return;
   }
   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
@@ -337,40 +416,121 @@ export default function AutoBotV4(){
     requestStartedAt.current=0;
     lastActivityAt.current=Date.now();
    }
-  },[activeContractId]); useEffect(()=>{if(!smartAnalyzer){setSmartAdvice(null);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice(null);if(analyzerNoticeTimerRef.current!==null){window.clearTimeout(analyzerNoticeTimerRef.current);analyzerNoticeTimerRef.current=null}return}if(ticks.length<25){setSmartAdvice(null);pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice('A recolher 25 ticks...');return}if(!analyze100Ticks){
+  },[activeContractId]); useEffect(()=>{
+ if(!smartAnalyzer){
+  setSmartAdvice(null);
+  lastAdvisorKeyRef.current='';
+  lastAnalyzerEvalTickRef.current=0;
+  analyzerStableKeyRef.current=null;
+  analyzerStableCountRef.current=0;
+  analyzerLastSwitchTickRef.current=-1000;
+  analyzerLastSwitchAtRef.current=0;
+  analyzerConfirmedRef.current=false;
+  analyzerConfirmedStrategyRef.current=null;
+  pendingAnalyzerStrategyRef.current=null;
+  setAnalyzerNotice(null);
+  if(analyzerNoticeTimerRef.current!==null){
+   window.clearTimeout(analyzerNoticeTimerRef.current);
+   analyzerNoticeTimerRef.current=null;
+  }
+  return;
+ }
+ if(ticks.length<25){
+  setSmartAdvice(null);
+  analyzerConfirmedRef.current=false;
+  analyzerConfirmedStrategyRef.current=null;
+  analyzerStableKeyRef.current=null;
+  analyzerStableCountRef.current=0;
+  pendingAnalyzerStrategyRef.current=null;
+  setAnalyzerNotice('A recolher 25 ticks...');
+  return;
+ }
+ if(!analyze100Ticks){
   const hadSelectedBot=Boolean(smartAdvice&&ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]===strategy);
   setSmartAdvice(null);
+  analyzerConfirmedRef.current=false;
+  analyzerConfirmedStrategyRef.current=null;
   pendingAnalyzerStrategyRef.current=null;
   if(hadSelectedBot){
-    // The selected bot lost its required phase/percentage. Stop opening
-    // new contracts and force a completely fresh 25-tick analysis cycle.
-    setTicks([]);
-    setSignalNow(null);
-    totalTickCountRef.current=0;
-    lastAnalyzerEvalTickRef.current=0;
-    analyzerStableKeyRef.current=null;
-    analyzerStableCountRef.current=0;
-    setAnalyzerNoticeColor('#ff444f');
-    setAnalyzerNotice('Fase caiu — aguardando nova análise de 25 ticks');
-    if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
-    analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},3000);
+   setTicks([]);
+   setSignalNow(null);
+   totalTickCountRef.current=0;
+   lastAnalyzerEvalTickRef.current=0;
+   analyzerStableKeyRef.current=null;
+   analyzerStableCountRef.current=0;
+   setAnalyzerNoticeColor('#ff444f');
+   setAnalyzerNotice('Fase caiu — aguardando nova análise de 25 ticks');
+   if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
+   analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},3000);
   }
-  return
-}
-  if(lastAnalyzerEvalTickRef.current>0&&totalTickCountRef.current-lastAnalyzerEvalTickRef.current<5)return;
-  lastAnalyzerEvalTickRef.current=totalTickCountRef.current;
-  setSmartAdvice(analyze100Ticks);
-  const key=analyze100Ticks.strategy+'|'+analyze100Ticks.label;
-  const suggested=ANALYZER_STRATEGY_TO_BOT[analyze100Ticks.strategy];
-  if(!suggested){pendingAnalyzerStrategyRef.current=null;return}
-  const ia=iaPower?gestorRef.current.getEstado():null;const so=sonic?sonicRef.current.getState():null;
-  const riskRecovery=iaPower?Boolean(ia?.emMartingale||Number(ia?.nivelSoros||0)>0||Number(ia?.deficitRecuperacao||0)>0.01):sonic?Boolean(so?.inMartingale||so?.inSoros||Number(so?.recoveryDeficit||0)>0.01):false;
-  const riskBusy=(iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current);
-  if(!riskBusy&&!riskRecovery&&suggested!==strategy){pendingAnalyzerStrategyRef.current=suggested;setStrategy(suggested);analyzerLastSwitchTickRef.current=totalTickCountRef.current;analyzerLastSwitchAtRef.current=Date.now();setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');setAnalyzerNotice('Bot selecionado: '+analyze100Ticks.strategy);analyzerAlertSound();}
-  else if(suggested===strategy){pendingAnalyzerStrategyRef.current=null;setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');setAnalyzerNotice('Bot confirmado: '+analyze100Ticks.strategy)}
+  return;
+ }
+ if(lastAnalyzerEvalTickRef.current>0&&totalTickCountRef.current-lastAnalyzerEvalTickRef.current<5)return;
+ lastAnalyzerEvalTickRef.current=totalTickCountRef.current;
+
+ const key=analyze100Ticks.strategy+'|'+analyze100Ticks.label;
+ const suggested=ANALYZER_STRATEGY_TO_BOT[analyze100Ticks.strategy];
+ if(!suggested){
+  analyzerConfirmedRef.current=false;
+  analyzerConfirmedStrategyRef.current=null;
+  analyzerStableKeyRef.current=null;
+  analyzerStableCountRef.current=0;
+  pendingAnalyzerStrategyRef.current=null;
+  setSmartAdvice(null);
+  return;
+ }
+
+ const sameKey=analyzerStableKeyRef.current===key;
+ const stableCount=sameKey?analyzerStableCountRef.current+1:1;
+ analyzerStableKeyRef.current=key;
+ analyzerStableCountRef.current=stableCount;
+
+ // Two consecutive qualifying 25-tick evaluations are mandatory.
+ // Until the second confirmation, no bot can be selected or trade.
+ if(stableCount<2){
+  analyzerConfirmedRef.current=false;
+  analyzerConfirmedStrategyRef.current=null;
+  pendingAnalyzerStrategyRef.current=null;
+  setSmartAdvice(null);
+  setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');
+  setAnalyzerNotice('Confirmando fase: '+analyze100Ticks.strategy+' ('+stableCount+'/2)');
   lastAdvisorKeyRef.current=key;
-  if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},2500);
-},[smartAnalyzer,analyze100Ticks,ticks.length,strategy,iaPower,sonic]); useEffect(()=>{if(!smartAnalyzer)return;if(!smartAdvice||!isConnected||!isAuthorized)return;const suggested=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];if(!suggested)return;if(suggested!==strategy&&activeContractId===null&&!buying){pendingAnalyzerStrategyRef.current=suggested;setStrategy(suggested)}},[smartAnalyzer,smartAdvice,isConnected,isAuthorized,strategy,activeContractId,buying]);
+  if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
+  analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},2500);
+  return;
+ }
+
+ analyzerConfirmedRef.current=true;
+ analyzerConfirmedStrategyRef.current=suggested;
+ setSmartAdvice(analyze100Ticks);
+
+ const ia=iaPower?gestorRef.current.getEstado():null;
+ const so=sonic?sonicRef.current.getState():null;
+ const riskRecovery=iaPower
+  ?Boolean(ia?.emMartingale||Number(ia?.nivelSoros||0)>0||Number(ia?.deficitRecuperacao||0)>0.01)
+  :sonic
+   ?Boolean(so?.inMartingale||so?.inSoros||Number(so?.recoveryDeficit||0)>0.01)
+   :false;
+ const riskBusy=(iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current);
+
+ if(!riskBusy&&!riskRecovery&&suggested!==strategy){
+  pendingAnalyzerStrategyRef.current=suggested;
+  setStrategy(suggested);
+  analyzerLastSwitchTickRef.current=totalTickCountRef.current;
+  analyzerLastSwitchAtRef.current=Date.now();
+  setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');
+  setAnalyzerNotice('Bot selecionado: '+analyze100Ticks.strategy);
+  analyzerAlertSound();
+ }else if(suggested===strategy){
+  pendingAnalyzerStrategyRef.current=null;
+  setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');
+  setAnalyzerNotice('Bot confirmado: '+analyze100Ticks.strategy);
+ }
+ lastAdvisorKeyRef.current=key;
+ if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
+ analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},2500);
+},[smartAnalyzer,analyze100Ticks,ticks.length,strategy,iaPower,sonic]);
+
   useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(!enabled);setStakeManagerVersion(v=>v+1)};
