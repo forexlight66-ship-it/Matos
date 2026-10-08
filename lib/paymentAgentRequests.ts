@@ -128,9 +128,10 @@ export async function ensurePaymentRequestSchema() {
     CREATE TABLE IF NOT EXISTS course_access (
       user_id BIGINT PRIMARY KEY REFERENCES platform_users(id) ON DELETE CASCADE,
       payment_request_id TEXT NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
+      expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE course_access ALTER COLUMN expires_at DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS course_access_expires_idx ON course_access(expires_at);
     CREATE TABLE IF NOT EXISTS ai_analyst_subscriptions (
       user_id BIGINT PRIMARY KEY REFERENCES platform_users(id) ON DELETE CASCADE,
@@ -472,9 +473,9 @@ export async function activateCourseAccess(userId: string | number, paymentReque
   await ensurePaymentRequestSchema();
   const result = await pool.query(
     `INSERT INTO course_access (user_id,payment_request_id,expires_at)
-     VALUES ($1,$2,NOW()+INTERVAL '30 days')
+     VALUES ($1,$2,NULL)
      ON CONFLICT (user_id) DO UPDATE SET payment_request_id=EXCLUDED.payment_request_id,
-       expires_at=CASE WHEN course_access.expires_at>NOW() THEN course_access.expires_at+INTERVAL '30 days' ELSE EXCLUDED.expires_at END
+       expires_at=NULL
      RETURNING expires_at`, [userId,paymentRequestId]);
   return result.rows[0];
 }
@@ -482,5 +483,5 @@ export async function getCourseAccess(userId: string | number) {
   await ensurePaymentRequestSchema();
   const result = await pool.query('SELECT expires_at FROM course_access WHERE user_id=$1 LIMIT 1',[userId]);
   const row=result.rows[0];
-  return row ? {active:new Date(row.expires_at).getTime()>Date.now(),expiresAt:row.expires_at} : {active:false,expiresAt:null};
+  return row ? {active:true,expiresAt:null} : {active:false,expiresAt:null};
 }
