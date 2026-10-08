@@ -30,19 +30,6 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number){if(v.length<2)return 
 const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(d:number[],strategy:string,label:string){if(d.length<5)return false;const recent=d.slice(-5);if(strategy==='HyperDrive')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<recent.length;i++){if(recent[i]>recent[i-1])up++;else if(recent[i]<recent[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;return false}
 type AnalyzerCandidate = {
  strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
- trend:number; consistency:number; score:number; baseScore:number; risk:number; direction:string;
- regimeChange:boolean; recentStrength:number; olderStrength:number;
-};
-function aiClamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
-function confidenceBand(score:number){if(score>=90)return 'Muito forte';if(score>=80)return 'Forte';if(score>=70)return 'Moderado';if(score>=60)return 'Fraco';return 'Não operar'}
-function weightedMean(values:number[]){const weights=[0.08,0.12,0.15,0.25,0.40];return values.reduce((sum,v,i)=>sum+v*weights[i],0)}
-function weightedStability(values:number[],mean:number){
- const weights=[0.08,0.12,0.15,0.25,0.40];
- const variance=values.reduce((sum,v,i)=>sum+weights[i]*Math.pow(v-mean,2),0);
- return aiClamp(100-Math.sqrt(variance)*170);
-}
-type AnalyzerCandidate = {
- strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
  trend:number; consistency:number; score:number; risk:number; direction:string;
  regimeChange:boolean; recentStrength:number; olderStrength:number; phase:string;
 };
@@ -64,6 +51,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  if(v.length<25)return null;
  const all=v.slice(-25).map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);
  if(all.length<25)return null;
+
  const windows=Array.from({length:5},(_,i)=>all.slice(i*5,(i+1)*5));
  const riseFall=windows.map(d=>{
   let up=0,down=0;
@@ -89,7 +77,6 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const weighted=weightedMean(x.series);
   const olderMean=(x.series[0]+x.series[1]+x.series[2]+x.series[3])/4;
   const recent=x.series[4];
-  const older=olderMean;
   const stability=weightedStability(x.series,weighted);
   const consistency=x.series.filter(n=>n>=x.base).length/5*100;
   const edge=(weighted-x.base)*100;
@@ -97,20 +84,15 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const confidence=aiClamp(50+edge*1.30);
   const trend=aiClamp(50+(recent-olderMean)*180);
   const phase=phaseOf((strength+confidence+stability)/3,recent*100,olderMean*100);
-  const score=aiClamp(
-    strength*.28+
-    confidence*.24+
-    stability*.18+
-    consistency*.15+
-    trend*.15-
-    Math.max(0,50-stability)*.15
-  );
+  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15);
   return{
-   strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,consistency,
-   score,risk:100-stability,direction:x.direction,
-   regimeChange:recent-olderMean>=0.20,recentStrength:recent*100,olderStrength:olderMean*100,phase
+   strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,consistency,score,
+   risk:100-stability,direction:x.direction,regimeChange:recent-olderMean>=0.20,
+   recentStrength:recent*100,olderStrength:olderMean*100,phase
   };
  });
+
+ // Choose direction independently inside each bot.
  const byBot=new Map<string,AnalyzerCandidate>();
  for(const candidate of candidates){
   const current=byBot.get(candidate.strategy);
