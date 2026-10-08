@@ -8,13 +8,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
-  if (!isPaymentAgentCountryAllowed(session.country)) return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
-
   const id = String(request.nextUrl.searchParams.get('request_id') || '').trim();
   if (!id) return NextResponse.json({ error: 'request_id é obrigatório' }, { status: 400 });
 
   try {
     const row = await getPaymentRequest(id);
+    const isBinanceAi = row?.purpose === 'ai_analyst' && row?.payment_method === 'binance_usdt_trc20';
+    if (!isPaymentAgentCountryAllowed(session.country) && !isBinanceAi) return NextResponse.json({ error: 'Pedido não elegível para este fluxo.', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED' }, { status: 403 });
     if (!row || String(row.user_id) !== String(session.id)) {
       return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 });
     }
