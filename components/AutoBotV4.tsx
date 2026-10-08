@@ -31,7 +31,7 @@ const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||
 type AnalyzerCandidate = {
  strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
  trend:number; consistency:number; score:number; risk:number; direction:string;
- regimeChange:boolean; recentStrength:number; olderStrength:number; phase:string;
+ regimeChange:boolean; recentStrength:number; olderStrength:number; phase:string; earlyMomentum?:boolean;
 };
 function aiClamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
 function confidenceBand(score:number){if(score>=90)return 'Muito forte';if(score>=80)return 'Forte';if(score>=70)return 'Moderado';if(score>=60)return 'Fraco';return 'Não operar'}
