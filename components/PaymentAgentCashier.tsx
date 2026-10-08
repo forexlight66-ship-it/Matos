@@ -585,17 +585,23 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         </div>
 
         <div style={{ fontSize:12, lineHeight:1.45, marginTop:16, padding:12, borderRadius:12, background:light?'#f1f5f9':'#202733' }}>
-          {isAiAnalyst ? aiInfo : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
+          {isAiAnalyst
+  ? aiInfo
+  : isCourse
+    ? (language === 'en'
+        ? 'Complete Course payment via Payment Agent. Pay 999 MZN with M-Pesa or e-Mola, then upload the payment screenshot and click “I PAID”.'
+        : 'Pagamento do Complete Course via Payment Agent. Pague 999 MZN por M-Pesa ou e-Mola, depois envie o screenshot do pagamento e clique em “JÁ PAGUEI”.')
+    : action === 'deposit' ? copy.depositInfo : copy.withdrawInfo}
         </div>
 
-        {(action === 'deposit' || isAiAnalyst) && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
+        {(action === 'deposit' || isAiAnalyst || isCourse) && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
           <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{binanceFallback ? 'BINANCE USDT' : isAiAnalyst ? copy.aiTitle : copy.paymentInstructionsTitle}</div>
           {binanceFallback ? <>
             <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>Pague <b>{isCourse ? '15 USDT' : '3 USDT'}</b> usando exclusivamente a rede <b>TRON (TRC20)</b>.</div>
             <div style={{ marginTop:10, fontSize:10, opacity:.7 }}>Endereço Binance USDT:</div>
             <div style={{ marginTop:5, padding:10, borderRadius:10, background:light?'#fff':'#111827', fontSize:11, fontWeight:900, wordBreak:'break-all' }}>{BINANCE_USDT_ADDRESS}</div>
             <button type="button" onClick={()=>navigator.clipboard?.writeText(BINANCE_USDT_ADDRESS)} style={{ width:'100%', marginTop:8, padding:10, border:0, borderRadius:10, background:'#f3ba2f', color:'#111827', fontWeight:900 }}>Copiar endereço</button>
-            <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>Depois de enviar exatamente {isCourse ? '15 USDT' : '3 USDT'}, clique em “JÁ PAGUEI”. O agente verifica o recebimento na Binance antes de ativar o AI Analyst.</div>
+            <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>Depois de enviar exatamente {isCourse ? '15 USDT' : '3 USDT'}, clique em “JÁ PAGUEI”. O agente verifica o recebimento na Binance antes de ativar o Complete Course.</div>
           </> : <>
             <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>{isCourse ? (language === 'en' ? 'Make a payment of 999 MZN using the details below. This payment is for the Complete Course.' : 'Faça o pagamento de 999 MZN usando os dados abaixo. Este pagamento é pelo Complete Course.') : isAiAnalyst ? (language === 'en' ? 'Make a payment of 250 MZN using the details below. This payment is for the AI Analyst subscription.' : language === 'es' ? 'Realiza un pago de 250 MZN usando los datos de abajo. Este pago es por la suscripción de AI Analyst.' : 'Faça o pagamento de 250 MZN usando os dados abaixo. Este pagamento é pela assinatura do AI Analyst.') : copy.paymentInstructions}</div>
             <div style={{ marginTop:10, display:'grid', gap:6, fontSize:13 }}>
