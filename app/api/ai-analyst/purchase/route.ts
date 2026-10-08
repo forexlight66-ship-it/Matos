@@ -57,7 +57,8 @@ export async function POST(request:NextRequest){
  if(!isMzn)return NextResponse.json({error:'Pagamento AI Analyst indisponível neste método.'},{status:400});
  if(payerName.length<2)return NextResponse.json({error:'Informe o seu nome.'},{status:400});
  if(!/^\d{9,15}$/.test(payerNumber))return NextResponse.json({error:'Informe o número usado para fazer o pagamento.'},{status:400});
- const row=await createAIAnalystRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname,paymentMethod:method,payerName,payerNumber});
+ const localPaymentMethod = method as 'mpesa' | 'emola';
+ const row=await createAIAnalystRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:nickname,paymentMethod:localPaymentMethod,payerName,payerNumber});
  const response=NextResponse.json({requestId:row.id,status:row.status,amountUsd:3,localAmountMzn:250,paymentMethod:row.payment_method,paymentNumber:row.payment_number,paymentName:row.payment_name,derivNickname:nickname},{headers:{'Cache-Control':'no-store'}});
  if(derivIdentity.refreshed){
   response.cookies.set('deriv_access_token',derivIdentity.accessToken,{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:3600});
