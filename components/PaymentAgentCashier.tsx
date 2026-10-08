@@ -247,7 +247,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     };
   }, [open, currency, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
 
-  const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : 'AI Analyst';
+  const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : copy.aiTitle;
   const binanceFallback = isAiAnalyst && paymentMethod === 'binance_usdt_trc20';
   const limits = useMemo(
     () => agentCurrencies.find(item => String(item.currency || '').toUpperCase() === paymentCurrency.toUpperCase()),
@@ -398,7 +398,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       showError(copy.invalid);
       return false;
     }
-    if (aiAnalystMznEligible) {
+    if (action === 'deposit' || aiAnalystMznEligible) {
       if (payerName.trim().length < 2) { showError(copy.yourName); return false; }
       if (!/^\d{9,15}$/.test(payerNumber.replace(/\s+/g,''))) { showError(copy.paymentPhone); return false; }
     }
@@ -491,7 +491,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     try {
       const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : action === 'withdraw' ? '/api/payment-agent/withdraw' : '/api/ai-analyst/purchase';
       const body = action === 'deposit'
-        ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod }
+        ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod, payerName: payerName.trim(), payerNumber: payerNumber.replace(/\s+/g,'') }
         : action === 'withdraw'
           ? { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName }
           : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency, payerName: aiAnalystMznEligible ? payerName.trim() : undefined, payerNumber: aiAnalystMznEligible ? payerNumber.replace(/\s+/g,'') : undefined };
@@ -545,8 +545,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const primary = step === 'otp'
     ? copy.confirmWithdraw
     : step === 'confirm'
-      ? (action === 'deposit' ? copy.confirmDeposit : isAiAnalyst ? 'Confirmar pagamento' : copy.sendCode)
-      : (isAiAnalyst ? 'Pagar AI Analyst' : copy.continue);
+      ? (action === 'deposit' ? copy.confirmDeposit : isAiAnalyst ? 'copy.aiConfirm' : copy.sendCode)
+      : (isAiAnalyst ? 'copy.aiPay' : copy.continue);
 
   return (
     <div
@@ -587,7 +587,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div><b>{copy.paymentMethod}:</b> {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</div>
               <div><b>{copy.recipientNumber}:</b> <span style={{ fontSize:17, fontWeight:900 }}>{paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}</span></div>
               <div><b>{copy.recipientName}:</b> Mistério João</div>
-              <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{isAiAnalyst ? 'Valor da assinatura: 250 MZN' : copy.transferAmount + ': ' + ((parseMoney(amount) || 0) * 80).toFixed(2) + ' MZN'}</div>
+              <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{isAiAnalyst ? '{copy.aiSubscriptionValue}: 250 MZN' : copy.transferAmount + ': ' + ((parseMoney(amount) || 0) * 80).toFixed(2) + ' MZN'}</div>
             </div>
             <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>{copy.alreadyPaid}</div>
           </>}
@@ -644,7 +644,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               </button>}
             </div>
           </div>
-          {aiAnalystMznEligible && <div style={{ marginTop:12, display:'grid', gap:10 }}>
+          {(action === 'deposit' || aiAnalystMznEligible) && <div style={{ marginTop:12, display:'grid', gap:10 }}>
             <label style={{ display:'block', fontSize:12, fontWeight:800 }}>
               {copy.yourName}
               <input value={payerName} onChange={event=>setPayerName(event.target.value)} placeholder={copy.yourName} style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
@@ -666,7 +666,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             {copy.amount} ({paymentCurrency})
             <input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00"
               style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
-          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>AI Analyst — assinatura mensal</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div></div>}
+          </label> : <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}><div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>{copy.aiTitle} — {copy.aiSubscription}</div><div style={{marginTop:5,fontSize:18,fontWeight:950}}>{currency.toUpperCase()==='MZN' ? '250 MZN' : '3 USDT'}</div><div style={{marginTop:4,fontSize:10,opacity:.7}}>{copy.aiAccessInfo}</div></div>}
           {!isAiAnalyst && paymentCurrency === 'USD' && <div style={{ marginTop:8, fontSize:11, opacity:.72 }}>{copy.exchangeRate}: <b>{action === 'deposit' ? '1 USD = 80 MZN' : '1 USD = 68 MZN'}</b> · {copy.localAmount}: <b>{((parseMoney(amount) || 0) * (action === 'deposit' ? 80 : 68)).toFixed(2)} MZN</b></div>}
         </>}
 
@@ -678,9 +678,9 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{copy.confirm}</div>
               {action === 'deposit' && <div style={{ marginTop:8, fontSize:13 }}><b>{copy.account}:</b> {derivNickname || '—'}</div>}
               <div style={{ marginTop:6, fontSize:15, fontWeight:900 }}>{Number.isFinite(parseMoney(amount)) ? parseMoney(amount).toFixed(2) : '0.00'} {isAiAnalyst ? (binanceFallback ? 'USDT' : 'MZN') : paymentCurrency}</div>
-              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{isAiAnalyst ? 'Pagamento do serviço AI Analyst. Nenhum saldo da Wallet Deriv é movimentado.' : action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
+              <div style={{ marginTop:10, fontSize:11, opacity:.7 }}>{isAiAnalyst ? 'copy.aiNoDerivMovement' : action === 'withdraw' ? copy.withdrawWarning : copy.realWarning}</div>
               {action === 'deposit' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</b> · {paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'} · <b>Mistério João</b><br/>1 USD = 80 MZN<div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.transferAmount} = {((parseMoney(amount) || 0) * 80).toFixed(2)} MZN</div></div>}
-              {aiAnalystMznEligible && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.yourName}:</b> {payerName}<br/><b>{copy.paymentPhone}:</b> {payerNumber}</div>}
+              {(action === 'deposit' || aiAnalystMznEligible) && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.yourName}:</b> {payerName}<br/><b>{copy.paymentPhone}:</b> {payerNumber}</div>}
               {action === 'withdraw' && <div style={{ marginTop:10, fontSize:11, lineHeight:1.55 }}><b>{copy.withdrawalDestination}</b><div style={{ marginTop:5, fontSize:13, fontWeight:900 }}>{paymentMethod === 'mpesa' ? copy.mpesa : copy.emola} · {paymentNumber} · <b>{paymentName}</b></div><div style={{ marginTop:6 }}>1 USD = 68 MZN</div><div style={{ marginTop:8, fontSize:14, fontWeight:900 }}>{copy.amountToReceive} = {((parseMoney(amount) || 0) * 68).toFixed(2)} MZN</div></div>}
             </div>
           </div>
@@ -696,7 +696,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
         {step === 'result' && action === 'deposit' && (depositStatus === 'payment_confirmed' || depositStatus === 'completed') ? (
           <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
-            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{isAiAnalyst ? 'AI ANALYST STATUS' : copy.operation}</div>
+            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{isAiAnalyst ? '{copy.aiStatus}' : copy.operation}</div>
             <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
             <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>
             <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>{copy.accepted}</div>
@@ -704,8 +704,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         ) : step === 'result' && action === 'ai_analyst' && depositStatus === 'payment_confirmed' ? (
           <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
             <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>AI Analyst</div>
-            <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>Pagamento confirmado</div>
-            <div style={{ marginTop:7, fontSize:11 }}>O AI Analyst está disponível por 30 dias.</div>
+            <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{copy.aiConfirmed}</div>
+            <div style={{ marginTop:7, fontSize:11 }}>copy.aiAvailable</div>
             <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>
           </div>
         ) : step === 'result' ? (
