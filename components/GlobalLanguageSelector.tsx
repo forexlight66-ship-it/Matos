@@ -7,7 +7,6 @@ type Lang = 'en' | 'pt' | 'es';
 const options: Array<{ code: Lang; flag: string; label: string }> = [
   { code: 'en', flag: '🇬🇧', label: 'English' },
   { code: 'pt', flag: '🇵🇹', label: 'Português' },
-  { code: 'es', flag: '🇪🇸', label: 'Español' },
 ];
 
 export default function GlobalLanguageSelector() {
