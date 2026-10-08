@@ -190,7 +190,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   }, [open, action, currency]);
 
   useEffect(() => {
-    if (!open || isAiAnalyst) return;
+    if (!open || isAiAnalyst || isCourse) return;
     let cancelled = false;
 
     const loadProfile = async () => {
