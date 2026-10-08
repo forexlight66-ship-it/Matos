@@ -79,6 +79,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
           `Conta Deriv: <b>${escapeHtml(updated.client_nickname)}</b>`,
           'Plano: <b>AI Analyst — 30 dias</b>',
           'Valor: <b>$3 USD / 250 MZN</b>',
+          ...(updated.payer_name || updated.payer_number ? [`Pagador: <b>${escapeHtml(updated.payer_name || '—')}</b>`,`Número usado: <b>${escapeHtml(updated.payer_number || '—')}</b>`] : []),
           '',
           `Expira em: <b>${escapeHtml(new Date(subscription.expires_at).toLocaleString('pt-PT'))}</b>`,
           '',
