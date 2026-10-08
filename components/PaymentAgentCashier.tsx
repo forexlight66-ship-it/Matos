@@ -93,7 +93,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           rejected:'Rechazado', failed:'Fallido', accepted:'Aceptado', request:'Solicitud', authExpired:'La autenticación de Deriv expiró. Inicia sesión con Deriv nuevamente para continuar.', reauthenticate:'Autenticar con Deriv', realOperation:'Esta es una operación financiera real.', paymentMethod:'Método de pago', mpesa:'M-Pesa', emola:'e-Mola', recipientNumber:'Número de pago', recipientName:'Nombre del titular', exchangeRate:'Tipo de cambio', localAmount:'Importe en MZN', alreadyPaid:'Ya pagué', awaitingAgent:'Esperando confirmación del agente.', paymentMarked:'Pago marcado. Espera la confirmación del agente.', paymentInstructions:'Realiza el pago con los datos abajo.', transferAmount:'Importe a transferir', withdrawalDestination:'Los fondos se enviarán a', paymentInstructionsTitle:'Pago del depósito', amountToReceive:'Importe a recibir', currency:'Moneda', loadingCurrencies:'Cargando monedas del agente…', unsupportedCurrency:'Esta moneda no es compatible con el agente de pagos.'
         }
       : {
-          deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor', yourName:'Seu nome', paymentPhone:'Seu número que usou para pagamento', aiPaymentMethod:'Método para pagar a assinatura', aiAccessInfo:'{copy.aiAccessInfo}',
+          deposit:'Depositar', withdraw:'Levantar', paymentAgent:'Payment Agent 503', close:'Fechar', account:'Conta Deriv', amount:'Valor', yourName:'Seu nome', paymentPhone:'Seu número que usou para pagamento', aiPaymentMethod:'Método para pagar a assinatura', aiAccessInfo:'Acesso por 30 dias após confirmação do administrador MozHyper.',
           processing:'A processar…', continue:'Continuar', back:'Voltar', cancel:'Cancelar', confirmDeposit:'Confirmar depósito',
           sendCode:'Enviar código', confirmWithdraw:'Confirmar levantamento', operation:'Estado da operação',
           confirm:'Confirmar operação', realWarning:'Verifique os dados. A confirmação cria um pedido de depósito; esta confirmação não movimenta fundos do cliente.', withdrawWarning:'Verifique os dados. Confirmar o levantamento envia um pedido real diretamente da sua Wallet Deriv para o Payment Agent 503.',
@@ -138,7 +138,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   useEffect(() => {
     if (!open || !action) return;
     setStep('form');
-    setAmount(action === 'ai_analyst' ? '250' : '');
+    setAmount(action === 'ai_analyst' ? (currency.toUpperCase() === 'MZN' ? '250' : '3') : '');
     setCode('');
     setBusy(false);
     setMessage('');
