@@ -547,8 +547,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const primary = step === 'otp'
     ? copy.confirmWithdraw
     : step === 'confirm'
-      ? (action === 'deposit' ? copy.confirmDeposit : isAiAnalyst ? 'copy.aiConfirm' : copy.sendCode)
-      : (isAiAnalyst ? 'copy.aiPay' : copy.continue);
+      ? (action === 'deposit' ? copy.confirmDeposit : isAiAnalyst ? copy.aiConfirm : copy.sendCode)
+      : (isAiAnalyst ? copy.aiPay : copy.continue);
 
   return (
     <div
@@ -578,7 +578,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         </div>
 
         {(action === 'deposit' || isAiAnalyst) && requestId && <div style={{ marginTop:14, padding:14, borderRadius:14, border:'2px solid #ff4654', background:light?'#fff7f7':'#2a1114', boxShadow:'0 8px 24px rgba(255,70,84,.12)' }}>
-          <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{binanceFallback ? 'BINANCE USDT' : isAiAnalyst ? 'PAGAMENTO AI ANALYST' : copy.paymentInstructionsTitle}</div>
+          <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900, color:'#ff4654' }}>{binanceFallback ? 'BINANCE USDT' : isAiAnalyst ? copy.aiTitle : copy.paymentInstructionsTitle}</div>
           {binanceFallback ? <>
             <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>Pague <b>3 USDT</b> usando exclusivamente a rede <b>TRON (TRC20)</b>.</div>
             <div style={{ marginTop:10, fontSize:10, opacity:.7 }}>Endereço Binance USDT:</div>
@@ -586,12 +586,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <button type="button" onClick={()=>navigator.clipboard?.writeText(BINANCE_USDT_ADDRESS)} style={{ width:'100%', marginTop:8, padding:10, border:0, borderRadius:10, background:'#f3ba2f', color:'#111827', fontWeight:900 }}>Copiar endereço</button>
             <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>Depois de enviar exatamente 3 USDT, clique em “JÁ PAGUEI”. O agente verifica o recebimento na Binance antes de ativar o AI Analyst.</div>
           </> : <>
-            <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>{isAiAnalyst ? 'Faça o pagamento de 250 MZN usando os dados abaixo. Este pagamento é pela assinatura do AI Analyst.' : copy.paymentInstructions}</div>
+            <div style={{ marginTop:8, fontSize:12, fontWeight:800 }}>{isAiAnalyst ? (language === 'en' ? 'Make a payment of 250 MZN using the details below. This payment is for the AI Analyst subscription.' : language === 'es' ? 'Realiza un pago de 250 MZN usando los datos de abajo. Este pago es por la suscripción de AI Analyst.' : 'Faça o pagamento de 250 MZN usando os dados abaixo. Este pagamento é pela assinatura do AI Analyst.') : copy.paymentInstructions}</div>
             <div style={{ marginTop:10, display:'grid', gap:6, fontSize:13 }}>
               <div><b>{copy.paymentMethod}:</b> {paymentMethod === 'mpesa' ? copy.mpesa : copy.emola}</div>
               <div><b>{copy.recipientNumber}:</b> <span style={{ fontSize:17, fontWeight:900 }}>{paymentMethod === 'mpesa' ? '84 908 4091' : '87 908 4091'}</span></div>
               <div><b>{copy.recipientName}:</b> Mistério João</div>
-              <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{isAiAnalyst ? '{copy.aiSubscriptionValue}: 250 MZN' : copy.transferAmount + ': ' + ((parseMoney(amount) || 0) * 80).toFixed(2) + ' MZN'}</div>
+              <div style={{ marginTop:4, padding:'9px 10px', borderRadius:10, background:light?'#fff':'#111827', fontSize:15, fontWeight:900 }}>{isAiAnalyst ? copy.aiSubscriptionValue + ': 250 MZN' : copy.transferAmount + ': ' + ((parseMoney(amount) || 0) * 80).toFixed(2) + ' MZN'}</div>
             </div>
             <div style={{ marginTop:9, fontSize:11, lineHeight:1.45, opacity:.78 }}>{copy.alreadyPaid}</div>
           </>}
@@ -642,7 +642,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
                 <img src="/payment-agent/emola.svg" alt={copy.emola} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='emola' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#f97824', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
               </button>}
-              {isAiAnalyst && !aiAnalystMznEligible && <button type="button" onClick={()=>{setPaymentMethod('binance_usdt_trc20'); setAmount('3'); setPaymentCurrency('USDT')}} aria-label="Binance USDT TRC20"
+              {isAiAnalyst && !aiAnalystMznEligible && <button type="button" onClick={()=>{setPaymentMethod('binance_usdt_trc20'); setAmount('3'); setPaymentCurrency('USDT')}} aria-label={language === 'en' ? 'Binance USDT TRC20' : language === 'es' ? 'Binance USDT TRC20' : 'Binance USDT TRC20'}
                 style={{ position:'relative', gridColumn:'1 / -1', height:58, borderRadius:14, border: paymentMethod==='binance_usdt_trc20' ? '3px solid #111827' : '1px solid #94a3b8', background:paymentMethod==='binance_usdt_trc20' ? '#f3ba2f' : (light?'#fff':'#111827'), color:'#111827', fontWeight:900, cursor:'pointer' }}>
                 Binance — 3 USDT (TRC20){paymentMethod==='binance_usdt_trc20' && <span style={{ marginLeft:8 }}>✓</span>}
               </button>}
@@ -655,12 +655,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             </label>
             <label style={{ display:'block', fontSize:12, fontWeight:800 }}>
               {copy.paymentPhone}
-              <input inputMode="numeric" value={payerNumber} onChange={event=>setPayerNumber(event.target.value.replace(/D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+              <input inputMode="numeric" value={payerNumber} onChange={event=>setPayerNumber(event.target.value.replace(/\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
           </div>}
           {action === 'withdraw' && <>
             <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:14 }}>{copy.recipientNumber}
-              <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
+              <input inputMode="numeric" value={paymentNumber} onChange={event=>setPaymentNumber(event.target.value.replace(/\D/g,'').slice(0,15))} placeholder="84xxxxxxxx" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
             </label>
             <label style={{ display:'block', fontSize:12, fontWeight:800, marginTop:12 }}>{copy.recipientName}
               <input value={paymentName} onChange={event=>setPaymentName(event.target.value)} placeholder="Nome do titular" style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
@@ -714,9 +714,9 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           </div>
         ) : step === 'result' && action === 'ai_analyst' && depositStatus === 'payment_confirmed' ? (
           <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
-            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>AI Analyst</div>
+            <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.aiTitle}</div>
             <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{copy.aiConfirmed}</div>
-            <div style={{ marginTop:7, fontSize:11 }}>copy.aiAvailable</div>
+            <div style={{ marginTop:7, fontSize:11 }}>{copy.aiAvailable}</div>
             <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>
           </div>
         ) : step === 'result' ? (
