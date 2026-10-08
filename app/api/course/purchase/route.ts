@@ -20,7 +20,7 @@ export async function POST(request:NextRequest){
   const payerNumber=String(body.payerNumber||'').replace(/\D/g,'');
   if(isMzn){
     if(payerName.length<2) return NextResponse.json({error:'Informe o seu nome.'},{status:400});
-    if(!/^\\d{9,15}$/.test(payerNumber)) return NextResponse.json({error:'Informe o número usado para fazer o pagamento.'},{status:400});
+    if(!/^\d{9,15}$/.test(payerNumber)) return NextResponse.json({error:'Informe o número usado para fazer o pagamento.'},{status:400});
   }
   const appId=process.env.DERIV_APP_ID?.trim();
   if(!appId) return NextResponse.json({error:'DERIV_APP_ID não está configurado.'},{status:500});
