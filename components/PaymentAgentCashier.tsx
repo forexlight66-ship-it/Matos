@@ -133,6 +133,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [paymentNumber, setPaymentNumber] = useState('');
   const [paymentName, setPaymentName] = useState('');
   const [depositPaid, setDepositPaid] = useState(false);
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [authExpired, setAuthExpired] = useState(false);
   const [depositStatus, setDepositStatus] = useState<'awaiting_payment' | 'client_marked_paid' | 'payment_confirmed' | 'rejected' | 'completed' | 'failed' | ''>('');
 
@@ -153,6 +154,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setPaymentNumber('');
     setPaymentName('');
     setDepositPaid(false);
+    setPaymentProof(null);
     setDepositStatus('');
     setAuthExpired(false);
     setSupportedCurrencies([]);
@@ -465,10 +467,17 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
   const markDepositPaid = async () => {
     if (!requestId || depositPaid) return;
+    if (!paymentProof) {
+      showError(language === 'en' ? 'Upload the payment screenshot before clicking “I PAID”.' : 'Envie o screenshot/comprovativo do pagamento antes de clicar em “JÁ PAGUEI”.');
+      return;
+    }
     setBusy(true);
     try {
+      const form = new FormData();
+      form.append('requestId', requestId);
+      form.append('paymentProof', paymentProof);
       const response = await fetch(binanceFallback ? '/api/payment-agent/deposit/mark-paid?request_id=' + encodeURIComponent(requestId) : '/api/payment-agent/deposit/mark-paid', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ requestId }),
+        method:'POST', body:form,
       });
       const payload: ApiResult = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || copy.failed);
@@ -734,7 +743,23 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.operation}</div>
             <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
             {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
-            {(action === 'deposit' || action === 'ai_analyst' || action === 'course') && !depositPaid && requestId && <button type="button" disabled={busy} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:14, padding:13, border:0, borderRadius:11, background:'#ff4654', color:'#fff', fontWeight:900 }}>{busy ? copy.processing : copy.alreadyPaid}</button>}
+            {(action === 'deposit' || action === 'ai_analyst' || action === 'course') && !depositPaid && requestId && <>
+              <div style={{ marginTop:14, padding:12, borderRadius:12, border:'1px solid #94a3b8', background:light?'#f8fafc':'#111827' }}>
+                <div style={{ fontSize:12, fontWeight:900 }}>📎 {language === 'en' ? 'Payment proof' : 'Comprovativo do pagamento'}</div>
+                <div style={{ marginTop:4, fontSize:11, lineHeight:1.4, opacity:.72 }}>
+                  {language === 'en' ? 'Upload the screenshot of your payment. It will be sent to the Payment Agent on Telegram for confirmation.' : 'Envie o screenshot do pagamento. O comprovativo será enviado ao Payment Agent no Telegram para confirmação.'}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={event => setPaymentProof(event.target.files?.[0] || null)}
+                  disabled={busy}
+                  style={{ width:'100%', marginTop:10, fontSize:12, fontWeight:700 }}
+                />
+                {paymentProof && <div style={{ marginTop:7, fontSize:10, fontWeight:800, overflowWrap:'anywhere' }}>✓ {paymentProof.name}</div>}
+              </div>
+              <button type="button" disabled={busy || !paymentProof} onClick={()=>void markDepositPaid()} style={{ width:'100%', marginTop:10, padding:13, border:0, borderRadius:11, background:paymentProof?'#ff4654':'#94a3b8', color:'#fff', fontWeight:900, cursor:paymentProof?'pointer':'not-allowed' }}>{busy ? copy.processing : copy.alreadyPaid}</button>
+            </>}
             {(action === 'deposit' || action === 'ai_analyst' || action === 'course') && depositPaid && <div style={{ marginTop:10, fontSize:11, fontWeight:800 }}>
               {depositStatus === 'payment_confirmed' ? copy.accepted : depositStatus === 'rejected' ? copy.rejected : depositStatus === 'completed' ? copy.depositSuccess : depositStatus === 'failed' ? copy.failed : copy.awaitingAgent}
             </div>}
