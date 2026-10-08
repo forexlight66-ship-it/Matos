@@ -80,6 +80,53 @@ export async function ensurePaymentAgentWebhook() {
   return webhookSetup;
 }
 
+export async function sendAgentPhotoAlert(
+  photo: Blob,
+  caption: string,
+  buttons: Array<Array<{ text: string; callback_data: string }>>,
+) {
+  const ids = chatIds();
+  if (!ids.length) throw new Error('Payment Agent Telegram chat ID is not configured');
+
+  void ensurePaymentAgentWebhook().catch(error => {
+    console.error('[Payment Agent Telegram] webhook setup failed', error instanceof Error ? error.message : String(error));
+  });
+
+  let lastError: unknown = null;
+  for (const id of ids) {
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        const form = new FormData();
+        form.append('chat_id', id);
+        form.append('photo', photo, 'payment-proof.jpg');
+        form.append('caption', caption);
+        form.append('parse_mode', 'HTML');
+        form.append('reply_markup', JSON.stringify({ inline_keyboard: buttons }));
+        const response = await fetch(`${TELEGRAM_API}/bot${token()}/sendPhoto`, {
+          method: 'POST',
+          body: form,
+          cache: 'no-store',
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.ok === false) {
+          throw new Error(data?.description || `Telegram API failed (${response.status})`);
+        }
+        return data;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 2) {
+          console.error('[Telegram Agent Photo] delivery failed', {
+            chatId: id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Telegram payment proof delivery failed');
+}
+
 export async function sendAgentAlert(text: string, buttons: Array<Array<{ text: string; callback_data: string }>>) {
   const ids = chatIds();
   if (!ids.length) throw new Error('Payment Agent Telegram chat ID is not configured');
