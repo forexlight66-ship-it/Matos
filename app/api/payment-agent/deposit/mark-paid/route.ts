@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       await sendAgentAlert(alertText, buttons);
       await sendAgentPhotoAlert(
         proof!,
-        `📎 <b>COMPROVATIVO DE PAGAMENTO</b>\\n\\nPedido: <b>${escapeHtml(row.id)}</b>\\nCliente: <b>${escapeHtml(row.client_name)}</b>\\nServiço: <b>${escapeHtml(isCourse ? 'Complete Course' : isAiAnalyst ? 'AI Analyst' : 'Depósito')}</b>`,
+        `📎 <b>COMPROVATIVO DE PAGAMENTO</b>\n\nPedido: <b>${escapeHtml(row.id)}</b>\\nCliente: <b>${escapeHtml(row.client_name)}</b>\\nServiço: <b>${escapeHtml(isCourse ? 'Complete Course' : isAiAnalyst ? 'AI Analyst' : 'Depósito')}</b>`,
         buttons,
       );
     } catch (telegramError) {
