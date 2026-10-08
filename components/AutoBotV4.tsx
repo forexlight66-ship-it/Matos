@@ -136,9 +136,9 @@ function WhatsAppIcon({ size = 17, color = 'currentColor' }) {
 export default function AutoBotV4(){
  const { t, language }=useLanguage();
  const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('1HZ100V'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('PAR_IMPAR'),[tickWindow,setTickWindow]=useState(5),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(33),[lossLimit,setLossLimit]=useState(62.50),[metas,setMetas]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[notice,setNotice]=useState<string|null>(null),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]);
- const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<{strategy:string;label:string;strength:number;edge:number}|null>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
+ const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|'ai_analyst'|'course'|null>(null);
- const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null);
+ const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),analyzerDecisionHistoryRef=useRef<any[]>([]),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null);
  useEffect(() => {
   const params = new URLSearchParams(window.location.search);
   const requestedAction = params.get('paymentAgent');
@@ -292,11 +292,9 @@ export default function AutoBotV4(){
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // AI Analyst must finish the 25-tick analysis and select the bot before trading.
   if(smartAnalyzer){
-   if(!analyzerConfirmedRef.current||!smartAdvice||!analyze100Ticks)return;
-   const confirmedStrategy=analyzerConfirmedStrategyRef.current;
-   if(!confirmedStrategy)return;
+   if(!smartAdvice||!analyze100Ticks||smartAdvice.noTrade||Number(smartAdvice.score)<60)return;
    const analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];
-   if(!analystStrategy||confirmedStrategy!==analystStrategy||strategy!==analystStrategy)return;
+   if(!analystStrategy||strategy!==analystStrategy)return;
   }
   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
@@ -417,119 +415,42 @@ export default function AutoBotV4(){
     lastActivityAt.current=Date.now();
    }
   },[activeContractId]); useEffect(()=>{
- if(!smartAnalyzer){
-  setSmartAdvice(null);
-  lastAdvisorKeyRef.current='';
-  lastAnalyzerEvalTickRef.current=0;
-  analyzerStableKeyRef.current=null;
-  analyzerStableCountRef.current=0;
-  analyzerLastSwitchTickRef.current=-1000;
-  analyzerLastSwitchAtRef.current=0;
-  analyzerConfirmedRef.current=false;
-  analyzerConfirmedStrategyRef.current=null;
-  pendingAnalyzerStrategyRef.current=null;
-  setAnalyzerNotice(null);
-  if(analyzerNoticeTimerRef.current!==null){
-   window.clearTimeout(analyzerNoticeTimerRef.current);
-   analyzerNoticeTimerRef.current=null;
-  }
-  return;
- }
- if(ticks.length<25){
-  setSmartAdvice(null);
-  analyzerConfirmedRef.current=false;
-  analyzerConfirmedStrategyRef.current=null;
-  analyzerStableKeyRef.current=null;
-  analyzerStableCountRef.current=0;
-  pendingAnalyzerStrategyRef.current=null;
-  setAnalyzerNotice('A recolher 25 ticks...');
-  return;
- }
- if(!analyze100Ticks){
-  const hadSelectedBot=Boolean(smartAdvice&&ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]===strategy);
-  setSmartAdvice(null);
-  analyzerConfirmedRef.current=false;
-  analyzerConfirmedStrategyRef.current=null;
-  pendingAnalyzerStrategyRef.current=null;
-  if(hadSelectedBot){
-   setTicks([]);
-   setSignalNow(null);
-   totalTickCountRef.current=0;
-   lastAnalyzerEvalTickRef.current=0;
-   analyzerStableKeyRef.current=null;
-   analyzerStableCountRef.current=0;
-   setAnalyzerNoticeColor('#ff444f');
-   setAnalyzerNotice('Fase caiu — aguardando nova análise de 25 ticks');
-   if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
-   analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},3000);
-  }
-  return;
- }
- if(lastAnalyzerEvalTickRef.current>0&&totalTickCountRef.current-lastAnalyzerEvalTickRef.current<5)return;
+ if(!smartAnalyzer){setSmartAdvice(null);setAnalyzerHistory([]);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice(null);return;}
+ if(ticks.length<25){setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 ticks...');return;}
+ if(!analyze100Ticks)return;
+ if(lastAnalyzerEvalTickRef.current>0&&totalTickCountRef.current-lastAnalyzerEvalTickRef.current<3)return;
  lastAnalyzerEvalTickRef.current=totalTickCountRef.current;
-
- const key=analyze100Ticks.strategy+'|'+analyze100Ticks.label;
- const suggested=ANALYZER_STRATEGY_TO_BOT[analyze100Ticks.strategy];
- if(!suggested){
-  analyzerConfirmedRef.current=false;
-  analyzerConfirmedStrategyRef.current=null;
-  analyzerStableKeyRef.current=null;
-  analyzerStableCountRef.current=0;
-  pendingAnalyzerStrategyRef.current=null;
-  setSmartAdvice(null);
-  return;
+ const result:any=analyze100Ticks;
+ const suggested=ANALYZER_STRATEGY_TO_BOT[result.strategy];
+ if(!suggested)return;
+ const rankings:any[]=Array.isArray(result.rankings)?result.rankings:[result];
+ const currentRanking=rankings.find((x:any)=>x.strategy===STRATEGY_BOT_NAMES[strategy]);
+ const currentScore=Number(currentRanking?.score)||0;
+ const challengerScore=Number(result.score)||0;
+ const advantage=challengerScore-currentScore;
+ const switchThreshold=8;
+ const ticksSinceSwitch=totalTickCountRef.current-analyzerLastSwitchTickRef.current;
+ const cooldownActive=ticksSinceSwitch<5;
+ const strongRegimeChange=Boolean(result.regimeChange)&&challengerScore>=85&&advantage>=12;
+ const shouldSwitch=strategy!==suggested&&!result.noTrade&&challengerScore>=60&&(!cooldownActive||strongRegimeChange);
+ const shouldKeepCurrent=strategy===suggested||(currentScore>=60&&!strongRegimeChange&&challengerScore<currentScore+switchThreshold);
+ if(result.noTrade||challengerScore<60){
+  setSmartAdvice({...result,currentScore});setAnalyzerNoticeColor('#ff444f');setAnalyzerNotice('AI Analyst: NO TRADE');
+  const entry={time:new Date().toLocaleTimeString(),strategy:result.strategy,label:result.label,score:Math.round(challengerScore),confidence:Math.round(result.confidence),stability:Math.round(result.stability),action:'NO TRADE'};
+  analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);setAnalyzerHistory(analyzerDecisionHistoryRef.current);return;
  }
-
- const sameKey=analyzerStableKeyRef.current===key;
- const stableCount=sameKey?analyzerStableCountRef.current+1:1;
- analyzerStableKeyRef.current=key;
- analyzerStableCountRef.current=stableCount;
-
- // Two consecutive qualifying 25-tick evaluations are mandatory.
- // Until the second confirmation, no bot can be selected or trade.
- if(stableCount<2){
-  analyzerConfirmedRef.current=false;
-  analyzerConfirmedStrategyRef.current=null;
-  pendingAnalyzerStrategyRef.current=null;
-  setSmartAdvice(null);
-  setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');
-  setAnalyzerNotice('Confirmando fase: '+analyze100Ticks.strategy+' ('+stableCount+'/2)');
-  lastAdvisorKeyRef.current=key;
-  if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
-  analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},2500);
-  return;
- }
-
- analyzerConfirmedRef.current=true;
- analyzerConfirmedStrategyRef.current=suggested;
- setSmartAdvice(analyze100Ticks);
-
- const ia=iaPower?gestorRef.current.getEstado():null;
- const so=sonic?sonicRef.current.getState():null;
- const riskRecovery=iaPower
-  ?Boolean(ia?.emMartingale||Number(ia?.nivelSoros||0)>0||Number(ia?.deficitRecuperacao||0)>0.01)
-  :sonic
-   ?Boolean(so?.inMartingale||so?.inSoros||Number(so?.recoveryDeficit||0)>0.01)
-   :false;
- const riskBusy=(iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current);
-
- if(!riskBusy&&!riskRecovery&&suggested!==strategy){
-  pendingAnalyzerStrategyRef.current=suggested;
-  setStrategy(suggested);
-  analyzerLastSwitchTickRef.current=totalTickCountRef.current;
-  analyzerLastSwitchAtRef.current=Date.now();
-  setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');
-  setAnalyzerNotice('Bot selecionado: '+analyze100Ticks.strategy);
-  analyzerAlertSound();
- }else if(suggested===strategy){
-  pendingAnalyzerStrategyRef.current=null;
-  setAnalyzerNoticeColor(ANALYZER_COLORS[analyze100Ticks.strategy]||'#3D7FFF');
-  setAnalyzerNotice('Bot confirmado: '+analyze100Ticks.strategy);
- }
- lastAdvisorKeyRef.current=key;
- if(analyzerNoticeTimerRef.current!==null)window.clearTimeout(analyzerNoticeTimerRef.current);
- analyzerNoticeTimerRef.current=window.setTimeout(()=>{setAnalyzerNotice(null);analyzerNoticeTimerRef.current=null},2500);
-},[smartAnalyzer,analyze100Ticks,ticks.length,strategy,iaPower,sonic]);
+ setSmartAdvice({...result,currentScore,confidenceBand:confidenceBand(challengerScore),advantage});
+ let action='AGUARDA';
+ if(shouldSwitch&&!shouldKeepCurrent){
+  pendingAnalyzerStrategyRef.current=suggested;setStrategy(suggested);analyzerLastSwitchTickRef.current=totalTickCountRef.current;analyzerLastSwitchAtRef.current=Date.now();
+  action='TROCA PARA '+result.strategy;setAnalyzerNoticeColor(ANALYZER_COLORS[result.strategy]||'#3D7FFF');setAnalyzerNotice('TROCA PARA '+result.strategy+' — AI Score '+Math.round(challengerScore));analyzerAlertSound();
+ }else if(strategy===suggested){
+  pendingAnalyzerStrategyRef.current=null;action='MANTÉM '+result.strategy;setAnalyzerNoticeColor(ANALYZER_COLORS[result.strategy]||'#3D7FFF');setAnalyzerNotice('MANTÉM '+result.strategy+' — AI Score '+Math.round(challengerScore));
+ }else{setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('AGUARDA — diferença insuficiente para trocar');}
+ const entry={time:new Date().toLocaleTimeString(),strategy:result.strategy,label:result.label,score:Math.round(challengerScore),confidence:Math.round(result.confidence),stability:Math.round(result.stability),action};
+ analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);setAnalyzerHistory(analyzerDecisionHistoryRef.current);
+ lastAdvisorKeyRef.current=result.strategy+'|'+result.label;
+},[smartAnalyzer,analyze100Ticks,ticks.length,strategy]);
 
   useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
@@ -582,7 +503,7 @@ export default function AutoBotV4(){
  <label className="card mt-3 block p-4 text-xs">{t('symbol')}<select className="mt-1 w-full bg-transparent font-bold" value={symbol} onChange={e=>setSymbol(e.target.value)} disabled={running||smartAnalyzer}>{Object.entries(SYMBOLS).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
  <div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:iaPower?'#25D366':(light?'#475569':'#94a3b8')}}>IA POWER</div></div><button className={`ia-toggle ${iaPower?'on':''}`} type="button" onClick={()=>togglePower(!iaPower)} disabled={running||smartAnalyzer} aria-label="Ativar ou desativar IA Power" title={running?'Pare o robô para alterar IA Power':'Alternar IA Power'}><span/></button></div>
  <div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:sonic?'#25D366':(light?'#475569':'#94a3b8')}}>SONIC</div></div><button className={`ia-toggle ${sonic?'on':''}`} type="button" onClick={()=>toggleSonic(!sonic)} disabled={running||smartAnalyzer} aria-label="Ativar ou desativar Sonic" title={running?'Pare o robô para alterar Sonic':'Alternar SONIC'}><span/></button></div>
- <div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:smartAnalyzer?'#25D366':(light?'#475569':'#94a3b8')}} >{t('analyzer100Ticks')}</div></div><button className={`ia-toggle ${smartAnalyzer?'on':''}`} type="button" onClick={()=>toggleAnalyzer(!smartAnalyzer)} aria-label={t('analyzer100Ticks')} title={smartAnalyzer?'Desligar AI Analyst':'Ligar AI Analyst — inicia automaticamente'}><span/></button></div>
+ <div className="card mt-3 p-4" style={{borderColor:smartAnalyzer?'#22c55e':'#cbd5e1'}}><div className="flex items-center justify-between gap-2"><div><div className="text-[10px] font-black uppercase tracking-wide">AI ANALYST</div><div className="mt-1 text-[9px] muted">25 ticks · peso recente · análise separada da entrada</div></div>{smartAdvice&&<div className="text-right"><div className="text-lg font-black">{Math.round(Number(smartAdvice.score)||0)}/100</div><div className="text-[8px] font-bold muted">{smartAdvice.confidenceBand||'—'}</div></div>}</div>{smartAnalyzer&&smartAdvice&&<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">BOT</div><b className="text-[10px]">{smartAdvice.strategy}</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">SINAL</div><b className="text-[10px]">{smartAdvice.label}</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">CONFIANÇA</div><b className="text-[10px]">{Math.round(smartAdvice.confidence||0)}%</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">ESTABILIDADE</div><b className="text-[10px]">{Math.round(smartAdvice.stability||0)}%</b></div></div>}{smartAnalyzer&&<div className="mt-3"><div className="mb-2 text-[8px] font-black uppercase muted">Ranking</div><div className="space-y-1">{(smartAdvice?.rankings||[]).slice(0,3).map((x:any)=><div key={x.strategy+x.label} className="flex items-center justify-between rounded-lg border border-slate-300/20 px-2 py-1.5 text-[9px]"><span><b>{x.strategy}</b> · {x.label}</span><span className="font-black">{Math.round(x.score)}/100</span></div>)}</div></div>}{smartAnalyzer&&analyzerHistory.length>0&&<div className="mt-3"><div className="mb-2 text-[8px] font-black uppercase muted">Histórico de decisões</div><div className="max-h-32 space-y-1 overflow-y-auto">{analyzerHistory.slice(0,5).map((x:any,i:number)=><div key={i} className="text-[8px] muted">{x.time} · <b>{x.strategy}</b> {x.label} · {x.score}/100 → {x.action}</div>)}</div></div>}</div><div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:smartAnalyzer?'#25D366':(light?'#475569':'#94a3b8')}} >{t('analyzer100Ticks')}</div></div><button className={`ia-toggle ${smartAnalyzer?'on':''}`} type="button" onClick={()=>toggleAnalyzer(!smartAnalyzer)} aria-label={t('analyzer100Ticks')} title={smartAnalyzer?'Desligar AI Analyst':'Ligar AI Analyst — inicia automaticamente'}><span/></button></div>
  <div className="mt-2 flex justify-between text-[9px] muted"><span>{SYMBOLS[symbol]}</span><span>{isConnected&&isAuthorized?t('connected'):t('disconnected')}</span></div>
  {error&&<div className="mt-2 rounded-xl border border-red-800 bg-red-950 p-3 text-xs text-red-300">{error}</div>}
  {mozHyperCourse&&<div className="modal-backdrop" onClick={()=>setMozHyperCourse(false)}><div className="modal" style={{width:'min(94vw,560px)',maxHeight:'88vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between"><b>📚 {t('completeCourse')}</b><button onClick={()=>setMozHyperCourse(false)}>✕</button></div>{courseSection==='home'?<div className="mt-5 grid gap-3 sm:grid-cols-2"><button className="rounded-xl border border-blue-400/50 p-5 text-left" onClick={()=>setCourseSection('risk')}><div className="text-2xl">📊</div><b>{t('riskSheet')}</b><div className="mt-1 text-[10px] muted">{t('riskSheetDesc')}</div></button><button className="rounded-xl border border-emerald-400/50 p-5 text-left" onClick={()=>setCourseSection('course')}><div className="text-2xl">🎓</div><b>{t('course')}</b><div className="mt-1 text-[10px] muted">{t('courseDesc')}</div></button></div>:courseSection==='risk'?<div className="mt-4"><button className="text-xs font-bold text-blue-500" onClick={()=>setCourseSection('home')}>← {t('back')}</button><h3 className="mt-3 font-black">{t('riskSheetTitle')}</h3><div className="mt-3 grid gap-3"><label className="text-xs">{t('riskBalance')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" value={riskBalance} onChange={e=>setRiskBalance(Math.max(0,Number(e.target.value)))}/></label><label className="text-xs">{t('riskPerTrade')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" max="100" step="0.1" value={riskPercent} onChange={e=>setRiskPercent(Math.min(100,Math.max(0,Number(e.target.value))))}/></label><label className="text-xs">{t('numberTrades')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="1" value={riskTrades} onChange={e=>setRiskTrades(Math.max(1,Math.floor(Number(e.target.value)||1)))}/></label></div><div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded-xl border border-slate-300/30 p-3"><div className="text-[9px] muted">{t('riskPerOperation')}</div><b>{(riskBalance*riskPercent/100).toFixed(2)}</b></div><div className="rounded-xl border border-slate-300/30 p-3"><div className="text-[9px] muted">{t('estimatedExposure')}</div><b>{(riskBalance*riskPercent/100*riskTrades).toFixed(2)}</b></div></div><div className="mt-3 rounded-xl border border-red-400/50 p-3 text-[10px] text-red-500">{t('riskWarning')}</div></div>:<div className="mt-4"><button className="text-xs font-bold text-blue-500" onClick={()=>setCourseSection('home')}>← {t('back')}</button><h3 className="mt-3 font-black">🎓 {t('courseMozHyper')}</h3>{!courseUnlocked?<div className="mt-4 rounded-xl border border-blue-400/50 p-4"><b className="text-sm">🔐 {t('accessCourse')}</b><div className="mt-1 text-[10px] muted">{t('accessDesc')}</div><input className="mt-3 w-full rounded-lg border border-slate-300/40 bg-transparent p-3 font-mono text-sm" placeholder="MozHyper-XXXXXXXX" value={courseCode} onChange={e=>setCourseCode(e.target.value)} autoComplete="off"/><button className="mt-2 w-full rounded-lg bg-blue-600 p-3 text-xs font-bold text-white disabled:opacity-50" disabled={courseUnlocking||!courseCode.trim()} onClick={async()=>{setCourseUnlocking(true);try{const r=await fetch('/api/course/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:courseCode})});const data=await r.json().catch(()=>null);if(data?.courseUnlocked){setCourseUnlocked(true);setNotice(t('unlockedNotice'))}else{setNotice(data?.error||t('invalidPassword'))}}catch{setNotice(t('validationError'))}finally{setCourseUnlocking(false)}}}>{courseUnlocking?t('validating'):t('validate')}</button><button className="mt-2 w-full rounded-lg border border-slate-300/30 p-3 text-xs font-bold" onClick={()=>{setMozHyperCourse(false);setCashierAction('course')}}>{`${t('buyCourse')} — ${currency === 'MZN' ? '999 MZN' : '15 USDT'}`}</button></div>:<><div className="mt-3 rounded-xl border border-emerald-400/50 p-4"><b className="text-sm text-emerald-500">✅ {t('unlocked')}</b><div className="mt-1 text-[10px] muted">{t('sessionAccess')}</div></div><div className="mt-3 grid gap-2">{[t('module1'),t('module2'),t('module3'),t('module4'),t('module5'),t('module6'),t('module7')].map(m=><div key={m} className="rounded-xl border border-slate-300/30 p-3"><b className="text-xs">{m}</b><div className="mt-1 text-[9px] muted">{t('courseContent')}</div></div>)}</div></>}</div>}</div></div>}{metas&&<div className="modal-backdrop" onClick={()=>setMetas(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between"><b>{t('meta')}</b><button onClick={()=>setMetas(false)}>✕</button></div><label className="mt-4 block text-xs">{t('profit')} (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" step="0.01" min="0" value={target} onChange={e=>setTarget(Math.max(0,Number(e.target.value)))}/></label><label className="mt-3 block text-xs">{t('lossGoal')} (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" step="0.01" min="0" value={lossLimit} onChange={e=>setLossLimit(Math.max(0,Number(e.target.value)))}/></label><label className="mt-3 block text-xs">{t('maxMartingale')}<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="1" max="20" step="1" value={maxMartingale} onChange={e=>setMaxMartingale(Math.min(20,Math.max(1,Math.floor(Number(e.target.value)||1))))}/><div className="mt-1 text-[9px] muted">{t('maxMartingaleHelp')}</div></label><button className="mt-4 w-full rounded-lg bg-blue-600 p-3 font-bold text-white" onClick={()=>setMetas(false)}>{t('save')}</button></div></div>}
