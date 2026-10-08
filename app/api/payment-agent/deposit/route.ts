@@ -27,10 +27,14 @@ export async function POST(request: NextRequest) {
   const amount = Number(body.amount);
   const currency = String(body.currency || '').toUpperCase();
   const paymentMethod = String(body.paymentMethod || '').toLowerCase();
+  const payerName = String(body.payerName || '').trim();
+  const payerNumber = String(body.payerNumber || '').replace(/\D/g, '');
 
   if (!Number.isFinite(amount) || amount <= 0 || currency !== 'USD') {
     return NextResponse.json({ error: 'Para o Payment Agent, informe um valor USD válido.' }, { status: 400 });
   }
+  if (payerName.length < 2) return NextResponse.json({ error: 'Informe o seu nome.' }, { status: 400 });
+  if (!/^\d{9,15}$/.test(payerNumber)) return NextResponse.json({ error: 'Informe o número usado para fazer o pagamento.' }, { status: 400 });
   if (paymentMethod !== 'mpesa' && paymentMethod !== 'emola') {
     return NextResponse.json({ error: 'Escolha M-Pesa ou e-Mola.' }, { status: 400 });
   }
@@ -68,6 +72,8 @@ export async function POST(request: NextRequest) {
       amountUsd: Number(amount.toFixed(2)),
       paymentMethod: paymentMethod as 'mpesa' | 'emola',
       refreshToken: request.cookies.get('deriv_refresh_token')?.value || '',
+      payerName,
+      payerNumber,
     });
 
     const response = NextResponse.json({
@@ -79,6 +85,8 @@ export async function POST(request: NextRequest) {
       paymentMethod: row.payment_method,
       paymentNumber: row.payment_number,
       paymentName: row.payment_name,
+      payerName: row.payer_name,
+      payerNumber: row.payer_number,
     }, { headers: { 'Cache-Control': 'no-store' } });
 
     if (refreshedToken) {
