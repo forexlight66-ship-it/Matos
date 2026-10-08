@@ -531,6 +531,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         amount,
         paymentCurrency,
         paymentMethod,
+        payerName,
+        payerNumber,
         paymentNumber,
         paymentName,
         savedAt: Date.now(),
