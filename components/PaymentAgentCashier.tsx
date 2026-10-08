@@ -405,11 +405,19 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
   const validate = () => {
     if (isCourse) {
-      setAmount(courseMznEligible ? '999' : '15');
+      const courseAmount = courseMznEligible ? '999' : '15';
+      setAmount(courseAmount);
       setPaymentCurrency(courseMznEligible ? 'MZN' : 'USDT');
-      if (courseMznEligible && paymentMethod === 'binance_usdt_trc20') setPaymentMethod('mpesa');
+      if (courseMznEligible) {
+        if (paymentMethod === 'binance_usdt_trc20') setPaymentMethod('mpesa');
+        if (payerName.trim().length < 2) { showError(copy.yourName); return false; }
+        if (!/^\d{9,15}$/.test(payerNumber.replace(/\D/g,''))) { showError(copy.paymentPhone); return false; }
+        return true;
+      }
+      if (paymentMethod !== 'binance_usdt_trc20') setPaymentMethod('binance_usdt_trc20');
+      return true;
     }
-    const value = parseMoney(isCourse ? (courseMznEligible ? '999' : '15') : amount);
+    const value = parseMoney(amount);
     if (!Number.isFinite(value) || value <= 0) {
       showError(copy.invalid);
       return false;
