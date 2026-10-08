@@ -660,6 +660,21 @@ export default function AutoBotV4(){
     <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">FASE</div><b className="text-[10px]" style={{color:smartAdvice.earlyEntry?'#059669':undefined}}>{smartAdvice.phase||'—'}</b></div>
     <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">CONFIANÇA</div><b className="text-[10px]">{Math.round(smartAdvice.confidence||0)}%</b></div>
   </div>}
+  {smartAnalyzer&&smartAdvice&&<div className="mt-2 rounded-lg border border-slate-300/30 p-2">
+    <div className="flex items-center justify-between gap-2">
+      <div>
+        <div className="text-[8px] muted">QUALIDADE DO SINAL</div>
+        <b className="text-[10px]" style={{color:smartAdvice.qualityBlocked?'#dc2626':'#059669'}}>
+          {smartAdvice.qualityBlocked?'BLOQUEADO':'OPERACIONAL'}
+        </b>
+      </div>
+      <div className="text-right">
+        <div className="text-[8px] muted">PENALIZAÇÃO</div>
+        <b className="text-[10px]">{Math.round(Number(smartAdvice.qualityPenalty)||0)} pts</b>
+      </div>
+    </div>
+    {smartAdvice.qualityReason&&<div className="mt-1 text-[8px] muted">Motivo: {smartAdvice.qualityReason}</div>}
+  </div>}
   {smartAnalyzer&&smartAdvice&&<div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
     <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">ESTABILIDADE</div><b className="text-[10px]">{Math.round(smartAdvice.stability||0)}%</b></div>
     <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">ENTRADA</div><b className="text-[10px]" style={{color:smartAdvice.earlyEntry?'#059669':undefined}}>{smartAdvice.earlyEntry?'ANTECIPADA':'NORMAL'}</b></div>
