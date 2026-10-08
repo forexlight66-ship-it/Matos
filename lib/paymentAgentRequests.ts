@@ -38,6 +38,8 @@ export type PaymentRequest = {
   payment_method: string | null;
   payment_number: string | null;
   payment_name: string | null;
+  payer_name?: string | null;
+  payer_number?: string | null;
   purpose?: string;
   crypto_asset?: string | null;
   crypto_network?: string | null;
@@ -95,6 +97,8 @@ export async function ensurePaymentRequestSchema() {
       payment_method TEXT,
       payment_number TEXT,
       payment_name TEXT,
+      payer_name TEXT,
+      payer_number TEXT,
       purpose TEXT NOT NULL DEFAULT 'deposit',
       verification_ciphertext TEXT,
       refresh_ciphertext TEXT,
@@ -113,6 +117,8 @@ export async function ensurePaymentRequestSchema() {
     CREATE INDEX IF NOT EXISTS payment_agent_requests_created_idx ON payment_agent_requests(created_at DESC);
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS platform_transfer_request_id UUID;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'deposit';
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS payer_name TEXT;
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS payer_number TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_asset TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_network TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_address TEXT;
@@ -172,6 +178,8 @@ export async function createAIAnalystRequest(input: {
   clientEmail: string;
   clientNickname: string;
   paymentMethod: 'mpesa' | 'emola';
+  payerName: string;
+  payerNumber: string;
 }) {
   await ensurePaymentRequestSchema();
   const id = requestId('ai');
@@ -179,12 +187,14 @@ export async function createAIAnalystRequest(input: {
   const localAmountMzn = 250;
   const exchangeRate = localAmountMzn / amountUsd;
   const paymentNumber = input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER;
+  const payerName = input.payerName.trim();
+  const payerNumber = input.payerNumber.replace(/\D/g, '');
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
-      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,purpose)
-     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'ai_analyst')
+      (id,type,status,user_id,client_name,client_email,client_nickname,amount_usd,local_amount_mzn,exchange_rate,payment_method,payment_number,payment_name,payer_name,payer_number,purpose)
+     VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'ai_analyst')
      RETURNING *`,
-    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,exchangeRate,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME],
+    [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,exchangeRate,input.paymentMethod,paymentNumber,PAYMENT_RECIPIENT_NAME,payerName,payerNumber],
   );
   return result.rows[0] as PaymentRequest;
 }
