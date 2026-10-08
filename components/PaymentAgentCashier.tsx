@@ -426,8 +426,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       if (payerName.trim().length < 2) { showError(copy.yourName); return false; }
       if (!/^\d{9,15}$/.test(payerNumber.replace(/\s+/g,''))) { showError(copy.paymentPhone); return false; }
     }
-    if (action !== 'ai_analyst' && action !== 'course' && !paymentReady) { showError(copy.loadingCurrencies); return false; }
-    if (action !== 'ai_analyst' && action !== 'course' && !currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
+    if (!isAiAnalyst && !paymentReady) { showError(copy.loadingCurrencies); return false; }
+    if (!isAiAnalyst && !currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
     if (action === 'withdraw' && minWithdraw > 0 && value < minWithdraw) {
       showError(copy.minWithdraw + ' ' + minWithdraw.toFixed(2) + ' ' + paymentCurrency + '.');
       return false;
