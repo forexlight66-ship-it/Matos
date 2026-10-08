@@ -41,69 +41,88 @@ function weightedStability(values:number[],mean:number){
  const variance=values.reduce((sum,v,i)=>sum+weights[i]*Math.pow(v-mean,2),0);
  return clamp(100-Math.sqrt(variance)*170);
 }
+type AnalyzerCandidate = {
+ strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
+ trend:number; consistency:number; score:number; risk:number; direction:string;
+ regimeChange:boolean; recentStrength:number; olderStrength:number; phase:string;
+};
+function clamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,n))}
+function confidenceBand(score:number){if(score>=90)return 'Muito forte';if(score>=80)return 'Forte';if(score>=70)return 'Moderado';if(score>=60)return 'Fraco';return 'Não operar'}
+function phaseOf(score:number,recent:number,older:number){
+ if(score>=78&&recent>=70)return 'FORTE';
+ if(score>=68&&recent>=60)return 'CONFIRMADA';
+ if(score>=60&&recent>=older-8)return 'ENFRAQUECENDO';
+ return 'FORA DA FASE';
+}
+function weightedMean(values:number[]){const weights=[0.08,0.12,0.15,0.25,0.40];return values.reduce((sum,v,i)=>sum+v*weights[i],0)}
+function weightedStability(values:number[],mean:number){
+ const weights=[0.08,0.12,0.15,0.25,0.40];
+ const variance=values.reduce((sum,v,i)=>sum+weights[i]*Math.pow(v-mean,2),0);
+ return clamp(100-Math.sqrt(variance)*170);
+}
 function analyzeStrategies100(v:number[],pipSize?:number){
  if(v.length<25)return null;
  const all=v.slice(-25).map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);
  if(all.length<25)return null;
-
  const windows=Array.from({length:5},(_,i)=>all.slice(i*5,(i+1)*5));
  const riseFall=windows.map(d=>{
   let up=0,down=0;
   for(let i=1;i<d.length;i++){if(d[i]>d[i-1])up++;else if(d[i]<d[i-1])down++}
   return {up:up/4,down:down/4};
  });
- const series=(predicate:(n:number)=>boolean)=>windows.map(d=>d.filter(predicate).length/5);
+ const digitSeries=(predicate:(n:number)=>boolean)=>windows.map(d=>d.filter(predicate).length/5);
  const inputs=[
-  {strategy:'HyperDrive',label:'PAR',contract:'EVEN' as Contract,direction:'PAR',series:series(n=>n%2===0),base:.5},
-  {strategy:'HyperDrive',label:'ÍMPAR',contract:'ODD' as Contract,direction:'ÍMPAR',series:series(n=>n%2!==0),base:.5},
-  {strategy:'HyperStrike',label:'ACIMA 5',contract:'OVER' as Contract,direction:'ACIMA 5',series:series(n=>n>5),base:.4},
-  {strategy:'HyperStrike',label:'ABAIXO 4',contract:'UNDER' as Contract,direction:'ABAIXO 4',series:series(n=>n<4),base:.3},
+  {strategy:'HyperDrive',label:'PAR',contract:'EVEN' as Contract,direction:'PAR',series:digitSeries(n=>n%2===0),base:.5},
+  {strategy:'HyperDrive',label:'ÍMPAR',contract:'ODD' as Contract,direction:'ÍMPAR',series:digitSeries(n=>n%2!==0),base:.5},
+  {strategy:'HyperStrike',label:'ACIMA 5',contract:'OVER' as Contract,direction:'ACIMA 5',series:digitSeries(n=>n>5),base:.4},
+  {strategy:'HyperStrike',label:'ABAIXO 4',contract:'UNDER' as Contract,direction:'ABAIXO 4',series:digitSeries(n=>n<4),base:.4},
   {strategy:'HyperForce',label:'SUBIR',contract:'RISE' as Contract,direction:'SUBIR',series:riseFall.map(x=>x.up),base:.5},
   {strategy:'HyperForce',label:'DESCER',contract:'FALL' as Contract,direction:'DESCER',series:riseFall.map(x=>x.down),base:.5},
-  {strategy:'HyperNova',label:'DIFERENTE DE 0',contract:'DIFFER' as Contract,direction:'DIFERENTE DE 0',series:series(n=>n!==0),base:.9},
-  {strategy:'Hyperlite',label:'PAR',contract:'EVEN' as Contract,direction:'PAR',series:series(n=>n%2===0),base:.5},
-  {strategy:'HyperGuard',label:'ACIMA 0',contract:'OVER' as Contract,direction:'ACIMA 0',series:series(n=>n>0),base:.9},
-  {strategy:'HyperShield',label:'ACIMA 4',contract:'OVER' as Contract,direction:'ACIMA 4',series:series(n=>n>4),base:.5},
-  {strategy:'HyperBreak',label:'ABAIXO 8',contract:'UNDER' as Contract,direction:'ABAIXO 8',series:series(n=>n<8),base:.8}
+  {strategy:'HyperNova',label:'DIFERENTE DE 0',contract:'DIFFER' as Contract,direction:'DIFERENTE DE 0',series:digitSeries(n=>n!==0),base:.9},
+  {strategy:'Hyperlite',label:'PAR',contract:'EVEN' as Contract,direction:'PAR',series:digitSeries(n=>n%2===0),base:.5},
+  {strategy:'HyperGuard',label:'ACIMA 0',contract:'OVER' as Contract,direction:'ACIMA 0',series:digitSeries(n=>n>0),base:.9},
+  {strategy:'HyperShield',label:'ACIMA 4',contract:'OVER' as Contract,direction:'ACIMA 4',series:digitSeries(n=>n>4),base:.5},
+  {strategy:'HyperBreak',label:'ABAIXO 8',contract:'UNDER' as Contract,direction:'ABAIXO 8',series:digitSeries(n=>n<8),base:.8},
+  {strategy:'HyperSwap',label:'DIFERENTE DE 0',contract:'DIFFER' as Contract,direction:'DIFERENTE DE 0',series:digitSeries(n=>n!==0),base:.9}
  ];
  const candidates:AnalyzerCandidate[]=inputs.map(x=>{
   const weighted=weightedMean(x.series);
   const olderMean=(x.series[0]+x.series[1]+x.series[2]+x.series[3])/4;
-  const recentStrength=x.series[4]*100;
-  const olderStrength=olderMean*100;
-  const trend=clamp(50+(x.series[4]-olderMean)*220);
+  const recent=x.series[4];
+  const older=olderMean;
   const stability=weightedStability(x.series,weighted);
   const consistency=x.series.filter(n=>n>=x.base).length/5*100;
-  const se=Math.sqrt(Math.max(x.base*(1-x.base)/25,0.0001));
-  const z=(weighted-x.base)/se;
-  const confidence=clamp(50+z*12);
-  const strength=clamp(50+z*15);
-  const edgeScore=clamp(50+(weighted-x.base)*180);
-  const baseScore=clamp(edgeScore*.28+confidence*.22+stability*.20+trend*.12+consistency*.10+strength*.08);
+  const edge=(weighted-x.base)*100;
+  const strength=clamp(50+edge*1.05);
+  const confidence=clamp(50+edge*1.30);
+  const trend=clamp(50+(recent-olderMean)*180);
+  const phase=phaseOf((strength+confidence+stability)/3,recent*100,olderMean*100);
+  const score=clamp(
+    strength*.28+
+    confidence*.24+
+    stability*.18+
+    consistency*.15+
+    trend*.15-
+    Math.max(0,50-stability)*.15
+  );
   return{
    strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,consistency,
-   score:baseScore,baseScore,risk:100-stability,direction:x.direction,
-   regimeChange:recentStrength-olderStrength>=20,recentStrength,olderStrength
+   score,risk:100-stability,direction:x.direction,
+   regimeChange:recent-olderMean>=0.20,recentStrength:recent*100,olderStrength:olderMean*100,phase
   };
  });
-
  const byBot=new Map<string,AnalyzerCandidate>();
  for(const candidate of candidates){
   const current=byBot.get(candidate.strategy);
-  if(!current||candidate.baseScore>current.baseScore)byBot.set(candidate.strategy,candidate);
+  if(!current||candidate.score>current.score)byBot.set(candidate.strategy,candidate);
  }
- const initial=[...byBot.values()].sort((a,b)=>b.baseScore-a.baseScore);
- const secondBase=initial[1]?.baseScore??initial[0]?.baseScore??0;
- const ranked=initial.map((candidate,index)=>{
-  const lead=index===0?clamp(candidate.baseScore-secondBase,0,20):0;
-  return {...candidate,score:clamp(candidate.baseScore+lead*.45)};
- }).sort((a,b)=>b.score-a.score);
+ const ranked=[...byBot.values()].sort((a,b)=>b.score-a.score);
  const best=ranked[0],second=ranked[1];
  if(!best)return null;
  const advantage=second?best.score-second.score:100;
  const recentLead=second?best.recentStrength-second.recentStrength:0;
- const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=82);
- const noTrade=best.score<60||best.confidence<60||best.stability<42;
+ const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=75);
+ const noTrade=best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE';
  return{
   ...best,rankings:ranked,secondStrategy:second?.strategy??null,secondScore:second?.score??0,
   advantage,regimeChange,noTrade,confidenceBand:confidenceBand(best.score)
@@ -288,14 +307,14 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!iaPower&&!sonic)setSorosStake(stake)},[stake,iaPower,sonic,setSorosStake]);
  useEffect(()=>{setSorosEnabled(!iaPower&&!sonic)},[iaPower,sonic,setSorosEnabled]);
  useEffect(()=>{if(!running){gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setStakeManagerVersion(v=>v+1)}},[stake,maxMartingale,running]);
- useEffect(()=>{setSignalNow(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();analyzerConfirmedRef.current=false;analyzerConfirmedStrategyRef.current=null;barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy]); useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;analyzerConfirmedRef.current=false;analyzerConfirmedStrategyRef.current=null;barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[symbol]);
+ useEffect(()=>{setSignalNow(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy]); useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerDecisionHistoryRef.current=[];analyzerLastSwitchAtRef.current=0;analyzerConfirmedRef.current=false;analyzerConfirmedStrategyRef.current=null;barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[symbol]);
  useEffect(()=>{if((!running&&!smartAnalyzer)||!isConnected)return;const id=window.setInterval(()=>fetchProfitTable({limit:500,offset:0,sort:'DESC'}),5000);return()=>clearInterval(id)},[running,smartAnalyzer,isConnected,fetchProfitTable]);
  useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&requestStartedAt.current>0&&!proposal&&!buying&&activeContractId===null&&Date.now()-requestStartedAt.current>5000){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic)||riskAwaitingContractRef.current===null)stakeReadyRef.current=true}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic]);
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // AI Analyst must finish the 25-tick analysis and select the bot before trading.
   if(smartAnalyzer){
-   if(!smartAdvice||!analyze100Ticks||smartAdvice.noTrade||Number(smartAdvice.score)<60)return;
+   if(!smartAdvice||smartAdvice.noTrade||Number(smartAdvice.score)<65)return;
    const analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];
    if(!analystStrategy||strategy!==analystStrategy)return;
   }
@@ -420,41 +439,104 @@ export default function AutoBotV4(){
     lastActivityAt.current=Date.now();
    }
   },[activeContractId]); useEffect(()=>{
- if(!smartAnalyzer){setSmartAdvice(null);setAnalyzerHistory([]);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;setAnalyzerNotice(null);return;}
+ if(!smartAnalyzer){
+  setSmartAdvice(null);setAnalyzerHistory([]);lastAdvisorKeyRef.current='';lastAnalyzerEvalTickRef.current=0;
+  analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;
+  setAnalyzerNotice(null);analyzerDecisionHistoryRef.current=[];return;
+ }
  if(ticks.length<25){setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 ticks...');return;}
  if(!analyze100Ticks)return;
+ // Sliding 25-tick window; re-evaluate every 3 incoming ticks.
  if(lastAnalyzerEvalTickRef.current>0&&totalTickCountRef.current-lastAnalyzerEvalTickRef.current<3)return;
  lastAnalyzerEvalTickRef.current=totalTickCountRef.current;
+
  const result:any=analyze100Ticks;
- const suggested=ANALYZER_STRATEGY_TO_BOT[result.strategy];
- if(!suggested)return;
  const rankings:any[]=Array.isArray(result.rankings)?result.rankings:[result];
- const currentRanking=rankings.find((x:any)=>x.strategy===STRATEGY_BOT_NAMES[strategy]);
+ const currentBotName=STRATEGY_BOT_NAMES[strategy];
+ const currentRanking=rankings.find((x:any)=>x.strategy===currentBotName);
  const currentScore=Number(currentRanking?.score)||0;
- const challengerScore=Number(result.score)||0;
- const advantage=challengerScore-currentScore;
- const switchThreshold=8;
+ const bestScore=Number(result.score)||0;
+ const bestBot=ANALYZER_STRATEGY_TO_BOT[result.strategy];
+ if(!bestBot)return;
+
+ const switchThreshold=7;
+ const cooldownTicks=3;
  const ticksSinceSwitch=totalTickCountRef.current-analyzerLastSwitchTickRef.current;
- const cooldownActive=ticksSinceSwitch<5;
- const strongRegimeChange=Boolean(result.regimeChange)&&challengerScore>=85&&advantage>=12;
- const shouldSwitch=strategy!==suggested&&!result.noTrade&&challengerScore>=60&&(!cooldownActive||strongRegimeChange);
- const shouldKeepCurrent=strategy===suggested||(currentScore>=60&&!strongRegimeChange&&challengerScore<currentScore+switchThreshold);
- if(result.noTrade||challengerScore<60){
-  setSmartAdvice({...result,currentScore});setAnalyzerNoticeColor('#ff444f');setAnalyzerNotice('AI Analyst: NO TRADE');
-  const entry={time:new Date().toLocaleTimeString(),strategy:result.strategy,label:result.label,score:Math.round(challengerScore),confidence:Math.round(result.confidence),stability:Math.round(result.stability),action:'NO TRADE'};
-  analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);setAnalyzerHistory(analyzerDecisionHistoryRef.current);return;
+ const cooldownActive=ticksSinceSwitch<cooldownTicks;
+ const currentOutOfPhase=currentRanking?.phase==='FORA DA FASE'||currentScore<60;
+ const strongRegimeChange=Boolean(result.regimeChange)&&bestScore>=78&&((bestScore-currentScore)>=10||Number(result.recentStrength)>=80);
+
+ // Analysis and entry are separate. We first decide which candidate is selected,
+ // then that candidate supplies the direction used by the entry engine.
+ let selected:any=result;
+ let action='';
+
+ if(result.noTrade&&(!currentRanking||currentScore<65)){
+   setSmartAdvice({...result,noTrade:true,currentScore});
+   setAnalyzerNoticeColor('#ff444f');
+   setAnalyzerNotice('AI Analyst: NO TRADE — fase insuficiente');
+   action='NO TRADE';
+ }else if(strategy!==bestBot){
+   const challengerIsStrong=bestScore>=65&&!result.noTrade;
+   const enoughAdvantage=bestScore>=currentScore+switchThreshold;
+   const maySwitch=!cooldownActive||strongRegimeChange;
+   if(challengerIsStrong&&(currentOutOfPhase||enoughAdvantage)&&maySwitch){
+      selected=result;
+      pendingAnalyzerStrategyRef.current=bestBot;
+      setStrategy(bestBot);
+      analyzerLastSwitchTickRef.current=totalTickCountRef.current;
+      analyzerLastSwitchAtRef.current=Date.now();
+      setAnalyzerNoticeColor(ANALYZER_COLORS[result.strategy]||'#3D7FFF');
+      setAnalyzerNotice('TROCA PARA '+result.strategy+' — AI Score '+Math.round(bestScore));
+      analyzerAlertSound();
+      action='TROCA PARA '+result.strategy;
+   }else if(currentRanking&&currentScore>=65){
+      selected=currentRanking;
+      pendingAnalyzerStrategyRef.current=null;
+      setAnalyzerNoticeColor(ANALYZER_COLORS[currentRanking.strategy]||'#3D7FFF');
+      setAnalyzerNotice('MANTÉM '+currentRanking.strategy+' — vantagem insuficiente');
+      action='MANTÉM '+currentRanking.strategy;
+   }else{
+      setSmartAdvice({...result,noTrade:true,currentScore});
+      setAnalyzerNoticeColor('#64748b');
+      setAnalyzerNotice('AGUARDA — nenhum sinal operacional');
+      action='AGUARDA';
+   }
+ }else{
+   selected=currentRanking||result;
+   pendingAnalyzerStrategyRef.current=null;
+   setAnalyzerNoticeColor(ANALYZER_COLORS[selected.strategy]||'#3D7FFF');
+   setAnalyzerNotice('MANTÉM '+selected.strategy+' — AI Score '+Math.round(Number(selected.score)||0));
+   action='MANTÉM '+selected.strategy;
  }
- setSmartAdvice({...result,currentScore,confidenceBand:confidenceBand(challengerScore),advantage});
- let action='AGUARDA';
- if(shouldSwitch&&!shouldKeepCurrent){
-  pendingAnalyzerStrategyRef.current=suggested;setStrategy(suggested);analyzerLastSwitchTickRef.current=totalTickCountRef.current;analyzerLastSwitchAtRef.current=Date.now();
-  action='TROCA PARA '+result.strategy;setAnalyzerNoticeColor(ANALYZER_COLORS[result.strategy]||'#3D7FFF');setAnalyzerNotice('TROCA PARA '+result.strategy+' — AI Score '+Math.round(challengerScore));analyzerAlertSound();
- }else if(strategy===suggested){
-  pendingAnalyzerStrategyRef.current=null;action='MANTÉM '+result.strategy;setAnalyzerNoticeColor(ANALYZER_COLORS[result.strategy]||'#3D7FFF');setAnalyzerNotice('MANTÉM '+result.strategy+' — AI Score '+Math.round(challengerScore));
- }else{setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('AGUARDA — diferença insuficiente para trocar');}
- const entry={time:new Date().toLocaleTimeString(),strategy:result.strategy,label:result.label,score:Math.round(challengerScore),confidence:Math.round(result.confidence),stability:Math.round(result.stability),action};
- analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);setAnalyzerHistory(analyzerDecisionHistoryRef.current);
- lastAdvisorKeyRef.current=result.strategy+'|'+result.label;
+
+ if(selected&&!selected.noTrade){
+   setSmartAdvice({
+     ...selected,
+     rankings,
+     noTrade:false,
+     currentScore,
+     confidenceBand:confidenceBand(Number(selected.score)||0),
+     advantage:Number(result.advantage)||0,
+     regimeChange:Boolean(result.regimeChange)
+   });
+ }
+
+ const entry={
+   time:new Date().toLocaleTimeString(),
+   rankings:rankings.slice(0,3).map((x:any)=>({strategy:x.strategy,label:x.label,score:Math.round(x.score)})),
+   strategy:selected?.strategy||result.strategy,
+   label:selected?.label||result.label,
+   score:Math.round(Number(selected?.score??bestScore)||0),
+   confidence:Math.round(Number(selected?.confidence??result.confidence)||0),
+   stability:Math.round(Number(selected?.stability??result.stability)||0),
+   phase:selected?.phase||result.phase,
+   action,
+   regimeChange:Boolean(result.regimeChange)
+ };
+ analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);
+ setAnalyzerHistory(analyzerDecisionHistoryRef.current);
+ lastAdvisorKeyRef.current=entry.strategy+'|'+entry.label;
 },[smartAnalyzer,analyze100Ticks,ticks.length,strategy]);
 
   useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,t]);
