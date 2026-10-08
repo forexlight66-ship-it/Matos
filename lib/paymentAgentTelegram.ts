@@ -70,7 +70,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
     if (action === 'confirm') {
       const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'payment_confirmed');
       if (String((updated as any).purpose || '') === 'complete_course') {
-        const access = await activateCourseAccess(updated.user_id, updated.id);
+        await activateCourseAccess(updated.user_id, updated.id);
         await answerTelegramCallback(callbackId, 'Complete Course confirmado com acesso ilimitado.').catch(() => undefined);
         await editPaymentMessage(query, [
           '🎓 <b>CURSO COMPLETO ATIVADO</b>',
