@@ -647,9 +647,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
                 style={{ position:'relative', gridColumn:'1 / -1', height:58, borderRadius:14, border: paymentMethod==='binance_usdt_trc20' ? '3px solid #111827' : '1px solid #94a3b8', background:paymentMethod==='binance_usdt_trc20' ? '#f3ba2f' : (light?'#fff':'#111827'), color:'#111827', fontWeight:900, cursor:'pointer' }}>
                 Binance — 3 USDT (TRC20){paymentMethod==='binance_usdt_trc20' && <span style={{ marginLeft:8 }}>✓</span>}
               </button>}
+              {isCourse && currency.toUpperCase() !== 'MZN' && <button type="button" onClick={()=>{setPaymentMethod('binance_usdt_trc20'); setAmount('15'); setPaymentCurrency('USDT')}} aria-label="Binance USDT TRC20" style={{ position:'relative', gridColumn:'1 / -1', height:58, borderRadius:14, border: paymentMethod==='binance_usdt_trc20' ? '3px solid #111827' : '1px solid #94a3b8', background:paymentMethod==='binance_usdt_trc20' ? '#f3ba2f' : (light?'#fff':'#111827'), color:'#111827', fontWeight:900, cursor:'pointer' }}>Binance — 15 USDT (TRC20){paymentMethod==='binance_usdt_trc20' && <span style={{ marginLeft:8 }}>✓</span>}</button>}
             </div>
           </div>
-          {(action === 'deposit' || aiAnalystMznEligible) && <div style={{ marginTop:12, display:'grid', gap:10 }}>
+          {(action === 'deposit' || aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) && <div style={{ marginTop:12, display:'grid', gap:10 }}>
             <label style={{ display:'block', fontSize:12, fontWeight:800 }}>
               {copy.yourName}
               <input value={payerName} onChange={event=>setPayerName(event.target.value)} placeholder={copy.yourName} style={{ width:'100%', boxSizing:'border-box', marginTop:6, padding:'12px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#111827', color:'inherit', fontWeight:800 }} />
