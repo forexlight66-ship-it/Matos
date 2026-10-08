@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIAnalystSubscription, completeTransfer, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
+import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIAnalystSubscription, activateCourseAccess, completeTransfer, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
 import { derivPaymentRequest, transferWalletToOptions, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
@@ -69,6 +69,24 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
 
     if (action === 'confirm') {
       const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'payment_confirmed');
+      if (String((updated as any).purpose || '') === 'complete_course') {
+        const access = await activateCourseAccess(updated.user_id, updated.id);
+        await answerTelegramCallback(callbackId, 'Curso confirmado por 30 dias.').catch(() => undefined);
+        await editPaymentMessage(query, [
+          '🎓 <b>CURSO COMPLETO ATIVADO</b>',
+          '',
+          `Cliente: <b>${escapeHtml(updated.client_name)}</b>`,
+          `Conta Deriv: <b>${escapeHtml(updated.client_nickname)}</b>`,
+          `Plano: <b>Complete Course — 30 dias</b>`,
+          `Valor: <b>${updated.payment_method === 'binance_usdt_trc20' ? '15 USDT' : '999 MZN'}</b>`,
+          ...(updated.payer_name || updated.payer_number ? [`Pagador: <b>${escapeHtml(updated.payer_name || '—')}</b>`,`Número usado: <b>${escapeHtml(updated.payer_number || '—')}</b>`] : []),
+          '',
+          `Acesso ativo até: <b>${escapeHtml(new Date(access.expires_at).toLocaleString('pt-PT'))}</b>`,
+          '',
+          'O cliente já pode abrir o Complete Course.',
+        ].join('\\n'));
+        return true;
+      }
       if (String((updated as any).purpose || '') === 'ai_analyst') {
         const subscription = await activateAIAnalystSubscription(updated.user_id, updated.id);
         await answerTelegramCallback(callbackId, 'AI Analyst confirmado por 30 dias.').catch(() => undefined);
