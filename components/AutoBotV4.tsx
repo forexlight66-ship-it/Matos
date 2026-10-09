@@ -93,14 +93,26 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   return {allowed:penalty<25,penalty,reason:reasons.join('; ')};
 }
 function makeSignal(v:number[],s:Strategy,pipSize?:number){
- if(v.length<2)return null;
+ if(v.length<5)return null;
  const x=stats(v,pipSize),t=65;
- if(isRecoveryStrategy(s))return v.length>=2?{contract:'OVER' as Contract,label:s,strength:100}:null;
+ if(isRecoveryStrategy(s))return {contract:'OVER' as Contract,label:s,strength:100};
  const pick=(candidate:any)=>{const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
- if(s==='HYPERLITE')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):null;
- if(s==='PAR_IMPAR')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
- if(s==='ACIMA5_BAIXO4')return x.above5>=t?pick({contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5}):x.below4>=t?pick({contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}):null;
- if(s==='RISE_FALL')return x.rise>=t?pick({contract:'RISE' as Contract,label:'SUBIR',strength:x.rise}):x.fall>=t?pick({contract:'FALL' as Contract,label:'DESCER',strength:x.fall}):null;
+ if(s==='HYPERLITE'){
+  if(x.even>=t){const even=pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even});if(even)return even;}
+  return x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
+ }
+ if(s==='PAR_IMPAR'){
+  if(x.even>=t){const even=pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even});if(even)return even;}
+  return x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
+ }
+ if(s==='ACIMA5_BAIXO4'){
+  if(x.above5>=t){const above=pick({contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5});if(above)return above;}
+  return x.below4>=t?pick({contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}):null;
+ }
+ if(s==='RISE_FALL'){
+  if(x.rise>=t){const rise=pick({contract:'RISE' as Contract,label:'SUBIR',strength:x.rise});if(rise)return rise;}
+  return x.fall>=t?pick({contract:'FALL' as Contract,label:'DESCER',strength:x.fall}):null;
+ }
  if(s==='DIFERENTE')return x.diff>=t?pick({contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}):null;
  const zeroIsDominant=x.match0>=30&&x.match0>Math.max(...x.probs.slice(1));
  return zeroIsDominant?pick({contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}):null;
@@ -396,7 +408,7 @@ export default function AutoBotV4(){
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // AI Analyst must finish the 25-tick analysis and select the bot before trading.
   if(smartAnalyzer){
-   if(!smartAdvice||smartAdvice.noTrade)return;
+   if(!smartAdvice||smartAdvice.noTrade||smartAdvice.qualityBlocked)return;
    if(Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
    const analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];
    if(!analystStrategy||strategy!==analystStrategy)return;
@@ -527,7 +539,7 @@ export default function AutoBotV4(){
      const mapped=advice?ANALYZER_STRATEGY_TO_BOT[String(advice.strategy)]||String(advice.strategy):'';
      if(!advice||advice.noTrade||advice.qualityBlocked||mapped!==strategy){
       cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — sinal não qualificado');
-      if(advice)setSmartAdvice((prev:any)=>prev?{...prev,noTrade:true}:prev);
+      if(advice&&!advice.noTrade)setSmartAdvice((prev:any)=>prev?.noTrade?prev:prev?{...prev,noTrade:true}:prev);
       return;
      }
      qualityStrategy=mapped;
@@ -666,6 +678,19 @@ export default function AutoBotV4(){
      advantage:Number(result.advantage)||0,
      regimeChange:Boolean(result.regimeChange)
    });
+ }else if(selected?.qualityBlocked){
+   setSmartAdvice({
+     ...selected,
+     rankings,
+     noTrade:true,
+     qualityBlocked:true,
+     currentScore,
+     confidenceBand:confidenceBand(Number(selected.score)||0),
+     qualityReason:selected.qualityReason||'baixa qualidade do sinal'
+   });
+   setAnalyzerNoticeColor('#dc2626');
+   setAnalyzerNotice('AI Analyst: SINAL BLOQUEADO — '+String(selected.qualityReason||'baixa qualidade'));
+   action='SINAL BLOQUEADO';
  }
 
  const entry={
