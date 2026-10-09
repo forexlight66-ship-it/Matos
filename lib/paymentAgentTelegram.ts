@@ -260,8 +260,40 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
       const pending = await completeTransfer(id, String(transactionId), 'transfer_pending');
       const refreshToken = revealRefreshToken(pending || claimed);
       const clientId = process.env.DERIV_APP_ID?.trim();
-      if (!refreshToken || !clientId) throw new Error('Refresh token do cliente indisponível para transferir Wallet → Options.');
-      const refreshed = await refreshAccessToken(clientId, refreshToken);
+      if (!refreshToken || !clientId) {
+        await editPaymentMessage(query, [
+          '⚠️ <b>WALLET RECEBEU — OPTIONS PENDENTE</b>',
+          '',
+          `Cliente: <b>${escapeHtml(claimed.client_name)}</b>`,
+          `Conta Deriv: <b>${escapeHtml(claimed.client_nickname)}</b>`,
+          `Valor: <b>${amountUsd(claimed.amount_usd)} USD</b>`,
+          `Transaction ID Wallet: <b>${escapeHtml(String(transactionId))}</b>`,
+          '',
+          'A transferência do Payment Agent para a Wallet foi confirmada pela Deriv.',
+          'A transferência Wallet → Options não foi executada porque falta o refresh token da conta cliente.',
+          'Não aprove este depósito novamente. O valor já está na Wallet; volte a ligar a Deriv e transfira Wallet → Options, ou contacte o suporte para concluir esta etapa.',
+        ].join('\\n'));
+        return true;
+      }
+      let refreshed: Awaited<ReturnType<typeof refreshAccessToken>>;
+      try {
+        refreshed = await refreshAccessToken(clientId, refreshToken);
+      } catch (refreshError) {
+        const detail = refreshError instanceof Error ? refreshError.message : 'falha de autenticação';
+        await editPaymentMessage(query, [
+          '⚠️ <b>WALLET RECEBEU — OPTIONS PENDENTE</b>',
+          '',
+          `Cliente: <b>${escapeHtml(claimed.client_name)}</b>`,
+          `Valor: <b>${amountUsd(claimed.amount_usd)} USD</b>`,
+          `Transaction ID Wallet: <b>${escapeHtml(String(transactionId))}</b>`,
+          '',
+          'A transferência do Payment Agent para a Wallet foi confirmada pela Deriv.',
+          'Não foi possível renovar a sessão Deriv para transferir Wallet → Options.',
+          `Detalhe: ${escapeHtml(detail)}`,
+          'Não aprove este depósito novamente; a transferência para a Wallet já foi executada.',
+        ].join('\\n'));
+        return true;
+      }
       if (refreshed.refresh_token) await updateRefreshToken(id, refreshed.refresh_token);
       const platformRequestId = (pending?.platform_transfer_request_id || randomUUID()) as ReturnType<typeof randomUUID>;
       if (!pending?.platform_transfer_request_id) await setPlatformTransferRequestId(id, platformRequestId);
