@@ -69,13 +69,14 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
     else if(ones>=2)add(15,'concentração no 1');
   }else if(s==='HYPERSHIELD'){
     const fives=concentrated(5);
-    const lowerDanger=count(n=>n===3||n===4);
-    if(lowerDanger>0)add(30,'3/4 apareceu no bloco recente');
+    const blockedDigits=count(n=>n===0||n===3||n===4);
+    if(blockedDigits>0)add(30,'0/3/4 apareceu no bloco recente — entrada bloqueada');
     if(fives>=3)add(30,'5 excessivamente concentrado');
     else if(fives>=2)add(15,'concentração no 5');
   }else if(s==='HYPERBREAK'){
     const sevens=concentrated(7);
-    if(count(n=>n===8)>0)add(30,'8 apareceu no bloco recente');
+    const blockedDigits=count(n=>n===0||n===8);
+    if(blockedDigits>0)add(30,'0/8 apareceu no bloco recente — entrada bloqueada');
     if(sevens>=3)add(30,'7 excessivamente concentrado');
     else if(sevens>=2)add(15,'concentração no 7');
   }else if(s==='RISE_FALL'){
