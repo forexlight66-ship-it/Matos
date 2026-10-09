@@ -93,10 +93,12 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   }
   return {allowed:penalty<25,penalty,reason:reasons.join('; ')};
 }
-function makeSignal(v:number[],s:Strategy,pipSize?:number){
+function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
  if(v.length<5)return null;
  const x=stats(v,pipSize),t=65;
- const pick=(candidate:any)=>{const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
+ // Signal Quality Filter é exclusivo do AI Analyst. No modo manual, mantém-se
+ // a regra base do bot sem os filtros adicionais de concentração/continuidade.
+ const pick=(candidate:any)=>{if(!applyQualityFilter)return candidate;const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
  if(isRecoveryStrategy(s))return pick({contract:'OVER' as Contract,label:s,strength:100});
  if(s==='HYPERLITE')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):null;
  if(s==='PAR_IMPAR'){
@@ -417,7 +419,7 @@ export default function AutoBotV4(){
    ? {contract:smartAdvice.contract as Contract,label:String(smartAdvice.label),strength:Number(smartAdvice.score)||0}
    : isRecoveryStrategy(strategy)
      ? {contract:'OVER' as Contract,label:strategy,strength:100}
-     : makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize);
+     : makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize,smartAnalyzer);
   if(!freshSignal)return;
   if(requested.current)return;
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current))return;
@@ -553,7 +555,7 @@ export default function AutoBotV4(){
      qualityLabel=strategy;
      expectedContract=null;
     }else{
-     const freshSignal=makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize);
+     const freshSignal=makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize,smartAnalyzer);
      if(!freshSignal){
       cancelUnqualifiedEntry('Signal Quality Filter: aguardando um sinal válido de 5 ticks');
       return;
@@ -562,11 +564,16 @@ export default function AutoBotV4(){
      expectedContract=(freshSignal.contract||null) as Contract|null;
     }
 
-    const quality=signalQuality(ticks.slice(-25),qualityStrategy,qualityLabel,tickPipSize);
-    if(!quality.allowed){
-     cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — '+quality.reason);
-     if(smartAnalyzer)setSmartAdvice((prev:any)=>prev?{...prev,noTrade:true,qualityBlocked:true,qualityPenalty:quality.penalty,qualityReason:quality.reason}:prev);
-     return;
+    // No modo Start Robot (AI Analyst desligado), não aplicar as proteções
+    // adicionais de qualidade. Validar apenas o sinal base e a correspondência
+    // entre o tipo de contrato cotado e o sinal mais recente.
+    if(smartAnalyzer){
+     const quality=signalQuality(ticks.slice(-25),qualityStrategy,qualityLabel,tickPipSize);
+     if(!quality.allowed){
+      cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — '+quality.reason);
+      setSmartAdvice((prev:any)=>prev?{...prev,noTrade:true,qualityBlocked:true,qualityPenalty:quality.penalty,qualityReason:quality.reason}:prev);
+      return;
+     }
     }
 
     const proposalType=String((proposal as any).contract_type||'').toUpperCase();
