@@ -738,14 +738,6 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               style={{ width:'100%', boxSizing:'border-box', marginTop:8, padding:'14px 13px', borderRadius:11, border:'1px solid #94a3b8', background:light?'#fff':'#171c24', color:'inherit', fontSize:22, fontWeight:900, letterSpacing:6, textAlign:'center' }}
             />
             <div id="payment-agent-otp-help" style={{ marginTop:7, fontSize:11, lineHeight:1.45, opacity:.75 }}>{copy.codeHelp}</div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void requestOtp()}
-              style={{ width:'100%', marginTop:12, padding:12, border:'1px solid #ff4654', borderRadius:11, background:'transparent', color:light?'#be123c':'#ff6875', fontWeight:900, cursor:busy?'wait':'pointer' }}
-            >
-              {busy ? copy.processing : copy.sendCode}
-            </button>
           </div>
         )}
 
