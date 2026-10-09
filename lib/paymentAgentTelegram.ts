@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
-import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIAnalystSubscription, activateCourseAccess, completeTransfer, revealRefreshToken, updateRefreshToken, markPlatformTransferCompleted, setPlatformTransferRequestId } from '@/lib/paymentAgentRequests';
+import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIAnalystSubscription, activateCourseAccess, completeTransfer } from '@/lib/paymentAgentRequests';
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
-import { derivPaymentRequest, transferWalletToOptions, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
+import { derivPaymentRequest, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
 
 function callbackBotToken() {
@@ -172,42 +172,15 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
     }
 
     if (action === 'retry-options') {
-      if (row.status !== 'transfer_pending') throw Object.assign(new Error('Este pedido não está aguardando transferência para Options.'), { status: 409 });
-      await answerTelegramCallback(callbackId, 'A tentar novamente Wallet → Options…').catch(() => undefined);
-      const refreshToken = revealRefreshToken(row);
-      const clientId = process.env.DERIV_APP_ID?.trim();
-      if (!refreshToken || !clientId) throw new Error('Refresh token do cliente indisponível para transferir Wallet → Options.');
-      const refreshed = await refreshAccessToken(clientId, refreshToken);
-      if (refreshed.refresh_token) await updateRefreshToken(row.id, refreshed.refresh_token);
-      const platformRequestId = (row.platform_transfer_request_id || randomUUID()) as ReturnType<typeof randomUUID>;
-      if (!row.platform_transfer_request_id) await setPlatformTransferRequestId(row.id, platformRequestId);
-      try {
-        const result = await transferWalletToOptions(refreshed.access_token, Number(row.amount_usd), platformRequestId);
-        const completed = await markPlatformTransferCompleted(row.id);
-        await editPaymentMessage(query, [
-          '✅ <b>DEPÓSITO CONCLUÍDO — WALLET → OPTIONS</b>',
-          '',
-          `Cliente: <b>${escapeHtml(completed?.client_name || row.client_name)}</b>`,
-          `Conta Options: <b>USD</b>`,
-          `Valor: <b>$${amountUsd(completed?.amount_usd || row.amount_usd)} USD</b>`,
-          '',
-          'O valor foi transferido da Wallet para a conta Options real do cliente.',
-        ].join('\\n'));
-        return true;
-      } catch (error) {
-        const code = String((error as { code?: string })?.code || '');
-        if (code === 'DuplicateRequestID') {
-          const completed = await markPlatformTransferCompleted(row.id);
-          await editPaymentMessage(query, [
-            '✅ <b>WALLET → OPTIONS JÁ EXECUTADO</b>',
-            '',
-            `Cliente: <b>${escapeHtml(completed?.client_name || row.client_name)}</b>`,
-            `Valor: <b>$${amountUsd(completed?.amount_usd || row.amount_usd)} USD</b>`,
-          ].join('\\n'));
-          return true;
-        }
-        throw error;
-      }
+      await answerTelegramCallback(callbackId, 'A transferência automática Wallet → Options foi desativada.', true).catch(() => undefined);
+      await editPaymentMessage(query, [
+        'ℹ️ <b>DEPÓSITO NA WALLET</b>',
+        '',
+        'A transferência automática para Options está desativada.',
+        'O valor permanece na Wallet Deriv. Se desejar, o cliente pode transferir manualmente na própria Deriv.',
+        'Não aprove este pedido novamente.',
+      ].join('\\n'));
+      return true;
     }
 
     if (action === 'approve' && row.type === 'withdraw') {
@@ -257,85 +230,20 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
     const transactionId = result?.data?.transaction_id ?? null;
 
     if (transferStatus === 'complete' && transactionId != null) {
-      const pending = await completeTransfer(id, String(transactionId), 'transfer_pending');
-      const refreshToken = revealRefreshToken(pending || claimed);
-      const clientId = process.env.DERIV_APP_ID?.trim();
-      if (!refreshToken || !clientId) {
-        await editPaymentMessage(query, [
-          '⚠️ <b>WALLET RECEBEU — OPTIONS PENDENTE</b>',
-          '',
-          `Cliente: <b>${escapeHtml(claimed.client_name)}</b>`,
-          `Conta Deriv: <b>${escapeHtml(claimed.client_nickname)}</b>`,
-          `Valor: <b>${amountUsd(claimed.amount_usd)} USD</b>`,
-          `Transaction ID Wallet: <b>${escapeHtml(String(transactionId))}</b>`,
-          '',
-          'A transferência do Payment Agent para a Wallet foi confirmada pela Deriv.',
-          'A transferência Wallet → Options não foi executada porque falta o refresh token da conta cliente.',
-          'Não aprove este depósito novamente. O valor já está na Wallet; volte a ligar a Deriv e transfira Wallet → Options, ou contacte o suporte para concluir esta etapa.',
-        ].join('\\n'));
-        return true;
-      }
-      let refreshed: Awaited<ReturnType<typeof refreshAccessToken>>;
-      try {
-        refreshed = await refreshAccessToken(clientId, refreshToken);
-      } catch (refreshError) {
-        const detail = refreshError instanceof Error ? refreshError.message : 'falha de autenticação';
-        await editPaymentMessage(query, [
-          '⚠️ <b>WALLET RECEBEU — OPTIONS PENDENTE</b>',
-          '',
-          `Cliente: <b>${escapeHtml(claimed.client_name)}</b>`,
-          `Valor: <b>${amountUsd(claimed.amount_usd)} USD</b>`,
-          `Transaction ID Wallet: <b>${escapeHtml(String(transactionId))}</b>`,
-          '',
-          'A transferência do Payment Agent para a Wallet foi confirmada pela Deriv.',
-          'Não foi possível renovar a sessão Deriv para transferir Wallet → Options.',
-          `Detalhe: ${escapeHtml(detail)}`,
-          'Não aprove este depósito novamente; a transferência para a Wallet já foi executada.',
-        ].join('\\n'));
-        return true;
-      }
-      if (refreshed.refresh_token) await updateRefreshToken(id, refreshed.refresh_token);
-      const platformRequestId = (pending?.platform_transfer_request_id || randomUUID()) as ReturnType<typeof randomUUID>;
-      if (!pending?.platform_transfer_request_id) await setPlatformTransferRequestId(id, platformRequestId);
-
-      try {
-        await transferWalletToOptions(refreshed.access_token, Number(claimed.amount_usd), platformRequestId);
-        const completed = await markPlatformTransferCompleted(id);
-        await editPaymentMessage(query, [
-          '✅ <b>DEPÓSITO CONCLUÍDO — WALLET → OPTIONS</b>',
-          '',
-          `Cliente: <b>${escapeHtml(completed?.client_name || claimed.client_name)}</b>`,
-          `Conta Deriv: <b>${escapeHtml(completed?.client_nickname || claimed.client_nickname)}</b>`,
-          `Valor: <b>$${amountUsd(completed?.amount_usd || claimed.amount_usd)} USD</b>`,
-          `Transaction ID Wallet: <b>${escapeHtml(String(transactionId))}</b>`,
-          '',
-          'Pagamento do agente → Wallet concluído.',
-          'Wallet → Options real USD concluído automaticamente.',
-        ].join('\\n'));
-        return true;
-      } catch (error) {
-        const code = String((error as { code?: string })?.code || '');
-        if (code === 'DuplicateRequestID') {
-          const completed = await markPlatformTransferCompleted(id);
-          await editPaymentMessage(query, [
-            '✅ <b>WALLET → OPTIONS JÁ EXECUTADO</b>',
-            '',
-            `Cliente: <b>${escapeHtml(completed?.client_name || claimed.client_name)}</b>`,
-            `Valor: <b>$${amountUsd(completed?.amount_usd || claimed.amount_usd)} USD</b>`,
-          ].join('\\n'));
-          return true;
-        }
-        await editPaymentMessage(query, [
-          '⚠️ <b>WALLET RECEBEU — OPTIONS PENDENTE</b>',
-          '',
-          `Cliente: <b>${escapeHtml(claimed.client_name)}</b>`,
-          `Valor: <b>$${amountUsd(claimed.amount_usd)} USD</b>`,
-          '',
-          'O depósito foi concluído na Wallet, mas Wallet → Options falhou.',
-          'Nenhum novo depósito será enviado. Pode tentar novamente abaixo.',
-        ].join('\\n'), [[{ text: '🔁 TENTAR WALLET → OPTIONS', callback_data: `pa:retry-options:${id}` }]]);
-        return true;
-      }
+      const completed = await completeTransfer(id, String(transactionId), 'completed');
+      await editPaymentMessage(query, [
+        '✅ <b>DEPÓSITO CONCLUÍDO — WALLET DERIV</b>',
+        '',
+        `Cliente: <b>${escapeHtml(completed?.client_name || claimed.client_name)}</b>`,
+        `Conta Deriv: <b>${escapeHtml(completed?.client_nickname || claimed.client_nickname)}</b>`,
+        `Valor: <b>$${amountUsd(completed?.amount_usd || claimed.amount_usd)} USD</b>`,
+        `Transaction ID: <b>${escapeHtml(String(transactionId))}</b>`,
+        '',
+        'A Deriv confirmou que o valor foi enviado para a Wallet do cliente.',
+        'A transferência automática Wallet → Options está desativada.',
+        'O cliente pode deixar o valor na Wallet ou transferi-lo manualmente na Deriv.',
+      ].join('\\n'));
+      return true;
     }
 
     if (transferStatus === 'pending') {
@@ -347,7 +255,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
         `Valor: <b>$${amountUsd(claimed.amount_usd)} USD</b>`,
         `Request ID: <b>${escapeHtml(String(claimed.transfer_request_id || '—'))}</b>`,
         '',
-        'A Deriv ainda está a processar. Wallet → Options será feito após a confirmação.',
+        'A Deriv ainda está a processar o envio para a Wallet. Nenhuma transferência automática para Options será iniciada.',
       ].join('\\n'));
       return true;
     }
