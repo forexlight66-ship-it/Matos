@@ -27,40 +27,70 @@ const decimalPlaces=(pipSize:number)=>{if(!Number.isFinite(pipSize)||pipSize<=0)
 const digit=(v:number|string|null|undefined,pipSize?:number)=>{if(v==null)return null;let s=String(v).trim();if(pipSize&&Number.isFinite(pipSize)&&pipSize>0&&typeof v==='number'){const places=decimalPlaces(pipSize);s=v.toFixed(places)}const chars=s.match(/\d/g);return chars?.length?Number(chars[chars.length-1]):null};
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
 function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
- const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null);
- const r=d.slice(-5);
- if(r.length<5)return {allowed:true,penalty:0,reason:''};
- const last=r[r.length-1];
- let penalty=0,reason='';
- const count=(fn:(n:number)=>boolean)=>r.filter(fn).length;
- if(s==='ACIMA5_BAIXO4'&&label==='ABAIXO 4'){
-   const threes=count(n=>n===3),lower=count(n=>n<=2);
-   if(last===3&&threes>=2&&lower===0){penalty=30;reason='3 repetido no limite';}
-   else if(last===3&&threes>=2){penalty=15;reason='concentração no 3';}
- }else if(s==='ACIMA5_BAIXO4'&&label==='ACIMA 5'){
-   const sixes=count(n=>n===6),higher=count(n=>n>=7);
-   if(last===6&&sixes>=2&&higher===0){penalty=30;reason='6 repetido no limite';}
-   else if(last===6&&sixes>=2){penalty=15;reason='concentração no 6';}
- }else if(s==='PAR_IMPAR'||s==='HYPERLITE'){
-   if(count(n=>n===last)>=3){penalty=12;reason='concentração em um dígito';}
- }else if(s==='DIFERENTE'||s==='HYPERSWAP'){
-   if(last===0&&count(n=>n===0)>=2){penalty=25;reason='0 repetido contra DIFERENTE';}
- }else if(s==='HYPERGUARD'){
-   const ones=count(n=>n===1),higher=count(n=>n>=2);
-   if(last===1&&ones>=2&&higher===0){penalty=25;reason='1 repetido no limite';}
- }else if(s==='HYPERSHIELD'){
-   const fives=count(n=>n===5),higher=count(n=>n>=6);
-   if(last===5&&fives>=2&&higher===0){penalty=25;reason='5 repetido no limite';}
- }else if(s==='HYPERBREAK'){
-   const sevens=count(n=>n===7),lower=count(n=>n<=6);
-   if(last===7&&sevens>=2&&lower===0){penalty=25;reason='7 repetido no limite';}
- }else if(s==='RISE_FALL'){
-   let up=0,down=0;
-   for(let k=1;k<r.length;k++){if(r[k]>r[k-1])up++;else if(r[k]<r[k-1])down++}
-   const wanted=label==='SUBIR'?up:down;
-   if(wanted<=1){penalty=20;reason='movimento sem continuidade';}
- }
- return {allowed:penalty<25,penalty,reason};
+  const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null);
+  const r=d.slice(-5);
+  if(r.length<5)return {allowed:false,penalty:0,reason:'a aguardar 5 ticks completos'};
+  let penalty=0;
+  const reasons:string[]=[];
+  const count=(fn:(n:number)=>boolean)=>r.filter(fn).length;
+  const add=(points:number,reason:string)=>{
+    penalty=Math.min(60,penalty+points);
+    if(!reasons.includes(reason))reasons.push(reason);
+  };
+  const concentrated=(n:number)=>count(x=>x===n);
+
+  if(s==='ACIMA5_BAIXO4'&&label==='ABAIXO 4'){
+    const threes=concentrated(3);
+    const lower=count(n=>n>=0&&n<=2);
+    const upperDanger=count(n=>n===8||n===9);
+    if(upperDanger>0)add(30,'8/9 apareceu no bloco recente');
+    if(threes>=3)add(30,'3 excessivamente concentrado');
+    else if(threes>=2&&lower===0)add(30,'3 repetido sem aparecer 0–2');
+    else if(threes>=2)add(15,'concentração no 3');
+  }else if(s==='ACIMA5_BAIXO4'&&label==='ACIMA 5'){
+    const sixes=concentrated(6);
+    const higher=count(n=>n>=7&&n<=9);
+    const lowerDanger=count(n=>n===4||n===5);
+    if(lowerDanger>0)add(30,'4/5 apareceu no bloco recente');
+    if(sixes>=3)add(30,'6 excessivamente concentrado');
+    else if(sixes>=2&&higher===0)add(30,'6 repetido sem aparecer 7–9');
+    else if(sixes>=2)add(15,'concentração no 6');
+  }else if(s==='PAR_IMPAR'||s==='HYPERLITE'){
+    const maxCount=Math.max(...Array.from({length:10},(_,n)=>concentrated(n)));
+    if(maxCount>=4)add(30,'um dígito domina 4/5 ticks');
+    else if(maxCount>=3)add(15,'concentração elevada num único dígito');
+  }else if(s==='DIFERENTE'||s==='HYPERSWAP'){
+    const zeros=concentrated(0);
+    if(zeros>=3)add(30,'0 excessivamente concentrado contra DIFERENTE');
+    else if(zeros>=2)add(15,'concentração no 0');
+  }else if(s==='HYPERGUARD'){
+    const ones=concentrated(1);
+    if(ones>=3)add(30,'1 excessivamente concentrado');
+    else if(ones>=2)add(15,'concentração no 1');
+  }else if(s==='HYPERSHIELD'){
+    const fives=concentrated(5);
+    const lowerDanger=count(n=>n===3||n===4);
+    if(lowerDanger>0)add(30,'3/4 apareceu no bloco recente');
+    if(fives>=3)add(30,'5 excessivamente concentrado');
+    else if(fives>=2)add(15,'concentração no 5');
+  }else if(s==='HYPERBREAK'){
+    const sevens=concentrated(7);
+    if(count(n=>n===8)>0)add(30,'8 apareceu no bloco recente');
+    if(sevens>=3)add(30,'7 excessivamente concentrado');
+    else if(sevens>=2)add(15,'concentração no 7');
+  }else if(s==='RISE_FALL'){
+    // Rise/Fall depends on price continuity, not on the last digit going up/down.
+    const prices=v.slice(-5).map(Number);
+    let up=0,down=0;
+    for(let k=1;k<prices.length;k++){
+      if(prices[k]>prices[k-1])up++;
+      else if(prices[k]<prices[k-1])down++;
+    }
+    const wanted=label==='SUBIR'?up:down;
+    if(wanted<=1)add(30,'movimento sem continuidade; possível movimento isolado');
+    else if(wanted===2)add(15,'continuidade fraca do movimento');
+  }
+  return {allowed:penalty<25,penalty,reason:reasons.join('; ')};
 }
 function makeSignal(v:number[],s:Strategy,pipSize?:number){
  if(v.length<2)return null;
@@ -471,7 +501,70 @@ export default function AutoBotV4(){
 
   pendingRiskStakeRef.current=Number(amount.toFixed(2));
   iaRecoveryQuotePendingRef.current=false;
- },[iaPower,running,smartAnalyzer,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,symbol]); useEffect(()=>{if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;if(iaPower&&iaRecoveryQuotePendingRef.current)return;if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;const botName=STRATEGY_BOT_NAMES[strategy];if(!buy(proposal.id,Number(proposal.ask_price),botName)){setNotice('Falha ao enviar a operação para a Deriv.');requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true}},[proposal,buying,activeContractId,running,isAuthorized,isConnected,strategy,buy]); useEffect(()=>{
+ },[iaPower,running,smartAnalyzer,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,symbol]); useEffect(()=>{
+   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
+   if(iaPower&&iaRecoveryQuotePendingRef.current)return;
+   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
+
+   const cancelUnqualifiedEntry=(message:string)=>{
+    setNotice(message);
+    requested.current=false;
+    requestStartedAt.current=0;
+    pendingRiskStakeRef.current=null;
+    iaRecoveryQuotePendingRef.current=false;
+    stakeReadyRef.current=true;
+   };
+
+   // Last-moment validation: the same quality filter protects both AI Analyst
+   // and the direct bot mode immediately before the proposal is bought.
+   if(!isRecoveryStrategy(strategy)){
+    let qualityStrategy:string=strategy;
+    let qualityLabel='';
+    let expectedContract:Contract|null=null;
+
+    if(smartAnalyzer){
+     const advice:any=smartAdvice;
+     const mapped=advice?ANALYZER_STRATEGY_TO_BOT[String(advice.strategy)]||String(advice.strategy):'';
+     if(!advice||advice.noTrade||advice.qualityBlocked||mapped!==strategy){
+      cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — sinal não qualificado');
+      if(advice)setSmartAdvice((prev:any)=>prev?{...prev,noTrade:true}:prev);
+      return;
+     }
+     qualityStrategy=mapped;
+     qualityLabel=String(advice.label||'');
+     expectedContract=(advice.contract||null) as Contract|null;
+    }else{
+     const freshSignal=makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize);
+     if(!freshSignal){
+      cancelUnqualifiedEntry('Signal Quality Filter: aguardando um sinal válido de 5 ticks');
+      return;
+     }
+     qualityLabel=String(freshSignal.label||'');
+     expectedContract=(freshSignal.contract||null) as Contract|null;
+    }
+
+    const quality=signalQuality(ticks.slice(-25),qualityStrategy,qualityLabel,tickPipSize);
+    if(!quality.allowed){
+     cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — '+quality.reason);
+     if(smartAnalyzer)setSmartAdvice((prev:any)=>prev?{...prev,noTrade:true,qualityBlocked:true,qualityPenalty:quality.penalty,qualityReason:quality.reason}:prev);
+     return;
+    }
+
+    const proposalType=String((proposal as any).contract_type||'').toUpperCase();
+    if(proposalType&&expectedContract&&proposalType!==TYPES[expectedContract]){
+     cancelUnqualifiedEntry('Signal Quality Filter: entrada cancelada — o sinal mudou antes da compra');
+     return;
+    }
+   }
+
+   const botName=STRATEGY_BOT_NAMES[strategy];
+   if(!buy(proposal.id,Number(proposal.ask_price),botName)){
+    setNotice('Falha ao enviar a operação para a Deriv.');
+    requested.current=false;
+    requestStartedAt.current=0;
+    stakeReadyRef.current=true;
+   }
+  },[proposal,buying,activeContractId,running,smartAnalyzer,smartAdvice,ticks,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice]); useEffect(()=>{
    if(activeContractId!==null){
     riskAwaitingContractRef.current=activeContractId;
     stakeReadyRef.current=false;
@@ -524,7 +617,7 @@ export default function AutoBotV4(){
  let selected:any=result;
  let action='';
 
- if(result.noTrade&&(!currentRanking||currentScore<65)){
+ if(result.noTrade&&(!currentRanking||currentScore<65||currentRanking.qualityBlocked)){
    setSmartAdvice({...result,noTrade:true,currentScore});
    setAnalyzerNoticeColor('#ff444f');
    setAnalyzerNotice('AI Analyst: NO TRADE — fase insuficiente');
@@ -563,7 +656,7 @@ export default function AutoBotV4(){
    action='MANTÉM '+selected.strategy;
  }
 
- if(selected&&!selected.noTrade){
+ if(selected&&!selected.noTrade&&!selected.qualityBlocked){
    setSmartAdvice({
      ...selected,
      rankings,
