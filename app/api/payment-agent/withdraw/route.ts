@@ -137,7 +137,12 @@ export async function POST(request: NextRequest) {
         ].join('\\n'),
         [] ,
       );
-    } catch {}
+    } catch (telegramError) {
+      console.error('[Payment Agent Withdrawal] Telegram alert failed after Deriv accepted withdrawal', {
+        requestId,
+        error: telegramError instanceof Error ? telegramError.message : String(telegramError),
+      });
+    }
 
     return NextResponse.json({
       requestId: row.id,
