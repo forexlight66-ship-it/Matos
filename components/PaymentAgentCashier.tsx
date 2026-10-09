@@ -67,16 +67,6 @@ function withdrawalStatusMessage(status: string | undefined, language: string, c
   return title + ': ' + statusText(status, copy) + '.';
 }
 
-function withdrawalStatusMessage(status: string | undefined, language: string, copy: Copy) {
-  if (status === 'complete' || status === 'completed') {
-    if (language === 'en') return 'Withdrawal: Completed. Please wait for your payment shortly.';
-    if (language === 'es') return 'Retiro: Completado. Espere el pago en breve.';
-    return 'Levantamento: Concluído. Aguarde o pagamento dentro em breve.';
-  }
-  const title = language === 'en' ? 'Withdrawal' : language === 'es' ? 'Retiro' : 'Levantamento';
-  return title + ': ' + statusText(status, copy) + '.';
-}
-
 export default function PaymentAgentCashier({ open, action, currency, light, onClose, onNotice }: PaymentAgentCashierProps) {
   const { language } = useLanguage();
   const isAiAnalyst = action === 'ai_analyst';
