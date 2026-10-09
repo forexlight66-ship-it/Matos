@@ -99,10 +99,14 @@ export async function POST(request: NextRequest) {
             '',
             '⚠️ O cliente informou que já efetuou o pagamento. Confirme o recebimento antes de qualquer transferência.',
           ].join('\n');
-      const buttons = [[
-        { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
-        { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
-      ]];
+      const nicknameToCopy = String(row.client_nickname || '').trim();
+      const buttons = [
+        ...(nicknameToCopy ? [[{ text: '📋 COPIAR NICKNAME', copy_text: { text: nicknameToCopy } }]] : []),
+        [
+          { text: '✅ CONFIRMAR PAGAMENTO', callback_data: `pa:confirm:${row.id}` },
+          { text: '❌ REJEITAR', callback_data: `pa:reject:${row.id}` },
+        ],
+      ];
       await sendAgentPhotoAlert(
         proof!,
         `${alertText}\n\n📎 <b>COMPROVATIVO DE PAGAMENTO ANEXADO</b>`,
