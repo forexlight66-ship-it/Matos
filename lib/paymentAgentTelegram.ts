@@ -35,12 +35,25 @@ function amountUsd(value: unknown) {
 }
 
 async function editPaymentMessage(query: any, text: string, buttons: Array<Array<{ text: string; callback_data: string }>> = []) {
-  await editTelegramMessage(
-    String(query.message?.chat?.id || configuredAgentChatId()),
-    Number(query.message?.message_id),
-    text,
-    buttons,
-  );
+  const chatId = String(query.message?.chat?.id || configuredAgentChatId());
+  const messageId = Number(query.message?.message_id);
+  const replyMarkup = { inline_keyboard: buttons };
+
+  // Deposit alerts are sent as photos with captions. Telegram rejects
+  // editMessageText for photo messages, which prevented the approval button
+  // from appearing after the agent confirmed payment.
+  if (Array.isArray(query.message?.photo) && query.message.photo.length > 0) {
+    await telegramRequest('editMessageCaption', {
+      chat_id: chatId,
+      message_id: messageId,
+      caption: text,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup,
+    });
+    return;
+  }
+
+  await editTelegramMessage(chatId, messageId, text, buttons);
 }
 
 export async function handlePaymentAgentTelegramCallback(query: any) {
