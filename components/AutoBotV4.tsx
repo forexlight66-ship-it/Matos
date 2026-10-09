@@ -776,41 +776,8 @@ export default function AutoBotV4(){
       <div className="text-[8px] font-bold muted">{smartAdvice.confidenceBand||'—'}</div>
     </div>}
   </div>
-  {smartAnalyzer&&smartAdvice&&<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">BOT</div><b className="text-[10px]">{smartAdvice.strategy}</b></div>
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">SINAL</div><b className="text-[10px]">{smartAdvice.label}</b></div>
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">FASE</div><b className="text-[10px]" style={{color:smartAdvice.earlyEntry?'#059669':undefined}}>{smartAdvice.phase||'—'}</b></div>
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">CONFIANÇA</div><b className="text-[10px]">{Math.round(smartAdvice.confidence||0)}%</b></div>
-  </div>}
-  {smartAnalyzer&&smartAdvice&&<div className="mt-2 rounded-lg border border-slate-300/30 p-2">
-    <div className="flex items-center justify-between gap-2">
-      <div>
-        <div className="text-[8px] muted">QUALIDADE DO SINAL</div>
-        <b className="text-[10px]" style={{color:smartAdvice.qualityBlocked?'#dc2626':'#059669'}}>
-          {smartAdvice.qualityBlocked?'BLOQUEADO':'OPERACIONAL'}
-        </b>
-      </div>
-      <div className="text-right">
-        <div className="text-[8px] muted">PENALIZAÇÃO</div>
-        <b className="text-[10px]">{Math.round(Number(smartAdvice.qualityPenalty)||0)} pts</b>
-      </div>
-    </div>
-    {smartAdvice.qualityReason&&<div className="mt-1 text-[8px] muted">Motivo: {smartAdvice.qualityReason}</div>}
-  </div>}
-  {smartAnalyzer&&smartAdvice&&<div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">ESTABILIDADE</div><b className="text-[10px]">{Math.round(smartAdvice.stability||0)}%</b></div>
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">ENTRADA</div><b className="text-[10px]" style={{color:smartAdvice.earlyEntry?'#059669':undefined}}>{smartAdvice.earlyEntry?'ANTECIPADA':'NORMAL'}</b></div>
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">ACELERAÇÃO</div><b className="text-[10px]">{Math.round(Number(smartAdvice.acceleration)||0)}</b></div>
-    <div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">VANTAGEM</div><b className="text-[10px]">{Math.round(Number(smartAdvice.advantage)||0)} pts</b></div>
-  </div>}
-  {smartAnalyzer&&<div className="mt-3">
-    <div className="mb-2 text-[8px] font-black uppercase muted">Ranking</div>
-    <div className="space-y-1">{(smartAdvice?.rankings||[]).slice(0,3).map((x:any)=><div key={x.strategy+x.label} className="flex items-center justify-between rounded-lg border border-slate-300/20 px-2 py-1.5 text-[9px]"><span><b>{x.strategy}</b> · {x.label}</span><span className="font-black">{Math.round(x.score)}/100</span></div>)}</div>
-  </div>}
-  {smartAnalyzer&&analyzerHistory.length>0&&<div className="mt-3">
-    <div className="mb-2 text-[8px] font-black uppercase muted">Histórico de decisões</div>
-    <div className="max-h-32 space-y-1 overflow-y-auto">{analyzerHistory.slice(0,5).map((x:any,i:number)=><div key={i} className="text-[8px] muted">{x.time} · <b>{x.strategy}</b> {x.label} · {x.score}/100 → {x.action}</div>)}</div>
-  </div>}
+  {smartAnalyzer&&smartAdvice&&<div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">BOT</div><b className="text-[10px]">{smartAdvice.strategy}</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">SINAL</div><b className="text-[10px]">{smartAdvice.label}</b></div></div>}
+
 </div></>}<div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:smartAnalyzer?'#25D366':(light?'#475569':'#94a3b8')}} >{t('analyzer100Ticks')}</div></div><button className={`ia-toggle ${smartAnalyzer?'on':''}`} type="button" onClick={()=>toggleAnalyzer(!smartAnalyzer)} aria-label={t('analyzer100Ticks')} title={smartAnalyzer?'Desligar AI Analyst':'Ligar AI Analyst — inicia automaticamente'}><span/></button></div>
  <div className="mt-2 flex justify-between text-[9px] muted"><span>{SYMBOLS[symbol]}</span><span>{isConnected&&isAuthorized?t('connected'):t('disconnected')}</span></div>
  {error&&<div className="mt-2 rounded-xl border border-red-800 bg-red-950 p-3 text-xs text-red-300">{error}</div>}
