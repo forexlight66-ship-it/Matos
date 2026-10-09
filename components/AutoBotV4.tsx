@@ -656,7 +656,7 @@ export default function AutoBotV4(){
       selected=currentRanking;
       pendingAnalyzerStrategyRef.current=null;
       setAnalyzerNoticeColor(ANALYZER_COLORS[currentRanking.strategy]||'#3D7FFF');
-      setAnalyzerNotice('MANTÉM '+currentRanking.strategy+' — vantagem insuficiente');
+      setAnalyzerNotice(t('keeps')+' '+currentRanking.strategy+' — '+t('insufficientAdvantage'));
       action='MANTÉM '+currentRanking.strategy;
    }else{
       setSmartAdvice({...result,noTrade:true,currentScore});
