@@ -229,10 +229,14 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             ? profile.data.currencies.map((item: any): string => String(item?.currency || item).toUpperCase())
             : [] as string[];
         const normalizedCurrencies: string[] = currencies;
-        setSupportedCurrencies([...new Set<string>(normalizedCurrencies.filter(Boolean))]);
+        const uniqueCurrencies = [...new Set<string>(normalizedCurrencies.filter(Boolean))];
+        // Payment Agent deposit/withdraw APIs submit USD amounts. A Mozambique client
+        // whose default Deriv account is MZN must still be offered the USD wallet flow.
+        const transactionCurrencies = uniqueCurrencies.includes('USD') ? ['USD'] : uniqueCurrencies;
+        setSupportedCurrencies(transactionCurrencies);
         setAgentCurrencies(Array.isArray(profile?.data?.currencies) ? profile.data.currencies : []);
-        if (currencies.length) {
-          setPaymentCurrency(currencies.includes(currency.toUpperCase()) ? currency.toUpperCase() : currencies[0]);
+        if (transactionCurrencies.length) {
+          setPaymentCurrency(transactionCurrencies.includes('USD') ? 'USD' : transactionCurrencies.includes(currency.toUpperCase()) ? currency.toUpperCase() : transactionCurrencies[0]);
         }
       } catch {
         // The nickname flow must remain independent from the profile request.
