@@ -13,12 +13,6 @@ export async function POST(request: NextRequest) {
   if (!session || (!clientToken && !refreshToken)) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
-  if (!refreshToken) {
-    return NextResponse.json({
-      error: 'A ligação Deriv não disponibilizou um refresh token. Volte a ligar a Deriv antes de criar um depósito, para permitir concluir Wallet → Options automaticamente.',
-      code: 'DERIV_REFRESH_TOKEN_REQUIRED',
-    }, { status: 401 });
-  }
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
   }
