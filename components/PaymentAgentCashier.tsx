@@ -136,6 +136,17 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [authExpired, setAuthExpired] = useState(false);
   const [depositStatus, setDepositStatus] = useState<'awaiting_payment' | 'client_marked_paid' | 'payment_confirmed' | 'rejected' | 'completed' | 'failed' | ''>('');
+  const [showHoursNotice, setShowHoursNotice] = useState(false);
+
+  useEffect(() => {
+    if (!open || (action !== 'deposit' && action !== 'withdraw')) {
+      setShowHoursNotice(false);
+      return;
+    }
+    setShowHoursNotice(true);
+    const noticeTimer = window.setTimeout(() => setShowHoursNotice(false), 5000);
+    return () => window.clearTimeout(noticeTimer);
+  }, [open, action]);
 
   useEffect(() => {
     if (!open || !action) return;
@@ -612,6 +623,35 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
           <button type="button" disabled={busy} onClick={onClose} aria-label={copy.close}
             style={{ border:0, background:'transparent', color:'inherit', fontSize:24, lineHeight:1, cursor:'pointer' }}>×</button>
         </div>
+
+        {showHoursNotice && (action === 'deposit' || action === 'withdraw') && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              marginTop:12,
+              display:'flex',
+              alignItems:'center',
+              gap:10,
+              padding:'12px 13px',
+              borderRadius:12,
+              border:'1px solid #fb7185',
+              background:light?'#fff1f2':'#3b1720',
+              color:light?'#9f1239':'#ffe4e6',
+              boxShadow:'0 6px 20px rgba(225,29,72,.14)',
+              fontSize:12,
+              lineHeight:1.45,
+              fontWeight:900,
+            }}
+          >
+            <span aria-hidden="true" style={{fontSize:19, flex:'0 0 auto'}}>🕒</span>
+            <span>{language === 'en'
+              ? 'Service hours: 7:00 AM to 10:00 PM (GMT+2)'
+              : language === 'es'
+                ? 'Horario de atención: 7:00 a 22:00 (GMT+2)'
+                : 'Horário de atendimento: 7:00H até 22:00H (GMT+2)'}</span>
+          </div>
+        )}
 
         <div style={{ fontSize:12, lineHeight:1.45, marginTop:16, padding:12, borderRadius:12, background:light?'#f1f5f9':'#202733' }}>
           {isAiAnalyst
