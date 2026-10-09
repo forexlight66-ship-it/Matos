@@ -75,9 +75,17 @@ function encrypt(value: string) {
 }
 
 function decrypt(value: string) {
-  const [ivRaw, tagRaw, encryptedRaw] = value.split('.');
-  if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error('Invalid encrypted payment-agent secret');
-  const decipher = createDecipheriv('aes-256-gcm', encryptionKey(), ivRaw ? Buffer.from(ivRaw, 'base64url') : Buffer.alloc(0));
+  const parts = value.split('.');
+  // Backward compatibility: older payment requests may contain a refresh token
+  // saved before AES-GCM encryption was introduced. Only accept a long,
+  // separator-free value as legacy plaintext; never guess for malformed
+  // ciphertext that contains separators.
+  if (parts.length !== 3 || parts.some(part => !part)) {
+    if (!value.includes('.') && value.length >= 20) return value;
+    throw new Error('Invalid encrypted payment-agent secret');
+  }
+  const [ivRaw, tagRaw, encryptedRaw] = parts;
+  const decipher = createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(ivRaw, 'base64url'));
   decipher.setAuthTag(Buffer.from(tagRaw, 'base64url'));
   return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, 'base64url')), decipher.final()]).toString('utf8');
 }
