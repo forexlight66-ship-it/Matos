@@ -95,8 +95,8 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
 function makeSignal(v:number[],s:Strategy,pipSize?:number){
  if(v.length<5)return null;
  const x=stats(v,pipSize),t=65;
- if(isRecoveryStrategy(s))return {contract:'OVER' as Contract,label:s,strength:100};
  const pick=(candidate:any)=>{const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
+ if(isRecoveryStrategy(s))return pick({contract:'OVER' as Contract,label:s,strength:100});
  if(s==='HYPERLITE'){
   if(x.even>=t){const even=pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even});if(even)return even;}
   return x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
@@ -529,7 +529,7 @@ export default function AutoBotV4(){
 
    // Last-moment validation: the same quality filter protects both AI Analyst
    // and the direct bot mode immediately before the proposal is bought.
-   if(!isRecoveryStrategy(strategy)){
+   {
     let qualityStrategy:string=strategy;
     let qualityLabel='';
     let expectedContract:Contract|null=null;
@@ -545,6 +545,12 @@ export default function AutoBotV4(){
      qualityStrategy=mapped;
      qualityLabel=String(advice.label||'');
      expectedContract=(advice.contract||null) as Contract|null;
+    }else if(isRecoveryStrategy(strategy)){
+     // Recovery bots also use the same quality filter; their live barrier can differ
+     // from the seed contract, so the proposal-type equality check is intentionally skipped.
+     qualityStrategy=strategy;
+     qualityLabel=strategy;
+     expectedContract=null;
     }else{
      const freshSignal=makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize);
      if(!freshSignal){
