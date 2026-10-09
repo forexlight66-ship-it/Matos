@@ -127,7 +127,7 @@ export async function sendAgentPhotoAlert(
   throw lastError instanceof Error ? lastError : new Error('Telegram payment proof delivery failed');
 }
 
-export async function sendAgentAlert(text: string, buttons: Array<Array<{ text: string; callback_data: string }>>) {
+export async function sendAgentAlert(text: string, buttons: Array<Array<{ text: string; callback_data?: string; copy_text?: { text: string } }>>) {
   const ids = chatIds();
   if (!ids.length) throw new Error('Payment Agent Telegram chat ID is not configured');
 
