@@ -97,10 +97,7 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number){
  const x=stats(v,pipSize),t=65;
  const pick=(candidate:any)=>{const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
  if(isRecoveryStrategy(s))return pick({contract:'OVER' as Contract,label:s,strength:100});
- if(s==='HYPERLITE'){
-  if(x.even>=t){const even=pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even});if(even)return even;}
-  return x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
- }
+ if(s==='HYPERLITE')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):null;
  if(s==='PAR_IMPAR'){
   if(x.even>=t){const even=pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even});if(even)return even;}
   return x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
