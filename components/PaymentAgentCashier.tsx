@@ -57,6 +57,16 @@ function statusText(status: string | undefined, copy: Copy) {
   return copy.accepted;
 }
 
+function withdrawalStatusMessage(status: string | undefined, language: string, copy: Copy) {
+  if (status === 'complete' || status === 'completed') {
+    if (language === 'en') return 'Withdrawal: Completed. Please wait for your payment shortly.';
+    if (language === 'es') return 'Retiro: Completado. Espere el pago en breve.';
+    return 'Levantamento: Concluído. Aguarde o pagamento dentro em breve.';
+  }
+  const title = language === 'en' ? 'Withdrawal' : language === 'es' ? 'Retiro' : 'Levantamento';
+  return title + ': ' + statusText(status, copy) + '.';
+}
+
 export default function PaymentAgentCashier({ open, action, currency, light, onClose, onNotice }: PaymentAgentCashierProps) {
   const { language } = useLanguage();
   const isAiAnalyst = action === 'ai_analyst';
@@ -352,9 +362,10 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         const status = String(payload.data?.status || '').toLowerCase();
         if (!status) return;
 
-        const final = status === 'complete' || status === 'rejected' || status === 'failed';
-        setMessage(actionTitle + ': ' + statusText(status, copy) + '.');
-        onNotice?.(actionTitle + ': ' + statusText(status, copy) + '.');
+        const final = status === 'complete' || status === 'completed' || status === 'rejected' || status === 'failed';
+        const statusMessage = withdrawalStatusMessage(status, language, copy);
+        setMessage(statusMessage);
+        onNotice?.(statusMessage);
 
         if (final && timer) {
           window.clearInterval(timer);
@@ -467,7 +478,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         if (!response.ok) continue;
         const status = payload.data?.status;
         if (!status || status === 'pending') continue;
-        const text = actionTitle + ': ' + statusText(status, copy) + '.';
+        const text = action === 'withdraw' ? withdrawalStatusMessage(status, language, copy) : actionTitle + ': ' + statusText(status, copy) + '.';
         setMessage(text);
         onNotice?.(text);
         return;
@@ -566,7 +577,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       const status = payload.data?.status || 'pending';
       setRequestId(id);
       setStep('result');
-      setMessage(actionTitle + ': ' + statusText(status, copy) + '.');
+      setMessage(action === 'withdraw' ? withdrawalStatusMessage(status, language, copy) : actionTitle + ': ' + statusText(status, copy) + '.');
 
     } catch (error) {
       showError(error instanceof Error ? error.message : copy.failed);
@@ -845,6 +856,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.operation}</div>
             <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
             {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
+            {action === 'withdraw' && <button type="button" onClick={onClose} style={{ width:'100%', marginTop:16, padding:'12px 14px', border:0, borderRadius:11, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:15, cursor:'pointer' }}>{language === 'en' ? 'Close' : language === 'es' ? 'Cerrar' : 'Fechar'}</button>}
             {(action === 'deposit' || action === 'ai_analyst' || action === 'course') && !depositPaid && requestId && <>
               <div style={{ marginTop:14, padding:12, borderRadius:12, border:'1px solid #94a3b8', background:light?'#f8fafc':'#111827' }}>
                 <div style={{ fontSize:12, fontWeight:900 }}>📎 {language === 'en' ? 'Payment proof' : 'Comprovativo do pagamento'}</div>
