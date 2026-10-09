@@ -117,6 +117,11 @@ export async function POST(request: NextRequest) {
     });
 
     try {
+      console.info('[Payment Agent Withdrawal] Sending Telegram alert', {
+        requestId,
+        amountUsd: Number(row.amount_usd),
+        paymentMethod,
+      });
       await sendAgentAlert(
         [
           '🔔 <b>LEVANTAMENTO ENVIADO À DERIV</b>',
@@ -137,6 +142,7 @@ export async function POST(request: NextRequest) {
         ].join('\n'),
         [],
       );
+      console.info('[Payment Agent Withdrawal] Telegram alert sent successfully', { requestId });
     } catch (telegramError) {
       console.error('[Payment Agent Withdrawal] Telegram alert failed after Deriv accepted withdrawal', {
         requestId,
