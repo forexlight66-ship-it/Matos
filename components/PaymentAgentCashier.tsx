@@ -479,7 +479,16 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
       setStep('otp');
       setMessage(copy.sent);
     } catch (error) {
-      showError(error instanceof Error ? error.message : copy.sent);
+      const errorMessage = error instanceof Error ? error.message : copy.sent;
+      const isOtpRateLimited = /too many otp requests|otpratelimitexceeded/i.test(errorMessage);
+      const customerMessage = isOtpRateLimited
+        ? language === 'en'
+          ? 'We could not send the verification code. Please wait about 5 minutes and try again.'
+          : language === 'es'
+            ? 'No se pudo enviar el código de verificación. Espera unos 5 minutos e inténtalo de nuevo.'
+            : 'Não foi possível enviar o código de verificação. Aguarde uns 5 minutos e volte a tentar.'
+        : errorMessage;
+      showError(customerMessage);
     } finally {
       setBusy(false);
     }
