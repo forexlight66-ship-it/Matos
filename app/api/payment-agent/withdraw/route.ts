@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
           '',
           `Cliente: <b>${safeText(session.name)}</b>`,
           `Conta Deriv: <b>${safeText(nickname)}</b>`,
-          `Valor: <b>${row.amount_usd.toFixed(2)} USD</b>`,
-          `A pagar ao cliente: <b>${row.local_amount_mzn.toFixed(2)} MZN</b>`,
+          `Valor: <b>${Number(row.amount_usd).toFixed(2)} USD</b>`,
+          `A pagar ao cliente: <b>${Number(row.local_amount_mzn).toFixed(2)} MZN</b>`,
           `Método: <b>${paymentMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
           `Número: <b>${safeText(paymentNumber)}</b>`,
           `Nome: <b>${safeText(paymentName)}</b>`,
@@ -134,8 +134,8 @@ export async function POST(request: NextRequest) {
           'O levantamento já foi submetido diretamente pela Wallet do cliente para o Payment Agent 503.',
           'Não existe transferência Options → Wallet neste fluxo.',
           'O agente deve liquidar o equivalente ao cliente por M-Pesa/e-Mola após a conclusão na Deriv.',
-        ].join('\\n'),
-        [] ,
+        ].join('\n'),
+        [],
       );
     } catch (telegramError) {
       console.error('[Payment Agent Withdrawal] Telegram alert failed after Deriv accepted withdrawal', {
