@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
           'Não existe transferência Options → Wallet neste fluxo.',
           'O agente deve liquidar o equivalente ao cliente por M-Pesa/e-Mola após a conclusão na Deriv.',
         ].join('\n'),
-        [[{ text: 'Copy phone number', copy_text: { text: paymentNumber } }]],
+        [[{ text: 'Copiar número de telefone', copy_text: { text: paymentNumber } }]],
       );
       console.info('[Payment Agent Withdrawal] Telegram alert sent successfully', { requestId });
     } catch (telegramError) {
