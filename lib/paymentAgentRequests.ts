@@ -80,7 +80,7 @@ function decrypt(value: string) {
   // saved before AES-GCM encryption was introduced. Only accept a long,
   // separator-free value as legacy plaintext; never guess for malformed
   // ciphertext that contains separators.
-  if (parts.length !== 3 || parts.some(part => !part)) {
+  if (parts.length !== 3 || !parts[0] || !parts[1] || parts[2] === undefined) {
     if (!value.includes('.') && value.length >= 20) return value;
     throw new Error('Invalid encrypted payment-agent secret');
   }
