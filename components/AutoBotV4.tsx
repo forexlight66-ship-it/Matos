@@ -324,7 +324,7 @@ export default function AutoBotV4(){
   if((iaPower||sonic)&&Number.isFinite(Number(pendingRiskStakeRef.current)))pendingRiskStakeRef.current=null;
   if(iaPower||sonic)stakeReadyRef.current=true;
  },[running,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake]);
- const{tick,balance,proposal,buy,buying,activeContractId,getProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately);
+ const{tick,balance,proposal,buy,buying,activeContractId,getProposal,clearProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately);
  const resetAppStateForNewUser=useCallback((userKey:string)=>{
   const normalized=String(userKey||'').trim().toLowerCase();
   if(!normalized)return;
@@ -518,6 +518,9 @@ export default function AutoBotV4(){
 
    const cancelUnqualifiedEntry=(message:string)=>{
     setNotice(message);
+    // Uma cotação não pode ficar presa quando o sinal muda durante a resposta.
+    // Invalidamos também o req_id para ignorar respostas atrasadas da Deriv.
+    clearProposal();
     requested.current=false;
     requestStartedAt.current=0;
     pendingRiskStakeRef.current=null;
@@ -580,7 +583,7 @@ export default function AutoBotV4(){
     requestStartedAt.current=0;
     stakeReadyRef.current=true;
    }
-  },[proposal,buying,activeContractId,running,smartAnalyzer,smartAdvice,ticks,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice]); useEffect(()=>{
+  },[proposal,buying,activeContractId,running,smartAnalyzer,smartAdvice,ticks,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal]); useEffect(()=>{
    if(activeContractId!==null){
     riskAwaitingContractRef.current=activeContractId;
     stakeReadyRef.current=false;
