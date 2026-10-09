@@ -50,8 +50,8 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   }else if(s==='ACIMA5_BAIXO4'&&label==='ACIMA 5'){
     const sixes=concentrated(6);
     const higher=count(n=>n>=7&&n<=9);
-    const lowerDanger=count(n=>n===4||n===5);
-    if(lowerDanger>0)add(30,'4/5 apareceu no bloco recente');
+    const lowerDanger=count(n=>n===0||n===4||n===5);
+    if(lowerDanger>0)add(30,'0/4/5 apareceu no bloco recente');
     if(sixes>=3)add(30,'6 excessivamente concentrado');
     else if(sixes>=2&&higher===0)add(30,'6 repetido sem aparecer 7–9');
     else if(sixes>=2)add(15,'concentração no 6');
