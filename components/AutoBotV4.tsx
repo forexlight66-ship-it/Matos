@@ -569,7 +569,7 @@ export default function AutoBotV4(){
     }
 
     const proposalType=String((proposal as any).contract_type||'').toUpperCase();
-    if(proposalType&&expectedContract&&proposalType!==TYPES[expectedContract]){
+    if(!isRecoveryStrategy(strategy)&&proposalType&&expectedContract&&proposalType!==TYPES[expectedContract]){
      cancelUnqualifiedEntry('Signal Quality Filter: entrada cancelada — o sinal mudou antes da compra');
      return;
     }
