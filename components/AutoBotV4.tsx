@@ -120,30 +120,33 @@ function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQual
 function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true,threshold=65,minSamples=9){
  if(v.length<minSamples)return null;
  const x=stats(v,pipSize),t=threshold;
+ // Use a plain string alias to avoid TypeScript narrowing Strategy to MATCH0
+ // after the recovery-strategy type guard.
+ const strategyName:string=String(s);
  // Signal Quality Filter é exclusivo do AI Analyst. No modo manual, mantém-se
  // a regra base do bot sem os filtros adicionais de concentração/continuidade.
  const pick=(candidate:any)=>{if(!applyQualityFilter)return candidate;const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
  if(isRecoveryStrategy(s))return pick({contract:'OVER' as Contract,label:s,strength:100});
- if(s==='HYPERLITE')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):null;
- if(s==='PAR_IMPAR'){
+ if(strategyName==='HYPERLITE')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):null;
+ if(strategyName==='PAR_IMPAR'){
   if(x.even>=t){const even=pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even});if(even)return even;}
   return x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
  }
- if(s==='ACIMA5_BAIXO4'){
+ if(strategyName==='ACIMA5_BAIXO4'){
   if(x.above5>=t){const above=pick({contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5});if(above)return above;}
   return x.below4>=t?pick({contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}):null;
  }
- if(s==='RISE_FALL'){
+ if(strategyName==='RISE_FALL'){
   if(x.rise>=t){const rise=pick({contract:'RISE' as Contract,label:'SUBIR',strength:x.rise});if(rise)return rise;}
   return x.fall>=t?pick({contract:'FALL' as Contract,label:'DESCER',strength:x.fall}):null;
  }
- if(s==='DIFERENTE'||s==='HYPERSWAP')return x.diff>=t?pick({contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}):null;
- if(s==='HYPERGUARD')return x.diff>=t?pick({contract:'OVER' as Contract,label:'ACIMA 0',strength:x.diff}):null;
- if(s==='HYPERSHIELD'){
+ if(strategyName==='DIFERENTE'||strategyName==='HYPERSWAP')return x.diff>=t?pick({contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}):null;
+ if(strategyName==='HYPERGUARD')return x.diff>=t?pick({contract:'OVER' as Contract,label:'ACIMA 0',strength:x.diff}):null;
+ if(strategyName==='HYPERSHIELD'){
   const above4=x.probs.slice(5).reduce((a,b)=>a+b,0);
   return above4>=t?pick({contract:'OVER' as Contract,label:'ACIMA 4',strength:above4}):null;
  }
- if(s==='HYPERBREAK'){
+ if(strategyName==='HYPERBREAK'){
   const below8=x.probs.slice(0,8).reduce((a,b)=>a+b,0);
   return below8>=t?pick({contract:'UNDER' as Contract,label:'ABAIXO 8',strength:below8}):null;
  }
