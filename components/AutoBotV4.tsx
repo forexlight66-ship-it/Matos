@@ -419,7 +419,7 @@ export default function AutoBotV4(){
   const quick=quickRecoverRef.current;const tradeKind=quick.contracts.get(id);if(tradeKind)quick.contracts.delete(id);
   if(tradeKind==='exit'||tradeKind==='recovery'){
    if(result<0){quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
-    if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){quick.active=true;quick.contractType='DIGITUNDER';quick.barrier=8;setNotice('QUICK RECOVER ATIVO — 3 perdas Exit Spots; Hypercover vai escolher entre ACIMA 2 e ABAIXO 8 pela maior pontuação; défice }
+    if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){quick.active=true;quick.contractType='DIGITUNDER';quick.barrier=8;setNotice('QUICK RECOVER ATIVO — 3 perdas Exit Spots; Hypercover vai escolher entre ACIMA 2 e ABAIXO 8 pela maior pontuação; défice $'+quick.deficit.toFixed(2)+'.');}
     else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
    }else if(result>0){quick.consecutive=0;quick.deficit=Number(Math.max(0,quick.deficit-result).toFixed(2));if(quick.active&&quick.deficit<=0.01){quick.active=false;quick.deficit=0;quick.consecutive=0;setNotice('QUICK RECOVER concluído — défice recuperado. A regressar à análise normal.');}else if(quick.active)setNotice('QUICK RECOVER continua — falta recuperar $'+quick.deficit.toFixed(2)+'.');}
   }
