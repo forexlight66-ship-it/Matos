@@ -346,7 +346,10 @@ export default function AutoBotV4(){
   if(!order)return;
   if(proposal?.id&&!buying){
    if(!isConnected||!isAuthorized||activeContractId!==null){manualTradeRef.current=null;clearProposal();manualFeedback(language==='en'?'Manual trade cancelled: connection or contract state changed.':language==='es'?'Operación manual cancelada: cambió la conexión o el contrato.':'Operação manual cancelada: a ligação ou o estado do contrato mudou.');return}
-   if(String(proposal.contract_type||'').toUpperCase()!==order.contractType){manualTradeRef.current=null;clearProposal();manualFeedback(language==='en'?'Manual trade cancelled because the quote did not match the selected direction.':language==='es'?'Operación cancelada porque la cotización no coincide con la dirección seleccionada.':'Operação manual cancelada porque a proposta não corresponde à direcção escolhida.');return}
+   // useDeriv only publishes a proposal whose req_id matches the most recent
+   // request. Some Deriv proposal responses omit or normalize contract_type,
+   // so do not cancel a correctly correlated quote based on that response field.
+   // The requested direction is the one captured in manualTradeRef.
    manualTradeRef.current=null;
    const label=order.contractType==='DIGITOVER'?'Manual Acima '+order.barrier:'Manual Abaixo '+order.barrier;
    if(buy(proposal.id,Number(proposal.ask_price),label,order.barrier)){
