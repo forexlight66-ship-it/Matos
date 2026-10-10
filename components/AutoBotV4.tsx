@@ -363,7 +363,7 @@ export default function AutoBotV4(){
  const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('1HZ100V'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('PAR_IMPAR'),[tickWindow,setTickWindow]=useState(9),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(33),[lossLimit,setLossLimit]=useState(62.50),[metas,setMetas]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[notice,setNotice]=useState<string|null>(null),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]),[manualPanelOpen,setManualPanelOpen]=useState(false),[manualStatus,setManualStatus]=useState(''),[manualAboveBarrier,setManualAboveBarrier]=useState('5'),[manualBelowBarrier,setManualBelowBarrier]=useState('4'),[manualStake,setManualStake]=useState(0.75);
  const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[exitSpotsMode,setExitSpotsMode]=useState(false),[exitSpotsAutoEnabled,setExitSpotsAutoEnabled]=useState(true),[exitSpotsMonitorStatus,setExitSpotsMonitorStatus]=useState('A aguardar os primeiros 28 Exit Spots fechados.'),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|'ai_analyst'|'course'|null>(null),[supportOpen,setSupportOpen]=useState(false);
- const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),analyzerDecisionHistoryRef=useRef<any[]>([]),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null);
+ const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),analyzerDecisionHistoryRef=useRef<any[]>([]),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null),quickRecoverRef=useRef<{active:boolean;deficit:number;consecutive:number;contractType:'DIGITUNDER'|'DIGITOVER';barrier:number;pendingKind:'exit'|'recovery'|null;contracts:Map<number,'exit'|'recovery'>}>({active:false,deficit:0,consecutive:0,contractType:'DIGITUNDER',barrier:8,pendingKind:null,contracts:new Map()});
  useEffect(() => {
   const params = new URLSearchParams(window.location.search);
   const requestedAction = params.get('paymentAgent');
@@ -383,6 +383,13 @@ export default function AutoBotV4(){
   const result=Number(closed.profit_loss);
   if(!Number.isFinite(id)||id<=0||!Number.isFinite(result))return;
 
+  const quick=quickRecoverRef.current;const tradeKind=quick.contracts.get(id);if(tradeKind)quick.contracts.delete(id);
+  if(tradeKind==='exit'||tradeKind==='recovery'){
+   if(result<0){quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
+    if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){const exitDigit=digit(Number(closed.exit_spot),tickPipSize);quick.active=true;quick.contractType=exitDigit!==null&&exitDigit>=6?'DIGITOVER':'DIGITUNDER';quick.barrier=quick.contractType==='DIGITOVER'?1:8;setNotice('QUICK RECOVER ATIVO — 3 perdas Exit Spots; défice $'+quick.deficit.toFixed(2)+' · '+(quick.contractType==='DIGITUNDER'?'ABAIXO 8':'ACIMA 1'));}
+    else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
+   }else if(result>0){quick.consecutive=0;quick.deficit=Number(Math.max(0,quick.deficit-result).toFixed(2));if(quick.active&&quick.deficit<=0.01){quick.active=false;quick.deficit=0;quick.consecutive=0;setNotice('QUICK RECOVER concluído — défice recuperado. A regressar à análise normal.');}else if(quick.active)setNotice('QUICK RECOVER continua — falta recuperar $'+quick.deficit.toFixed(2)+'.');}
+  }
   const fallbackStake=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():stake;
   const executedStake=Math.max(0.35,Number(closed.buy_price)>0?Number(closed.buy_price):Number(pendingRiskStakeRef.current)||Number(fallbackStake)||0.35);
   const closedPayout=Number(closed.payout);
@@ -566,7 +573,8 @@ export default function AutoBotV4(){
   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
   let freshSignal:any=null;
-  if(smartAnalyzer){
+  const quickRecover=smartAnalyzer&&quickRecoverRef.current.active;
+  if(quickRecover){freshSignal={contract:quickRecoverRef.current.contractType==='DIGITUNDER'?'UNDER':'OVER',label:quickRecoverRef.current.contractType==='DIGITUNDER'?'QUICK RECOVER ABAIXO 8':'QUICK RECOVER ACIMA 1',strength:100,barrier:quickRecoverRef.current.barrier,contractType:quickRecoverRef.current.contractType,quickRecover:true};}else if(smartAnalyzer){
    if(exitSpotsMode){
     const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false)):null;
     if(exitSignal)freshSignal=exitSignal;
@@ -596,7 +604,7 @@ export default function AutoBotV4(){
   lastActivityAt.current=Date.now();
   let contractTypeStr:string,barrier:number;
   const strategyName:string=String(strategy);
-  if(isRecoveryStrategy(strategy)&&barrierStateRef.current){
+  if(freshSignal?.quickRecover){contractTypeStr=quickRecoverRef.current.contractType;barrier=quickRecoverRef.current.barrier;}else if(isRecoveryStrategy(strategy)&&barrierStateRef.current){
    contractTypeStr=barrierStateRef.current.contractType;
    barrier=barrierStateRef.current.barrier;
   } else {
@@ -626,19 +634,13 @@ export default function AutoBotV4(){
   // da proposta do HyperShield, não o payout padrão/stale de 0.95.
   // Fazemos uma cotação-semente primeiro; quando a proposta chegar,
   // o efeito de [proposal] recalcula a stake para recuperar o défice.
-  const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
-  let amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
+  const quickState=quickRecoverRef.current;const quickDesired=quickState.active&&smartAnalyzer?Math.max(0.35,Math.ceil((quickState.deficit/Math.max(0.01,lastPayoutRatioRef.current))*100-1e-9)/100):0;const desiredStake=Math.max(0.35,quickDesired||Number(rawAmount)||0.35);const quickRiskCap=Math.floor(availableBalance*0.5*100)/100;let amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance,quickState.active&&smartAnalyzer?quickRiskCap:maxStakeByBalance));
   const applySoros=!iaPower&&!sonic;
 
   // IA POWER / HyperShield: a primeira proposta serve apenas para
   // descobrir o payout REAL. Ela não pode ser comprada enquanto
   // a stake de recuperação ainda estiver a ser recalculada.
-  if(iaPower&&iaRecovery){
-   amount=0.35;
-   iaRecoveryQuotePendingRef.current=true;
-  }else{
-   iaRecoveryQuotePendingRef.current=false;
-  }
+  if(iaPower&&iaRecovery&&!quickState.active){amount=0.35;iaRecoveryQuotePendingRef.current=true;}else{iaRecoveryQuotePendingRef.current=false;}if(quickState.active&&smartAnalyzer)amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance,quickRiskCap));
 
   if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
   if(!getProposal(symbol,contractTypeStr,amount,1,barrier,applySoros)){
@@ -716,11 +718,11 @@ export default function AutoBotV4(){
     if(smartAnalyzer){
      advice=smartAdvice;
      const mapped=advice?ANALYZER_STRATEGY_TO_BOT[String(advice.strategy)]||String(advice.strategy):'';
-     if(!advice||(!exitSpotsMode&&advice.noTrade)||mapped!==strategy){
+     if(!quickRecoverRef.current.active&&(!advice||(!exitSpotsMode&&advice.noTrade)||mapped!==strategy)){
       cancelUnqualifiedEntry('Sinal mudou antes da compra; a aguardar uma nova análise.');
       return;
      }
-     if(exitSpotsMode){
+     if(quickRecoverRef.current.active){validationSignal={contract:quickRecoverRef.current.contractType==='DIGITUNDER'?'UNDER':'OVER',label:quickRecoverRef.current.contractType==='DIGITUNDER'?'QUICK RECOVER ABAIXO 8':'QUICK RECOVER ACIMA 1',strength:100,barrier:quickRecoverRef.current.barrier,contractType:quickRecoverRef.current.contractType,quickRecover:true};}else if(exitSpotsMode){
       validationSignal=isRecoveryStrategy(strategy)
        ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize)
        :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
@@ -745,21 +747,21 @@ export default function AutoBotV4(){
     }
     const expectedContract=validationSignal.contract as Contract|null;
     const proposalType=String((proposal as any).contract_type||'').toUpperCase();
-    if(!isRecoveryStrategy(strategy)&&proposalType&&expectedContract&&proposalType!==TYPES[expectedContract]){
+    if(!quickRecoverRef.current.active&&!isRecoveryStrategy(strategy)&&proposalType&&expectedContract&&proposalType!==TYPES[expectedContract]){
      cancelUnqualifiedEntry('Entrada cancelada: o contrato cotado já não corresponde ao sinal mais recente.');
      return;
     }
    }
 
-   const botName=STRATEGY_BOT_NAMES[strategy];
-   if(!buy(proposal.id,Number(proposal.ask_price),botName,proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):undefined)){
+   const botName=quickRecoverRef.current.active?'Quick Recover':STRATEGY_BOT_NAMES[strategy];quickRecoverRef.current.pendingKind=smartAnalyzer?(quickRecoverRef.current.active?'recovery':exitSpotsMode?'exit':null):null;
+   if(!buy(proposal.id,Number(proposal.ask_price),botName,quickRecoverRef.current.active?quickRecoverRef.current.barrier:(proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):undefined))){quickRecoverRef.current.pendingKind=null;
     setNotice('Falha ao enviar a operação para a Deriv.');
     requested.current=false;
     requestStartedAt.current=0;
     stakeReadyRef.current=true;
    }
   },[proposal,buying,activeContractId,running,smartAnalyzer,exitSpotsMode,smartAdvice,botAnalysisValues,aiAnalysisValues,analysisExitValues,ticks,exitSpotReady,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal]); useEffect(()=>{
-   if(activeContractId!==null){
+   if(activeContractId!==null){if(quickRecoverRef.current.pendingKind){quickRecoverRef.current.contracts.set(Number(activeContractId),quickRecoverRef.current.pendingKind);quickRecoverRef.current.pendingKind=null;}
     riskAwaitingContractRef.current=activeContractId;
     stakeReadyRef.current=false;
     requested.current=false;
