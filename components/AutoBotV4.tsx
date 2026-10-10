@@ -423,7 +423,7 @@ export default function AutoBotV4(){
   if(tradeKind==='exit'||tradeKind==='recovery'){
    quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1);
    if(result<0){quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
-    if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){quick.active=true;quick.forceNextDirection=false;quick.contractType='DIGITUNDER';quick.barrier=8;pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;setNotice('QUICK RECOVER ATIVO — 3 perdas Exit Spots; Hypercover escolhe entre ACIMA 0 e ABAIXO 8; défice $'+quick.deficit.toFixed(2)+'.');}
+    if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){quick.active=true;quick.forceNextDirection=false;quick.contractType='DIGITUNDER';quick.barrier=8;pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;setNotice('QUICK RECOVER ATIVO — 3 perdas Exit Spots; Hypercover escolhe entre ACIMA 1 e ABAIXO 8; défice $'+quick.deficit.toFixed(2)+'.');}
     else if(quick.active&&tradeKind==='recovery'){const lostDirection=closedDirection||quick.contractType;quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?0:8;quick.forceNextDirection=true;setNotice('HYPERCOVER: '+(lostDirection==='DIGITOVER'?'ACIMA 1 — OVER 1':'ABAIXO 8 — UNDER 8')+' perdeu. Próxima operação obrigatoriamente '+(quick.contractType==='DIGITOVER'?'ACIMA 1 — OVER 1':'ABAIXO 8 — UNDER 8')+', independentemente das estatísticas. Défice total $'+quick.deficit.toFixed(2)+'.');}
     else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
    }else if(result>0){quick.consecutive=0;quick.deficit=Number(Math.max(0,quick.deficit-result).toFixed(2));if(quick.active&&quick.deficit<=0.01){quick.active=false;quick.deficit=0;quick.consecutive=0;quick.forceNextDirection=false;setNotice('QUICK RECOVER concluído — défice recuperado. A regressar à análise normal.');}else if(quick.active)setNotice('QUICK RECOVER continua — falta recuperar $'+quick.deficit.toFixed(2)+'.');}
@@ -677,7 +677,7 @@ export default function AutoBotV4(){
   // o efeito de [proposal] recalcula a stake para recuperar o défice.
   const quickState=quickRecoverRef.current;
   // Quick Recover começa com uma cotação-semente mínima. A stake de recuperação
-  // só é calculada depois de ler o payout REAL do contrato ACIMA 0/ABAIXO 8.
+  // só é calculada depois de ler o payout REAL do contrato ACIMA 1/ABAIXO 8.
   const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
   let amount=quickState.active&&smartAnalyzer?0.35:Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
   const applySoros=!iaPower&&!sonic&&!quickState.active;
@@ -747,7 +747,7 @@ export default function AutoBotV4(){
     stakeReadyRef.current=true;
    };
 
-   // Quick Recover reads the payout for its exact OVER 0 / UNDER 8 contract.
+   // Quick Recover reads the payout for its exact OVER 1 / UNDER 8 contract.
    // It never uses a payout ratio left over from the previous strategy.
    if(smartAnalyzer&&quickRecoverRef.current.active){
     const quick=quickRecoverRef.current;
