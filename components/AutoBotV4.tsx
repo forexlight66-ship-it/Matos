@@ -634,13 +634,13 @@ export default function AutoBotV4(){
   // da proposta do HyperShield, não o payout padrão/stale de 0.95.
   // Fazemos uma cotação-semente primeiro; quando a proposta chegar,
   // o efeito de [proposal] recalcula a stake para recuperar o défice.
-  const quickState=quickRecoverRef.current;const quickDesired=quickState.active&&smartAnalyzer?Math.max(0.35,Math.ceil((quickState.deficit/Math.max(0.01,lastPayoutRatioRef.current))*100-1e-9)/100):0;const desiredStake=Math.max(0.35,quickDesired||Number(rawAmount)||0.35);const quickRiskCap=Math.floor(availableBalance*0.5*100)/100;let amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance,quickState.active&&smartAnalyzer?quickRiskCap:maxStakeByBalance));
+  const quickState=quickRecoverRef.current;const quickDesired=quickState.active&&smartAnalyzer?Math.max(0.35,Math.ceil((quickState.deficit/Math.max(0.01,lastPayoutRatioRef.current))*100-1e-9)/100):0;const desiredStake=Math.max(0.35,quickDesired||Number(rawAmount)||0.35);let amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
   const applySoros=!iaPower&&!sonic;
 
   // IA POWER / HyperShield: a primeira proposta serve apenas para
   // descobrir o payout REAL. Ela não pode ser comprada enquanto
   // a stake de recuperação ainda estiver a ser recalculada.
-  if(iaPower&&iaRecovery&&!quickState.active){amount=0.35;iaRecoveryQuotePendingRef.current=true;}else{iaRecoveryQuotePendingRef.current=false;}if(quickState.active&&smartAnalyzer)amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance,quickRiskCap));
+  if(iaPower&&iaRecovery&&!quickState.active){amount=0.35;iaRecoveryQuotePendingRef.current=true;}else{iaRecoveryQuotePendingRef.current=false;}if(quickState.active&&smartAnalyzer)amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
 
   if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
   if(!getProposal(symbol,contractTypeStr,amount,1,barrier,applySoros)){
