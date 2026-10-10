@@ -518,13 +518,14 @@ export default function AutoBotV4(){
   requestStartedAt.current=Date.now();
   lastActivityAt.current=Date.now();
   let contractTypeStr:string,barrier:number;
+  const strategyName:string=String(strategy);
   if(isRecoveryStrategy(strategy)&&barrierStateRef.current){
    contractTypeStr=barrierStateRef.current.contractType;
    barrier=barrierStateRef.current.barrier;
   } else {
    const c:Contract=freshSignal.contract as Contract;
    barrier=isRecoveryStrategy(strategy)?(barrierStateRef.current?.barrier??4):
-    strategy==='HYPERGUARD'?0:strategy==='HYPERSHIELD'?4:strategy==='HYPERBREAK'?8:
+    strategyName==='HYPERGUARD'?0:strategyName==='HYPERSHIELD'?4:strategyName==='HYPERBREAK'?8:
     c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;
    contractTypeStr=TYPES[c];
   }
