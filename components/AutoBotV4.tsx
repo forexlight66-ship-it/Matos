@@ -97,8 +97,8 @@ function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQual
  // Exit Spot entries require 36 closed-contract results for the wider baseline
  // and agreement from the most recent 9 results. Both sides must meet 20%.
  if(values.length<36)return null;
- const baseline=makeSignal(values.slice(-36),s,pipSize,false);
- const recent=makeSignal(values.slice(-9),s,pipSize,false);
+ const baseline=makeSignal(values.slice(-36),s,pipSize,false,20);
+ const recent=makeSignal(values.slice(-9),s,pipSize,false,20);
  if(!baseline||!recent||baseline.contract!==recent.contract)return null;
  if(Number(baseline.strength)<20||Number(recent.strength)<20)return null;
  const candidate={...recent,strength:Math.min(Number(baseline.strength),Number(recent.strength)),baselineExitSpotStrength:Number(baseline.strength),recentExitSpotStrength:Number(recent.strength)};
@@ -106,9 +106,9 @@ function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQual
  const quality=signalQuality(values.slice(-9),s,candidate.label,pipSize);
  return quality.allowed?{...candidate,qualityPenalty:quality.penalty}:null;
 }
-function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
+function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true,threshold=65){
  if(v.length<9)return null;
- const x=stats(v,pipSize),t=65;
+ const x=stats(v,pipSize),t=threshold;
  // Signal Quality Filter é exclusivo do AI Analyst. No modo manual, mantém-se
  // a regra base do bot sem os filtros adicionais de concentração/continuidade.
  const pick=(candidate:any)=>{if(!applyQualityFilter)return candidate;const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
