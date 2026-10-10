@@ -291,7 +291,7 @@ function WhatsAppIcon({ size = 17, color = 'currentColor' }) {
 export default function AutoBotV4(){
  const { t, language }=useLanguage();
  const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('1HZ100V'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('PAR_IMPAR'),[tickWindow,setTickWindow]=useState(9),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(33),[lossLimit,setLossLimit]=useState(62.50),[metas,setMetas]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[notice,setNotice]=useState<string|null>(null),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]),[manualPanelOpen,setManualPanelOpen]=useState(false),[manualStatus,setManualStatus]=useState(''),[manualAboveBarrier,setManualAboveBarrier]=useState('5'),[manualBelowBarrier,setManualBelowBarrier]=useState('4'),[manualStake,setManualStake]=useState(0.75);
- const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
+ const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[exitSpotsMode,setExitSpotsMode]=useState(false),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|'ai_analyst'|'course'|null>(null),[supportOpen,setSupportOpen]=useState(false);
  const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),analyzerDecisionHistoryRef=useRef<any[]>([]),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null);
  useEffect(() => {
@@ -486,11 +486,11 @@ export default function AutoBotV4(){
   // AI Analyst normal: 25 ticks ao vivo (5 blocos de 5), gatilho de 65%.
   // Os 28 Exit Spots e o gatilho de 20% são uma modalidade separada e não podem
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
-  if((smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))return;
+  if((smartAnalyzer?(aiAnalysisValues.length<25||(exitSpotsMode&&analysisExitValues.length<28)):botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer){
-   if(!smartAdvice||smartAdvice.noTrade||smartAdvice.qualityBlocked)return;
-   if(Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
+   if(!smartAdvice||smartAdvice.qualityBlocked||(!exitSpotsMode&&smartAdvice.noTrade))return;
+   if(!exitSpotsMode&&Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
    analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]||null;
    if(!analystStrategy||strategy!==analystStrategy)return;
   }
@@ -501,9 +501,15 @@ export default function AutoBotV4(){
    // Modo AI Analyst normal: a análise de 25 ticks decide estratégia/direção;
    // a entrada requer também um sinal de 65% na janela de 25 ticks.
    // Não exigir Exit Spots aqui: isso impediria o arranque sem histórico fechado.
-   const tickSignal=analystStrategy?makeSignal(aiAnalysisValues,analystStrategy,tickPipSize,false,65,25):null;
-   if(tickSignal&&tickSignal.contract===smartAdvice.contract){
-    freshSignal={...tickSignal,label:String(smartAdvice.label),strength:Number(tickSignal.strength)||0};
+   if(exitSpotsMode){
+    const exitSignal=analystStrategy?makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false):null;
+    if(exitSignal)freshSignal=exitSignal;
+   }else{
+    const tickSignal=analystStrategy?makeSignal(aiAnalysisValues,analystStrategy,tickPipSize,false,65,25):null;
+    const recentFiveConfirm=confirmAnalyzerRecent(aiAnalysisValues,String(smartAdvice.strategy),String(smartAdvice.label),tickPipSize);
+    if(tickSignal&&tickSignal.contract===smartAdvice.contract&&recentFiveConfirm){
+     freshSignal={...tickSignal,label:String(smartAdvice.label),strength:Number(tickSignal.strength)||0};
+    }
    }
   }else if(isRecoveryStrategy(strategy)){
    freshSignal=exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null;
@@ -633,14 +639,14 @@ export default function AutoBotV4(){
     if(smartAnalyzer){
      const advice:any=smartAdvice;
      const mapped=advice?ANALYZER_STRATEGY_TO_BOT[String(advice.strategy)]||String(advice.strategy):'';
-     if(!advice||advice.noTrade||advice.qualityBlocked||mapped!==strategy){
+     if(!advice||(!exitSpotsMode&&(advice.noTrade||advice.qualityBlocked))||mapped!==strategy){
       cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — sinal não qualificado');
       if(advice&&!advice.noTrade)setSmartAdvice((prev:any)=>prev?.noTrade?prev:prev?{...prev,noTrade:true}:prev);
       return;
      }
      qualityStrategy=mapped;
-     qualityLabel=String(advice.label||'');
-     expectedContract=(advice.contract||null) as Contract|null;
+     qualityLabel=String(exitSpotsMode?'':advice.label||'');
+     expectedContract=(exitSpotsMode?null:advice.contract||null) as Contract|null;
     }else if(isRecoveryStrategy(strategy)){
      // Recovery bots also use the same quality filter; their live barrier can differ
      // from the seed contract, so the proposal-type equality check is intentionally skipped.
@@ -660,7 +666,7 @@ export default function AutoBotV4(){
     // No modo Start Robot (AI Analyst desligado), não aplicar as proteções
     // adicionais de qualidade. Validar apenas o sinal base e a correspondência
     // entre o tipo de contrato cotado e o sinal mais recente.
-    if(smartAnalyzer){
+    if(smartAnalyzer&&!exitSpotsMode){
      const quality=signalQuality(aiAnalysisValues.slice(-5),qualityStrategy,qualityLabel,tickPipSize);
      if(!quality.allowed){
       cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — '+quality.reason);
@@ -683,7 +689,7 @@ export default function AutoBotV4(){
     requestStartedAt.current=0;
     stakeReadyRef.current=true;
    }
-  },[proposal,buying,activeContractId,running,smartAnalyzer,smartAdvice,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal]); useEffect(()=>{
+  },[proposal,buying,activeContractId,running,smartAnalyzer,exitSpotsMode,smartAdvice,botAnalysisValues,aiAnalysisValues,analysisExitValues,ticks,exitSpotReady,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal]); useEffect(()=>{
    if(activeContractId!==null){
     riskAwaitingContractRef.current=activeContractId;
     stakeReadyRef.current=false;
@@ -910,6 +916,8 @@ export default function AutoBotV4(){
       <div className="text-[8px] font-bold muted">{smartAdvice.confidenceBand||'—'}</div>
     </div>}
   </div>
+  <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300/30 p-2 text-[10px] font-bold"><span>Modo Exit Spots · 28 resultados / 4 blocos de 7 · gatilho 20%</span><input type="checkbox" checked={exitSpotsMode} onChange={e=>setExitSpotsMode(e.target.checked)} disabled={running||!smartAnalyzer} aria-label="Ativar modo Exit Spots" /></label>
+  {exitSpotsMode&&<div className="mt-1 text-[9px] muted">Aguarda 28 Exit Spots fechados. O modo normal continua a usar ticks ao vivo.</div>}
   {smartAnalyzer&&smartAdvice&&<div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">BOT</div><b className="text-[10px]">{smartAdvice.strategy}</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">SINAL</div><b className="text-[10px]">{smartAdvice.label}</b></div></div>}
 
 </div></>}<div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:smartAnalyzer?'#25D366':(light?'#475569':'#94a3b8')}} >{t('analyzer100Ticks')}</div></div><button className={`ia-toggle ${smartAnalyzer?'on':''}`} type="button" onClick={()=>toggleAnalyzer(!smartAnalyzer)} aria-label={t('analyzer100Ticks')} title={smartAnalyzer?'Desligar AI Analyst':'Ligar AI Analyst — inicia automaticamente'}><span/></button></div>
