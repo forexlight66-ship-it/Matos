@@ -111,7 +111,7 @@ function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQual
  const earlyRise=recentStrength>=20&&recentStrength>previousStrength&&recentStrength>=priorStrengths[0]&&recentStrength>=priorStrengths[1];
  // Require either direction agreement in at least 3/4 blocks or a clear early rise
  // in the latest block. The full window and latest block must always agree.
- if(agreeingBlocks<3&&!earlyRise)return null;
+ if(agreeingBlocks<3)return null;
  const candidate={...recent,strength:Math.min(Number(overall.strength),recentStrength),overallExitSpotStrength:Number(overall.strength),recentExitSpotStrength:recentStrength,exitSpotBlocks:4,agreeingExitSpotBlocks:agreeingBlocks,earlyRise};
  if(!applyQualityFilter)return candidate;
  const quality=signalQuality(windowValues.slice(-7),s,candidate.label,pipSize);
@@ -362,7 +362,7 @@ function WhatsAppIcon({ size = 17, color = 'currentColor' }) {
 export default function AutoBotV4(){
  const { t, language }=useLanguage();
  const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('1HZ100V'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('PAR_IMPAR'),[tickWindow,setTickWindow]=useState(9),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(33),[lossLimit,setLossLimit]=useState(62.50),[metas,setMetas]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[notice,setNotice]=useState<string|null>(null),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]),[manualPanelOpen,setManualPanelOpen]=useState(false),[manualStatus,setManualStatus]=useState(''),[manualAboveBarrier,setManualAboveBarrier]=useState('5'),[manualBelowBarrier,setManualBelowBarrier]=useState('4'),[manualStake,setManualStake]=useState(0.75);
- const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[exitSpotsMode,setExitSpotsMode]=useState(false),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
+ const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[exitSpotsMode,setExitSpotsMode]=useState(false),[exitSpotsAutoEnabled,setExitSpotsAutoEnabled]=useState(true),[exitSpotsMonitorStatus,setExitSpotsMonitorStatus]=useState('A aguardar os primeiros 28 Exit Spots fechados.'),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|'ai_analyst'|'course'|null>(null),[supportOpen,setSupportOpen]=useState(false);
  const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),analyzerDecisionHistoryRef=useRef<any[]>([]),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null);
  useEffect(() => {
@@ -848,44 +848,99 @@ export default function AutoBotV4(){
  setAnalyzerHistory(analyzerDecisionHistoryRef.current);
 },[smartAnalyzer,exitSpotsMode,analyze100Ticks,aiAnalysisValues,tickPipSize,strategy]);
 useEffect(()=>{
- if(!smartAnalyzer||!exitSpotsMode)return;
- if(analysisExitValues.length<28){
-  setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');
-  setAnalyzerNotice('Modo Exit Spots: a recolher 28 Exit Spots fechados; não usa os ticks ao vivo.');
-  pendingAnalyzerStrategyRef.current=null;return;
+ if(!smartAnalyzer||!exitSpotsAutoEnabled){
+  if(!exitSpotsAutoEnabled&&exitSpotsMode)setExitSpotsMode(false);
+  return;
  }
- const result:any=analyzeExitSpots28(analysisExitValues,tickPipSize);
- if(!result){
-  setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');
-  setAnalyzerNotice('Modo Exit Spots: sem sinal válido nos 4 blocos de 7; a aguardar novos Exit Spots.');
-  pendingAnalyzerStrategyRef.current=null;return;
+ const exitSpotCount=analysisExitValues.length;
+ if(exitSpotCount<28){
+  setExitSpotsMonitorStatus('A recolher '+exitSpotCount+'/28 Exit Spots fechados; AI Analyst normal continua ativo.');
+  if(exitSpotsMode){
+   setExitSpotsMode(false);
+   setSmartAdvice(null);
+   setAnalyzerNoticeColor('#64748b');
+   setAnalyzerNotice('Modo Exit Spots: são necessários 28 Exit Spots fechados. A regressar ao AI Analyst normal.');
+   pendingAnalyzerStrategyRef.current=null;
+  }
+  return;
  }
- const bot=ANALYZER_STRATEGY_TO_BOT[String(result.strategy)] as Strategy|undefined;
- if(!bot)return;
- let selected:any=result;
- if(isRecoveryStrategy(bot)){
-  const barrier=bot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(bot);
+
+ // If currently trading from Exit Spots, revalidate the actual current strategy
+ // and its current barrier, not an unrelated alternative signal.
+ if(exitSpotsMode){
+  const activeSignal=isRecoveryStrategy(strategy)
+   ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize)
+   :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
+  if(!activeSignal){
+   setExitSpotsMode(false);
+   setSmartAdvice(null);
+   setAnalyzerNoticeColor('#64748b');
+   setAnalyzerNotice('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos.');
+   setExitSpotsMonitorStatus('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos. AI Analyst normal ativo; a monitorar até o sinal voltar.');
+   pendingAnalyzerStrategyRef.current=null;
+   return;
+  }
+  const blocks=Number(activeSignal.agreeingExitSpotBlocks)||0;
+  setExitSpotsMonitorStatus('Exit Spots ativo: sinal válido em '+blocks+'/4 blocos; gatilho 20%.');
+  // Keep the selected direction current as the rolling 28-result window changes.
+  setSmartAdvice((previous:any)=>{
+   if(!previous||ANALYZER_STRATEGY_TO_BOT[String(previous.strategy)]!==strategy)return previous;
+   return {...previous,contract:activeSignal.contract,label:activeSignal.label,strength:Number(activeSignal.strength)||0,noTrade:false,qualityBlocked:false,exitSpotMode:true,overallExitSpotStrength:Number(activeSignal.overallExitSpotStrength)||Number(activeSignal.strength)||0,recentExitSpotStrength:Number(activeSignal.recentExitSpotStrength)||Number(activeSignal.strength)||0,agreeingExitSpotBlocks:blocks};
+  });
+  return;
+ }
+
+ // In normal mode, keep watching Exit Spots in the background. Switch only
+ // when one strategy has a valid 28-result signal and at least 3/4 blocks agree.
+ const candidate:any=analyzeExitSpots28(analysisExitValues,tickPipSize);
+ if(!candidate){
+  setExitSpotsMonitorStatus('28 Exit Spots disponíveis; a monitorar em segundo plano por um sinal de 20% com concordância em 3/4 blocos.');
+  return;
+ }
+ const candidateBot=ANALYZER_STRATEGY_TO_BOT[String(candidate.strategy)] as Strategy|undefined;
+ if(!candidateBot){
+  setExitSpotsMonitorStatus('A monitorar Exit Spots; ainda não existe uma estratégia elegível.');
+  return;
+ }
+ let selected:any=candidate;
+ if(isRecoveryStrategy(candidateBot)){
+  const barrier=candidateBot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(candidateBot);
   const barrierSignal=makeExitSpotBarrierSignal(analysisExitValues,barrier,tickPipSize);
   if(!barrierSignal){
-   setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');
-   setAnalyzerNotice('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos.');
-   pendingAnalyzerStrategyRef.current=null;return;
+   setExitSpotsMonitorStatus('A monitorar Exit Spots; o contrato de recuperação ainda não cumpre 20% em 3/4 blocos.');
+   return;
   }
-  selected={...result,contract:barrierSignal.contract,label:barrierSignal.label,strength:barrierSignal.strength,overallExitSpotStrength:barrierSignal.overallExitSpotStrength,recentExitSpotStrength:barrierSignal.recentExitSpotStrength,agreeingExitSpotBlocks:barrierSignal.agreeingExitSpotBlocks};
+  selected={...candidate,contract:barrierSignal.contract,label:barrierSignal.label,strength:barrierSignal.strength,overallExitSpotStrength:barrierSignal.overallExitSpotStrength,recentExitSpotStrength:barrierSignal.recentExitSpotStrength,agreeingExitSpotBlocks:barrierSignal.agreeingExitSpotBlocks};
  }
- if(strategy!==bot){
-  pendingAnalyzerStrategyRef.current=bot;setStrategy(bot);analyzerLastSwitchTickRef.current=totalTickCountRef.current;
-  setAnalyzerNoticeColor(ANALYZER_COLORS[String(result.strategy)]||'#3D7FFF');
-  setAnalyzerNotice('MODO EXIT SPOTS — '+String(result.strategy)+' · gatilho 20%');
+ // Do not switch the underlying strategy in the middle of a live contract/proposal.
+ if(activeContractId!==null||proposal||buying){
+  setExitSpotsMonitorStatus('Sinal Exit Spots disponível; a aguardar que a operação atual termine para migrar com segurança.');
+  return;
+ }
+ if(candidateBot!==strategy&&isRecoveryStrategy(candidateBot)){
+  // The candidate was qualified against its initial barrier; start that strategy
+  // with the same barrier while the strategy-change effect synchronizes UI state.
+  barrierStateRef.current=initialBarrierState(candidateBot);
+ }
+ if(strategy!==candidateBot){
+  pendingAnalyzerStrategyRef.current=candidateBot;
+  setStrategy(candidateBot);
+  analyzerLastSwitchTickRef.current=totalTickCountRef.current;
+  setAnalyzerNoticeColor(ANALYZER_COLORS[String(candidate.strategy)]||'#3D7FFF');
+  setAnalyzerNotice('SINAL EXIT SPOTS DETETADO — a migrar para '+String(candidate.strategy)+' · gatilho 20%');
+  analyzerAlertSound();
  }else{
   pendingAnalyzerStrategyRef.current=null;
-  setAnalyzerNoticeColor(ANALYZER_COLORS[String(result.strategy)]||'#3D7FFF');
-  setAnalyzerNotice('MODO EXIT SPOTS — '+String(result.strategy)+' · '+Number(result.agreeingExitSpotBlocks||0)+'/4 blocos alinhados');
+  setAnalyzerNoticeColor(ANALYZER_COLORS[String(candidate.strategy)]||'#3D7FFF');
+  setAnalyzerNotice('SINAL EXIT SPOTS DETETADO — '+String(candidate.strategy)+' · gatilho 20%');
  }
  setSmartAdvice({...selected,noTrade:false,qualityBlocked:false,currentScore:Number(selected.score)||0,confidenceBand:confidenceBand(Number(selected.score)||0),exitSpotMode:true});
- const entry={time:new Date().toLocaleTimeString(),rankings:[{strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0)}],strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0),action:'EXIT SPOTS'};
- analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);setAnalyzerHistory(analyzerDecisionHistoryRef.current);
-},[smartAnalyzer,exitSpotsMode,analysisExitValues,tickPipSize,strategy]);
+ setExitSpotsMode(true);
+ setExitSpotsMonitorStatus('Exit Spots ativo: sinal válido em '+(Number(selected.agreeingExitSpotBlocks)||0)+'/4 blocos; gatilho 20%.');
+ const entry={time:new Date().toLocaleTimeString(),rankings:[{strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0)}],strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0),action:'ENTRA EM EXIT SPOTS'};
+ analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);
+ setAnalyzerHistory(analyzerDecisionHistoryRef.current);
+},[smartAnalyzer,exitSpotsAutoEnabled,exitSpotsMode,analysisExitValues,tickPipSize,strategy,activeContractId,proposal,buying]);},[smartAnalyzer,exitSpotsMode,analysisExitValues,tickPipSize,strategy]);
 
   useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
@@ -894,7 +949,7 @@ useEffect(()=>{
  const start=()=>{iaRecoveryQuotePendingRef.current=false;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;botArmedRef.current=true;setSorosEnabled(!iaPower&&!sonic);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setRunning(true);return true};
  const stop=()=>{saveStakeState();iaRecoveryQuotePendingRef.current=false;botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
- const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){setCashierAction('ai_analyst');setNotice('AI Analyst: assinatura mensal de 250 MT / $3 USD.');return}if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setSmartAnalyzer(false);if(!running)stop()}},[aiAnalystActive,running,isConnected,isAuthorized,start,stop]);
+ const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){setCashierAction('ai_analyst');setNotice('AI Analyst: assinatura mensal de 250 MT / $3 USD.');return}setExitSpotsMode(false);if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setExitSpotsMode(false);setSmartAnalyzer(false);if(!running)stop()}},[aiAnalystActive,running,isConnected,isAuthorized,start,stop]);
  const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
  const iaStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:ia`;
  const sonicStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:sonic`;
@@ -979,8 +1034,8 @@ useEffect(()=>{
       <div className="text-[8px] font-bold muted">{smartAdvice.confidenceBand||'—'}</div>
     </div>}
   </div>
-  <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300/30 p-2 text-[10px] font-bold"><span>Modo Exit Spots · 28 resultados / 4 blocos de 7 · gatilho 20%</span><input type="checkbox" checked={exitSpotsMode} onChange={e=>setExitSpotsMode(e.target.checked)} disabled={!smartAnalyzer} aria-label="Ativar modo Exit Spots" /></label>
-  {exitSpotsMode&&<div className="mt-1 text-[9px] muted">Neste modo, análise e entrada usam apenas os 28 Exit Spots mais recentes.</div>}
+  <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300/30 p-2 text-[10px] font-bold"><span>Alternância automática · AI Analyst normal ↔ Exit Spots (28 resultados / 4 blocos de 7 · gatilho 20%)</span><input type="checkbox" checked={exitSpotsAutoEnabled} onChange={e=>{const enabled=e.target.checked;setExitSpotsAutoEnabled(enabled);setExitSpotsMode(false);setExitSpotsMonitorStatus(enabled?(analysisExitValues.length<28?'A recolher '+analysisExitValues.length+'/28 Exit Spots fechados; AI Analyst normal continua ativo.':'A monitorar os Exit Spots em segundo plano.'):'Alternância automática desligada; AI Analyst normal mantém-se ativo.')}} disabled={!smartAnalyzer} aria-label="Ativar alternância automática entre AI Analyst normal e Exit Spots" /></label>
+  <div className="mt-1 rounded-lg border border-slate-300/20 p-2 text-[9px] muted"><b>Modo ativo:</b> {exitSpotsMode?'AI Analyst Exit Spots':'AI Analyst normal'}<br/>{exitSpotsAutoEnabled?exitSpotsMonitorStatus:'Alternância automática desligada.'}</div>
   {smartAnalyzer&&smartAdvice&&<div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">BOT</div><b className="text-[10px]">{smartAdvice.strategy}</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">SINAL</div><b className="text-[10px]">{smartAdvice.label}</b></div></div>}
 
 </div></>}<div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:smartAnalyzer?'#25D366':(light?'#475569':'#94a3b8')}} >{t('analyzer100Ticks')}</div></div><button className={`ia-toggle ${smartAnalyzer?'on':''}`} type="button" onClick={()=>toggleAnalyzer(!smartAnalyzer)} aria-label={t('analyzer100Ticks')} title={smartAnalyzer?'Desligar AI Analyst':'Ligar AI Analyst — inicia automaticamente'}><span/></button></div>
