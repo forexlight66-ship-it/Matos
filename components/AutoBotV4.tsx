@@ -517,7 +517,7 @@ export default function AutoBotV4(){
    requestStartedAt.current=0;
    stakeReadyRef.current=true;
   }
- },[running,ticks,tickWindow,tickPipSize,proposal,buying,activeContractId,isAuthorized,isConnected,getProposal,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy]); useEffect(()=>{
+ },[running,analysisExitValues,tickWindow,tickPipSize,proposal,buying,activeContractId,isAuthorized,isConnected,getProposal,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy]); useEffect(()=>{
   if(!iaPower||!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected||!iaRecoveryQuotePendingRef.current)return;
   const state=gestorRef.current.getEstado();
   const deficit=Number(state.deficitRecuperacao||0);
@@ -630,7 +630,7 @@ export default function AutoBotV4(){
     requestStartedAt.current=0;
     stakeReadyRef.current=true;
    }
-  },[proposal,buying,activeContractId,running,smartAnalyzer,smartAdvice,ticks,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal]); useEffect(()=>{
+  },[proposal,buying,activeContractId,running,smartAnalyzer,smartAdvice,analysisExitValues,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal]); useEffect(()=>{
    if(activeContractId!==null){
     riskAwaitingContractRef.current=activeContractId;
     stakeReadyRef.current=false;
@@ -849,7 +849,7 @@ export default function AutoBotV4(){
   <div className="flex items-center justify-between gap-2">
     <div>
       <div className="text-[10px] font-black uppercase tracking-wide">AI ANALYST</div>
-      <div className="mt-1 text-[9px] muted">25 ticks · 5 blocos · detecção de subida antecipada</div>
+      <div className="mt-1 text-[9px] muted">25 resultados exit_spot · 5 blocos · detecção de subida antecipada</div>
     </div>
     {smartAdvice&&<div className="text-right">
       <div className="text-lg font-black">{Math.round(Number(smartAdvice.score)||0)}/100</div>
