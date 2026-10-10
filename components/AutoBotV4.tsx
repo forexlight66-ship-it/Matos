@@ -661,7 +661,7 @@ export default function AutoBotV4(){
  if(aiAnalysisValues.length<25){setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 ticks iniciais...');return;}
  if(!analyze100Ticks)return;
  // Sliding 25-tick window; re-evaluate every 3 incoming ticks.
- const analyzerDataVersion=analysisExitValues.length>=25?analysisExitValues.length:totalTickCountRef.current;
+ const analyzerDataVersion=analysisExitValues.length>=25?1000000+analysisExitValues.length:totalTickCountRef.current;
  if(lastAnalyzerEvalTickRef.current>0&&analyzerDataVersion-lastAnalyzerEvalTickRef.current<3)return;
  lastAnalyzerEvalTickRef.current=analyzerDataVersion;
 
