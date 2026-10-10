@@ -95,7 +95,7 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
 }
 function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
  // AI Analyst entry confirmation: 28 closed Exit Spots split into four chronological blocks of 7.
- // Keep the 20% trigger and detect an emerging move when the last blocks strengthen.
+ // Exit Spots mode only: use the dedicated 20% trigger and detect an emerging move.
  if(values.length<28)return null;
  const windowValues=values.slice(-28);
  const blocks=Array.from({length:4},(_,i)=>windowValues.slice(i*7,(i+1)*7));
@@ -470,9 +470,9 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&requestStartedAt.current>0&&!proposal&&!buying&&activeContractId===null&&Date.now()-requestStartedAt.current>5000){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic)||riskAwaitingContractRef.current===null)stakeReadyRef.current=true}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic]);
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
-  // Bot normal: aguarda 9 ticks ao vivo e usa gatilho de 20%.
-  // AI Analyst: analisa 25 ticks em 5 blocos de 5 e só entra após confirmação
-  // independente pelos últimos 28 Exit Spots, organizados em 4 blocos de 7.
+  // Bot normal: 9 ticks ao vivo com gatilho de 65%.
+  // AI Analyst: 25 ticks em 5 blocos de 5; a decisão normal mantém o critério de 65%.
+  // O gatilho de 20% pertence exclusivamente à confirmação especial Exit Spots: 28 spots/4 blocos, comparados com os últimos 9 ticks.
   if((smartAnalyzer?aiAnalysisValues.length<25||analysisExitValues.length<28:botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer){
@@ -488,13 +488,14 @@ export default function AutoBotV4(){
    // Nunca comprar diretamente com smartAdvice: o Exit Spot precisa confirmar
    // a mesma direção escolhida pela análise dos 25 ticks.
    const exitSignal=analystStrategy?makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false):null;
-   if(exitSignal&&exitSignal.contract===smartAdvice.contract){
+   const recentTickSignal=analystStrategy?makeSignal(ticks.slice(-9),analystStrategy,tickPipSize,false,20,9):null;
+   if(exitSignal&&recentTickSignal&&exitSignal.contract===recentTickSignal.contract&&exitSignal.contract===smartAdvice.contract){
     freshSignal={...exitSignal,label:String(smartAdvice.label),strength:Number(exitSignal.strength)||0};
    }
   }else if(isRecoveryStrategy(strategy)){
    freshSignal=exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null;
   }else{
-   freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,20,9);
+   freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
   }
   if(!freshSignal)return;
   if(requested.current)return;
