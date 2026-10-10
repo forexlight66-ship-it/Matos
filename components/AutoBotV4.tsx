@@ -126,19 +126,28 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=tru
  // Signal Quality Filter é exclusivo do AI Analyst. No modo manual, mantém-se
  // a regra base do bot sem os filtros adicionais de concentração/continuidade.
  const pick=(candidate:any)=>{if(!applyQualityFilter)return candidate;const q=signalQuality(v,s,candidate.label,pipSize);return q.allowed?{...candidate,qualityPenalty:q.penalty}:null};
- if(isRecoveryStrategy(s))return pick({contract:'OVER' as Contract,label:s,strength:100});
+ // Recovery strategies are evaluated against their active barrier by makeBarrierSignal.
  if(strategyName==='HYPERLITE')return x.even>=t?pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even}):null;
  if(strategyName==='PAR_IMPAR'){
-  if(x.even>=t){const even=pick({contract:'EVEN' as Contract,label:'PAR',strength:x.even});if(even)return even;}
-  return x.odd>=t?pick({contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}):null;
+  const candidates=[
+   {contract:'EVEN' as Contract,label:'PAR',strength:x.even},
+   {contract:'ODD' as Contract,label:'ÍMPAR',strength:x.odd}
+  ].filter(candidate=>candidate.strength>=t).sort((a,b)=>b.strength-a.strength);
+  return candidates.length?pick(candidates[0]):null;
  }
  if(strategyName==='ACIMA5_BAIXO4'){
-  if(x.above5>=t){const above=pick({contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5});if(above)return above;}
-  return x.below4>=t?pick({contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}):null;
+  const candidates=[
+   {contract:'OVER' as Contract,label:'ACIMA 5',strength:x.above5},
+   {contract:'UNDER' as Contract,label:'ABAIXO 4',strength:x.below4}
+  ].filter(candidate=>candidate.strength>=t).sort((a,b)=>b.strength-a.strength);
+  return candidates.length?pick(candidates[0]):null;
  }
  if(strategyName==='RISE_FALL'){
-  if(x.rise>=t){const rise=pick({contract:'RISE' as Contract,label:'SUBIR',strength:x.rise});if(rise)return rise;}
-  return x.fall>=t?pick({contract:'FALL' as Contract,label:'DESCER',strength:x.fall}):null;
+  const candidates=[
+   {contract:'RISE' as Contract,label:'SUBIR',strength:x.rise},
+   {contract:'FALL' as Contract,label:'DESCER',strength:x.fall}
+  ].filter(candidate=>candidate.strength>=t).sort((a,b)=>b.strength-a.strength);
+  return candidates.length?pick(candidates[0]):null;
  }
  if(strategyName==='DIFERENTE'||strategyName==='HYPERSWAP')return x.diff>=t?pick({contract:'DIFFER' as Contract,label:'DIFERENTE DE 0',strength:x.diff}):null;
  if(strategyName==='HYPERGUARD')return x.diff>=t?pick({contract:'OVER' as Contract,label:'ACIMA 0',strength:x.diff}):null;
@@ -153,7 +162,69 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=tru
  const zeroIsDominant=x.match0>=t&&x.match0>Math.max(...x.probs.slice(1));
  return zeroIsDominant?pick({contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}):null;
 }
-const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(values:number[],strategy:string,label:string,pipSize?:number){if(values.length<5)return false;const raw=values.slice(-5);const recent=raw.map(v=>digit(v,pipSize)).filter((n):n is number=>n!==null);if(recent.length<5)return false;if(strategy==='HyperDrive')return label==='ÍMPAR'?recent.filter(n=>n%2!==0).length>=4:recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<raw.length;i++){if(raw[i]>raw[i-1])up++;else if(raw[i]<raw[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;return false}
+const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(values:number[],strategy:string,label:string,pipSize?:number){if(values.length<5)return false;const raw=values.slice(-5);const recent=raw.map(v=>digit(v,pipSize)).filter((n):n is number=>n!==null);if(recent.length<5)return false;if(strategy==='HyperDrive')return label==='ÍMPAR'?recent.filter(n=>n%2!==0).length>=4:recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<raw.length;i++){if(raw[i]>raw[i-1])up++;else if(raw[i]<raw[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;if(strategy==='HyperSwap')return recent.filter(n=>n!==0).length>=4;return false}
+function makeBarrierSignal(values:number[],state:BarrierState|null|undefined,pipSize?:number,threshold=65,minSamples=9){
+ if(!state||values.length<minSamples)return null;
+ const sample=values.slice(-minSamples);
+ const digits=sample.map(value=>digit(value,pipSize)).filter((value):value is number=>value!==null);
+ if(digits.length<minSamples)return null;
+ const barrier=Number(state.barrier);
+ const hit=(n:number)=>state.contractType==='DIGITOVER'?n>barrier:state.contractType==='DIGITUNDER'?n<barrier:n!==barrier;
+ const strength=digits.filter(hit).length/digits.length*100;
+ if(strength<threshold)return null;
+ const contract:Contract=state.contractType==='DIGITOVER'?'OVER':state.contractType==='DIGITUNDER'?'UNDER':'DIFFER';
+ const label=state.contractType==='DIGITOVER'?('ACIMA '+barrier):state.contractType==='DIGITUNDER'?('ABAIXO '+barrier):('DIFERENTE DE '+barrier);
+ return {contract,label,strength,barrier,contractType:state.contractType};
+}
+function confirmBarrierRecent(values:number[],state:BarrierState|null|undefined,pipSize?:number){
+ return Boolean(makeBarrierSignal(values,state,pipSize,80,5));
+}
+function makeExitSpotBarrierSignal(values:number[],state:BarrierState|null|undefined,pipSize?:number){
+ if(values.length<28||!state)return null;
+ const sample=values.slice(-28);
+ const blocks=Array.from({length:4},(_,i)=>sample.slice(i*7,(i+1)*7));
+ const overall=makeBarrierSignal(sample,state,pipSize,20,28);
+ const blockSignals=blocks.map(block=>makeBarrierSignal(block,state,pipSize,20,7));
+ const recent=blockSignals[3];
+ if(!overall||!recent)return null;
+ const agreeingBlocks=blockSignals.filter(signal=>signal?.contract===overall.contract).length;
+ if(agreeingBlocks<3)return null;
+ return {...recent,strength:Math.min(Number(overall.strength),Number(recent.strength)),overallExitSpotStrength:Number(overall.strength),recentExitSpotStrength:Number(recent.strength),exitSpotBlocks:4,agreeingExitSpotBlocks:agreeingBlocks};
+}
+function analyzeExitSpots28(values:number[],pipSize?:number){
+ if(values.length<28)return null;
+ const bots:{strategy:string;bot:Strategy}[]=[
+  {strategy:'HyperDrive',bot:'PAR_IMPAR'},
+  {strategy:'HyperStrike',bot:'ACIMA5_BAIXO4'},
+  {strategy:'HyperForce',bot:'RISE_FALL'},
+  {strategy:'HyperNova',bot:'DIFERENTE'},
+  {strategy:'Hyperlite',bot:'HYPERLITE'},
+  {strategy:'HyperGuard',bot:'HYPERGUARD'},
+  {strategy:'HyperShield',bot:'HYPERSHIELD'},
+  {strategy:'HyperBreak',bot:'HYPERBREAK'},
+  {strategy:'HyperSwap',bot:'HYPERSWAP'}
+ ];
+ const candidates:any[]=[];
+ for(const item of bots){
+  const signal=makeExitSpotSignal(values,item.bot,pipSize,false);
+  if(!signal)continue;
+  const baseline=item.bot==='ACIMA5_BAIXO4'?40:
+   item.bot==='DIFERENTE'||item.bot==='HYPERSWAP'||item.bot==='HYPERGUARD'?90:
+   item.bot==='HYPERBREAK'?80:
+   item.bot==='HYPERSHIELD'?50:
+   item.bot==='RISE_FALL'||item.bot==='PAR_IMPAR'||item.bot==='HYPERLITE'?50:50;
+  const overall=Number(signal.overallExitSpotStrength)||Number(signal.strength)||0;
+  const recent=Number(signal.recentExitSpotStrength)||Number(signal.strength)||0;
+  const agreement=Number(signal.agreeingExitSpotBlocks)||0;
+  const edge=overall-baseline;
+  const recentEdge=recent-baseline;
+  const score=aiClamp(50+edge*0.55+recentEdge*0.85+Math.max(0,agreement-2)*6+(signal.earlyRise?4:0));
+  candidates.push({...signal,strategy:item.strategy,score,confidenceBand:confidenceBand(score),noTrade:false,qualityBlocked:false,exitSpotMode:true});
+ }
+ if(!candidates.length)return null;
+ candidates.sort((a,b)=>Number(b.score)-Number(a.score));
+ return candidates[0];
+}
 type AnalyzerCandidate = {
  strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
  trend:number; acceleration:number; consistency:number; score:number; risk:number; direction:string;
@@ -486,11 +557,10 @@ export default function AutoBotV4(){
   // AI Analyst normal: 25 ticks ao vivo (5 blocos de 5), gatilho de 65%.
   // Os 28 Exit Spots e o gatilho de 20% são uma modalidade separada e não podem
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
-  if((smartAnalyzer?(aiAnalysisValues.length<25||(exitSpotsMode&&analysisExitValues.length<28)):botAnalysisValues.length<9))return;
+  if((smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer){
-   if(!smartAdvice||(!exitSpotsMode&&(smartAdvice.noTrade||smartAdvice.qualityBlocked)))return;
-   if(!exitSpotsMode&&Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
+   if(!smartAdvice||(!exitSpotsMode&&smartAdvice.noTrade))return;
    analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]||null;
    if(!analystStrategy||strategy!==analystStrategy)return;
   }
@@ -498,21 +568,23 @@ export default function AutoBotV4(){
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
   let freshSignal:any=null;
   if(smartAnalyzer){
-   // Modo AI Analyst normal: a análise de 25 ticks decide estratégia/direção;
-   // a entrada requer também um sinal de 65% na janela de 25 ticks.
-   // Não exigir Exit Spots aqui: isso impediria o arranque sem histórico fechado.
    if(exitSpotsMode){
-    const exitSignal=analystStrategy?makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false):null;
+    const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false)):null;
     if(exitSignal)freshSignal=exitSignal;
+   }else if(analystStrategy&&isRecoveryStrategy(analystStrategy)){
+    const state=barrierStateRef.current||initialBarrierState(analystStrategy);
+    const tickSignal=makeBarrierSignal(aiAnalysisValues,state,tickPipSize,65,25);
+    const recentConfirmed=confirmBarrierRecent(aiAnalysisValues.slice(-5),state,tickPipSize);
+    if(tickSignal&&recentConfirmed)freshSignal=tickSignal;
    }else{
     const tickSignal=analystStrategy?makeSignal(aiAnalysisValues,analystStrategy,tickPipSize,false,65,25):null;
-    const recentFiveConfirm=confirmAnalyzerRecent(aiAnalysisValues,String(smartAdvice.strategy),String(smartAdvice.label),tickPipSize);
-    if(tickSignal&&tickSignal.contract===smartAdvice.contract&&recentFiveConfirm){
+    const recentConfirmed=confirmAnalyzerRecent(aiAnalysisValues,String(smartAdvice.strategy),String(smartAdvice.label),tickPipSize);
+    if(tickSignal&&tickSignal.contract===smartAdvice.contract&&recentConfirmed){
      freshSignal={...tickSignal,label:String(smartAdvice.label),strength:Number(tickSignal.strength)||0};
     }
    }
   }else if(isRecoveryStrategy(strategy)){
-   freshSignal=exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null;
+   freshSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,65,9);
   }else{
    freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
   }
@@ -629,55 +701,53 @@ export default function AutoBotV4(){
     stakeReadyRef.current=true;
    };
 
-   // Last-moment validation: the same quality filter protects both AI Analyst
-   // and the direct bot mode immediately before the proposal is bought.
+   // Last-moment validation rechecks the exact data window for the active mode.
    {
-    let qualityStrategy:string=strategy;
-    let qualityLabel='';
-    let expectedContract:Contract|null=null;
-
+    const cancelUnqualifiedEntry=(message:string)=>{
+     setNotice(message);
+     clearProposal();
+     requested.current=false;
+     requestStartedAt.current=0;
+     pendingRiskStakeRef.current=null;
+     iaRecoveryQuotePendingRef.current=false;
+     stakeReadyRef.current=true;
+    };
+    let validationSignal:any=null;
+    let advice:any=null;
     if(smartAnalyzer){
-     const advice:any=smartAdvice;
+     advice=smartAdvice;
      const mapped=advice?ANALYZER_STRATEGY_TO_BOT[String(advice.strategy)]||String(advice.strategy):'';
-     if(!advice||(!exitSpotsMode&&(advice.noTrade||advice.qualityBlocked))||mapped!==strategy){
-      cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — sinal não qualificado');
-      if(advice&&!advice.noTrade)setSmartAdvice((prev:any)=>prev?.noTrade?prev:prev?{...prev,noTrade:true}:prev);
+     if(!advice||(!exitSpotsMode&&advice.noTrade)||mapped!==strategy){
+      cancelUnqualifiedEntry('Sinal mudou antes da compra; a aguardar uma nova análise.');
       return;
      }
-     qualityStrategy=mapped;
-     qualityLabel=String(exitSpotsMode?'':advice.label||'');
-     expectedContract=(exitSpotsMode?null:advice.contract||null) as Contract|null;
+     if(exitSpotsMode){
+      validationSignal=isRecoveryStrategy(strategy)
+       ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize)
+       :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
+     }else if(isRecoveryStrategy(strategy)){
+      const state=barrierStateRef.current||initialBarrierState(strategy);
+      validationSignal=makeBarrierSignal(aiAnalysisValues,state,tickPipSize,65,25);
+      if(!confirmBarrierRecent(aiAnalysisValues.slice(-5),state,tickPipSize))validationSignal=null;
+     }else{
+      validationSignal=makeSignal(aiAnalysisValues,strategy,tickPipSize,false,65,25);
+      if(!confirmAnalyzerRecent(aiAnalysisValues,String(advice.strategy),String(advice.label),tickPipSize))validationSignal=null;
+      if(validationSignal&&validationSignal.contract!==advice.contract)validationSignal=null;
+     }
+     if(exitSpotsMode&&validationSignal&&!isRecoveryStrategy(strategy)&&validationSignal.contract!==advice.contract)validationSignal=null;
     }else if(isRecoveryStrategy(strategy)){
-     // Recovery bots also use the same quality filter; their live barrier can differ
-     // from the seed contract, so the proposal-type equality check is intentionally skipped.
-     qualityStrategy=strategy;
-     qualityLabel=strategy;
-     expectedContract=null;
+     validationSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,65,9);
     }else{
-     const freshSignal=smartAnalyzer?(aiAnalysisValues.length>=25?makeSignal(aiAnalysisValues.slice(-5),strategy,tickPipSize,true):null):makeSignal(ticks.slice(-9),strategy,tickPipSize,false);
-     if(!freshSignal){
-      cancelUnqualifiedEntry('Signal Quality Filter: aguardando um sinal válido de 9 resultados');
-      return;
-     }
-     qualityLabel=String(freshSignal.label||'');
-     expectedContract=(freshSignal.contract||null) as Contract|null;
+     validationSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
     }
-
-    // No modo Start Robot (AI Analyst desligado), não aplicar as proteções
-    // adicionais de qualidade. Validar apenas o sinal base e a correspondência
-    // entre o tipo de contrato cotado e o sinal mais recente.
-    if(smartAnalyzer&&!exitSpotsMode){
-     const quality=signalQuality(aiAnalysisValues.slice(-5),qualityStrategy,qualityLabel,tickPipSize);
-     if(!quality.allowed){
-      cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — '+quality.reason);
-      setSmartAdvice((prev:any)=>prev?{...prev,noTrade:true,qualityBlocked:true,qualityPenalty:quality.penalty,qualityReason:quality.reason}:prev);
-      return;
-     }
+    if(!validationSignal){
+     cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: falta o gatilho de 65% nos últimos 9 ticks.');
+     return;
     }
-
+    const expectedContract=validationSignal.contract as Contract|null;
     const proposalType=String((proposal as any).contract_type||'').toUpperCase();
     if(!isRecoveryStrategy(strategy)&&proposalType&&expectedContract&&proposalType!==TYPES[expectedContract]){
-     cancelUnqualifiedEntry('Signal Quality Filter: entrada cancelada — o sinal mudou antes da compra');
+     cancelUnqualifiedEntry('Entrada cancelada: o contrato cotado já não corresponde ao sinal mais recente.');
      return;
     }
    }
@@ -715,114 +785,107 @@ export default function AutoBotV4(){
   analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;
   setAnalyzerNotice(null);analyzerDecisionHistoryRef.current=[];return;
  }
- if(aiAnalysisValues.length<25){setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 resultados iniciais...');return;}
+ if(exitSpotsMode)return;
+ if(aiAnalysisValues.length<25){
+  setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 resultados ao vivo...');
+  pendingAnalyzerStrategyRef.current=null;return;
+ }
  if(!analyze100Ticks)return;
- // Sliding 25-result window split into 5 blocks; re-evaluate as data arrives.
  const analyzerDataVersion=totalTickCountRef.current;
  if(lastAnalyzerEvalTickRef.current>0&&analyzerDataVersion-lastAnalyzerEvalTickRef.current<3)return;
  lastAnalyzerEvalTickRef.current=analyzerDataVersion;
 
  const result:any=analyze100Ticks;
  const rankings:any[]=Array.isArray(result.rankings)?result.rankings:[result];
- const currentBotName=STRATEGY_BOT_NAMES[strategy];
- const currentRanking=rankings.find((x:any)=>x.strategy===currentBotName);
- const currentScore=Number(currentRanking?.score)||0;
- const bestScore=Number(result.score)||0;
- const bestBot=ANALYZER_STRATEGY_TO_BOT[result.strategy];
- if(!bestBot)return;
-
- const switchThreshold=7;
- const cooldownTicks=3;
- const ticksSinceSwitch=analyzerDataVersion-analyzerLastSwitchTickRef.current;
- const cooldownActive=ticksSinceSwitch<cooldownTicks;
- const currentOutOfPhase=currentRanking?.phase==='FORA DA FASE'||currentScore<60;
- const strongRegimeChange=Boolean(result.regimeChange)&&bestScore>=78&&((bestScore-currentScore)>=10||Number(result.recentStrength)>=80);
-
- // Analysis and entry are separate. We first decide which candidate is selected,
- // then that candidate supplies the direction used by the entry engine.
- let selected:any=result;
- let action='';
-
- if(result.noTrade&&(!currentRanking||currentScore<65||currentRanking.qualityBlocked)){
-   setSmartAdvice({...result,noTrade:true,currentScore});
-   setAnalyzerNoticeColor('#ff444f');
-   setAnalyzerNotice('AI Analyst: NO TRADE — fase insuficiente');
-   action='NO TRADE';
- }else if(strategy!==bestBot){
-   const challengerIsStrong=bestScore>=65&&!result.noTrade;
-   const enoughAdvantage=bestScore>=currentScore+switchThreshold;
-   const maySwitch=!cooldownActive||strongRegimeChange;
-   if(challengerIsStrong&&(currentOutOfPhase||enoughAdvantage)&&maySwitch){
-      selected=result;
-      pendingAnalyzerStrategyRef.current=bestBot;
-      setStrategy(bestBot);
-      analyzerLastSwitchTickRef.current=analyzerDataVersion;
-      analyzerLastSwitchAtRef.current=Date.now();
-      setAnalyzerNoticeColor(ANALYZER_COLORS[result.strategy]||'#3D7FFF');
-      setAnalyzerNotice('TROCA PARA '+result.strategy+' — AI Score '+Math.round(bestScore));
-      analyzerAlertSound();
-      action='TROCA PARA '+result.strategy;
-   }else if(currentRanking&&currentScore>=65){
-      selected=currentRanking;
-      pendingAnalyzerStrategyRef.current=null;
-      setAnalyzerNoticeColor(ANALYZER_COLORS[currentRanking.strategy]||'#3D7FFF');
-      setAnalyzerNotice(t('keeps')+' '+currentRanking.strategy+' — '+t('insufficientAdvantage'));
-      action='MANTÉM '+currentRanking.strategy;
-   }else{
-      setSmartAdvice({...result,noTrade:true,currentScore});
-      setAnalyzerNoticeColor('#64748b');
-      setAnalyzerNotice('AGUARDA — nenhum sinal operacional');
-      action='AGUARDA';
+ const actionable:any[]=[];
+ for(const candidate of rankings){
+  const bot=ANALYZER_STRATEGY_TO_BOT[String(candidate.strategy)] as Strategy|undefined;
+  if(!bot)continue;
+  if(isRecoveryStrategy(bot)){
+   const barrier=bot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(bot);
+   const signal=makeBarrierSignal(aiAnalysisValues,barrier,tickPipSize,65,25);
+   const recentConfirmed=confirmBarrierRecent(aiAnalysisValues.slice(-5),barrier,tickPipSize);
+   if(signal&&recentConfirmed)actionable.push({...candidate,contract:signal.contract,label:signal.label,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false});
+  }else{
+   const signal=makeSignal(aiAnalysisValues,bot,tickPipSize,false,65,25);
+   const recentConfirmed=confirmAnalyzerRecent(aiAnalysisValues,String(candidate.strategy),String(candidate.label),tickPipSize);
+   if(signal&&signal.contract===candidate.contract&&recentConfirmed){
+    actionable.push({...candidate,contract:signal.contract,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false});
    }
+  }
+ }
+ if(!actionable.length){
+  pendingAnalyzerStrategyRef.current=null;
+  setSmartAdvice({...result,rankings,noTrade:true,qualityBlocked:false});
+  setAnalyzerNoticeColor('#64748b');
+  setAnalyzerNotice('AGUARDA — gatilho 65% na janela de 25 ticks e confirmação nos últimos 5');
+  return;
+ }
+ actionable.sort((a,b)=>Number(b.score)-Number(a.score));
+ const currentActionable=actionable.find(candidate=>ANALYZER_STRATEGY_TO_BOT[String(candidate.strategy)]===strategy);
+ const bestActionable=actionable[0];
+ const cooldownActive=analyzerDataVersion-analyzerLastSwitchTickRef.current<3;
+ const selected=currentActionable&&(Number(currentActionable.score)>=Number(bestActionable.score)-7||cooldownActive)?currentActionable:bestActionable;
+ const nextBot=ANALYZER_STRATEGY_TO_BOT[String(selected.strategy)] as Strategy|undefined;
+ if(!nextBot)return;
+ if(strategy!==nextBot){
+  pendingAnalyzerStrategyRef.current=nextBot;
+  setStrategy(nextBot);
+  analyzerLastSwitchTickRef.current=analyzerDataVersion;
+  analyzerLastSwitchAtRef.current=Date.now();
+  setAnalyzerNoticeColor(ANALYZER_COLORS[String(selected.strategy)]||'#3D7FFF');
+  setAnalyzerNotice('TROCA PARA '+String(selected.strategy)+' — sinal 65% confirmado');
+  analyzerAlertSound();
  }else{
-   selected=currentRanking||result;
-   pendingAnalyzerStrategyRef.current=null;
-   setAnalyzerNoticeColor(ANALYZER_COLORS[selected.strategy]||'#3D7FFF');
-   setAnalyzerNotice('MANTÉM '+selected.strategy+' — AI Score '+Math.round(Number(selected.score)||0));
-   action='MANTÉM '+selected.strategy;
+  pendingAnalyzerStrategyRef.current=null;
+  setAnalyzerNoticeColor(ANALYZER_COLORS[String(selected.strategy)]||'#3D7FFF');
+  setAnalyzerNotice('MANTÉM '+String(selected.strategy)+' — 25 ticks + confirmação dos últimos 5');
  }
-
- if(selected&&!selected.noTrade&&!selected.qualityBlocked){
-   setSmartAdvice({
-     ...selected,
-     rankings,
-     noTrade:false,
-     currentScore,
-     confidenceBand:confidenceBand(Number(selected.score)||0),
-     advantage:Number(result.advantage)||0,
-     regimeChange:Boolean(result.regimeChange)
-   });
- }else if(selected?.qualityBlocked){
-   setSmartAdvice({
-     ...selected,
-     rankings,
-     noTrade:true,
-     qualityBlocked:true,
-     currentScore,
-     confidenceBand:confidenceBand(Number(selected.score)||0),
-     qualityReason:selected.qualityReason||'baixa qualidade do sinal'
-   });
-   setAnalyzerNoticeColor('#dc2626');
-   setAnalyzerNotice('AI Analyst: SINAL BLOQUEADO — '+String(selected.qualityReason||'baixa qualidade'));
-   action='SINAL BLOQUEADO';
- }
-
- const entry={
-   time:new Date().toLocaleTimeString(),
-   rankings:rankings.slice(0,3).map((x:any)=>({strategy:x.strategy,label:x.label,score:Math.round(x.score)})),
-   strategy:selected?.strategy||result.strategy,
-   label:selected?.label||result.label,
-   score:Math.round(Number(selected?.score??bestScore)||0),
-   confidence:Math.round(Number(selected?.confidence??result.confidence)||0),
-   stability:Math.round(Number(selected?.stability??result.stability)||0),
-   phase:selected?.phase||result.phase,
-   action,
-   regimeChange:Boolean(result.regimeChange)
- };
+ const normalized={...selected,rankings,noTrade:false,qualityBlocked:false,currentScore:Number(selected.score)||0,confidenceBand:confidenceBand(Number(selected.score)||0)};
+ setSmartAdvice(normalized);
+ const entry={time:new Date().toLocaleTimeString(),rankings:actionable.slice(0,3).map((x:any)=>({strategy:x.strategy,label:x.label,score:Math.round(Number(x.score)||0)})),strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0),action:strategy===nextBot?'MANTÉM':'TROCA PARA '+String(selected.strategy)};
  analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);
  setAnalyzerHistory(analyzerDecisionHistoryRef.current);
- lastAdvisorKeyRef.current=entry.strategy+'|'+entry.label;
-},[smartAnalyzer,analyze100Ticks,aiAnalysisValues.length,analysisExitValues.length,ticks.length,strategy]);
+},[smartAnalyzer,exitSpotsMode,analyze100Ticks,aiAnalysisValues,tickPipSize,strategy]);
+useEffect(()=>{
+ if(!smartAnalyzer||!exitSpotsMode)return;
+ if(analysisExitValues.length<28){
+  setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');
+  setAnalyzerNotice('Modo Exit Spots: a recolher 28 Exit Spots fechados; não usa os ticks ao vivo.');
+  pendingAnalyzerStrategyRef.current=null;return;
+ }
+ const result:any=analyzeExitSpots28(analysisExitValues,tickPipSize);
+ if(!result){
+  setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');
+  setAnalyzerNotice('Modo Exit Spots: sem sinal válido nos 4 blocos de 7; a aguardar novos Exit Spots.');
+  pendingAnalyzerStrategyRef.current=null;return;
+ }
+ const bot=ANALYZER_STRATEGY_TO_BOT[String(result.strategy)] as Strategy|undefined;
+ if(!bot)return;
+ let selected:any=result;
+ if(isRecoveryStrategy(bot)){
+  const barrier=bot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(bot);
+  const barrierSignal=makeExitSpotBarrierSignal(analysisExitValues,barrier,tickPipSize);
+  if(!barrierSignal){
+   setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');
+   setAnalyzerNotice('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos.');
+   pendingAnalyzerStrategyRef.current=null;return;
+  }
+  selected={...result,contract:barrierSignal.contract,label:barrierSignal.label,strength:barrierSignal.strength,overallExitSpotStrength:barrierSignal.overallExitSpotStrength,recentExitSpotStrength:barrierSignal.recentExitSpotStrength,agreeingExitSpotBlocks:barrierSignal.agreeingExitSpotBlocks};
+ }
+ if(strategy!==bot){
+  pendingAnalyzerStrategyRef.current=bot;setStrategy(bot);analyzerLastSwitchTickRef.current=totalTickCountRef.current;
+  setAnalyzerNoticeColor(ANALYZER_COLORS[String(result.strategy)]||'#3D7FFF');
+  setAnalyzerNotice('MODO EXIT SPOTS — '+String(result.strategy)+' · gatilho 20%');
+ }else{
+  pendingAnalyzerStrategyRef.current=null;
+  setAnalyzerNoticeColor(ANALYZER_COLORS[String(result.strategy)]||'#3D7FFF');
+  setAnalyzerNotice('MODO EXIT SPOTS — '+String(result.strategy)+' · '+Number(result.agreeingExitSpotBlocks||0)+'/4 blocos alinhados');
+ }
+ setSmartAdvice({...selected,noTrade:false,qualityBlocked:false,currentScore:Number(selected.score)||0,confidenceBand:confidenceBand(Number(selected.score)||0),exitSpotMode:true});
+ const entry={time:new Date().toLocaleTimeString(),rankings:[{strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0)}],strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0),action:'EXIT SPOTS'};
+ analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);setAnalyzerHistory(analyzerDecisionHistoryRef.current);
+},[smartAnalyzer,exitSpotsMode,analysisExitValues,tickPipSize,strategy]);},[smartAnalyzer,analyze100Ticks,aiAnalysisValues.length,analysisExitValues.length,ticks.length,strategy]);
 
   useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
@@ -917,7 +980,7 @@ export default function AutoBotV4(){
     </div>}
   </div>
   <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300/30 p-2 text-[10px] font-bold"><span>Modo Exit Spots · 28 resultados / 4 blocos de 7 · gatilho 20%</span><input type="checkbox" checked={exitSpotsMode} onChange={e=>setExitSpotsMode(e.target.checked)} disabled={!smartAnalyzer} aria-label="Ativar modo Exit Spots" /></label>
-  {exitSpotsMode&&<div className="mt-1 text-[9px] muted">Aguarda 28 Exit Spots fechados. O modo normal continua a usar ticks ao vivo.</div>}
+  {exitSpotsMode&&<div className="mt-1 text-[9px] muted">Neste modo, análise e entrada usam apenas os 28 Exit Spots mais recentes.</div>}
   {smartAnalyzer&&smartAdvice&&<div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">BOT</div><b className="text-[10px]">{smartAdvice.strategy}</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">SINAL</div><b className="text-[10px]">{smartAdvice.label}</b></div></div>}
 
 </div></>}<div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:smartAnalyzer?'#25D366':(light?'#475569':'#94a3b8')}} >{t('analyzer100Ticks')}</div></div><button className={`ia-toggle ${smartAnalyzer?'on':''}`} type="button" onClick={()=>toggleAnalyzer(!smartAnalyzer)} aria-label={t('analyzer100Ticks')} title={smartAnalyzer?'Desligar AI Analyst':'Ligar AI Analyst — inicia automaticamente'}><span/></button></div>
