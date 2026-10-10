@@ -471,9 +471,10 @@ export default function AutoBotV4(){
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // Bot normal: 9 ticks ao vivo com gatilho de 65%.
-  // AI Analyst: 25 ticks em 5 blocos de 5; a decisão normal mantém o critério de 65%.
-  // O gatilho de 20% pertence exclusivamente à confirmação especial Exit Spots: 28 spots/4 blocos, comparados com os últimos 9 ticks.
-  if((smartAnalyzer?aiAnalysisValues.length<25||analysisExitValues.length<28:botAnalysisValues.length<9))return;
+  // AI Analyst normal: 25 ticks ao vivo (5 blocos de 5), gatilho de 65%.
+  // Os 28 Exit Spots e o gatilho de 20% são uma modalidade separada e não podem
+  // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
+  if((smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer){
    if(!smartAdvice||smartAdvice.noTrade||smartAdvice.qualityBlocked)return;
@@ -485,12 +486,12 @@ export default function AutoBotV4(){
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
   let freshSignal:any=null;
   if(smartAnalyzer){
-   // Nunca comprar diretamente com smartAdvice: o Exit Spot precisa confirmar
-   // a mesma direção escolhida pela análise dos 25 ticks.
-   const exitSignal=analystStrategy?makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false):null;
-   const recentTickSignal=analystStrategy?makeSignal(ticks.slice(-9),analystStrategy,tickPipSize,false,20,9):null;
-   if(exitSignal&&recentTickSignal&&exitSignal.contract===recentTickSignal.contract&&exitSignal.contract===smartAdvice.contract){
-    freshSignal={...exitSignal,label:String(smartAdvice.label),strength:Number(exitSignal.strength)||0};
+   // Modo AI Analyst normal: a análise de 25 ticks decide estratégia/direção;
+   // a entrada requer também um sinal de 65% na janela de 25 ticks.
+   // Não exigir Exit Spots aqui: isso impediria o arranque sem histórico fechado.
+   const tickSignal=analystStrategy?makeSignal(aiAnalysisValues,analystStrategy,tickPipSize,false,65,25):null;
+   if(tickSignal&&tickSignal.contract===smartAdvice.contract){
+    freshSignal={...tickSignal,label:String(smartAdvice.label),strength:Number(tickSignal.strength)||0};
    }
   }else if(isRecoveryStrategy(strategy)){
    freshSignal=exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null;
