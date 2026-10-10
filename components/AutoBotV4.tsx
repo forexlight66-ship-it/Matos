@@ -489,7 +489,7 @@ export default function AutoBotV4(){
   if((smartAnalyzer?(aiAnalysisValues.length<25||(exitSpotsMode&&analysisExitValues.length<28)):botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer){
-   if(!smartAdvice||smartAdvice.qualityBlocked||(!exitSpotsMode&&smartAdvice.noTrade))return;
+   if(!smartAdvice||(!exitSpotsMode&&(smartAdvice.noTrade||smartAdvice.qualityBlocked)))return;
    if(!exitSpotsMode&&Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
    analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]||null;
    if(!analystStrategy||strategy!==analystStrategy)return;
@@ -576,7 +576,7 @@ export default function AutoBotV4(){
    requestStartedAt.current=0;
    stakeReadyRef.current=true;
   }
- },[running,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,isAuthorized,isConnected,getProposal,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy]); useEffect(()=>{
+ },[running,smartAnalyzer,exitSpotsMode,smartAdvice,analysisExitValues,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,isAuthorized,isConnected,getProposal,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy]); useEffect(()=>{
   if(!iaPower||!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected||!iaRecoveryQuotePendingRef.current)return;
   const state=gestorRef.current.getEstado();
   const deficit=Number(state.deficitRecuperacao||0);
@@ -916,7 +916,7 @@ export default function AutoBotV4(){
       <div className="text-[8px] font-bold muted">{smartAdvice.confidenceBand||'—'}</div>
     </div>}
   </div>
-  <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300/30 p-2 text-[10px] font-bold"><span>Modo Exit Spots · 28 resultados / 4 blocos de 7 · gatilho 20%</span><input type="checkbox" checked={exitSpotsMode} onChange={e=>setExitSpotsMode(e.target.checked)} disabled={running||!smartAnalyzer} aria-label="Ativar modo Exit Spots" /></label>
+  <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300/30 p-2 text-[10px] font-bold"><span>Modo Exit Spots · 28 resultados / 4 blocos de 7 · gatilho 20%</span><input type="checkbox" checked={exitSpotsMode} onChange={e=>setExitSpotsMode(e.target.checked)} disabled={!smartAnalyzer} aria-label="Ativar modo Exit Spots" /></label>
   {exitSpotsMode&&<div className="mt-1 text-[9px] muted">Aguarda 28 Exit Spots fechados. O modo normal continua a usar ticks ao vivo.</div>}
   {smartAnalyzer&&smartAdvice&&<div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">BOT</div><b className="text-[10px]">{smartAdvice.strategy}</b></div><div className="rounded-lg border border-slate-300/30 p-2"><div className="text-[8px] muted">SINAL</div><b className="text-[10px]">{smartAdvice.label}</b></div></div>}
 
