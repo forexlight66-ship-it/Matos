@@ -595,7 +595,7 @@ export default function AutoBotV4(){
      qualityLabel=strategy;
      expectedContract=null;
     }else{
-     const freshSignal=makeSignal(ticks.slice(-tickWindow),strategy,tickPipSize,smartAnalyzer);
+     const freshSignal=makeSignal(ticks.slice(-5),strategy,tickPipSize,smartAnalyzer);
      if(!freshSignal){
       cancelUnqualifiedEntry('Signal Quality Filter: aguardando um sinal válido de 5 ticks');
       return;
