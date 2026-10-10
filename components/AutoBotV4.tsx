@@ -95,12 +95,12 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
 }
 function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
  // Exit Spot entries require 36 closed-contract results for the wider baseline
- // and agreement from the most recent 9 results. Both sides must meet 65%.
+ // and agreement from the most recent 9 results. Both sides must meet 20%.
  if(values.length<36)return null;
  const baseline=makeSignal(values.slice(-36),s,pipSize,false);
  const recent=makeSignal(values.slice(-9),s,pipSize,false);
  if(!baseline||!recent||baseline.contract!==recent.contract)return null;
- if(Number(baseline.strength)<65||Number(recent.strength)<65)return null;
+ if(Number(baseline.strength)<20||Number(recent.strength)<20)return null;
  const candidate={...recent,strength:Math.min(Number(baseline.strength),Number(recent.strength)),baselineExitSpotStrength:Number(baseline.strength),recentExitSpotStrength:Number(recent.strength)};
  if(!applyQualityFilter)return candidate;
  const quality=signalQuality(values.slice(-9),s,candidate.label,pipSize);
