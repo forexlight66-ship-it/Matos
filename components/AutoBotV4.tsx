@@ -421,6 +421,7 @@ export default function AutoBotV4(){
 
   const quick=quickRecoverRef.current;const tradeKind=quick.contracts.get(id);if(tradeKind)quick.contracts.delete(id);
   if(tradeKind==='exit'||tradeKind==='recovery'){
+   quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1);
    if(result<0){quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
     if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){quick.active=true;quick.forceNextDirection=false;quick.contractType='DIGITUNDER';quick.barrier=8;pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;setNotice('QUICK RECOVER ATIVO — 3 perdas Exit Spots; Hypercover escolhe entre ACIMA 0 e ABAIXO 8; défice $'+quick.deficit.toFixed(2)+'.');}
     else if(quick.active&&tradeKind==='recovery'){quick.contractType=quick.contractType==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?0:8;quick.forceNextDirection=true;setNotice('QUICK RECOVER: a recuperação perdeu. Próxima operação forçada para '+(quick.contractType==='DIGITOVER'?'ACIMA 0 — OVER 0':'ABAIXO 8 — UNDER 8')+' independentemente das estatísticas. Défice $'+quick.deficit.toFixed(2)+'.');}
@@ -603,6 +604,7 @@ export default function AutoBotV4(){
   // Os 28 Exit Spots e o gatilho de 20% são uma modalidade separada e não podem
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
   const quickRecover=smartAnalyzer&&quickRecoverRef.current.active;
+  if(quickRecover&&quickRecoverPausedForBalanceRef.current){const required=quickRecoverQuoteTargetRef.current;if(required!==null&&Number(balance?.balance)>=required)quickRecoverPausedForBalanceRef.current=false;else return;}
   if(quickRecover?analysisExitValues.length<28:(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer&&!quickRecover){
@@ -674,14 +676,11 @@ export default function AutoBotV4(){
   // Fazemos uma cotação-semente primeiro; quando a proposta chegar,
   // o efeito de [proposal] recalcula a stake para recuperar o défice.
   const quickState=quickRecoverRef.current;
-  const quickDesired=quickState.active&&smartAnalyzer?Math.max(0.35,Math.ceil((quickState.deficit/Math.max(0.01,lastPayoutRatioRef.current))*100-1e-9)/100):0;
-  const desiredStake=Math.max(0.35,quickDesired||Number(rawAmount)||0.35);
-  if(quickState.active&&smartAnalyzer&&quickDesired>maxStakeByBalance){
-   setNotice('QUICK RECOVER pausado: saldo insuficiente para recuperar todo o défice num único trade. Necessário $'+quickDesired.toFixed(2)+'; saldo disponível $'+maxStakeByBalance.toFixed(2)+'.');
-   requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;return;
-  }
-  let amount=quickState.active&&smartAnalyzer?quickDesired:Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
-  const applySoros=!iaPower&&!sonic;
+  // Quick Recover começa com uma cotação-semente mínima. A stake de recuperação
+  // só é calculada depois de ler o payout REAL do contrato ACIMA 0/ABAIXO 8.
+  const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
+  let amount=quickState.active&&smartAnalyzer?0.35:Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
+  const applySoros=!iaPower&&!sonic&&!quickState.active;
 
   // IA POWER / HyperShield: a primeira proposta serve apenas para
   // descobrir o payout REAL. Ela não pode ser comprada enquanto
@@ -695,7 +694,7 @@ export default function AutoBotV4(){
    requestStartedAt.current=0;
    stakeReadyRef.current=true;
   }
- },[running,smartAnalyzer,exitSpotsMode,smartAdvice,analysisExitValues,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,isAuthorized,isConnected,getProposal,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy]); useEffect(()=>{
+ },[running,smartAnalyzer,exitSpotsMode,smartAdvice,analysisExitValues,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,isAuthorized,isConnected,getProposal,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy,quickRecoverRevision]); useEffect(()=>{
   if(!iaPower||!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected||!iaRecoveryQuotePendingRef.current)return;
   const state=gestorRef.current.getEstado();
   const deficit=Number(state.deficitRecuperacao||0);
