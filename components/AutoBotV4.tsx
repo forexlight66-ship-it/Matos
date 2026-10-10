@@ -855,7 +855,7 @@ export default function AutoBotV4(){
    const botName=(quickRecoverRef.current.active||hypercoverAlternationRef.current.forceNextDirection)?'Hypercover':STRATEGY_BOT_NAMES[strategy];quickRecoverRef.current.pendingKind=quickRecoverRef.current.active?'recovery':((running&&!smartAnalyzer)||(smartAnalyzer&&exitSpotsMode)?'exit':null);
    const forcedHypercoverBuy=hypercoverAlternationRef.current.forceNextDirection&&botName==='Hypercover';
     const bought=buy(proposal.id,Number(proposal.ask_price),botName,(quickRecoverRef.current.active||forcedHypercoverBuy)?(quickRecoverRef.current.active?quickRecoverRef.current.barrier:hypercoverAlternationRef.current.barrier):(proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):undefined));
-    if(bought&&botName==='Hypercover'&&(contractTypeStr==='DIGITOVER'||contractTypeStr==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=contractTypeStr as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
+    const boughtDirection=String((proposal as any).contract_type||'').toUpperCase();if(bought&&botName==='Hypercover'&&(boughtDirection==='DIGITOVER'||boughtDirection==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=boughtDirection as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
     if(!bought){quickRecoverRef.current.pendingKind=null;
     setNotice('Falha ao enviar a operação para a Deriv.');
     requested.current=false;
