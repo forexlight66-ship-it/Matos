@@ -685,7 +685,7 @@ export default function AutoBotV4(){
   // IA POWER / HyperShield: a primeira proposta serve apenas para
   // descobrir o payout REAL. Ela não pode ser comprada enquanto
   // a stake de recuperação ainda estiver a ser recalculada.
-  if(iaPower&&iaRecovery&&!quickState.active){amount=0.35;iaRecoveryQuotePendingRef.current=true;}else{iaRecoveryQuotePendingRef.current=false;}if(quickState.active&&smartAnalyzer)amount=quickDesired;
+  if(iaPower&&iaRecovery&&!quickState.active){amount=0.35;iaRecoveryQuotePendingRef.current=true;}else{iaRecoveryQuotePendingRef.current=false;}
 
   if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
   if(!getProposal(symbol,contractTypeStr,amount,1,barrier,applySoros)){
