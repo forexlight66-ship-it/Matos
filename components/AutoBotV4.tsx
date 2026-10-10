@@ -117,32 +117,32 @@ function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQual
  return quality.allowed?{...candidate,qualityPenalty:quality.penalty}:null;
 }
 function makeHyperCoverExitSignal(values:number[],pipSize?:number){
- if(values.length<28)return null;
- const sample=values.slice(-28);
- const blocks=Array.from({length:4},(_,i)=>sample.slice(i*7,(i+1)*7));
- const scoreDirection=(items:number[],kind:'OVER0'|'UNDER8')=>{
+ const usable=values.filter(value=>Number.isFinite(Number(value))).slice(-28);
+ if(usable.length<9)return null;
+ const sample=usable;
+ const blocks=sample.length>=28?Array.from({length:4},(_,i)=>sample.slice(i*7,(i+1)*7)):[sample];
+ const scoreDirection=(items:number[],kind:'OVER1'|'UNDER8')=>{
   const ds=items.map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
   if(!ds.length)return 0;
-  return ds.filter(n=>kind==='OVER0'?n>0:n<8).length/ds.length*100;
+  return ds.filter(n=>kind==='OVER1'?n>1:n<8).length/ds.length*100;
  };
  const directions=[
-  {kind:'OVER0' as const,contract:'OVER' as Contract,contractType:'DIGITOVER' as const,barrier:0,label:'ACIMA 0',baseline:90},
-  {kind:'UNDER8' as const,contract:'UNDER' as Contract,contractType:'DIGITUNDER' as const,barrier:8,label:'ABAIXO 8',baseline:80}
+  {kind:'OVER1' as const,contract:'OVER' as Contract,contractType:'DIGITOVER' as const,barrier:1,label:'ACIMA 1 — OVER 1',baseline:80},
+  {kind:'UNDER8' as const,contract:'UNDER' as Contract,contractType:'DIGITUNDER' as const,barrier:8,label:'ABAIXO 8 — UNDER 8',baseline:80}
  ].map(item=>{
   const overall=scoreDirection(sample,item.kind);
   const blockScores=blocks.map(block=>scoreDirection(block,item.kind));
-  const recent=blockScores[3];
-  const averageEdge=blockScores.reduce((sum,score)=>sum+(score-item.baseline),0)/blockScores.length;
+  const recent=blockScores[blockScores.length-1]??overall;
+  const averageEdge=blockScores.reduce((sum,score)=>sum+(score-item.baseline),0)/Math.max(1,blockScores.length);
   const overallEdge=overall-item.baseline;
   const recentEdge=recent-item.baseline;
   const score=Math.max(0,Math.min(100,50+overallEdge*0.35+recentEdge*0.4+averageEdge*0.25));
   const supportiveBlocks=blockScores.filter(value=>value>=item.baseline).length;
   return {...item,overall,recent,blockScores,overallEdge,recentEdge,averageEdge,supportiveBlocks,score,strength:overall};
  }).sort((a,b)=>b.score-a.score||b.recentEdge-a.recentEdge||b.overallEdge-a.overallEdge);
- const best=directions[0];
- const second=directions[1];
+ const best=directions[0],second=directions[1];
  if(!best||!Number.isFinite(best.score))return null;
- return {...best,secondScore:second?.score??0,exitSpotBlocks:4};
+ return {...best,secondScore:second?.score??0,exitSpotBlocks:blocks.length};
 }
 function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true,threshold=65,minSamples=9){
  if(v.length<minSamples)return null;
@@ -424,7 +424,7 @@ export default function AutoBotV4(){
    quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1);
    if(result<0){quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
     if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){quick.active=true;quick.forceNextDirection=false;quick.contractType='DIGITUNDER';quick.barrier=8;pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;setNotice('QUICK RECOVER ATIVO — 3 perdas Exit Spots; Hypercover escolhe entre ACIMA 0 e ABAIXO 8; défice $'+quick.deficit.toFixed(2)+'.');}
-    else if(quick.active&&tradeKind==='recovery'){const lostDirection=closedDirection||quick.contractType;quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?0:8;quick.forceNextDirection=true;setNotice('HYPERCOVER: '+(lostDirection==='DIGITOVER'?'ACIMA 0 — OVER 0':'ABAIXO 8 — UNDER 8')+' perdeu. Próxima operação obrigatoriamente '+(quick.contractType==='DIGITOVER'?'ACIMA 0 — OVER 0':'ABAIXO 8 — UNDER 8')+', independentemente das estatísticas. Défice total $'+quick.deficit.toFixed(2)+'.');}
+    else if(quick.active&&tradeKind==='recovery'){const lostDirection=closedDirection||quick.contractType;quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?0:8;quick.forceNextDirection=true;setNotice('HYPERCOVER: '+(lostDirection==='DIGITOVER'?'ACIMA 1 — OVER 1':'ABAIXO 8 — UNDER 8')+' perdeu. Próxima operação obrigatoriamente '+(quick.contractType==='DIGITOVER'?'ACIMA 1 — OVER 1':'ABAIXO 8 — UNDER 8')+', independentemente das estatísticas. Défice total $'+quick.deficit.toFixed(2)+'.');}
     else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
    }else if(result>0){quick.consecutive=0;quick.deficit=Number(Math.max(0,quick.deficit-result).toFixed(2));if(quick.active&&quick.deficit<=0.01){quick.active=false;quick.deficit=0;quick.consecutive=0;quick.forceNextDirection=false;setNotice('QUICK RECOVER concluído — défice recuperado. A regressar à análise normal.');}else if(quick.active)setNotice('QUICK RECOVER continua — falta recuperar $'+quick.deficit.toFixed(2)+'.');}
   }
@@ -605,7 +605,7 @@ export default function AutoBotV4(){
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
   const quickRecover=smartAnalyzer&&quickRecoverRef.current.active;
   if(quickRecover&&quickRecoverPausedForBalanceRef.current){const required=quickRecoverQuoteTargetRef.current;if(required!==null&&Number(balance?.balance)>=required)quickRecoverPausedForBalanceRef.current=false;else return;}
-  if(quickRecover?analysisExitValues.length<28:(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9))return;
+  if(quickRecover?(analysisExitValues.length<9&&aiAnalysisValues.length<9):(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer&&!quickRecover){
    if(!smartAdvice||(!exitSpotsMode&&smartAdvice.noTrade))return;
@@ -615,7 +615,7 @@ export default function AutoBotV4(){
   if(!quickRecover&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
   let freshSignal:any=null;
-  if(quickRecover){const quick=quickRecoverRef.current;const cover=quick.forceNextDirection?{contract:quick.contractType==='DIGITOVER'?'OVER' as Contract:'UNDER' as Contract,contractType:quick.contractType,barrier:quick.barrier,label:quick.contractType==='DIGITOVER'?'ACIMA 0':'ABAIXO 8',strength:100,score:100}:makeHyperCoverExitSignal(analysisExitValues,tickPipSize);if(!cover)return;quick.contractType=cover.contractType;quick.barrier=cover.barrier;freshSignal={contract:cover.contract,label:'QUICK RECOVER HYPERCOVER '+cover.label,strength:cover.strength,score:cover.score,barrier:cover.barrier,contractType:cover.contractType,quickRecover:true};}else if(smartAnalyzer){
+  if(quickRecover){const quick=quickRecoverRef.current;const cover=quick.forceNextDirection?{contract:quick.contractType==='DIGITOVER'?'OVER' as Contract:'UNDER' as Contract,contractType:quick.contractType,barrier:quick.barrier,label:quick.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100}:makeHyperCoverExitSignal(analysisExitValues.length>=9?analysisExitValues:aiAnalysisValues,tickPipSize);if(!cover)return;quick.contractType=cover.contractType;quick.barrier=cover.barrier;freshSignal={contract:cover.contract,label:'QUICK RECOVER HYPERCOVER '+cover.label,strength:cover.strength,score:cover.score,barrier:cover.barrier,contractType:cover.contractType,quickRecover:true};}else if(smartAnalyzer){
    if(exitSpotsMode){
     const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false)):null;
     if(exitSignal)freshSignal=exitSignal;
@@ -806,7 +806,7 @@ export default function AutoBotV4(){
       cancelUnqualifiedEntry('Sinal mudou antes da compra; a aguardar uma nova análise.');
       return;
      }
-     if(quickRecoverRef.current.active){validationSignal={contract:quickRecoverRef.current.contractType==='DIGITUNDER'?'UNDER':'OVER',label:quickRecoverRef.current.contractType==='DIGITUNDER'?'HYPERCOVER ABAIXO 8 — UNDER 8':'HYPERCOVER ACIMA 0 — OVER 0',strength:100,barrier:quickRecoverRef.current.barrier,contractType:quickRecoverRef.current.contractType,quickRecover:true};}else if(exitSpotsMode){
+     if(quickRecoverRef.current.active){validationSignal={contract:quickRecoverRef.current.contractType==='DIGITUNDER'?'UNDER':'OVER',label:quickRecoverRef.current.contractType==='DIGITUNDER'?'HYPERCOVER ABAIXO 8 — UNDER 8':'HYPERCOVER ACIMA 1 — OVER 1',strength:100,barrier:quickRecoverRef.current.barrier,contractType:quickRecoverRef.current.contractType,quickRecover:true};}else if(exitSpotsMode){
       validationSignal=isRecoveryStrategy(strategy)
        ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize)
        :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
