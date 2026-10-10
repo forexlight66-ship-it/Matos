@@ -93,6 +93,19 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   }
   return {allowed:penalty<25,penalty,reason:reasons.join('; ')};
 }
+function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
+ // Exit Spot entries require 36 closed-contract results for the wider baseline
+ // and agreement from the most recent 9 results. Both sides must meet 65%.
+ if(values.length<36)return null;
+ const baseline=makeSignal(values.slice(-36),s,pipSize,false);
+ const recent=makeSignal(values.slice(-9),s,pipSize,false);
+ if(!baseline||!recent||baseline.contract!==recent.contract)return null;
+ if(Number(baseline.strength)<65||Number(recent.strength)<65)return null;
+ const candidate={...recent,strength:Math.min(Number(baseline.strength),Number(recent.strength)),baselineExitSpotStrength:Number(baseline.strength),recentExitSpotStrength:Number(recent.strength)};
+ if(!applyQualityFilter)return candidate;
+ const quality=signalQuality(values.slice(-9),s,candidate.label,pipSize);
+ return quality.allowed?{...candidate,qualityPenalty:quality.penalty}:null;
+}
 function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
  if(v.length<9)return null;
  const x=stats(v,pipSize),t=65;
@@ -462,7 +475,7 @@ export default function AutoBotV4(){
    ? {contract:smartAdvice.contract as Contract,label:String(smartAdvice.label),strength:Number(smartAdvice.score)||0}
    : isRecoveryStrategy(strategy)
      ? {contract:'OVER' as Contract,label:strategy,strength:100}
-     : makeSignal(smartAnalyzer?aiAnalysisValues.slice(-5):botAnalysisValues.slice(-9),strategy,tickPipSize,smartAnalyzer) || (!smartAnalyzer&&exitSpotReady?makeSignal(ticks.slice(-9),strategy,tickPipSize,false):null);
+     : (smartAnalyzer?makeSignal(aiAnalysisValues.slice(-5),strategy,tickPipSize,true):(exitSpotReady?makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false):makeSignal(ticks.slice(-9),strategy,tickPipSize,false))) || (!smartAnalyzer&&exitSpotReady?makeSignal(ticks.slice(-9),strategy,tickPipSize,false):null);
   if(!freshSignal)return;
   if(requested.current)return;
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current))return;
@@ -598,7 +611,7 @@ export default function AutoBotV4(){
      qualityLabel=strategy;
      expectedContract=null;
     }else{
-     const freshSignal=makeSignal(botAnalysisValues.slice(-9),strategy,tickPipSize,smartAnalyzer)||(!smartAnalyzer&&exitSpotReady?makeSignal(ticks.slice(-9),strategy,tickPipSize,false):null);
+     const freshSignal=smartAnalyzer?makeSignal(aiAnalysisValues.slice(-5),strategy,tickPipSize,true):(exitSpotReady?makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false):makeSignal(ticks.slice(-9),strategy,tickPipSize,false))||(!smartAnalyzer&&exitSpotReady?makeSignal(ticks.slice(-9),strategy,tickPipSize,false):null);
      if(!freshSignal){
       cancelUnqualifiedEntry('Signal Quality Filter: aguardando um sinal válido de 9 resultados');
       return;
