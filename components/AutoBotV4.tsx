@@ -81,7 +81,7 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
     else if(sevens>=2)add(15,'concentração no 7');
   }else if(s==='RISE_FALL'){
     // Rise/Fall depends on price continuity, not on the last digit going up/down.
-    const prices=v.slice(-5).map(Number);
+    const prices=v.slice(-9).map(Number);
     let up=0,down=0;
     for(let k=1;k<prices.length;k++){
       if(prices[k]>prices[k-1])up++;
@@ -152,7 +152,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  const riseFall=priceWindows.map(prices=>{
   let up=0,down=0;
   for(let i=1;i<prices.length;i++){if(prices[i]>prices[i-1])up++;else if(prices[i]<prices[i-1])down++}
-  return {up:up/4,down:down/4};
+  return {up:up/2,down:down/2};
  });
  const digitSeries=(predicate:(n:number)=>boolean)=>windows.map(d=>d.filter(predicate).length/3);
  const inputs=[
@@ -172,14 +172,14 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  const candidates:AnalyzerCandidate[]=inputs.map(x=>{
   const weighted=weightedMean(x.series);
   const olderMean=(x.series[0]+x.series[1])/2;
-  const recent=x.series[4];
+  const recent=x.series[2];
   const stability=weightedStability(x.series,weighted);
   const consistency=x.series.filter(n=>n>=x.base).length/3*100;
   const edge=(weighted-x.base)*100;
   const strength=aiClamp(50+edge*1.05);
   const confidence=aiClamp(50+edge*1.30);
   const trend=aiClamp(50+(recent-olderMean)*180);
-  const previousRecent=x.series[3];
+  const previousRecent=x.series[1];
   const acceleration=aiClamp((recent-previousRecent)*220);
   const phaseScore=(strength+confidence+stability)/3;
   const phase=phaseOf(phaseScore,recent*100,olderMean*100,trend,acceleration,consistency);
@@ -196,7 +196,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
         (consistency<40?8:0)+
         (recent<olderMean-0.08?6:0))
     : 0;
-  const quality=signalQuality(v.slice(-25),ANALYZER_STRATEGY_TO_BOT[x.strategy]||x.strategy,x.label,pipSize);
+  const quality=signalQuality(v.slice(-9),ANALYZER_STRATEGY_TO_BOT[x.strategy]||x.strategy,x.label,pipSize);
   const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0)-weakRecentPenalty-quality.penalty);
   return{
    strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,acceleration,consistency,score,
@@ -446,8 +446,8 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&requestStartedAt.current>0&&!proposal&&!buying&&activeContractId===null&&Date.now()-requestStartedAt.current>5000){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic)||riskAwaitingContractRef.current===null)stakeReadyRef.current=true}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic]);
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
-  // Todas as entradas usam os 5 ticks mais recentes. O AI Analyst exige
-  // confirmação da direção escolhida nos mesmos 5 ticks antes de comprar.
+  // Todas as entradas usam os 9 resultados mais recentes. O AI Analyst exige
+  // confirmação da direção escolhida nos mesmos 9 resultados antes de comprar.
   if((smartAnalyzer?aiAnalysisValues:botAnalysisValues).length<9)return;
   if(smartAnalyzer){
    if(!smartAdvice||smartAdvice.noTrade||smartAdvice.qualityBlocked)return;
@@ -598,9 +598,9 @@ export default function AutoBotV4(){
      qualityLabel=strategy;
      expectedContract=null;
     }else{
-     const freshSignal=makeSignal(botAnalysisValues.slice(-5),strategy,tickPipSize,smartAnalyzer);
+     const freshSignal=makeSignal(botAnalysisValues.slice(-9),strategy,tickPipSize,smartAnalyzer);
      if(!freshSignal){
-      cancelUnqualifiedEntry('Signal Quality Filter: aguardando um sinal válido de 5 ticks');
+      cancelUnqualifiedEntry('Signal Quality Filter: aguardando um sinal válido de 9 resultados');
       return;
      }
      qualityLabel=String(freshSignal.label||'');
@@ -611,7 +611,7 @@ export default function AutoBotV4(){
     // adicionais de qualidade. Validar apenas o sinal base e a correspondência
     // entre o tipo de contrato cotado e o sinal mais recente.
     if(smartAnalyzer){
-     const quality=signalQuality(aiAnalysisValues.slice(-5),qualityStrategy,qualityLabel,tickPipSize);
+     const quality=signalQuality(aiAnalysisValues.slice(-9),qualityStrategy,qualityLabel,tickPipSize);
      if(!quality.allowed){
       cancelUnqualifiedEntry('Signal Quality Filter: entrada bloqueada — '+quality.reason);
       setSmartAdvice((prev:any)=>prev?{...prev,noTrade:true,qualityBlocked:true,qualityPenalty:quality.penalty,qualityReason:quality.reason}:prev);
@@ -661,7 +661,7 @@ export default function AutoBotV4(){
  }
  if(aiAnalysisValues.length<9){setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 9 resultados para analisar...');return;}
  if(!analyze100Ticks)return;
- // Sliding 25-tick window; re-evaluate every 3 incoming ticks.
+ // Sliding 9-result window split into 3 blocks; re-evaluate as data arrives.
  const analyzerDataVersion=analysisExitValues.length>=9?1000000+analysisExitValues.length:totalTickCountRef.current;
  if(lastAnalyzerEvalTickRef.current>0&&analyzerDataVersion-lastAnalyzerEvalTickRef.current<3)return;
  lastAnalyzerEvalTickRef.current=analyzerDataVersion;
