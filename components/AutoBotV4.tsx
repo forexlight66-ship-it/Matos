@@ -28,8 +28,8 @@ const digit=(v:number|string|null|undefined,pipSize?:number)=>{if(v==null)return
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
 function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null);
-  const r=d.slice(-5);
-  if(r.length<5)return {allowed:false,penalty:0,reason:'a aguardar 5 ticks completos'};
+  const r=d.slice(-9);
+  if(r.length<9)return {allowed:false,penalty:0,reason:'a aguardar 9 resultados'};
   let penalty=0;
   const reasons:string[]=[];
   const count=(fn:(n:number)=>boolean)=>r.filter(fn).length;
@@ -57,8 +57,8 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
     else if(sixes>=2)add(15,'concentração no 6');
   }else if(s==='PAR_IMPAR'||s==='HYPERLITE'){
     const maxCount=Math.max(...Array.from({length:10},(_,n)=>concentrated(n)));
-    if(maxCount>=4)add(30,'um dígito domina 4/5 ticks');
-    else if(maxCount>=3)add(15,'concentração elevada num único dígito');
+    if(maxCount>=6)add(30,'um dígito domina 6/9 resultados');
+    else if(maxCount>=4)add(15,'concentração elevada num único dígito');
   }else if(s==='DIFERENTE'||s==='HYPERSWAP'){
     const zeros=concentrated(0);
     if(zeros>=3)add(30,'0 excessivamente concentrado contra DIFERENTE');
@@ -94,7 +94,7 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   return {allowed:penalty<25,penalty,reason:reasons.join('; ')};
 }
 function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
- if(v.length<5)return null;
+ if(v.length<9)return null;
  const x=stats(v,pipSize),t=65;
  // Signal Quality Filter é exclusivo do AI Analyst. No modo manual, mantém-se
  // a regra base do bot sem os filtros adicionais de concentração/continuidade.
@@ -117,7 +117,7 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=tru
  const zeroIsDominant=x.match0>=30&&x.match0>Math.max(...x.probs.slice(1));
  return zeroIsDominant?pick({contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}):null;
 }
-const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(values:number[],strategy:string,label:string,pipSize?:number){if(values.length<5)return false;const raw=values.slice(-5);const recent=raw.map(v=>digit(v,pipSize)).filter((n):n is number=>n!==null);if(recent.length<5)return false;if(strategy==='HyperDrive')return label==='ÍMPAR'?recent.filter(n=>n%2!==0).length>=4:recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<raw.length;i++){if(raw[i]>raw[i-1])up++;else if(raw[i]<raw[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;return false}
+const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(values:number[],strategy:string,label:string,pipSize?:number){if(values.length<9)return false;const raw=values.slice(-9);const recent=raw.map(v=>digit(v,pipSize)).filter((n):n is number=>n!==null);if(recent.length<9)return false;if(strategy==='HyperDrive')return label==='ÍMPAR'?recent.filter(n=>n%2!==0).length>=7:recent.filter(n=>n%2===0).length>=7;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=7:recent.filter(n=>n<4).length>=7;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<raw.length;i++){if(raw[i]>raw[i-1])up++;else if(raw[i]<raw[i-1])down++}return label==='SUBIR'?up>=7:down>=7}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=7;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=7;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=7;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=7;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=7;return false}
 type AnalyzerCandidate = {
  strategy:string; label:string; contract:Contract; strength:number; confidence:number; stability:number;
  trend:number; acceleration:number; consistency:number; score:number; risk:number; direction:string;
@@ -134,26 +134,27 @@ function phaseOf(score:number,recent:number,older:number,trend:number,accelerati
  if(score>=60&&recent>=older-8)return 'ENFRAQUECENDO';
  return 'FORA DA FASE';
 }
-function weightedMean(values:number[]){const weights=[0.08,0.12,0.15,0.25,0.40];return values.reduce((sum,v,i)=>sum+v*weights[i],0)}
+function weightedMean(values:number[]){const weights=values.length===3?[0.15,0.25,0.60]:[0.08,0.12,0.15,0.25,0.40];return values.reduce((sum,v,i)=>sum+v*weights[i],0)}
 function weightedStability(values:number[],mean:number){
- const weights=[0.08,0.12,0.15,0.25,0.40];
+ const weights=values.length===3?[0.15,0.25,0.60]:[0.08,0.12,0.15,0.25,0.40];
  const variance=values.reduce((sum,v,i)=>sum+weights[i]*Math.pow(v-mean,2),0);
  return aiClamp(100-Math.sqrt(variance)*170);
 }
 function analyzeStrategies100(v:number[],pipSize?:number){
- if(v.length<25)return null;
- const all=v.slice(-25).map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);
- if(all.length<25)return null;
+ if(v.length<9)return null;
+ const rawPrices=v.slice(-9);
+ const all=rawPrices.map(n=>digit(n,pipSize)).filter((n):n is number=>n!==null);
+ if(all.length<9)return null;
 
- const windows=Array.from({length:5},(_,i)=>all.slice(i*5,(i+1)*5));
- const priceWindows=Array.from({length:5},(_,i)=>v.slice(-25).slice(i*5,(i+1)*5));
+ const windows=Array.from({length:3},(_,i)=>all.slice(i*3,(i+1)*3));
+ const priceWindows=Array.from({length:3},(_,i)=>rawPrices.slice(i*3,(i+1)*3));
  // HyperForce compara os preços reais de exit_spot, não os últimos dígitos.
  const riseFall=priceWindows.map(prices=>{
   let up=0,down=0;
   for(let i=1;i<prices.length;i++){if(prices[i]>prices[i-1])up++;else if(prices[i]<prices[i-1])down++}
   return {up:up/4,down:down/4};
  });
- const digitSeries=(predicate:(n:number)=>boolean)=>windows.map(d=>d.filter(predicate).length/5);
+ const digitSeries=(predicate:(n:number)=>boolean)=>windows.map(d=>d.filter(predicate).length/3);
  const inputs=[
   {strategy:'HyperDrive',label:'PAR',contract:'EVEN' as Contract,direction:'PAR',series:digitSeries(n=>n%2===0),base:.5},
   {strategy:'HyperDrive',label:'ÍMPAR',contract:'ODD' as Contract,direction:'ÍMPAR',series:digitSeries(n=>n%2!==0),base:.5},
@@ -170,10 +171,10 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  ];
  const candidates:AnalyzerCandidate[]=inputs.map(x=>{
   const weighted=weightedMean(x.series);
-  const olderMean=(x.series[0]+x.series[1]+x.series[2]+x.series[3])/4;
+  const olderMean=(x.series[0]+x.series[1])/2;
   const recent=x.series[4];
   const stability=weightedStability(x.series,weighted);
-  const consistency=x.series.filter(n=>n>=x.base).length/5*100;
+  const consistency=x.series.filter(n=>n>=x.base).length/3*100;
   const edge=(weighted-x.base)*100;
   const strength=aiClamp(50+edge*1.05);
   const confidence=aiClamp(50+edge*1.30);
@@ -432,7 +433,7 @@ export default function AutoBotV4(){
   }
  },[proposal]);
  useEffect(()=>{if((!running&&!smartAnalyzer)||!lastClosedTransaction?.contract_id)return;processClosedTradeImmediately(lastClosedTransaction)},[running,smartAnalyzer,lastClosedTransaction,processClosedTradeImmediately]);
- const statsWindow=200;const analysisExitValues=useMemo(()=>profitTransactions.filter(tx=>Boolean(tx.sell_time)&&tx.exit_spot!=null&&String(tx.exit_spot).trim()!==''&&Number.isFinite(Number(tx.exit_spot))).slice(0,600).reverse().map(tx=>Number(tx.exit_spot)),[profitTransactions]);const botAnalysisValues=useMemo(()=>analysisExitValues.length>=5?analysisExitValues:ticks,[analysisExitValues,ticks]);const aiAnalysisValues=useMemo(()=>analysisExitValues.length>=25?analysisExitValues:ticks,[analysisExitValues,ticks]);const chartUsesExitSpots=analysisExitValues.length>=tickWindow;const chartSourceValues=useMemo(()=>chartUsesExitSpots?analysisExitValues:ticks,[chartUsesExitSpots,analysisExitValues,ticks]);const analyze100Ticks=useMemo(()=>analyzeStrategies100(aiAnalysisValues,tickPipSize),[aiAnalysisValues,tickPipSize]);const selectedTickValues=useMemo(()=>chartSourceValues.slice(-tickWindow),[chartSourceValues,tickWindow]);const selectedTickDigits=useMemo(()=>selectedTickValues.map(v=>digit(v,tickPipSize)).filter((d):d is number=>d!==null),[selectedTickValues,tickPipSize]);const st=useMemo(()=>stats(selectedTickValues,tickPipSize),[selectedTickValues,tickPipSize]);const tickDataReady=selectedTickValues.length>=tickWindow&&selectedTickDigits.length>=tickWindow&&(chartUsesExitSpots||(Boolean(tick?.epoch)&&Date.now()/1000-Number(tick?.epoch)<4));const latest=profitTransactions[0];const chartExitDigit=useMemo(()=>{if(!latest?.sell_time||latest.exit_spot==null)return null;return digit(latest.exit_spot,tickPipSize)},[latest,tickPipSize]);const displayedExitDigit=chartUsesExitSpots?chartExitDigit:lastDigitSeen;const chartDigits=useMemo(()=>chartSourceValues.slice(-tickWindow).map(v=>digit(v,tickPipSize)).filter((d):d is number=>d!==null),[chartSourceValues,tickWindow,tickPipSize]);const chartLineDigits=chartDigits;const chartPoints=useMemo(()=>{if(!chartLineDigits.length)return '';return chartLineDigits.map((d,i)=>{const y=92-(d/9)*84;return ((i/(Math.max(chartLineDigits.length-1,1)))*100).toFixed(2)+','+y.toFixed(2)}).join(' ')},[chartLineDigits]);const chartLastY=useMemo(()=>{const d=displayedExitDigit;return d==null?50:92-(d/9)*84},[displayedExitDigit]);const pnl=useMemo(()=>profitTransactions.reduce((a,x)=>a+Number(x.profit_loss||0),0),[profitTransactions]),closedOperations=profitTransactions.length,iaState=useMemo(()=>gestorRef.current.getEstado(),[stakeManagerVersion]),sonicState=useMemo(()=>sonicRef.current.getState(),[stakeManagerVersion]);
+ const statsWindow=200;const analysisExitValues=useMemo(()=>profitTransactions.filter(tx=>Boolean(tx.sell_time)&&tx.exit_spot!=null&&String(tx.exit_spot).trim()!==''&&Number.isFinite(Number(tx.exit_spot))).slice(0,600).reverse().map(tx=>Number(tx.exit_spot)),[profitTransactions]);const exitSpotReady=analysisExitValues.length>=9;const botAnalysisValues=useMemo(()=>exitSpotReady?analysisExitValues:ticks,[exitSpotReady,analysisExitValues,ticks]);const aiAnalysisValues=useMemo(()=>exitSpotReady?analysisExitValues:ticks,[exitSpotReady,analysisExitValues,ticks]);const chartUsesExitSpots=analysisExitValues.length>=9;const chartSourceValues=useMemo(()=>chartUsesExitSpots?analysisExitValues:ticks,[chartUsesExitSpots,analysisExitValues,ticks]);const analyze100Ticks=useMemo(()=>analyzeStrategies100(aiAnalysisValues,tickPipSize),[aiAnalysisValues,tickPipSize]);const selectedTickValues=useMemo(()=>chartSourceValues.slice(-tickWindow),[chartSourceValues,tickWindow]);const selectedTickDigits=useMemo(()=>selectedTickValues.map(v=>digit(v,tickPipSize)).filter((d):d is number=>d!==null),[selectedTickValues,tickPipSize]);const st=useMemo(()=>stats(selectedTickValues,tickPipSize),[selectedTickValues,tickPipSize]);const tickDataReady=selectedTickValues.length>=(chartUsesExitSpots?Math.min(9,tickWindow):tickWindow)&&selectedTickDigits.length>=(chartUsesExitSpots?Math.min(9,tickWindow):tickWindow)&&(chartUsesExitSpots||(Boolean(tick?.epoch)&&Date.now()/1000-Number(tick?.epoch)<4));const latest=profitTransactions[0];const chartExitDigit=useMemo(()=>{if(!latest?.sell_time||latest.exit_spot==null)return null;return digit(latest.exit_spot,tickPipSize)},[latest,tickPipSize]);const displayedExitDigit=chartUsesExitSpots?chartExitDigit:lastDigitSeen;const chartDigits=useMemo(()=>chartSourceValues.slice(-tickWindow).map(v=>digit(v,tickPipSize)).filter((d):d is number=>d!==null),[chartSourceValues,tickWindow,tickPipSize]);const chartLineDigits=chartDigits;const chartPoints=useMemo(()=>{if(!chartLineDigits.length)return '';return chartLineDigits.map((d,i)=>{const y=92-(d/9)*84;return ((i/(Math.max(chartLineDigits.length-1,1)))*100).toFixed(2)+','+y.toFixed(2)}).join(' ')},[chartLineDigits]);const chartLastY=useMemo(()=>{const d=displayedExitDigit;return d==null?50:92-(d/9)*84},[displayedExitDigit]);const pnl=useMemo(()=>profitTransactions.reduce((a,x)=>a+Number(x.profit_loss||0),0),[profitTransactions]),closedOperations=profitTransactions.length,iaState=useMemo(()=>gestorRef.current.getEstado(),[stakeManagerVersion]),sonicState=useMemo(()=>sonicRef.current.getState(),[stakeManagerVersion]);
  const dailyTransactions=useMemo(()=>{const parts=historyDate.split('-').map(Number);if(parts.length!==3||parts.some(n=>!Number.isFinite(n)))return [];const [year,month,day]=parts;return dailyHistoryArchive.filter(x=>{const raw=Number(x.sell_time??x.purchase_time);if(!Number.isFinite(raw)||raw<=0)return false;const d=new Date(raw*1000);return d.getFullYear()===year&&d.getMonth()+1===month&&d.getDate()===day})},[dailyHistoryArchive,historyDate]);const dailyPnl=useMemo(()=>dailyTransactions.reduce((a,x)=>a+Number(x.profit_loss||0),0),[dailyTransactions]);const dailyWins=useMemo(()=>dailyTransactions.filter(x=>Number(x.profit_loss||0)>0).length,[dailyTransactions]);const dailyLosses=useMemo(()=>dailyTransactions.filter(x=>Number(x.profit_loss||0)<0).length,[dailyTransactions]);const dailyByBot=useMemo(()=>{const groups=new Map<string,{count:number;wins:number;losses:number;pnl:number}>();for(const x of dailyTransactions){const bot=String((x as any).bot||'Bot não identificado');const prev=groups.get(bot)||{count:0,wins:0,losses:0,pnl:0};const p=Number(x.profit_loss||0);prev.count+=1;if(p>0)prev.wins+=1;else if(p<0)prev.losses+=1;prev.pnl+=p;groups.set(bot,prev)}return Array.from(groups.entries()).sort((a,b)=>b[1].pnl-a[1].pnl)},[dailyTransactions]);useEffect(()=>{try{const key=`mozhyper-daily-history-v1:${account}`;const raw=localStorage.getItem(key);const stored=raw?JSON.parse(raw):[];if(Array.isArray(stored))setDailyHistoryArchive(stored)}catch{}},[account]); useEffect(()=>{let lastDate=localDateValue();const timer=window.setInterval(()=>{const today=localDateValue();if(today!==lastDate){lastDate=today;setHistoryDate(today);}},30000);return()=>window.clearInterval(timer)},[]);useEffect(()=>{if(!profitTransactions.length)return;const key=`mozhyper-daily-history-v1:${account}`;setDailyHistoryArchive(prev=>{const byId=new Map<number,any>();for(const x of prev){const id=Number(x.contract_id);if(Number.isFinite(id)&&id>0)byId.set(id,x)}for(const x of profitTransactions){const id=Number(x.contract_id);if(!Number.isFinite(id)||id<=0)continue;byId.set(id,{...byId.get(id),...x})}const next=Array.from(byId.values()).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time)).slice(0,2000);try{localStorage.setItem(key,JSON.stringify(next))}catch{}return next})},[profitTransactions,account]);const greeting=useMemo(()=>{const h=new Date().getHours();if(language==='pt')return h>=0&&h<6?'Boa madrugada':h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';if(language==='es')return h>=0&&h<6?'Buenas madrugadas':h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';return h>=0&&h<6?'Good early morning':h<12?'Good morning':h<18?'Good afternoon':'Good evening'},[language]); useEffect(()=>{document.body.classList.toggle('light',theme==='light');return()=>{document.body.classList.remove('light')}},[theme]); useEffect(()=>{fetch('/api/auth/me',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{const name=String(data?.user?.name||'').trim();if(name)setUserName(name)}).catch(()=>{})},[]); useEffect(()=>{let alive=true;const heartbeat=()=>{fetch('/api/online',{method:'POST',cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{if(alive)setOnlineUsers(Number(data?.online)||0)}).catch(()=>{})};heartbeat();const id=window.setInterval(heartbeat,20000);return()=>{alive=false;clearInterval(id)}},[]);
  useEffect(()=>{try{const saved=localStorage.getItem('mozhyper-sound-enabled');if(saved!==null)setSoundEnabled(saved!=='false')}catch{}},[]); useEffect(()=>{let alive=true;const load=async()=>{try{const auth=await fetch('/api/auth/me',{cache:'no-store'}).then(r=>r.ok?r.json():null);let country=String(auth?.user?.country||'').trim().toUpperCase();let ipData:any=null;if(!country){ipData=await fetch('https://ipapi.co/json/',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);country=String(ipData?.country_code||'').trim().toUpperCase();if(/^[A-Z]{2}$/.test(country)&&auth?.platformAuthenticated){fetch('/api/auth/country',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({country})}).catch(()=>{})}}const registeredCurrency=country?getCountryCurrency(country):'';const isAllCurrenciesUser=String(auth?.user?.email||'').trim().toLowerCase()==='khatangana@gmail.com';const apiCurrency=normalizeCurrency(ipData?.currency||'', 'USD');let native=registeredCurrency||apiCurrency;let rate=FALLBACK_RATES[native]||1;if(ipData?.currency===native&&Number(ipData?.currency_rate)>0)rate=Number(ipData.currency_rate);if(!ipData||!country){const currencyData=await fetch('/api/currency',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);if(!native||native==='USD'){native=normalizeCurrency(currencyData?.currency,'USD');}if(native!=='USD'&&FALLBACK_RATES[native])rate=FALLBACK_RATES[native]}if(!alive)return;CURRENCY_RATES[native]=rate;CURRENCY_LABELS[native]=getCurrencyMeta(native).symbol;setCurrencyOptions(isAllCurrenciesUser?Object.keys(CURRENCY_RATES):Array.from(new Set([native,'USD'])));setCurrency(native)}catch{if(alive)setCurrencyOptions(['USD'])}};load();return()=>{alive=false}},[]); useEffect(()=>{if(!menu)return;const onPointerDown=(e:PointerEvent)=>{const el=e.target as HTMLElement;if(!el.closest('.menu-trigger')&&!el.closest('.menu-popover'))setMenu(false)};document.addEventListener('pointerdown',onPointerDown);return()=>document.removeEventListener('pointerdown',onPointerDown)},[menu]); useEffect(()=>{if(!historyOpen)return;const onPointerDown=(e:PointerEvent)=>{const target=e.target as Node|null;if(historyRef.current&&!historyRef.current.contains(target))setHistoryOpen(false)};document.addEventListener('pointerdown',onPointerDown);return()=>document.removeEventListener('pointerdown',onPointerDown)},[historyOpen]);
  useEffect(()=>{if(isConnected)subscribeTicks(symbol)},[isConnected,symbol,subscribeTicks]);
@@ -447,13 +448,13 @@ export default function AutoBotV4(){
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // Todas as entradas usam os 5 ticks mais recentes. O AI Analyst exige
   // confirmação da direção escolhida nos mesmos 5 ticks antes de comprar.
-  if((smartAnalyzer?aiAnalysisValues:botAnalysisValues).length<5)return;
+  if((smartAnalyzer?aiAnalysisValues:botAnalysisValues).length<9)return;
   if(smartAnalyzer){
    if(!smartAdvice||smartAdvice.noTrade||smartAdvice.qualityBlocked)return;
    if(Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
    const analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];
    if(!analystStrategy||strategy!==analystStrategy)return;
-   if(!confirmAnalyzerRecent(aiAnalysisValues.slice(-5),String(smartAdvice.strategy),String(smartAdvice.label),tickPipSize))return;
+   if(!confirmAnalyzerRecent(aiAnalysisValues.slice(-9),String(smartAdvice.strategy),String(smartAdvice.label),tickPipSize))return;
   }
   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
@@ -461,7 +462,7 @@ export default function AutoBotV4(){
    ? {contract:smartAdvice.contract as Contract,label:String(smartAdvice.label),strength:Number(smartAdvice.score)||0}
    : isRecoveryStrategy(strategy)
      ? {contract:'OVER' as Contract,label:strategy,strength:100}
-     : makeSignal(smartAnalyzer?aiAnalysisValues.slice(-5):botAnalysisValues.slice(-5),strategy,tickPipSize,smartAnalyzer);
+     : makeSignal(smartAnalyzer?aiAnalysisValues.slice(-9):botAnalysisValues.slice(-9),strategy,tickPipSize,smartAnalyzer);
   if(!freshSignal)return;
   if(requested.current)return;
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current))return;
@@ -658,10 +659,10 @@ export default function AutoBotV4(){
   analyzerLastSwitchTickRef.current=-1000;analyzerLastSwitchAtRef.current=0;pendingAnalyzerStrategyRef.current=null;
   setAnalyzerNotice(null);analyzerDecisionHistoryRef.current=[];return;
  }
- if(aiAnalysisValues.length<25){setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 ticks iniciais...');return;}
+ if(aiAnalysisValues.length<9){setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 9 resultados para analisar...');return;}
  if(!analyze100Ticks)return;
  // Sliding 25-tick window; re-evaluate every 3 incoming ticks.
- const analyzerDataVersion=analysisExitValues.length>=25?1000000+analysisExitValues.length:totalTickCountRef.current;
+ const analyzerDataVersion=analysisExitValues.length>=9?1000000+analysisExitValues.length:totalTickCountRef.current;
  if(lastAnalyzerEvalTickRef.current>0&&analyzerDataVersion-lastAnalyzerEvalTickRef.current<3)return;
  lastAnalyzerEvalTickRef.current=analyzerDataVersion;
 
@@ -852,7 +853,7 @@ export default function AutoBotV4(){
   <div className="flex items-center justify-between gap-2">
     <div>
       <div className="text-[10px] font-black uppercase tracking-wide">AI ANALYST</div>
-      <div className="mt-1 text-[9px] muted">25 resultados exit_spot · 5 blocos · detecção de subida antecipada</div>
+      <div className="mt-1 text-[9px] muted">9 resultados · 3 blocos · detecção de subida antecipada</div>
     </div>
     {smartAdvice&&<div className="text-right">
       <div className="text-lg font-black">{Math.round(Number(smartAdvice.score)||0)}/100</div>
