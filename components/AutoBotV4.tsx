@@ -470,27 +470,32 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&requestStartedAt.current>0&&!proposal&&!buying&&activeContractId===null&&Date.now()-requestStartedAt.current>5000){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic)||riskAwaitingContractRef.current===null)stakeReadyRef.current=true}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic]);
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
-  // Todas as entradas usam os 9 resultados mais recentes. O AI Analyst exige
-  // confirmação da direção escolhida nos mesmos 9 resultados antes de comprar.
+  // Bot normal: aguarda 9 ticks ao vivo e usa gatilho de 20%.
+  // AI Analyst: analisa 25 ticks em 5 blocos de 5 e só entra após confirmação
+  // independente pelos últimos 28 Exit Spots, organizados em 4 blocos de 7.
   if((smartAnalyzer?aiAnalysisValues.length<25||analysisExitValues.length<28:botAnalysisValues.length<9))return;
+  let analystStrategy:Strategy|null=null;
   if(smartAnalyzer){
    if(!smartAdvice||smartAdvice.noTrade||smartAdvice.qualityBlocked)return;
    if(Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
-   const analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy];
+   analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]||null;
    if(!analystStrategy||strategy!==analystStrategy)return;
-   if(!confirmAnalyzerRecent(aiAnalysisValues.slice(-5),String(smartAdvice.strategy),String(smartAdvice.label),tickPipSize))return;
   }
   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
   if(proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
-  const freshSignal=smartAnalyzer&&smartAdvice&&!smartAdvice.noTrade
-   ? {contract:smartAdvice.contract as Contract,label:String(smartAdvice.label),strength:Number(smartAdvice.score)||0}
-   : isRecoveryStrategy(strategy)
-     ? (exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null)
-     : (smartAnalyzer
-      ? (aiAnalysisValues.length>=25&&smartAdvice
-          ? (()=>{const exitSignal=makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);return exitSignal&&exitSignal.contract===smartAdvice.contract?{...exitSignal,label:String(smartAdvice.label),strength:Number(exitSignal.strength)||0}:null})()
-          : null)
-      : makeSignal(ticks.slice(-9),strategy,tickPipSize,false));
+  let freshSignal:any=null;
+  if(smartAnalyzer){
+   // Nunca comprar diretamente com smartAdvice: o Exit Spot precisa confirmar
+   // a mesma direção escolhida pela análise dos 25 ticks.
+   const exitSignal=analystStrategy?makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false):null;
+   if(exitSignal&&exitSignal.contract===smartAdvice.contract){
+    freshSignal={...exitSignal,label:String(smartAdvice.label),strength:Number(exitSignal.strength)||0};
+   }
+  }else if(isRecoveryStrategy(strategy)){
+   freshSignal=exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null;
+  }else{
+   freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,20,9);
+  }
   if(!freshSignal)return;
   if(requested.current)return;
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current))return;
