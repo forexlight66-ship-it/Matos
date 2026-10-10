@@ -94,13 +94,13 @@ function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   return {allowed:penalty<25,penalty,reason:reasons.join('; ')};
 }
 function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQualityFilter=true){
- // Standard bot mode: 28 closed Exit Spots split into four chronological blocks of 7.
+ // AI Analyst entry confirmation: 28 closed Exit Spots split into four chronological blocks of 7.
  // Keep the 20% trigger and detect an emerging move when the last blocks strengthen.
  if(values.length<28)return null;
  const windowValues=values.slice(-28);
  const blocks=Array.from({length:4},(_,i)=>windowValues.slice(i*7,(i+1)*7));
  const overall=makeSignal(windowValues,s,pipSize,false,20);
- const blockSignals=blocks.map(block=>makeSignal(block,s,pipSize,false,20));
+ const blockSignals=blocks.map(block=>makeSignal(block,s,pipSize,false,20,7));
  const recent=blockSignals[3];
  if(!overall||!recent||overall.contract!==recent.contract)return null;
  if(Number(overall.strength)<20||Number(recent.strength)<20)return null;
@@ -117,8 +117,8 @@ function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQual
  const quality=signalQuality(windowValues.slice(-7),s,candidate.label,pipSize);
  return quality.allowed?{...candidate,qualityPenalty:quality.penalty}:null;
 }
-function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true,threshold=65){
- if(v.length<9)return null;
+function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=true,threshold=65,minSamples=9){
+ if(v.length<minSamples)return null;
  const x=stats(v,pipSize),t=threshold;
  // Signal Quality Filter é exclusivo do AI Analyst. No modo manual, mantém-se
  // a regra base do bot sem os filtros adicionais de concentração/continuidade.
@@ -472,7 +472,7 @@ export default function AutoBotV4(){
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // Todas as entradas usam os 9 resultados mais recentes. O AI Analyst exige
   // confirmação da direção escolhida nos mesmos 9 resultados antes de comprar.
-  if((smartAnalyzer?aiAnalysisValues.length<25:analysisExitValues.length<28))return;
+  if((smartAnalyzer?aiAnalysisValues.length<25||analysisExitValues.length<28:botAnalysisValues.length<9))return;
   if(smartAnalyzer){
    if(!smartAdvice||smartAdvice.noTrade||smartAdvice.qualityBlocked)return;
    if(Number(smartAdvice.score)<65&&smartAdvice.phase!=='EMERGENTE')return;
@@ -486,7 +486,11 @@ export default function AutoBotV4(){
    ? {contract:smartAdvice.contract as Contract,label:String(smartAdvice.label),strength:Number(smartAdvice.score)||0}
    : isRecoveryStrategy(strategy)
      ? (exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null)
-     : (smartAnalyzer?(aiAnalysisValues.length>=25?makeSignal(aiAnalysisValues.slice(-5),strategy,tickPipSize,true):null):makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false));
+     : (smartAnalyzer
+      ? (aiAnalysisValues.length>=25&&smartAdvice
+          ? (()=>{const exitSignal=makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);return exitSignal&&exitSignal.contract===smartAdvice.contract?{...exitSignal,label:String(smartAdvice.label),strength:Number(exitSignal.strength)||0}:null})()
+          : null)
+      : makeSignal(ticks.slice(-9),strategy,tickPipSize,false));
   if(!freshSignal)return;
   if(requested.current)return;
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current))return;
