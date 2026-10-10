@@ -146,9 +146,11 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  if(all.length<25)return null;
 
  const windows=Array.from({length:5},(_,i)=>all.slice(i*5,(i+1)*5));
- const riseFall=windows.map(d=>{
+ const priceWindows=Array.from({length:5},(_,i)=>v.slice(-25).slice(i*5,(i+1)*5));
+ // HyperForce compara os preços reais de exit_spot, não os últimos dígitos.
+ const riseFall=priceWindows.map(prices=>{
   let up=0,down=0;
-  for(let i=1;i<d.length;i++){if(d[i]>d[i-1])up++;else if(d[i]<d[i-1])down++}
+  for(let i=1;i<prices.length;i++){if(prices[i]>prices[i-1])up++;else if(prices[i]<prices[i-1])down++}
   return {up:up/4,down:down/4};
  });
  const digitSeries=(predicate:(n:number)=>boolean)=>windows.map(d=>d.filter(predicate).length/5);
@@ -193,7 +195,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
         (consistency<40?8:0)+
         (recent<olderMean-0.08?6:0))
     : 0;
-  const quality=signalQuality(all,ANALYZER_STRATEGY_TO_BOT[x.strategy]||x.strategy,x.label,pipSize);
+  const quality=signalQuality(v.slice(-25),ANALYZER_STRATEGY_TO_BOT[x.strategy]||x.strategy,x.label,pipSize);
   const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0)-weakRecentPenalty-quality.penalty);
   return{
    strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,acceleration,consistency,score,
