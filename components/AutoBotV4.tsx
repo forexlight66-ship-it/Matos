@@ -486,7 +486,7 @@ export default function AutoBotV4(){
    ? {contract:smartAdvice.contract as Contract,label:String(smartAdvice.label),strength:Number(smartAdvice.score)||0}
    : isRecoveryStrategy(strategy)
      ? (exitSpotReady?{contract:'OVER' as Contract,label:strategy,strength:100}:null)
-     : (smartAnalyzer?(aiAnalysisValues.length>=25?makeSignal(aiAnalysisValues.slice(-5),strategy,tickPipSize,true):null):makeSignal(ticks.slice(-9),strategy,tickPipSize,false));
+     : (smartAnalyzer?(aiAnalysisValues.length>=25?makeSignal(aiAnalysisValues.slice(-5),strategy,tickPipSize,true):null):makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false));
   if(!freshSignal)return;
   if(requested.current)return;
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current))return;
