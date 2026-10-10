@@ -747,8 +747,8 @@ export default function AutoBotV4(){
     stakeReadyRef.current=true;
    };
 
-   // Quick Recover first reads the payout for its actual OVER 0 / UNDER 8
-   // contract. A stale payout from the previous strategy cannot size recovery safely.
+   // Quick Recover reads the payout for its exact OVER 0 / UNDER 8 contract.
+   // It never uses a payout ratio left over from the previous strategy.
    if(smartAnalyzer&&quickRecoverRef.current.active){
     const quick=quickRecoverRef.current;
     const ask=Number(proposal.ask_price);
@@ -758,26 +758,37 @@ export default function AutoBotV4(){
     if(!(ratio>0&&deficit>0.01)){
      quickRecoverQuoteTargetRef.current=Math.max(0,Number(balance?.balance)||0)+0.01;
      quickRecoverPausedForBalanceRef.current=true;
-     setNotice('QUICK RECOVER pausado: a Deriv não devolveu payout válido para calcular a recuperação.');
-     clearProposal();
-     requested.current=false;
-     requestStartedAt.current=0;
-     stakeReadyRef.current=true;
-     return;
+     setNotice('QUICK RECOVER pausado: não foi possível calcular um payout válido. Confirme a ligação e reinicie o robô.');
+     clearProposal();requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;return;
     }
     const requiredStake=Math.max(0.35,Math.ceil((deficit/ratio)*100-1e-9)/100);
     const availableBalance=Math.floor((Number(balance?.balance)||0)*100)/100;
     const targetStake=quickRecoverQuoteTargetRef.current;
-    const exactTargetQuote=targetStake!==null&&Math.abs(ask-targetStake)<0.005;
-    const coversWholeDeficit=payout-ask>=deficit-0.005;
-    if(!(exactTargetQuote&&coversWholeDeficit)){
+    const targetQuoteMatches=targetStake!==null&&Math.abs(ask-targetStake)<0.005;
+    const payoutCoversDeficit=payout-ask>=deficit-0.005;
+    if(!(targetQuoteMatches&&payoutCoversDeficit)){
      let nextStake=requiredStake;
-     if(exactTargetQuote&&!coversWholeDeficit)nextStake=Math.max(requiredStake,Math.ceil((ask+0.01)*100)/100);
+     if(targetQuoteMatches&&!payoutCoversDeficit)nextStake=Math.max(requiredStake,Math.ceil((ask+0.01)*100)/100);
      quickRecoverQuoteTargetRef.current=nextStake;
      if(nextStake>availableBalance+0.005){
       quickRecoverPausedForBalanceRef.current=true;
-      setNotice('QUICK RECOVER pausado: saldo insuficiente para cobrir todo o défice num único trade. Necessário 
-    const cancelUnqualifiedEntry=(message:string)=>{
+      setNotice('QUICK RECOVER pausado: saldo insuficiente para cobrir todo o défice numa única operação.');
+      clearProposal();requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;return;
+     }
+     quickRecoverPausedForBalanceRef.current=false;
+     requested.current=true;requestStartedAt.current=Date.now();
+     if(!getProposal(symbol,quick.contractType,nextStake,1,quick.barrier,false)){
+      quickRecoverQuoteTargetRef.current=null;requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;
+      setNotice('QUICK RECOVER: falhou a cotação da stake de recuperação.');
+     }
+     return;
+    }
+    quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;
+   }
+
+   // Last-moment validation rechecks the exact data window for the active mode.
+   {
+   const cancelUnqualifiedEntry=(message:string)=>{
      setNotice(message);
      clearProposal();
      requested.current=false;
