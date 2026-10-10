@@ -109,8 +109,7 @@ function makeExitSpotSignal(values:number[],s:Strategy,pipSize?:number,applyQual
  const recentStrength=Number(recent.strength);
  const previousStrength=priorStrengths[2]||0;
  const earlyRise=recentStrength>=20&&recentStrength>previousStrength&&recentStrength>=priorStrengths[0]&&recentStrength>=priorStrengths[1];
- // Require either direction agreement in at least 3/4 blocks or a clear early rise
- // in the latest block. The full window and latest block must always agree.
+ // Required rule: the full window, latest block, and at least 3 of 4 blocks agree.
  if(agreeingBlocks<3)return null;
  const candidate={...recent,strength:Math.min(Number(overall.strength),recentStrength),overallExitSpotStrength:Number(overall.strength),recentExitSpotStrength:recentStrength,exitSpotBlocks:4,agreeingExitSpotBlocks:agreeingBlocks,earlyRise};
  if(!applyQualityFilter)return candidate;
@@ -894,7 +893,9 @@ useEffect(()=>{
  // when one strategy has a valid 28-result signal and at least 3/4 blocks agree.
  const candidate:any=analyzeExitSpots28(analysisExitValues,tickPipSize);
  if(!candidate){
-  setExitSpotsMonitorStatus('28 Exit Spots disponíveis; a monitorar em segundo plano por um sinal de 20% com concordância em 3/4 blocos.');
+  setExitSpotsMonitorStatus((previous:string)=>previous.startsWith('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos.')
+   ?previous
+   :'28 Exit Spots disponíveis; a monitorar em segundo plano por um sinal de 20% com concordância em 3/4 blocos.');
   return;
  }
  const candidateBot=ANALYZER_STRATEGY_TO_BOT[String(candidate.strategy)] as Strategy|undefined;
@@ -940,7 +941,7 @@ useEffect(()=>{
  const entry={time:new Date().toLocaleTimeString(),rankings:[{strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0)}],strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0),action:'ENTRA EM EXIT SPOTS'};
  analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);
  setAnalyzerHistory(analyzerDecisionHistoryRef.current);
-},[smartAnalyzer,exitSpotsAutoEnabled,exitSpotsMode,analysisExitValues,tickPipSize,strategy,activeContractId,proposal,buying]);},[smartAnalyzer,exitSpotsMode,analysisExitValues,tickPipSize,strategy]);
+},[smartAnalyzer,exitSpotsAutoEnabled,exitSpotsMode,analysisExitValues,tickPipSize,strategy,activeContractId,proposal,buying]);
 
   useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
