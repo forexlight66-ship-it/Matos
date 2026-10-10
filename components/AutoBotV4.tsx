@@ -121,7 +121,7 @@ function makeHyperCoverExitSignal(values:number[],pipSize?:number){
  if(usable.length<9)return null;
  const sample=usable;
  const blocks=sample.length>=28?Array.from({length:4},(_,i)=>sample.slice(i*7,(i+1)*7)):[sample];
- const scoreDirection=(items:number[],kind:'OVER1'|'UNDER8)=>{
+ const scoreDirection=(items:number[],kind:'OVER1'|'UNDER8')=>{
   const ds=items.map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
   if(!ds.length)return 0;
   return ds.filter(n=>kind==='OVER1'?n>1:n<8).length/ds.length*100;
