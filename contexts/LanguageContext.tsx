@@ -76,8 +76,9 @@ export function LanguageProvider({children}:{children:ReactNode}) {
       });
     });
     observer.observe(document.body,{childList:true,subtree:true,characterData:true});
-    const interval=window.setInterval(run,500);
-    return()=>{observer.disconnect();clearInterval(interval)};
+    // The observer already reacts to text changes. A 500 ms full-DOM scan
+    // duplicated the same work continuously and was unnecessary overhead.
+    return()=>{observer.disconnect()};
   },[language]);
 
   const setLanguage=(lang:Language)=>{
