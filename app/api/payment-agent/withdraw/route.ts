@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRefreshToken } from '@/lib/platform-auth';
+import { refreshAccessToken } from '@/lib/oauth';
 import { derivPaymentRequest, isPaymentAgentCountryAllowed, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { createWithdrawRequest } from '@/lib/paymentAgentRequests';
 import { sendAgentAlert } from '@/lib/telegram';
@@ -21,9 +22,23 @@ function withdrawalStatus(value: unknown): 'rejected' | 'transfer_pending' | 'co
 
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-  const token = request.cookies.get('deriv_access_token')?.value || '';
-
   if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  let token = request.cookies.get('deriv_access_token')?.value || '';
+  let refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
+  if (!refreshToken) refreshToken = (await getDerivRefreshToken(session.id)) || '';
+  const appId = process.env.DERIV_APP_ID?.trim() || '';
+  let refreshedToken: { access_token: string; refresh_token?: string } | null = null;
+  const refreshDerivToken = async () => {
+    if (!appId || !refreshToken) throw new Error('A autenticação Deriv expirou. Volte a ligar a conta Deriv.');
+    const tokens = await refreshAccessToken(appId, refreshToken);
+    token = tokens.access_token;
+    refreshToken = tokens.refresh_token || refreshToken;
+    refreshedToken = { access_token: token, refresh_token: refreshToken };
+    await saveDerivRefreshToken(session.id, refreshToken).catch(error => console.error('[Payment Agent] Could not persist refreshed token', error));
+  };
+  if (!token && refreshToken && appId) {
+    try { await refreshDerivToken(); } catch (error) { console.error('[Payment Agent] Initial token refresh failed', error); }
+  }
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({
       error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).',
@@ -37,6 +52,14 @@ export async function POST(request: NextRequest) {
       code: 'DERIV_REAUTH_REQUIRED',
     }, { status: 401 });
   }
+  const withDerivRefresh = async <T,>(call: () => Promise<T>): Promise<T> => {
+    try { return await call(); }
+    catch (error) {
+      if (Number((error as { status?: number })?.status) !== 401 || !refreshToken || !appId) throw error;
+      await refreshDerivToken();
+      return call();
+    }
+  };
 
   const body = await request.json().catch(() => ({}));
   const amount = Number(body.amount);
@@ -61,7 +84,7 @@ export async function POST(request: NextRequest) {
 
   let nickname = '';
   try {
-    const result = await derivPaymentRequest(token, '/account/v1/nickname', 'GET', undefined, false);
+    const result = await withDerivRefresh(() => derivPaymentRequest(token, '/account/v1/nickname', 'GET', undefined, false));
     nickname = String(result?.data?.nickname || result?.nickname || '').trim();
   } catch (error) {
     const status = Number((error as { status?: number })?.status || 0);
@@ -80,7 +103,7 @@ export async function POST(request: NextRequest) {
   const requestId = randomUUID();
 
   try {
-    const result = await derivPaymentRequest(
+    const result = await withDerivRefresh(() => derivPaymentRequest(
       token,
       '/payment-agents/v1/withdraw',
       'POST',
@@ -95,7 +118,7 @@ export async function POST(request: NextRequest) {
         },
       },
       false,
-    );
+    ));
 
     const remoteStatus = String(result?.data?.status || 'pending').toLowerCase();
     const transactionId = result?.data?.transaction_id == null ? null : String(result.data.transaction_id);
