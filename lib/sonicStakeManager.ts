@@ -209,7 +209,9 @@ export function createSonicStakeManager(input?: {
         // operação. Se esta operação perder, o valor perdido é somado
         // integralmente ao défice e a próxima stake é recalculada para
         // tentar recuperar o novo défice total de uma vez.
-        recoveryDeficit = roundMoney(recoveryDeficit + actualStake);
+        // O défice é sempre baseado no P/L real devolvido pela Deriv, não numa
+        // aproximação pela stake (pode divergir em encerramentos antecipados).
+        recoveryDeficit = roundMoney(recoveryDeficit + Math.abs(pnl));
         if (level < maxLevel) level += 1;
         level = Math.min(maxLevel, Math.max(SONIC_LOSSES_TO_TRIGGER, level));
         accumulationStake = stakeForRecovery(recoveryDeficit);
