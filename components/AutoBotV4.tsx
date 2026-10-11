@@ -425,7 +425,7 @@ export default function AutoBotV4(){
    const statusOutcome=closeStatus==='won'?true:closeStatus==='lost'?false:null;
    const exitDigit=closed?.exit_spot!=null?digit(closed.exit_spot,tickPipSize):null;
    const closeBarrier=Number(closed?.barrier??(closedType==='DIGITOVER'?0:closedType==='DIGITUNDER'?9:NaN));
-   const exitOutcome=Number.isInteger(exitDigit)&&exitDigit>=0&&exitDigit<=9&&Number.isFinite(closeBarrier)
+   const exitOutcome=exitDigit!==null&&Number.isInteger(exitDigit)&&exitDigit>=0&&exitDigit<=9&&Number.isFinite(closeBarrier)
     ?(closedType==='DIGITOVER'?exitDigit>closeBarrier:closedType==='DIGITUNDER'?exitDigit<closeBarrier:null)
     :null;
    // Deriv's explicit status is authoritative; use exit digit/barrier only if status is absent.
