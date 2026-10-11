@@ -838,7 +838,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
 
             <button type="button" onClick={onClose}
               style={{ width:'100%', marginTop:22, padding:'15px 14px', border:0, borderRadius:14, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:17, cursor:'pointer', boxShadow:'0 8px 20px rgba(255,31,61,.18)' }}>
-              Fechar
+              {copy.closeButton}
             </button>
           </div>
         ) : step === 'result' && action === 'course' && depositStatus === 'payment_confirmed' ? (
@@ -846,7 +846,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <div style={{ fontSize:34 }}>🎓</div>
             <div style={{ marginTop:8, fontSize:22, fontWeight:950 }}>{copy.courseConfirmedTitle}</div>
             <div style={{ marginTop:7, fontSize:13, lineHeight:1.45 }}>{copy.courseConfirmedDescription}</div>
-            <button type="button" onClick={onClose} style={{ width:'100%', marginTop:18, padding:'13px 14px', border:0, borderRadius:12, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:16, cursor:'pointer' }}>Fechar</button>
+            <button type="button" onClick={onClose} style={{ width:'100%', marginTop:18, padding:'13px 14px', border:0, borderRadius:12, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:16, cursor:'pointer' }}>{copy.closeButton}</button>
           </div>
         ) : step === 'result' && action === 'ai_analyst' && depositStatus === 'payment_confirmed' ? (
           <div style={{ marginTop:16, padding:15, borderRadius:14, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16' }}>
