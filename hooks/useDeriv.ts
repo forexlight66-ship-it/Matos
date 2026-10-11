@@ -65,12 +65,14 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
 
   if(currentLevel<SOROS_MAX_WINS-1){
    const nextLevel=currentLevel+1;
-   const nextStake=Number(executedStake.toFixed(2));
+   // Soros reinveste a stake executada MAIS o lucro líquido real desta vitória.
+   // Não repetir apenas a stake anterior: isso eliminava o crescimento do ciclo.
+   const nextStake=Number(Math.max(SOROS_MIN,executedStake+pnl).toFixed(2));
    syncSoros({
     level:nextLevel,
     stake:nextStake,
     initialStake:base,
-    accumulatedProfit:Number((nextStake-base).toFixed(2)),
+    accumulatedProfit:Number((Number(sorosRef.current.accumulatedProfit||0)+pnl).toFixed(2)),
     lossRetryCount:0,
     enabled:true,
     blocked:false
