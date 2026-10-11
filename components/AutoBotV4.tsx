@@ -551,7 +551,7 @@ export default function AutoBotV4(){
   if(id===riskAwaitingContractRef.current)riskAwaitingContractRef.current=null;
   if((iaPower||sonic)&&Number.isFinite(Number(pendingRiskStakeRef.current)))pendingRiskStakeRef.current=null;
   if(iaPower||sonic)stakeReadyRef.current=true;
- },[running,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,setManualStake,setManualStatus]);
+ },[running,smartAnalyzer,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,setManualStake,setManualStatus]);
  const noteQuickRecoverContractBought=useCallback((contractId:number)=>{const quick=quickRecoverRef.current;const kind=quick.pendingKind;if(!kind)return;quick.contracts.set(Number(contractId),kind);if(kind==='recovery'){quick.directions.set(Number(contractId),quick.contractType);quick.forceNextDirection=false;}quick.pendingKind=null;},[]);
  const noteQuickRecoverBuyRejected=useCallback(()=>{quickRecoverRef.current.pendingKind=null;quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1)},[]);
  const{tick,balance,proposal,buy,buying,activeContractId,getProposal,clearProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately,noteQuickRecoverContractBought,noteQuickRecoverBuyRejected);useEffect(()=>{manualPowerBalanceRef.current={balance:Number(balance?.balance)||0,currency:String(balance?.currency||'USD')};},[balance?.balance,balance?.currency]);
