@@ -27,14 +27,12 @@ export async function POST(request: NextRequest) {
   let refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
   if (!refreshToken) refreshToken = (await getDerivRefreshToken(session.id)) || '';
   const appId = process.env.DERIV_APP_ID?.trim() || '';
-  let refreshedToken: { access_token: string; refresh_token?: string } | null = null;
-  const refreshDerivToken = async () => {
+   const refreshDerivToken = async () => {
     if (!appId || !refreshToken) throw new Error('A autenticação Deriv expirou. Volte a ligar a conta Deriv.');
     const tokens = await refreshAccessToken(appId, refreshToken);
     token = tokens.access_token;
     refreshToken = tokens.refresh_token || refreshToken;
-    refreshedToken = { access_token: token, refresh_token: refreshToken };
-    await saveDerivRefreshToken(session.id, refreshToken).catch(error => console.error('[Payment Agent] Could not persist refreshed token', error));
+     await saveDerivRefreshToken(session.id, refreshToken).catch(error => console.error('[Payment Agent] Could not persist refreshed token', error));
   };
   if (!token && refreshToken && appId) {
     try { await refreshDerivToken(); } catch (error) { console.error('[Payment Agent] Initial token refresh failed', error); }
