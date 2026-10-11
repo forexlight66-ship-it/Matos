@@ -415,25 +415,69 @@ export default function AutoBotV4(){
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE,payout:IA_PAYOUT,maxLevel:maxMartingale}));
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
-  if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
-  const id=Number(closed.contract_id);
-  const result=Number(closed.profit_loss);
-  if(!Number.isFinite(id)||id<=0||!Number.isFinite(result))return;
-  if(String(closed?.bot||'').trim().toLowerCase()==='hypercover')console.info('[Hypercover close audit]',{contract_id:id,contract_type:closed.contract_type,barrier:closed.barrier,exit_spot:closed.exit_spot,profit_loss:result});
-
-  if(processedClosedTradeIdsRef.current.has(id))return;processedClosedTradeIdsRef.current.add(id);
-  const quick=quickRecoverRef.current;const tradeKind=quick.contracts.get(id);const closedDirection=quick.directions.get(id);if(tradeKind)quick.contracts.delete(id);if(closedDirection)quick.directions.delete(id);
-  const isHypercoverTrade=String(closed?.bot||'').trim().toLowerCase()==='hypercover';
-  if(isHypercoverTrade&&result<0){const closedType=String(closed?.contract_type||'').toUpperCase();const actualDirection=closedType==='DIGITOVER'?'DIGITOVER':closedType==='DIGITUNDER'?'DIGITUNDER':hypercoverAlternationRef.current.lastDirection||'DIGITUNDER';const nextDirection=actualDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';const nextLossStreak=hypercoverAlternationRef.current.lossStreak+1;const shouldPause=nextLossStreak>=3;hypercoverAlternationRef.current={...hypercoverAlternationRef.current,forceNextDirection:true,contractType:nextDirection,barrier:nextDirection==='DIGITOVER'?0:9,lastDirection:actualDirection,lossStreak:shouldPause?0:nextLossStreak,pauseTicksRemaining:shouldPause?30:hypercoverAlternationRef.current.pauseTicksRemaining};quick.contractType=nextDirection;quick.barrier=nextDirection==='DIGITOVER'?0:9;quick.forceNextDirection=true;setQuickRecoverRevision(v=>v+1);setNotice(shouldPause?'HYPERCOVER: 3 perdas na alternância. Pausa de 30 ticks; depois retoma com '+(nextDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+'.':'HYPERCOVER perdeu ('+(actualDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+'). Próxima operação obrigatoriamente '+(nextDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+', independentemente das estatísticas.');}else if(isHypercoverTrade&&result>0){hypercoverAlternationRef.current.lossStreak=0;}
-  if(!isHypercoverTrade&&(tradeKind==='exit'||tradeKind==='recovery')){
-   quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1);
-   if(result<0){quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
-    if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){quick.active=true;if(isHypercoverTrade&&result<0){quick.forceNextDirection=true;quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;}else{quick.forceNextDirection=false;quick.contractType='DIGITUNDER';quick.barrier=8;}pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;setNotice('QUICK RECOVER ATIVO — 3 perdas consecutivas; Hypercover continua a recuperação; défice $'+quick.deficit.toFixed(2)+'.');}
-    else if(quick.active&&tradeKind==='recovery'){const lostDirection=closedDirection||quick.contractType;quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?0:9;quick.forceNextDirection=true;setNotice('HYPERCOVER: '+(lostDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+' perdeu. Próxima operação obrigatoriamente '+(quick.contractType==='DIGITOVER'?'OVER 0':'UNDER 9')+', independentemente das estatísticas. Défice total $'+quick.deficit.toFixed(2)+'.');}
-    else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
-   }else if(result>0){quick.consecutive=0;quick.deficit=Number(Math.max(0,quick.deficit-result).toFixed(2));if(quick.active&&quick.deficit<=0.01){quick.active=false;quick.deficit=0;quick.consecutive=0;quick.forceNextDirection=false;setNotice('QUICK RECOVER concluído — défice recuperado. A regressar à análise normal.');}else if(quick.active)setNotice('QUICK RECOVER continua — falta recuperar $'+quick.deficit.toFixed(2)+'.');}
-  }
-  const fallbackStake=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():stake;
+   if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
+   const id=Number(closed.contract_id);
+   const result=Number(closed.profit_loss);
+   if(!Number.isFinite(id)||id<=0||!Number.isFinite(result))return;
+   const isHypercoverTrade=String(closed?.bot||'').trim().toLowerCase()==='hypercover';
+   const closedType=String(closed?.contract_type||'').toUpperCase();
+   const closeStatus=String(closed?.status||'').trim().toLowerCase();
+   const statusOutcome=closeStatus==='won'?true:closeStatus==='lost'?false:null;
+   const exitDigit=closed?.exit_spot!=null?digit(closed.exit_spot,tickPipSize):null;
+   const closeBarrier=Number(closed?.barrier??(closedType==='DIGITOVER'?0:closedType==='DIGITUNDER'?9:NaN));
+   const exitOutcome=Number.isInteger(exitDigit)&&exitDigit>=0&&exitDigit<=9&&Number.isFinite(closeBarrier)
+    ?(closedType==='DIGITOVER'?exitDigit>closeBarrier:closedType==='DIGITUNDER'?exitDigit<closeBarrier:null)
+    :null;
+   // Deriv's explicit status is authoritative; use exit digit/barrier only if status is absent.
+   const hypercoverWon=isHypercoverTrade?(statusOutcome??exitOutcome??(result>0)):(result>0);
+   if(isHypercoverTrade)console.info('[Hypercover close audit]',{contract_id:id,contract_type:closedType,barrier:closeBarrier,exit_spot:closed.exit_spot,exit_digit:exitDigit,status:closeStatus||null,exit_outcome:exitOutcome,profit_loss:result,alternation_outcome:hypercoverWon?'won':'lost'});
+   if(processedClosedTradeIdsRef.current.has(id))return;processedClosedTradeIdsRef.current.add(id);
+   const quick=quickRecoverRef.current;const tradeKind=quick.contracts.get(id);const closedDirection=quick.directions.get(id);if(tradeKind)quick.contracts.delete(id);if(closedDirection)quick.directions.delete(id);
+   if(isHypercoverTrade&&!hypercoverWon){
+    const actualDirection=closedType==='DIGITOVER'?'DIGITOVER':closedType==='DIGITUNDER'?'DIGITUNDER':hypercoverAlternationRef.current.lastDirection||'DIGITUNDER';
+    const nextDirection=actualDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';
+    const nextLossStreak=hypercoverAlternationRef.current.lossStreak+1;
+    const shouldPause=nextLossStreak>=3;
+    hypercoverAlternationRef.current={...hypercoverAlternationRef.current,forceNextDirection:true,contractType:nextDirection,barrier:nextDirection==='DIGITOVER'?0:9,lastDirection:actualDirection,lossStreak:shouldPause?0:nextLossStreak,pauseTicksRemaining:shouldPause?30:hypercoverAlternationRef.current.pauseTicksRemaining};
+    quick.contractType=nextDirection;quick.barrier=nextDirection==='DIGITOVER'?0:9;quick.forceNextDirection=true;
+    setQuickRecoverRevision(v=>v+1);
+    setNotice(shouldPause?'HYPERCOVER: 3 perdas consecutivas. Pausa de 30 ticks; depois retoma com '+(nextDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+'.':'HYPERCOVER perdeu ('+(actualDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+'). Próxima operação obrigatoriamente '+(nextDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+', independentemente das estatísticas.');
+   }else if(isHypercoverTrade&&hypercoverWon){
+    hypercoverAlternationRef.current.lossStreak=0;
+   }
+   // Financial recovery bookkeeping must include Hypercover contracts too.
+   if(tradeKind==='exit'||tradeKind==='recovery'){
+    quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1);
+    if(result<0){
+     quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
+     if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){
+      quick.active=true;
+      if(isHypercoverTrade){
+       quick.forceNextDirection=true;quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;
+      }else{
+       quick.forceNextDirection=false;quick.contractType='DIGITUNDER';quick.barrier=8;
+      }
+      pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;
+      setNotice(isHypercoverTrade?'HYPERCOVER QUICK RECOVER activo após 3 perdas. Pausa de 30 ticks; depois tentará recuperar o défice total numa única operação. Défice $'+quick.deficit.toFixed(2)+'.':'QUICK RECOVER ATIVO — 3 perdas consecutivas; défice $'+quick.deficit.toFixed(2)+'.');
+     }else if(quick.active&&tradeKind==='recovery'){
+      if(isHypercoverTrade){
+       // Hypercover already selected the opposite direction for this loss.
+       quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;quick.forceNextDirection=true;
+      }else{
+       const lostDirection=closedDirection||quick.contractType;
+       quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?0:9;quick.forceNextDirection=true;
+      }
+      setNotice('QUICK RECOVER continua — próxima direcção '+(quick.contractType==='DIGITOVER'?'OVER 0':'UNDER 9')+'; défice total $'+quick.deficit.toFixed(2)+'.');
+     }else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
+    }else if(result>0){
+     quick.consecutive=0;quick.deficit=Number(Math.max(0,quick.deficit-result).toFixed(2));
+     if(quick.active&&quick.deficit<=0.01){
+      quick.active=false;quick.deficit=0;quick.consecutive=0;quick.forceNextDirection=false;
+      setNotice('QUICK RECOVER concluído — défice recuperado. A regressar à análise normal.');
+     }else if(quick.active)setNotice('QUICK RECOVER continua — falta recuperar $'+quick.deficit.toFixed(2)+'.');
+    }
+   }
+   const fallbackStake=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():stake;
   const executedStake=Math.max(0.35,Number(closed.buy_price)>0?Number(closed.buy_price):Number(pendingRiskStakeRef.current)||Number(fallbackStake)||0.35);
   const closedPayout=Number(closed.payout);
   const payoutRatio=executedStake>0&&Number.isFinite(closedPayout)&&closedPayout>executedStake
