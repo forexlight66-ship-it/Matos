@@ -47,8 +47,12 @@ export function LanguageProvider({children}:{children:ReactNode}) {
   const [invertAccountNames,setInvertAccountNames] = useState(false);
 
   useEffect(()=>{
-    const stored=localStorage.getItem('lang') as Language;
-    if(stored && ['en','pt','es'].includes(stored)) setLanguageState(stored);
+    try{
+      const stored=localStorage.getItem('lang');
+      const normalized:Language=stored==='en'?'en':'pt';
+      setLanguageState(normalized);
+      if(stored!==normalized)localStorage.setItem('lang',normalized);
+    }catch{setLanguageState('pt')}
   },[]);
 
   useEffect(()=>{
@@ -76,7 +80,11 @@ export function LanguageProvider({children}:{children:ReactNode}) {
     return()=>{observer.disconnect();clearInterval(interval)};
   },[language]);
 
-  const setLanguage=(lang:Language)=>{setLanguageState(lang);localStorage.setItem('lang',lang);};
+  const setLanguage=(lang:Language)=>{
+    const normalized:Language=lang==='en'?'en':'pt';
+    setLanguageState(normalized);
+    try{localStorage.setItem('lang',normalized)}catch{}
+  };
   const t=(key:string)=>{
     const value=translations[language][key] || translations.en[key] || key;
     if(invertAccountNames && key==='demo') return translations[language].real || translations.en.real || 'Real';
