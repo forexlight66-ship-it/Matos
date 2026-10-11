@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRefreshToken } from '@/lib/platform-auth';
+import { refreshAccessToken } from '@/lib/oauth';
 import { derivPaymentRequest, isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
 import { completeTransfer, getPaymentRequest } from '@/lib/paymentAgentRequests';
 
@@ -15,10 +16,22 @@ function localStatus(remoteStatus: string) {
 
 export async function GET(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-  const token = request.cookies.get('deriv_access_token')?.value || '';
+  let token = request.cookies.get('deriv_access_token')?.value || '';
+  let refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
   const requestId = String(request.nextUrl.searchParams.get('request_id') || '').trim();
 
   if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  if (!refreshToken) refreshToken = (await getDerivRefreshToken(session.id)) || '';
+  const appId = process.env.DERIV_APP_ID?.trim() || '';
+  let refreshedToken = false;
+  const refreshDerivToken = async () => {
+    if (!appId || !refreshToken) throw new Error('A autenticação Deriv expirou. Volte a ligar a conta Deriv.');
+    const tokens = await refreshAccessToken(appId, refreshToken);
+    token = tokens.access_token;
+    refreshToken = tokens.refresh_token || refreshToken;
+    refreshedToken = true;
+    await saveDerivRefreshToken(session.id, refreshToken).catch(error => console.error('[Payment Agent] Could not persist refreshed token', error));
+  };
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({
       error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).',
@@ -29,12 +42,21 @@ export async function GET(request: NextRequest) {
   if (!/^[-\w]{1,128}$/.test(requestId)) {
     return NextResponse.json({ error: 'Invalid request_id' }, { status: 400 });
   }
+  if (!token && refreshToken && appId) { try { await refreshDerivToken(); } catch {} }
   if (!token) {
     return NextResponse.json({
       error: 'A autenticação Deriv desta conta expirou. Faça login com Deriv novamente para continuar.',
       code: 'DERIV_REAUTH_REQUIRED',
     }, { status: 401 });
   }
+  const withDerivRefresh = async <T,>(call: () => Promise<T>): Promise<T> => {
+    try { return await call(); }
+    catch (error) {
+      if (Number((error as {status?:number})?.status)!==401 || !refreshToken || !appId) throw error;
+      await refreshDerivToken();
+      return call();
+    }
+  };
 
   try {
     const row = await getPaymentRequest(requestId);
@@ -44,13 +66,13 @@ export async function GET(request: NextRequest) {
 
     const remoteRequestId = String(row.transfer_request_id || row.id);
     try {
-      const result = await derivPaymentRequest(
+      const result = await withDerivRefresh(() => derivPaymentRequest(
         token,
         '/payment-agents/v1/withdraw/' + encodeURIComponent(remoteRequestId),
         'GET',
         undefined,
         false,
-      );
+      ));
       const remoteStatus = String(result?.data?.status || row.status || 'pending').toLowerCase();
       const transactionId = result?.data?.transaction_id == null
         ? row.transaction_id
