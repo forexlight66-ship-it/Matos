@@ -819,21 +819,21 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
               <span aria-hidden="true" style={{ position:'absolute', right:0, bottom:2, color:'#ff3949', fontSize:20, fontWeight:900, transform:'rotate(25deg)' }}>✦</span>
             </div>
 
-            <div style={{ fontSize:27, lineHeight:1.12, fontWeight:950, letterSpacing:-.7 }}>Transferência bem-<br/>sucedida</div>
+            <div style={{ fontSize:27, lineHeight:1.12, fontWeight:950, letterSpacing:-.7 }}>{copy.depositResultTitle}</div>
             <div style={{ marginTop:14, fontSize:15, lineHeight:1.45, opacity:.92 }}>
-              O seu depósito foi confirmado pelo nosso<br/>Payment Agent.
+              {copy.depositResultDescription}
             </div>
 
             <div style={{ marginTop:24, padding:'20px 20px 22px', borderRadius:20, background:'rgba(255,255,255,.075)', border:'1px solid rgba(255,255,255,.16)', boxShadow:'inset 0 1px 0 rgba(255,255,255,.04)', textAlign:'left' }}>
-              <div style={{ fontSize:11, letterSpacing:2.2, opacity:.68, fontWeight:900 }}>NICKNAME DERIV</div>
+              <div style={{ fontSize:11, letterSpacing:2.2, opacity:.68, fontWeight:900 }}>{copy.nicknameLabel}</div>
               <div style={{ marginTop:7, fontSize:20, lineHeight:1.2, fontWeight:950 }}>{derivNickname || '—'}</div>
-              <div style={{ marginTop:20, fontSize:11, letterSpacing:2.2, opacity:.68, fontWeight:900 }}>VALOR DO DEPÓSITO</div>
+              <div style={{ marginTop:20, fontSize:11, letterSpacing:2.2, opacity:.68, fontWeight:900 }}>{copy.depositAmountLabel}</div>
               <div style={{ marginTop:7, fontSize:26, lineHeight:1.15, fontWeight:950 }}>${(parseMoney(amount) || 0).toFixed(2)}</div>
             </div>
 
             <div style={{ marginTop:20, display:'flex', alignItems:'center', gap:14, textAlign:'left', padding:'0 2px' }}>
               <div aria-hidden="true" style={{ width:54, height:54, flex:'0 0 54px', borderRadius:'50%', background:'linear-gradient(145deg,#22d36a,#00a84f)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:31, fontWeight:950, boxShadow:'0 7px 18px rgba(34,197,94,.28)' }}>✓</div>
-              <div style={{ fontSize:13, lineHeight:1.5, opacity:.94 }}>O pagamento foi confirmado e o valor já foi<br/>adicionado à sua conta Deriv.</div>
+              <div style={{ fontSize:13, lineHeight:1.5, opacity:.94 }}>{copy.depositAddedNotice}</div>
             </div>
 
             <button type="button" onClick={onClose}
@@ -844,8 +844,8 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         ) : step === 'result' && action === 'course' && depositStatus === 'payment_confirmed' ? (
           <div style={{ marginTop:16, padding:20, borderRadius:18, border:'1px solid #22c55e66', background:light?'#f0fdf4':'#052e16', textAlign:'center' }}>
             <div style={{ fontSize:34 }}>🎓</div>
-            <div style={{ marginTop:8, fontSize:22, fontWeight:950 }}>Pagamento confirmado</div>
-            <div style={{ marginTop:7, fontSize:13, lineHeight:1.45 }}>O seu <b>Complete Course</b> foi ativado com acesso ilimitado.</div>
+            <div style={{ marginTop:8, fontSize:22, fontWeight:950 }}>{copy.courseConfirmedTitle}</div>
+            <div style={{ marginTop:7, fontSize:13, lineHeight:1.45 }}>{copy.courseConfirmedDescription}</div>
             <button type="button" onClick={onClose} style={{ width:'100%', marginTop:18, padding:'13px 14px', border:0, borderRadius:12, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:16, cursor:'pointer' }}>Fechar</button>
           </div>
         ) : step === 'result' && action === 'ai_analyst' && depositStatus === 'payment_confirmed' ? (
@@ -860,12 +860,12 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             <div style={{ fontSize:11, textTransform:'uppercase', fontWeight:900 }}>{copy.operation}</div>
             <div style={{ marginTop:6, fontSize:14, fontWeight:900 }}>{message}</div>
             {requestId && <div style={{ marginTop:7, fontSize:9, opacity:.65, wordBreak:'break-all' }}>{copy.request}: {requestId}</div>}
-            {action === 'withdraw' && <button type="button" onClick={onClose} style={{ width:'100%', marginTop:16, padding:'12px 14px', border:0, borderRadius:11, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:15, cursor:'pointer' }}>{language === 'en' ? 'Close' : language === 'es' ? 'Cerrar' : 'Fechar'}</button>}
+            {action === 'withdraw' && <button type="button" onClick={onClose} style={{ width:'100%', marginTop:16, padding:'12px 14px', border:0, borderRadius:11, background:'#ff1f3d', color:'#fff', fontWeight:950, fontSize:15, cursor:'pointer' }}>{copy.closeButton}</button>}
             {(action === 'deposit' || action === 'ai_analyst' || action === 'course') && !depositPaid && requestId && <>
               <div style={{ marginTop:14, padding:12, borderRadius:12, border:'1px solid #94a3b8', background:light?'#f8fafc':'#111827' }}>
-                <div style={{ fontSize:12, fontWeight:900 }}>📎 {language === 'en' ? 'Payment proof' : 'Comprovativo do pagamento'}</div>
+                <div style={{ fontSize:12, fontWeight:900 }}>📎 {copy.paymentProofTitle}</div>
                 <div style={{ marginTop:4, fontSize:11, lineHeight:1.4, opacity:.72 }}>
-                  {language === 'en' ? 'Upload the payment screenshot. Then click “I PAID”.' : 'Envie o screenshot do pagamento. E clique em “JÁ PAGUEI”.'}
+                  {copy.paymentProofHelp}
                 </div>
                 <input
                   type="file"
