@@ -419,6 +419,7 @@ export default function AutoBotV4(){
   const id=Number(closed.contract_id);
   const result=Number(closed.profit_loss);
   if(!Number.isFinite(id)||id<=0||!Number.isFinite(result))return;
+  if(String(closed?.bot||'').trim().toLowerCase()==='hypercover')console.info('[Hypercover close audit]',{contract_id:id,contract_type:closed.contract_type,barrier:closed.barrier,exit_spot:closed.exit_spot,profit_loss:result});
 
   if(processedClosedTradeIdsRef.current.has(id))return;processedClosedTradeIdsRef.current.add(id);
   const quick=quickRecoverRef.current;const tradeKind=quick.contracts.get(id);const closedDirection=quick.directions.get(id);if(tradeKind)quick.contracts.delete(id);if(closedDirection)quick.directions.delete(id);
