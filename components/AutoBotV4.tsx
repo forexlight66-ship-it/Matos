@@ -455,7 +455,7 @@ export default function AutoBotV4(){
       if(isHypercoverTrade){
        quick.forceNextDirection=true;quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;
       }else{
-       quick.forceNextDirection=false;quick.contractType='DIGITUNDER';quick.barrier=8;
+       quick.forceNextDirection=true;quick.contractType='DIGITUNDER';quick.barrier=9;
       }
       pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;
       setNotice(isHypercoverTrade?'HYPERCOVER QUICK RECOVER activo após 3 perdas. Pausa de 30 ticks; depois tentará recuperar o défice total numa única operação. Défice $'+quick.deficit.toFixed(2)+'.':'QUICK RECOVER ATIVO — 3 perdas consecutivas; défice $'+quick.deficit.toFixed(2)+'.');
@@ -665,7 +665,7 @@ export default function AutoBotV4(){
   if(hypercoverAlternationRef.current.pauseTicksRemaining>0&&(strategy==='HYPERCOVER'||smartAnalyzer||hypercoverAlternationRef.current.forceNextDirection))return;
   const forceHypercover=!quickRecover&&hypercoverAlternationRef.current.forceNextDirection;
   if(quickRecover&&quickRecoverPausedForBalanceRef.current){const required=quickRecoverQuoteTargetRef.current;if(required!==null&&Number(balance?.balance)>=required)quickRecoverPausedForBalanceRef.current=false;else return;}
-  if(!forceHypercover&&(quickRecover?(analysisExitValues.length<9&&aiAnalysisValues.length<9):(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9)))return;
+  if(!quickRecover&&!forceHypercover&&(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9))return;
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer&&!quickRecover&&!forceHypercover){
    if(!smartAdvice||(!exitSpotsMode&&smartAdvice.noTrade))return;
@@ -920,6 +920,7 @@ export default function AutoBotV4(){
     hypercoverBarrierToRecord=expectedBarrier;
    }
     const bought=buy(proposal.id,Number(proposal.ask_price),botName,botName==='Hypercover'?hypercoverBarrierToRecord:(proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):undefined));
+    if(bought&&botName==='Hypercover')requestedHypercoverContractRef.current=null;
     const boughtDirection=String((proposal as any).contract_type||'').toUpperCase();if(bought&&botName==='Hypercover'&&(boughtDirection==='DIGITOVER'||boughtDirection==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=boughtDirection as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
     if(!bought){quickRecoverRef.current.pendingKind=null;
     setNotice('Falha ao enviar a operação para a Deriv.');
