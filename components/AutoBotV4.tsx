@@ -938,7 +938,7 @@ export default function AutoBotV4(){
    }
     const bought=buy(proposal.id,Number(proposal.ask_price),botName,botName==='Hypercover'?hypercoverBarrierToRecord:(proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):(Number.isFinite(Number((proposal as any).requested_barrier))?Number((proposal as any).requested_barrier):undefined)));
     if(bought&&botName==='Hypercover')requestedHypercoverContractRef.current=null;
-    const boughtDirection=String((proposal as any).contract_type||'').toUpperCase();if(bought&&botName==='Hypercover'&&(boughtDirection==='DIGITOVER'||boughtDirection==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=boughtDirection as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
+    const boughtDirection=String((proposal as any).contract_type||(proposal as any).requested_contract_type||'').toUpperCase();if(bought&&botName==='Hypercover'&&(boughtDirection==='DIGITOVER'||boughtDirection==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=boughtDirection as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
     if(!bought){quickRecoverRef.current.pendingKind=null;
     setNotice('Falha ao enviar a operação para a Deriv.');
     requested.current=false;
