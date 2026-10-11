@@ -23,14 +23,12 @@ export async function GET(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   if (!refreshToken) refreshToken = (await getDerivRefreshToken(session.id)) || '';
   const appId = process.env.DERIV_APP_ID?.trim() || '';
-  let refreshedToken = false;
-  const refreshDerivToken = async () => {
+   const refreshDerivToken = async () => {
     if (!appId || !refreshToken) throw new Error('A autenticação Deriv expirou. Volte a ligar a conta Deriv.');
     const tokens = await refreshAccessToken(appId, refreshToken);
     token = tokens.access_token;
     refreshToken = tokens.refresh_token || refreshToken;
-    refreshedToken = true;
-    await saveDerivRefreshToken(session.id, refreshToken).catch(error => console.error('[Payment Agent] Could not persist refreshed token', error));
+     await saveDerivRefreshToken(session.id, refreshToken).catch(error => console.error('[Payment Agent] Could not persist refreshed token', error));
   };
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({
