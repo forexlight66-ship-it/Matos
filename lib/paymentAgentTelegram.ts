@@ -97,7 +97,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
           'Acesso: <b>Ilimitado</b>',
           '',
           'O cliente já pode abrir o Complete Course.',
-        ].join('\\n'));
+        ].join('\n'));
         return true;
       }
       if (String((updated as any).purpose || '') === 'ai_analyst') {
@@ -115,7 +115,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
           `Expira em: <b>${escapeHtml(new Date(subscription.expires_at).toLocaleString('pt-PT'))}</b>`,
           '',
           'Nenhuma transferência para a Wallet/Options será executada para este produto.',
-        ].join('\\n'));
+        ].join('\n'));
         return true;
       }
       await answerTelegramCallback(callbackId, updated.type === 'deposit' ? 'Pagamento confirmado.' : 'Levantamento confirmado.').catch(error => {
@@ -179,7 +179,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
         'A transferência automática para Options está desativada.',
         'O valor permanece na Wallet Deriv. Se desejar, o cliente pode transferir manualmente na própria Deriv.',
         'Não aprove este pedido novamente.',
-      ].join('\\n'));
+      ].join('\n'));
       return true;
     }
 
@@ -196,7 +196,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
           '',
           'O levantamento agora é enviado diretamente pelo cliente para o Payment Agent 503.',
           'Não é necessária confirmação no Telegram e não existe Options → Wallet neste fluxo.',
-        ].join('\\n'),
+        ].join('\n'),
       );
       return true;
     }
@@ -242,7 +242,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
         'A Deriv confirmou que o valor foi enviado para a Wallet do cliente.',
         'A transferência automática Wallet → Options está desativada.',
         'O cliente pode deixar o valor na Wallet ou transferi-lo manualmente na Deriv.',
-      ].join('\\n'));
+      ].join('\n'));
       return true;
     }
 
@@ -256,7 +256,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
         `Request ID: <b>${escapeHtml(String(claimed.transfer_request_id || '—'))}</b>`,
         '',
         'A Deriv ainda está a processar o envio para a Wallet. Nenhuma transferência automática para Options será iniciada.',
-      ].join('\\n'));
+      ].join('\n'));
       return true;
     }
 
