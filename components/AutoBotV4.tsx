@@ -753,6 +753,15 @@ export default function AutoBotV4(){
   // Quick Recover começa com uma cotação-semente mínima. A stake de recuperação
   // só é calculada depois de ler o payout REAL do contrato ACIMA 0/ABAIXO 9.
   const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
+  // Sonic recovery must be one full-deficit operation. Never silently cap it to the available balance.
+  if(sonicRecovery&&!quickState.active&&desiredStake>maxStakeByBalance+0.005){
+   pendingRiskStakeRef.current=null;
+   requested.current=false;
+   requestStartedAt.current=0;
+   stakeReadyRef.current=true;
+   setNotice('SONIC pausado: saldo insuficiente para recuperar todo o défice numa única operação. A recuperação não será reduzida nem executada parcialmente.');
+   return;
+  }
   let amount=quickState.active?0.35:Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
   const applySoros=!iaPower&&!sonic&&!quickState.active;
 
