@@ -243,7 +243,7 @@ function analyzeExitSpots28(values:number[],pipSize?:number){
  ];
  const candidates:any[]=[];
  for(const item of bots){
-  const signal=makeExitSpotSignal(values,item.bot,pipSize,false);
+  const signal=makeExitSpotSignal(values,item.bot,pipSize,true);
   if(!signal)continue;
   const baseline=item.bot==='ACIMA5_BAIXO4'?40:
    item.bot==='DIFERENTE'||item.bot==='HYPERSWAP'||item.bot==='HYPERGUARD'?90:
@@ -324,7 +324,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const confidence=aiClamp(50+edge*1.30);
   const trend=aiClamp(50+(recent-olderMean)*180);
   const previousRecent=x.series[3];
-  const acceleration=aiClamp((recent-previousRecent)*220);
+  const acceleration=Math.max(-100,Math.min(100,(recent-previousRecent)*220));
   const phaseScore=(strength+confidence+stability)/3;
   const phase=phaseOf(phaseScore,recent*100,olderMean*100,trend,acceleration,consistency);
   const earlyMomentum=trend>=68&&acceleration>=6&&recent>=45&&recent>olderMean*100+6&&consistency>=40;
@@ -998,16 +998,30 @@ export default function AutoBotV4(){
  for(const candidate of rankings){
   const bot=ANALYZER_STRATEGY_TO_BOT[String(candidate.strategy)] as Strategy|undefined;
   if(!bot)continue;
+  // Never let the entry-confirmation step erase a block decided by the analyst.
+  const candidateScore=Number(candidate.score)||0;
+  const candidateConfidence=Number(candidate.confidence)||0;
+  const candidateStability=Number(candidate.stability)||0;
+  const candidatePhase=String(candidate.phase||'');
+  const allowedEmerging=candidatePhase==='EMERGENTE'&&candidate.earlyMomentum===true&&candidateScore>=55&&candidateConfidence>=52&&candidateStability>=35;
+  if(candidate.qualityBlocked===true||candidate.noTrade===true)continue;
+  if(candidatePhase==='ENFRAQUECENDO'||candidatePhase==='FORA DA FASE')continue;
+  if(candidatePhase==='EMERGENTE'&&!allowedEmerging)continue;
+  if(!allowedEmerging&&(candidateScore<65||candidateConfidence<60||candidateStability<45))continue;
+  if(String(candidate.strategy)==='HyperStrike'&&String(candidate.label)==='ABAIXO 4'&&Number(candidate.recentStrength)<60&&Number(candidate.acceleration)<0)continue;
+  // Re-evaluate the 5-tick quality filter at selection time, including HyperStrike concentration rules.
+  const currentQuality=signalQuality(aiAnalysisValues.slice(-5),bot,String(candidate.label),tickPipSize);
+  if(!currentQuality.allowed)continue;
   if(isRecoveryStrategy(bot)){
    const barrier=bot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(bot);
    const signal=makeBarrierSignal(aiAnalysisValues,barrier,tickPipSize,65,25);
    const recentConfirmed=confirmBarrierRecent(aiAnalysisValues.slice(-5),barrier,tickPipSize);
-   if(signal&&recentConfirmed)actionable.push({...candidate,contract:signal.contract,label:signal.label,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false});
+   if(signal&&recentConfirmed)actionable.push({...candidate,contract:signal.contract,label:signal.label,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:currentQuality.penalty,qualityReason:currentQuality.reason});
   }else{
    const signal=makeSignal(aiAnalysisValues,bot,tickPipSize,false,65,25);
    const recentConfirmed=confirmAnalyzerRecent(aiAnalysisValues,String(candidate.strategy),String(candidate.label),tickPipSize);
    if(signal&&signal.contract===candidate.contract&&recentConfirmed){
-    actionable.push({...candidate,contract:signal.contract,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false});
+    actionable.push({...candidate,contract:signal.contract,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:currentQuality.penalty,qualityReason:currentQuality.reason});
    }
   }
  }
@@ -1482,7 +1496,7 @@ function analyzeExitSpots28(values:number[],pipSize?:number){
  ];
  const candidates:any[]=[];
  for(const item of bots){
-  const signal=makeExitSpotSignal(values,item.bot,pipSize,false);
+  const signal=makeExitSpotSignal(values,item.bot,pipSize,true);
   if(!signal)continue;
   const baseline=item.bot==='ACIMA5_BAIXO4'?40:
    item.bot==='DIFERENTE'||item.bot==='HYPERSWAP'||item.bot==='HYPERGUARD'?90:
@@ -1563,7 +1577,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const confidence=aiClamp(50+edge*1.30);
   const trend=aiClamp(50+(recent-olderMean)*180);
   const previousRecent=x.series[3];
-  const acceleration=aiClamp((recent-previousRecent)*220);
+  const acceleration=Math.max(-100,Math.min(100,(recent-previousRecent)*220));
   const phaseScore=(strength+confidence+stability)/3;
   const phase=phaseOf(phaseScore,recent*100,olderMean*100,trend,acceleration,consistency);
   const earlyMomentum=trend>=68&&acceleration>=6&&recent>=45&&recent>olderMean*100+6&&consistency>=40;
@@ -2237,16 +2251,30 @@ export default function AutoBotV4(){
  for(const candidate of rankings){
   const bot=ANALYZER_STRATEGY_TO_BOT[String(candidate.strategy)] as Strategy|undefined;
   if(!bot)continue;
+  // Never let the entry-confirmation step erase a block decided by the analyst.
+  const candidateScore=Number(candidate.score)||0;
+  const candidateConfidence=Number(candidate.confidence)||0;
+  const candidateStability=Number(candidate.stability)||0;
+  const candidatePhase=String(candidate.phase||'');
+  const allowedEmerging=candidatePhase==='EMERGENTE'&&candidate.earlyMomentum===true&&candidateScore>=55&&candidateConfidence>=52&&candidateStability>=35;
+  if(candidate.qualityBlocked===true||candidate.noTrade===true)continue;
+  if(candidatePhase==='ENFRAQUECENDO'||candidatePhase==='FORA DA FASE')continue;
+  if(candidatePhase==='EMERGENTE'&&!allowedEmerging)continue;
+  if(!allowedEmerging&&(candidateScore<65||candidateConfidence<60||candidateStability<45))continue;
+  if(String(candidate.strategy)==='HyperStrike'&&String(candidate.label)==='ABAIXO 4'&&Number(candidate.recentStrength)<60&&Number(candidate.acceleration)<0)continue;
+  // Re-evaluate the 5-tick quality filter at selection time, including HyperStrike concentration rules.
+  const currentQuality=signalQuality(aiAnalysisValues.slice(-5),bot,String(candidate.label),tickPipSize);
+  if(!currentQuality.allowed)continue;
   if(isRecoveryStrategy(bot)){
    const barrier=bot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(bot);
    const signal=makeBarrierSignal(aiAnalysisValues,barrier,tickPipSize,65,25);
    const recentConfirmed=confirmBarrierRecent(aiAnalysisValues.slice(-5),barrier,tickPipSize);
-   if(signal&&recentConfirmed)actionable.push({...candidate,contract:signal.contract,label:signal.label,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false});
+   if(signal&&recentConfirmed)actionable.push({...candidate,contract:signal.contract,label:signal.label,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:currentQuality.penalty,qualityReason:currentQuality.reason});
   }else{
    const signal=makeSignal(aiAnalysisValues,bot,tickPipSize,false,65,25);
    const recentConfirmed=confirmAnalyzerRecent(aiAnalysisValues,String(candidate.strategy),String(candidate.label),tickPipSize);
    if(signal&&signal.contract===candidate.contract&&recentConfirmed){
-    actionable.push({...candidate,contract:signal.contract,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false});
+    actionable.push({...candidate,contract:signal.contract,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:currentQuality.penalty,qualityReason:currentQuality.reason});
    }
   }
  }
