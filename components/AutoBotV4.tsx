@@ -998,12 +998,12 @@ export default function AutoBotV4(){
     setNotice('Falha ao enviar a operação para a Deriv.');
     requested.current=false;
     requestStartedAt.current=0;
-    stakeReadyRef.current=true;
+    stakeReadyRef.current=true;riskLockStartedAt.current=0;
    }
   },[proposal,buying,activeContractId,running,smartAnalyzer,exitSpotsMode,smartAdvice,botAnalysisValues,aiAnalysisValues,analysisExitValues,ticks,exitSpotReady,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal,getProposal,symbol,balance?.balance,quickRecoverRevision]); useEffect(()=>{
    if(activeContractId!==null){if(quickRecoverRef.current.pendingKind){quickRecoverRef.current.contracts.set(Number(activeContractId),quickRecoverRef.current.pendingKind);quickRecoverRef.current.pendingKind=null;}
     riskAwaitingContractRef.current=activeContractId;
-    stakeReadyRef.current=false;
+    stakeReadyRef.current=false;riskLockStartedAt.current=Date.now();
     requested.current=false;
     requestStartedAt.current=0;
     lastActivityAt.current=Date.now();
@@ -1013,9 +1013,9 @@ export default function AutoBotV4(){
    // Quando o contrato fecha, activeContractId volta a null.
    // É obrigatório libertar o bloqueio de risco; caso contrário o bot
    // acredita que ainda existe uma operação aberta e para para sempre.
-   if(riskAwaitingContractRef.current!==null){
+   if(riskAwaitingContractRef.current!==null||!stakeReadyRef.current){
     riskAwaitingContractRef.current=null;
-    stakeReadyRef.current=true;
+    stakeReadyRef.current=true;riskLockStartedAt.current=0;
     requested.current=false;
     requestStartedAt.current=0;
     lastActivityAt.current=Date.now();
