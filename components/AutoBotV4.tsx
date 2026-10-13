@@ -349,12 +349,42 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   };
  });
 
- // Choose direction independently inside each bot.
- const byBot=new Map<string,AnalyzerCandidate>();
+ // Choose direction independently inside each bot, but only prefer a direction
+ // after its phase, recent quality and entry confirmation have been checked.
+ const allByBot=new Map<string,AnalyzerCandidate>();
+ const eligibleByBot=new Map<string,AnalyzerCandidate>();
  for(const candidate of candidates){
-  const current=byBot.get(candidate.strategy);
-  if(!current||candidate.score>current.score)byBot.set(candidate.strategy,candidate);
+  const current=allByBot.get(candidate.strategy);
+  if(!current||candidate.score>current.score)allByBot.set(candidate.strategy,candidate);
+
+  const bot=ANALYZER_STRATEGY_TO_BOT[candidate.strategy] as Strategy|undefined;
+  if(!bot||candidate.qualityBlocked)continue;
+  const score=Number(candidate.score)||0;
+  const confidence=Number(candidate.confidence)||0;
+  const stability=Number(candidate.stability)||0;
+  const phase=String(candidate.phase||'');
+  const emerging=phase==='EMERGENTE'&&candidate.earlyMomentum===true&&score>=55&&confidence>=52&&stability>=35;
+  if(phase==='ENFRAQUECENDO'||phase==='FORA DA FASE')continue;
+  if(phase==='EMERGENTE'&&!emerging)continue;
+  if(!emerging&&(score<65||confidence<60||stability<45))continue;
+  if(candidate.strategy==='HyperStrike'&&candidate.label==='ABAIXO 4'&&Number(candidate.recentStrength)<60&&Number(candidate.acceleration)<0)continue;
+  if(!signalQuality(v.slice(-5),bot,candidate.label,pipSize).allowed)continue;
+
+  let confirmed=false;
+  if(isRecoveryStrategy(bot)){
+   const barrier=initialBarrierState(bot);
+   const signal=makeBarrierSignal(v,barrier,pipSize,65,25);
+   confirmed=Boolean(signal&&signal.contract===candidate.contract&&confirmBarrierRecent(v.slice(-5),barrier,pipSize));
+  }else{
+   const signal=makeSignal(v,bot,pipSize,false,65,25);
+   confirmed=Boolean(signal&&signal.contract===candidate.contract&&confirmAnalyzerRecent(v.slice(-5),candidate.strategy,candidate.label,pipSize));
+  }
+  if(!confirmed)continue;
+  const eligible=eligibleByBot.get(candidate.strategy);
+  if(!eligible||candidate.score>eligible.score)eligibleByBot.set(candidate.strategy,candidate);
  }
+ const byBot=new Map<string,AnalyzerCandidate>();
+ for(const [bot,candidate] of allByBot)byBot.set(bot,eligibleByBot.get(bot)||candidate);
  const ranked=[...byBot.values()].sort((a,b)=>b.score-a.score);
  const best=ranked[0],second=ranked[1];
  if(!best)return null;
@@ -693,7 +723,7 @@ export default function AutoBotV4(){
   let freshSignal:any=null;
   if(quickRecover){const quick=quickRecoverRef.current;const cover=quick.forceNextDirection?{contract:quick.contractType==='DIGITOVER'?'OVER' as Contract:'UNDER' as Contract,contractType:quick.contractType,barrier:quick.barrier,label:quick.contractType==='DIGITOVER'?'ACIMA 0':'ABAIXO 9',strength:100,score:100}:makeHyperCoverExitSignal(analysisExitValues.length>=9?analysisExitValues:aiAnalysisValues,tickPipSize);if(!cover)return;quick.contractType=cover.contractType;quick.barrier=cover.barrier;freshSignal={contract:cover.contract,label:'QUICK RECOVER HYPERCOVER '+cover.label,strength:cover.strength,score:cover.score,barrier:cover.barrier,contractType:cover.contractType,quickRecover:true};}else if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 0':'ABAIXO 9',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(smartAnalyzer){
    if(exitSpotsMode){
-    const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false)):null;
+    const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,true)):null;
     if(exitSignal)freshSignal=exitSignal;
    }else if(analystStrategy&&isRecoveryStrategy(analystStrategy)){
     const state=barrierStateRef.current||initialBarrierState(analystStrategy);
@@ -899,7 +929,7 @@ export default function AutoBotV4(){
      if(quickRecoverRef.current.active){validationSignal={contract:quickRecoverRef.current.contractType==='DIGITUNDER'?'UNDER':'OVER',label:quickRecoverRef.current.contractType==='DIGITUNDER'?'HYPERCOVER UNDER 9':'HYPERCOVER OVER 0',strength:100,barrier:quickRecoverRef.current.barrier,contractType:quickRecoverRef.current.contractType,quickRecover:true};}else if(exitSpotsMode){
       validationSignal=isRecoveryStrategy(strategy)
        ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize)
-       :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
+       :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
      }else if(isRecoveryStrategy(strategy)){
       const state=barrierStateRef.current||initialBarrierState(strategy);
       validationSignal=makeBarrierSignal(aiAnalysisValues,state,tickPipSize,65,25);
@@ -1081,7 +1111,7 @@ useEffect(()=>{
  if(exitSpotsMode){
   const activeSignal=isRecoveryStrategy(strategy)
    ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize)
-   :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
+   :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
   if(!activeSignal){
    setExitSpotsMode(false);
    setSmartAdvice(null);
@@ -1946,7 +1976,7 @@ export default function AutoBotV4(){
   let freshSignal:any=null;
   if(quickRecover){const quick=quickRecoverRef.current;const cover=quick.forceNextDirection?{contract:quick.contractType==='DIGITOVER'?'OVER' as Contract:'UNDER' as Contract,contractType:quick.contractType,barrier:quick.barrier,label:quick.contractType==='DIGITOVER'?'ACIMA 0':'ABAIXO 9',strength:100,score:100}:makeHyperCoverExitSignal(analysisExitValues.length>=9?analysisExitValues:aiAnalysisValues,tickPipSize);if(!cover)return;quick.contractType=cover.contractType;quick.barrier=cover.barrier;freshSignal={contract:cover.contract,label:'QUICK RECOVER HYPERCOVER '+cover.label,strength:cover.strength,score:cover.score,barrier:cover.barrier,contractType:cover.contractType,quickRecover:true};}else if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 0':'ABAIXO 9',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(smartAnalyzer){
    if(exitSpotsMode){
-    const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,false)):null;
+    const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,true)):null;
     if(exitSignal)freshSignal=exitSignal;
    }else if(analystStrategy&&isRecoveryStrategy(analystStrategy)){
     const state=barrierStateRef.current||initialBarrierState(analystStrategy);
@@ -2152,7 +2182,7 @@ export default function AutoBotV4(){
      if(quickRecoverRef.current.active){validationSignal={contract:quickRecoverRef.current.contractType==='DIGITUNDER'?'UNDER':'OVER',label:quickRecoverRef.current.contractType==='DIGITUNDER'?'HYPERCOVER UNDER 9':'HYPERCOVER OVER 0',strength:100,barrier:quickRecoverRef.current.barrier,contractType:quickRecoverRef.current.contractType,quickRecover:true};}else if(exitSpotsMode){
       validationSignal=isRecoveryStrategy(strategy)
        ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize)
-       :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
+       :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
      }else if(isRecoveryStrategy(strategy)){
       const state=barrierStateRef.current||initialBarrierState(strategy);
       validationSignal=makeBarrierSignal(aiAnalysisValues,state,tickPipSize,65,25);
@@ -2334,7 +2364,7 @@ useEffect(()=>{
  if(exitSpotsMode){
   const activeSignal=isRecoveryStrategy(strategy)
    ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize)
-   :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,false);
+   :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
   if(!activeSignal){
    setExitSpotsMode(false);
    setSmartAdvice(null);
