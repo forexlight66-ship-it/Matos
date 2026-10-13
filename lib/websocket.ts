@@ -320,6 +320,39 @@ export class DerivWebSocket {
     return this.send({ buy: proposalId, price });
   }
 
+  buyContractWithParameters(request: { symbol: string; contractType: string; amount: number; duration: number; barrier: number }, price: number) {
+    if (
+      !request?.symbol ||
+      !request?.contractType ||
+      !Number.isFinite(request.amount) ||
+      request.amount <= 0 ||
+      !Number.isFinite(request.duration) ||
+      request.duration <= 0 ||
+      !Number.isFinite(price) ||
+      price <= 0
+    ) return false;
+
+    const parameters: Record<string, any> = {
+      amount: request.amount,
+      basis: 'stake',
+      contract_type: request.contractType,
+      currency: 'USD',
+      duration: request.duration,
+      duration_unit: 't',
+      underlying_symbol: request.symbol,
+    };
+    if (
+      request.barrier !== undefined &&
+      ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER'].includes(request.contractType)
+    ) {
+      parameters.barrier = String(request.barrier);
+    }
+    // Deriv also supports buying with buy: 1 + contract parameters. This avoids
+    // a stale proposal ID while preserving the quote's ask_price as the max price.
+    return this.send({ buy: 1, parameters, price });
+  }
+
+
   sellContract(contractId: number) {
     return this.send({ sell: contractId, price: 0 });
   }
