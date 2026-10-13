@@ -456,11 +456,17 @@ export default function AutoBotV4(){
    const financialStatusMismatch=Boolean(statusOutcome!==null&&((statusOutcome&&result< -0.001)||(!statusOutcome&&result>0.001)));
    if(isHypercoverTrade||digitContract)console.info(isHypercoverTrade?'[Hypercover close audit]':'[Deriv Digit close audit]',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_tick:closed.exit_tick??null,exit_spot:closed.exit_spot??null,exit_digit_source:exitDigitSource,pip_size:tradePipSize??null,exit_digit:exitDigit,status:closeStatus||null,exit_outcome:exitOutcome,profit_loss:result,digit_outcome_mismatch:digitOutcomeMismatch,financial_status_mismatch:financialStatusMismatch,alternation_outcome:hypercoverWon?'won':'lost'});
    if(processedClosedTradeIdsRef.current.has(id))return;processedClosedTradeIdsRef.current.add(id);
-   if((digitOutcomeMismatch||financialStatusMismatch)&&(running||smartAnalyzer)&&!isManualTrade){
-    console.error('[Trading safety stop] Deriv status/P&L conflicts with local contract audit',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_spot:closed.exit_spot??null,exit_tick:closed.exit_tick??null,exit_digit:exitDigit,status:closeStatus||null,profit_loss:result});
+   if(digitOutcomeMismatch&&(running||smartAnalyzer)&&!isManualTrade){
+    // A diferença no último dígito calculado localmente não prova que a Deriv
+    // reportou um resultado financeiro errado. O resultado oficial da Deriv
+    // continua a ser a autoridade; registamos a auditoria sem parar o robô.
+    console.warn('[Trading audit] Local exit-digit check differs from Deriv contract status; keeping Deriv result authoritative.',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_spot:closed.exit_spot??null,exit_tick:closed.exit_tick??null,exit_digit:exitDigit,status:closeStatus||null,profit_loss:result});
+   }
+   if(financialStatusMismatch&&(running||smartAnalyzer)&&!isManualTrade){
+    console.error('[Trading safety stop] Official contract status conflicts with financial P/L',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,status:closeStatus||null,profit_loss:result});
     stopped.current=true;botArmedRef.current=false;requested.current=false;requestStartedAt.current=0;
     pendingAnalyzerStrategyRef.current=null;setRunning(false);setSmartAnalyzer(false);setExitSpotsMode(false);setSignalNow(null);
-    setNotice('BLOQUEIO DE SEGURANÇA: operação pausada porque o resultado oficial da Deriv não coincide com o cálculo local. Não volte a operar automaticamente até verificar símbolo, contrato, barreira e preço final.');
+    setNotice('BLOQUEIO DE SEGURANÇA: o estado oficial da Deriv contradiz o lucro/prejuízo do contrato. O robô foi pausado para proteger o saldo.');
    }
    const quick=quickRecoverRef.current;const tradeKind=quick.contracts.get(id);const closedDirection=quick.directions.get(id);if(tradeKind)quick.contracts.delete(id);if(closedDirection)quick.directions.delete(id);
    if(isHypercoverTrade&&!hypercoverWon){
