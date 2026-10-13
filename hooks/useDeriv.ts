@@ -86,6 +86,29 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
   syncSoros(defaultSoros(base));
  },[syncSoros]);
 
+ // One settlement path for the live contract stream and profit_table fallback.
+ // Keep the contract lifecycle explicit: release the active contract exactly once,
+ // then allow AutoBotV4 to prepare the next signal after React sees null.
+ const settleActiveContract=useCallback((contractIdInput:number,source:'proposal_open_contract'|'profit_table')=>{
+  const id=Number(contractIdInput);
+  if(!Number.isFinite(id)||id<=0||activeContractRef.current!==id)return false;
+  console.info('[Deriv contract lifecycle] Settling active contract',{contract_id:id,source});
+  activeContractRef.current=null;
+  latestProposalReqRef.current=null;
+  staleBuyRetryRef.current=false;
+  pendingBuyBotRef.current=null;
+  pendingBuyBarrierRef.current=null;
+  setActiveContractId(null);
+  setProposal(null);
+  setBuying(false);
+  setLoadingProfit(false);
+  setContractClosedSeq(v=>v+1);
+  setContractStage('fechado');
+  wsRef.current?.unsubscribeContract(id);
+  window.setTimeout(()=>{if(activeContractRef.current===null)setContractStage('analisando')},1800);
+  return true;
+ },[]);
+
  const notifyClosedTransaction=useCallback((tx:ProfitTransaction)=>{
   const id=Number(tx.contract_id);
   const purchaseTime=Number(tx.purchase_time??0);
@@ -164,22 +187,17 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
   for(const tx of newlyClosed){
    notifyClosedTransaction(tx);
 
-   // Fallback de encerramento: o profit_table pode confirmar que o contrato
-   // fechou mesmo quando o evento proposal_open_contract de encerramento
-   // foi perdido durante uma atualização/reconexão do WebSocket.
-   if(activeContractRef.current===Number(tx.contract_id)){
-    activeContractRef.current=null;
-    setActiveContractId(null);
-    latestProposalReqRef.current=null;
-    setProposal(null);
-    setBuying(false);
-    setContractClosedSeq(v=>v+1);
-    setContractStage('fechado');
-    window.setTimeout(()=>{
-     if(activeContractRef.current===null)setContractStage('analisando');
-    },1800);
-    wsRef.current?.unsubscribeContract(Number(tx.contract_id));
-   }
+   // Same settlement path as the live stream if profit_table is the first
+   // source that confirms this contract has closed.
+   settleActiveContract(Number(tx.contract_id),'profit_table');
+  }
+
+  // Also settle if the close was already present in local history but the active
+  // contract ref somehow remained set. This avoids depending on a single event.
+  for(const tx of incoming){
+   const id=Number(tx.contract_id);
+   const current=closedContractsRef.current.get(id);
+   if(current?.sell_time&&Number(current.sell_time)>0)settleActiveContract(id,'profit_table');
   }
 
   const merged=Array.from(closedContractsRef.current.values())
@@ -189,7 +207,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
   setProfitTransactions(merged);
   setProfitCount(merged.length);
   saveTradingCache();
- },[accountType,notifyClosedTransaction,saveTradingCache]);
+ },[accountType,notifyClosedTransaction,saveTradingCache,settleActiveContract]);
 
  const refreshProfitTable=useCallback(()=>wsRef.current?.getProfitTable({limit:2000,offset:0,sort:'DESC',description:1}),[]);
  const resetTradingSession=useCallback(()=>{const now=Math.floor(Date.now()/1000);sessionStartedAtRef.current=now;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();emittedClosedContractsRef.current.clear();processedSorosContractsRef.current.clear();balanceCacheRef.current=null;setBalance(null);setProfitTransactions([]);setProfitCount(0);setContractClosedSeq(0);clearSorosStorage();try{localStorage.removeItem(cacheKey(accountType));localStorage.setItem(TRADING_CLEARED_AT_PREFIX+accountType,String(now));sessionStorage.setItem(TRADING_SESSION_STORAGE,String(now))}catch{};const fresh=defaultSoros(sorosRef.current.initialStake||SOROS_MIN);sorosRef.current=fresh;setSoros(fresh);wsRef.current?.subscribeBalance()},[accountType]);
@@ -277,7 +295,36 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
      });
      ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.echo_req?.forget!==undefined)return;if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy){const expiredProposal=String(data.error.code||'').toLowerCase().includes('contractproposal')||/unknown contract proposal|proposal.{0,35}(expired|no longer available|not valid|not found)|(?:expired|invalid).{0,35}proposal/i.test(message);const previousRequest=proposalRequestRef.current;const retryPrice=Number(data.echo_req?.price);if(expiredProposal&&!staleBuyRetryRef.current&&previousRequest&&Number.isFinite(retryPrice)&&retryPrice>0){staleBuyRetryRef.current=true;console.warn('[Deriv buy fallback] Proposal ID rejected; retrying with direct contract parameters.',{code:data.error.code,price:retryPrice});setError(null);directBuy(ws,previousRequest,retryPrice,()=>{staleBuyRetryRef.current=false;onBuyRejectedRef.current?.();setBuying(false);setProposal(null);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;setError('Sem ligação à Deriv. Tente novamente.')});return;}onBuyRejectedRef.current?.();setBuying(false);setProposal(null);activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;console.error('[Deriv buy rejected]',{message,code:data.error.code,proposal_id:data.echo_req.buy,price:data.echo_req.price});}if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null;const req=data.echo_req;console.error('[Deriv proposal rejected]',{message,code:data.error.code,contract_type:req.contract_type,symbol:req.underlying_symbol,duration:req.duration,duration_unit:req.duration_unit,barrier:req.barrier,amount:req.amount});}setError(data.echo_req?.proposal?'Proposta rejeitada pela Deriv: '+message:data.echo_req?.buy&&/unknown contract proposal/i.test(message)?'A proposta expirou ou deixou de ser válida. A tentar obter uma nova proposta.':message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
      ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});ws.subscribe('balance',data=>{if(data.balance){balanceCacheRef.current=data.balance;setBalance(data.balance);saveTradingCache()}});ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});ws.subscribe('transaction',data=>{if(data.transaction)setTransaction(data.transaction)});ws.subscribe('profit_table',data=>{if(data.profit_table){mergeProfitTransactions(data.profit_table.transactions||[]);setLoadingProfit(false)}});
-     ws.subscribe('proposal_open_contract',data=>{const c=data.proposal_open_contract;if(!c)return;const contractId=Number(c.contract_id);if(!Number.isFinite(contractId)||contractId<=0)return;const buyPrice=Number(c.buy_price??0),sellPrice=c.sell_price==null?null:Number(c.sell_price),payout=Number(c.payout??0),profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss}),purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000)),sellTime=c.sell_time?Number(c.sell_time):null;const status=String(c.status||'').toLowerCase();const sold=c.is_sold===true||c.is_sold===1||String(c.is_sold)==='1'||String(c.is_sold).toLowerCase()==='true';const closed=sold||['sold','won','lost','expired','closed'].includes(status);if(closed){const closedTx:ProfitTransaction={contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',longcode:c.longcode,profit_loss:profitLoss,status:String(c.status||'').toLowerCase()||undefined,exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null,bot:contractBotRef.current.get(contractId)||undefined,barrier:c.barrier!=null&&Number.isFinite(Number(c.barrier))?Number(c.barrier):(contractBarrierRef.current.get(contractId)??null),symbol:String(c.underlying??c.underlying_symbol??c.symbol??contractSymbolRef.current.get(contractId)??'')||undefined};mergeProfitTransactions([closedTx]);setLoadingProfit(false);if(activeContractRef.current===contractId){activeContractRef.current=null;setActiveContractId(null);latestProposalReqRef.current=null;setProposal(null);setBuying(false);setContractClosedSeq(v=>v+1);setContractStage('fechado');window.setTimeout(()=>{if(activeContractRef.current===null)setContractStage('analisando')},1800)}ws.unsubscribeContract(contractId)}});
+     ws.subscribe('proposal_open_contract',data=>{
+      const c=data.proposal_open_contract;
+      if(!c)return;
+      const contractId=Number(c.contract_id);
+      if(!Number.isFinite(contractId)||contractId<=0)return;
+      const buyPrice=Number(c.buy_price??0);
+      const sellPrice=c.sell_price==null?null:Number(c.sell_price);
+      const payout=Number(c.payout??0);
+      const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss});
+      const purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000));
+      const sellTime=c.sell_time?Number(c.sell_time):null;
+      const status=String(c.status||'').trim().toLowerCase();
+      const sold=c.is_sold===true||c.is_sold===1||String(c.is_sold)==='1'||String(c.is_sold).toLowerCase()==='true';
+      const closed=sold||['sold','won','lost','expired','closed'].includes(status);
+      if(!closed)return;
+      const closedTx:ProfitTransaction={
+       contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,
+       purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',
+       longcode:c.longcode,profit_loss:profitLoss,status:status||undefined,
+       exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null,
+       bot:contractBotRef.current.get(contractId)||undefined,
+       barrier:c.barrier!=null&&Number.isFinite(Number(c.barrier))?Number(c.barrier):(contractBarrierRef.current.get(contractId)??null),
+       symbol:String(c.underlying??c.underlying_symbol??c.symbol??contractSymbolRef.current.get(contractId)??'')||undefined
+      };
+      // Persist/emit result first, then settle even if this message omitted sell_time.
+      mergeProfitTransactions([closedTx]);
+      const settled=settleActiveContract(contractId,'proposal_open_contract');
+      if(!settled)ws.unsubscribeContract(contractId);
+      setLoadingProfit(false);
+     });
       ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current===null||responseReqId!==latestProposalReqRef.current)return;const requested=proposalRequestRef.current;setProposal({id:String(data.proposal.id||''),ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:String(data.proposal.contract_type||''),symbol:data.proposal.symbol||data.proposal.underlying_symbol||requested?.symbol||'',duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier,requested_contract_type:requested?.contractType,requested_barrier:requested?.barrier});setError(null)});
      ws.subscribe('buy',data=>{if(!data.buy)return;staleBuyRetryRef.current=false;setError(null);setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){sessionContractIdsRef.current.add(contractId);if(pendingBuyBotRef.current)contractBotRef.current.set(contractId,pendingBuyBotRef.current);pendingBuyBotRef.current=null;if(pendingBuyBarrierRef.current!==null)contractBarrierRef.current.set(contractId,pendingBuyBarrierRef.current);pendingBuyBarrierRef.current=null;const requestedSymbol=proposalRequestRef.current?.symbol;if(requestedSymbol)contractSymbolRef.current.set(contractId,requestedSymbol);activeContractRef.current=contractId;onContractBoughtRef.current?.(contractId);setActiveContractId(contractId);setContractStage('aberto');latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});ws.connect();
      connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();setIsConnected(connected);if(connected){
