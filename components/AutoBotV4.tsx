@@ -569,7 +569,7 @@ export default function AutoBotV4(){
   if(iaPower||sonic)stakeReadyRef.current=true;
  },[running,smartAnalyzer,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,setManualStake,setManualStatus]);
  const noteQuickRecoverContractBought=useCallback((contractId:number)=>{const quick=quickRecoverRef.current;const kind=quick.pendingKind;if(!kind)return;quick.contracts.set(Number(contractId),kind);if(kind==='recovery'){quick.directions.set(Number(contractId),quick.contractType);quick.forceNextDirection=false;}quick.pendingKind=null;},[]);
- const noteQuickRecoverBuyRejected=useCallback(()=>{quickRecoverRef.current.pendingKind=null;quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1)},[]);
+ const noteQuickRecoverBuyRejected=useCallback(()=>{quickRecoverRef.current.pendingKind=null;quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;pendingAutoEntryRef.current=null;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;lastActivityAt.current=Date.now();setQuickRecoverRevision(v=>v+1)},[]);
  const{tick,balance,proposal,buy,buying,activeContractId,getProposal,clearProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately,noteQuickRecoverContractBought,noteQuickRecoverBuyRejected);useEffect(()=>{manualPowerBalanceRef.current={balance:Number(balance?.balance)||0,currency:String(balance?.currency||'USD')};},[balance?.balance,balance?.currency]);
  const manualFeedback=(message:string)=>{setManualStatus(message);setNotice(message)};
  const submitManualTrade=(contractType:'DIGITOVER'|'DIGITUNDER',barrier:number)=>{
@@ -910,7 +910,7 @@ export default function AutoBotV4(){
     else if(smartAnalyzer||quickRecoverRef.current.active){
      advice=smartAdvice;
      const mapped=advice?ANALYZER_STRATEGY_TO_BOT[String(advice.strategy)]||String(advice.strategy):'';
-     if(!quickRecoverRef.current.active&&!forceHypercover&&(!advice||(!exitSpotsMode&&advice.noTrade)||mapped!==strategy)){
+     const pendingQuote=pendingAutoEntryRef.current;const hasMatchingPendingQuote=Boolean(pendingQuote&&pendingQuote.strategy===strategy&&pendingQuote.symbol===symbol&&pendingQuote.smartAnalyzer&&!pendingQuote.exitSpotsMode&&Date.now()-pendingQuote.requestedAt<=10000);if(!quickRecoverRef.current.active&&!forceHypercover&&(!advice||(!exitSpotsMode&&advice.noTrade&&!hasMatchingPendingQuote)||mapped!==strategy)){
       cancelUnqualifiedEntry('Sinal mudou antes da compra; a aguardar uma nova análise.');
       return;
      }
