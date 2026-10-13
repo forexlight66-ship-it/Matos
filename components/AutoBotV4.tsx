@@ -33,12 +33,12 @@ function digit(v:number|string|null|undefined,pipSize?:number){
  if(!raw)return null;
  // Use the exact decimal representation supplied by Deriv; do not convert a
  // quoted price to Number before extracting its final displayed digit.
- const match=raw.match(/^[+-]?(?:\\d+)(?:\\.(\\d+))?$/);
+ const match=raw.match(/^[+-]?\d+(?:\.(\d+))?$/);
  if(!match)return null;
  const decimals=match[1]??'';
  const places=pipSize!=null&&Number.isFinite(pipSize)&&pipSize>0?decimalPlaces(pipSize):decimals.length;
  const normalized=pipSize!=null&&Number.isFinite(pipSize)&&pipSize>0?Number(raw).toFixed(places):raw;
- const digits=normalized.match(/\\d/g);
+ const digits=normalized.match(/\d/g);
  return digits?.length?Number(digits[digits.length-1]):null;
  }
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
