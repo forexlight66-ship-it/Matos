@@ -817,6 +817,20 @@ export default function AutoBotV4(){
   }else requestedHypercoverContractRef.current=null;
   quickRecoverRef.current.pendingKind=quickState.active?'recovery':((running||smartAnalyzer)?'exit':null);
   pendingAutoEntryRef.current=null;
+  // Quick Recover requires a fresh proposal for this exact contract. Keep quoting until
+  // Deriv's net payout covers the complete accumulated deficit, then buy exactly once.
+  if(quickState.active){
+   const seedStake=0.35;
+   quickRecoverQuoteTargetRef.current=seedStake;
+   requestedHypercoverContractRef.current={contractType:contractTypeStr as 'DIGITOVER'|'DIGITUNDER',barrier};
+   requested.current=true;requestStartedAt.current=Date.now();
+   if(!getProposal(symbol,contractTypeStr,seedStake,1,barrier,false)){
+    quickRecoverQuoteTargetRef.current=null;requestedHypercoverContractRef.current=null;quickRecoverRef.current.pendingKind=null;
+    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;
+    setNotice('QUICK RECOVER pausado: não foi possível obter uma cotação actual do contrato de recuperação.');
+   }
+   return;
+  }
   const sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:1,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
   if(!sent){
    setBotActivity('reconcilingBot');
