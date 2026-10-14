@@ -530,13 +530,18 @@ export default function AutoBotV4(){
    gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);
    gestorRef.current.registrarResultado(result,executedStake);
    if(isManualTrade){
-    const nextManualStake=gestorRef.current.proximoStake();
+    const nextManualStake=Number(Math.max(0.35,gestorRef.current.proximoStake()).toFixed(2));
     const manualContext=manualPowerBalanceRef.current;
     const available=Number(manualContext.balance);
-    const affordable=Number.isFinite(available)&&available>0?Math.min(nextManualStake,available):nextManualStake;
-    const suggested=Number(Math.max(0.35,affordable).toFixed(2));
-    setManualStake(suggested);
-    setManualStatus(`${result<0?'IA POWER: perda registada':'IA POWER: resultado registado'} · próxima stake ${suggested.toFixed(2)} ${manualContext.currency}.`);
+    const deficit=Number(gestorRef.current.getEstado().deficitRecuperacao||0);
+    // Never cap a recovery stake to the available balance: that would turn a
+    // full-deficit recovery into a partial one and falsely suggest recovery.
+    setManualStake(nextManualStake);
+    if(deficit>0.01&&(!Number.isFinite(available)||nextManualStake>available+0.005)){
+     setManualStatus(`RECUPERAÇÃO MANUAL PAUSADA — défice ${deficit.toFixed(2)} ${manualContext.currency}; stake integral necessária ${nextManualStake.toFixed(2)} ${manualContext.currency}; saldo disponível ${Math.max(0,Number.isFinite(available)?available:0).toFixed(2)} ${manualContext.currency}. Não foi enviada nenhuma operação.`);
+    }else{
+     setManualStatus(`${result<0?'IA POWER: perda registada':'IA POWER: resultado registado'} · ${deficit>0.01?'stake integral de recuperação':'próxima stake'} ${nextManualStake.toFixed(2)} ${manualContext.currency}.`);
+    }
    }
    stakeReadyRef.current=true;
    try{
@@ -593,9 +598,24 @@ export default function AutoBotV4(){
   if(!isConnected||!isAuthorized){manualFeedback(language==='en'?'Connect and authenticate with Deriv first.':language==='es'?'Conéctate y autentícate con Deriv primero.':'Ligue e autentique a Deriv primeiro.');return}
   if(activeContractId!==null||buying||manualTradeRef.current){manualFeedback(language==='en'?'Wait for the current operation to finish.':language==='es'?'Espera a que termine la operación actual.':'Aguarde a operação actual terminar.');return}
   if(!tickDataReady){manualFeedback(language==='en'?'Waiting for digit-bar data. Please wait for the bars to load.':language==='es'?'Esperando los datos de las barras. Espera a que carguen.':'A aguardar os dados das barras. Espere que as barras carreguem.');return}
-  const amount=Number(manualStake),available=Number(balance?.balance);
-  if(!Number.isFinite(amount)||amount<0.35){manualFeedback(language==='en'?'Minimum stake is 0.35 in the Deriv account currency.':language==='es'?'La apuesta mínima es 0.35 en la moneda de la cuenta Deriv.':'A stake mínima é 0,35 na moeda da conta Deriv.');return}
-  if(!Number.isFinite(available)||available<=0||amount>available){manualFeedback(language==='en'?'Stake exceeds the available balance.':language==='es'?'La apuesta supera el saldo disponible.':'A stake ultrapassa o saldo disponível.');return}
+  let amount=Number(manualStake);const available=Number(balance?.balance);
+  if(iaPower){
+   const riskState=gestorRef.current.getEstado();
+   const deficit=Number(riskState.deficitRecuperacao||0);
+   if(deficit>0.01){
+    // While a deficit exists, manual trading must use the manager's full
+    // recovery stake, regardless of a smaller value entered in the stake box.
+    amount=Number(Math.max(0.35,gestorRef.current.proximoStake()).toFixed(2));
+    setManualStake(amount);
+    if(!Number.isFinite(available)||available<=0||amount>available+0.005){
+     const currency=String(balance?.currency||'USD');
+     manualFeedback(`RECUPERAÇÃO MANUAL PAUSADA — défice ${deficit.toFixed(2)} ${currency}; stake integral necessária ${amount.toFixed(2)} ${currency}; saldo disponível ${Math.max(0,Number.isFinite(available)?available:0).toFixed(2)} ${currency}. Não foi enviada nenhuma operação.`);
+     return;
+    }
+   }
+  }
+  if(!Number.isFinite(amount)||amount<0.35){manualFeedback(language==='en'?'Minimum stake is 0.35 in the Deriv account currency.':language==='es'?'La apuesta mínima es 0.35 in the Deriv account currency.':'A stake mínima é 0,35 na moeda da conta Deriv.');return}
+  if(!Number.isFinite(available)||available<=0||amount>available+0.005){manualFeedback(language==='en'?'Stake exceeds the available balance.':language==='es'?'La apuesta supera el saldo disponible.':'A stake ultrapassa o saldo disponível.');return}
   manualTradeRef.current={contractType,barrier,stake:amount};
   const sent=getProposal(symbol,contractType,amount,1,barrier,false);
   if(!sent){manualTradeRef.current=null;manualFeedback(language==='en'?'Could not request the Deriv proposal. Check the connection and try again.':language==='es'?'No se pudo solicitar la propuesta de Deriv. Comprueba la conexión e inténtalo de nuevo.':'Não foi possível pedir a proposta à Deriv. Verifique a ligação e tente novamente.');return}
