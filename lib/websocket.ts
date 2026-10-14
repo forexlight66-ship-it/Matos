@@ -320,7 +320,7 @@ export class DerivWebSocket {
     return this.send({ buy: proposalId, price, req_id: ++this.proposalRequestId });
   }
 
-  buyContractWithParameters(request: { symbol: string; contractType: string; amount: number; duration: number; barrier: number }, price: number) {
+  buyContractWithParameters(request: { symbol: string; contractType: string; amount: number; duration: number; barrier?: number; currency?: string }, price: number) {
     if (
       !request?.symbol ||
       !request?.contractType ||
@@ -336,7 +336,7 @@ export class DerivWebSocket {
       amount: request.amount,
       basis: 'stake',
       contract_type: request.contractType,
-      currency: 'USD',
+      currency: String(request.currency || 'USD').toUpperCase(),
       duration: request.duration,
       duration_unit: 't',
       underlying_symbol: request.symbol,
