@@ -393,7 +393,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=75);
  const earlyEntry=best.phase==='EMERGENTE'&&Boolean(best.earlyMomentum)&&best.score>=55&&best.confidence>=52&&best.stability>=35;
  const protectedBelow4=best.strategy==='HyperStrike'&&best.label==='ABAIXO 4'&&best.recentStrength<60&&best.acceleration<0;
- const noTrade=(best.qualityBlocked||(!earlyEntry&&(best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE'||protectedBelow4)));
+ const noTrade=(best.qualityBlocked||(!earlyEntry&&(best.score<65||best.phase==='FORA DA FASE'||protectedBelow4)));
  return{
   ...best,rankings:ranked,secondStrategy:second?.strategy??null,secondScore:second?.score??0,
   advantage,regimeChange,earlyEntry,noTrade,confidenceBand:confidenceBand(best.score)
@@ -1201,7 +1201,7 @@ export default function AutoBotV4(){
   if(candidate.qualityBlocked===true||candidate.noTrade===true)continue;
   if(candidatePhase==='ENFRAQUECENDO'||candidatePhase==='FORA DA FASE')continue;
   if(candidatePhase==='EMERGENTE'&&!allowedEmerging)continue;
-  if(!allowedEmerging&&(candidateScore<65||candidateConfidence<60||candidateStability<45))continue;
+  if(!allowedEmerging&&candidateScore<65)continue;
   if(String(candidate.strategy)==='HyperStrike'&&String(candidate.label)==='ABAIXO 4'&&Number(candidate.recentStrength)<60&&Number(candidate.acceleration)<0)continue;
   // Re-evaluate the 5-tick quality filter at selection time, including HyperStrike concentration rules.
   const currentQuality=signalQuality(aiAnalysisValues.slice(-5),bot,String(candidate.label),tickPipSize);
