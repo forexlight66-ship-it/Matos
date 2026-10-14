@@ -350,6 +350,25 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
  const getTicksHistory=useCallback((symbol:string,count=5)=>wsRef.current?.getTicksHistory(symbol,count)??Promise.reject(new Error('WebSocket not connected')),[]);
  const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=0,useOriginalSoros=true)=>{if(activeContractRef.current!==null)return false;const s=sorosRef.current;const fallback=Math.max(TRADING_MIN_STAKE,Number(amount)||TRADING_MIN_STAKE);const effectiveAmount=useOriginalSoros&&originalSorosEnabledRef.current?Math.max(TRADING_MIN_STAKE,Number(s.level>0?s.stake:s.initialStake)):fallback;if(useOriginalSoros&&originalSorosEnabledRef.current&&s.level===0&&Math.abs(s.initialStake-effectiveAmount)>0.000001){const next={...s,stake:effectiveAmount,initialStake:effectiveAmount,enabled:true};sorosRef.current=next;setSoros(next);saveSoros(next)}setProposal(null);setError(null);proposalRequestRef.current={symbol,contractType,amount:effectiveAmount,duration,barrier};staleBuyRetryRef.current=false;const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);if(typeof reqId==='number')latestProposalReqRef.current=reqId;return typeof reqId==='number'},[]);
  const clearProposal=useCallback(()=>{latestProposalReqRef.current=null;setProposal(null)},[]);
+ const buyDirect=useCallback((request:{symbol:string;contractType:string;amount:number;duration:number;barrier?:number;currency?:string},price:number,bot?:string,barrier?:number)=>{
+   if(buying||activeContractRef.current!==null)return false;
+   const ws=wsRef.current;
+   const amount=Number(request?.amount),maxPrice=Number(price);
+   if(!ws||!request?.symbol||!request?.contractType||!Number.isFinite(amount)||amount<=0||!Number.isFinite(maxPrice)||maxPrice<=0){
+    setError('Parâmetros inválidos para compra directa na Deriv.');return false;
+   }
+   const normalized={...request,amount,currency:String(request.currency||'USD').toUpperCase()};
+   proposalRequestRef.current={symbol:normalized.symbol,contractType:normalized.contractType,amount:normalized.amount,duration:normalized.duration,barrier:Number(normalized.barrier??0)};
+   pendingBuyBotRef.current=bot?String(bot):null;
+   pendingBuyBarrierRef.current=Number.isFinite(Number(barrier??normalized.barrier))?Number(barrier??normalized.barrier):null;
+   staleBuyRetryRef.current=false;setProposal(null);setError(null);setBuying(true);
+   const sent=ws.buyContractWithParameters(normalized,maxPrice);
+   if(!sent){
+    pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;setBuying(false);
+    setError('Não foi possível enviar a compra directa à Deriv.');onBuyRejectedRef.current?.();
+   }
+   return Boolean(sent);
+  },[buying]);
  const buy=useCallback((proposalId:string,price:number,bot?:string,barrier?:number)=>{
    if(!proposalId||buying||activeContractRef.current!==null)return false;
    const ws=wsRef.current;
@@ -372,5 +391,5 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    return Boolean(sent);
   },[buying]);
  const sell=useCallback((contractId:number)=>wsRef.current?.sellContract(contractId),[]);
- return{balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,activeContractId,contractClosedSeq,lastClosedTransaction,contractStage,subscribeTicks,fetchProfitTable,getTicksHistory,getProposal,clearProposal,buy,sell,soros,resetSoros,setSorosEnabled,setSorosStake,resetTradingSession};
+ return{balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,activeContractId,contractClosedSeq,lastClosedTransaction,contractStage,subscribeTicks,fetchProfitTable,getTicksHistory,getProposal,clearProposal,buy,buyDirect,sell,soros,resetSoros,setSorosEnabled,setSorosStake,resetTradingSession};
 }
