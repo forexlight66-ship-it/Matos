@@ -20,7 +20,7 @@ function calculateProfitLoss(tx:Partial<ProfitTransaction>):number{const explici
 function cacheKey(accountType:'demo'|'real'){return `${TRADING_CACHE_PREFIX}${accountType}`}
 
 export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx:ProfitTransaction)=>void,onContractBought?: (contractId:number)=>void,onBuyRejected?:()=>void){
- const wsRef=useRef<DerivWebSocket|null>(null),activeContractRef=useRef<number|null>(null),pendingBuyBotRef=useRef<string|null>(null),pendingBuyBarrierRef=useRef<number|null>(null),contractBotRef=useRef<Map<number,string>>(new Map()),contractBarrierRef=useRef<Map<number,number>>(new Map()),contractSymbolRef=useRef<Map<number,string>>(new Map()),latestProposalReqRef=useRef<number|null>(null),proposalRequestRef=useRef<{symbol:string;contractType:string;amount:number;duration:number;barrier:number}|null>(null),staleBuyRetryRef=useRef(false),closedContractsRef=useRef<Map<number,ProfitTransaction>>(new Map()),sessionStartedAtRef=useRef(0),sessionContractIdsRef=useRef<Set<number>>(new Set()),emittedClosedContractsRef=useRef<Set<number>>(new Set()),sorosRef=useRef<SorosState>(defaultSoros()),processedSorosContractsRef=useRef<Set<number>>(new Set()),balanceCacheRef=useRef<Balance|null>(null),originalSorosEnabledRef=useRef(true),activeContractStartedAtRef=useRef(0),lastActiveContractUpdateAtRef=useRef(0),lastContractReconcileAtRef=useRef(0),lastPortfolioRequestAtRef=useRef(0),portfolioRequestIdRef=useRef<number|null>(null),portfolioAbsenceCountRef=useRef(0),connectionWasUpRef=useRef(false),pendingBuyStartedAtRef=useRef(0),pendingBuyLastRecoveryAtRef=useRef(0);
+ const wsRef=useRef<DerivWebSocket|null>(null),activeContractRef=useRef<number|null>(null),pendingBuyBotRef=useRef<string|null>(null),pendingBuyBarrierRef=useRef<number|null>(null),contractBotRef=useRef<Map<number,string>>(new Map()),contractBarrierRef=useRef<Map<number,number>>(new Map()),contractSymbolRef=useRef<Map<number,string>>(new Map()),latestProposalReqRef=useRef<number|null>(null),proposalRequestRef=useRef<{symbol:string;contractType:string;amount:number;duration:number;barrier:number}|null>(null),staleBuyRetryRef=useRef(false),closedContractsRef=useRef<Map<number,ProfitTransaction>>(new Map()),sessionStartedAtRef=useRef(0),sessionContractIdsRef=useRef<Set<number>>(new Set()),emittedClosedContractsRef=useRef<Set<number>>(new Set()),sorosRef=useRef<SorosState>(defaultSoros()),processedSorosContractsRef=useRef<Set<number>>(new Set()),balanceCacheRef=useRef<Balance|null>(null),originalSorosEnabledRef=useRef(true),activeContractStartedAtRef=useRef(0),lastActiveContractUpdateAtRef=useRef(0),lastContractReconcileAtRef=useRef(0),lastPortfolioRequestAtRef=useRef(0),portfolioRequestIdRef=useRef<number|null>(null),portfolioAbsenceCountRef=useRef(0),pendingBuyAbsenceCountRef=useRef(0),connectionWasUpRef=useRef(false),pendingBuyStartedAtRef=useRef(0),pendingBuyLastRecoveryAtRef=useRef(0);
  const[balance,setBalance]=useState<Balance|null>(null),[tick,setTick]=useState<Tick|null>(null),[transaction,setTransaction]=useState<Transaction|null>(null),[isConnected,setIsConnected]=useState(false),[isAuthorized,setIsAuthorized]=useState(false),[error,setError]=useState<string|null>(null),[profitTransactions,setProfitTransactions]=useState<ProfitTransaction[]>([]),[profitCount,setProfitCount]=useState(0),[proposal,setProposal]=useState<Proposal|null>(null),[loadingProfit,setLoadingProfit]=useState(false),[buying,setBuying]=useState(false),[contractClosedSeq,setContractClosedSeq]=useState(0),[lastClosedTransaction,setLastClosedTransaction]=useState<ProfitTransaction|null>(null),[activeContractId,setActiveContractId]=useState<number|null>(null),[contractStage,setContractStage]=useState<'analisando'|'aberto'|'fechado'>('analisando'),[soros,setSoros]=useState<SorosState>(()=>defaultSoros());
  const onContractClosedRef=useRef<((tx:ProfitTransaction)=>void)|undefined>(onContractClosed);
  onContractClosedRef.current=onContractClosed;
@@ -157,9 +157,11 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    // outstanding buy request so the result is attributed to the correct bot.
    const pendingRequest=proposalRequestRef.current;
    const pendingAtSeconds=Math.floor(pendingBuyStartedAtRef.current/1000);
-   const rawSymbol=String(raw.symbol??raw.underlying_symbol??'');
-   const samePendingSymbol=!rawSymbol||!pendingRequest?.symbol||rawSymbol===pendingRequest.symbol;
-   const samePendingType=!raw.contract_type||!pendingRequest?.contractType||String(raw.contract_type).toUpperCase()===String(pendingRequest.contractType).toUpperCase();
+   const rawSymbol=String(raw.underlying_symbol??raw.symbol??'');
+   const rawSymbolLooksLikeCode=/^[A-Za-z0-9_]+$/.test(rawSymbol);
+   const samePendingSymbol=!rawSymbol||!rawSymbolLooksLikeCode||!pendingRequest?.symbol||rawSymbol===pendingRequest.symbol;
+   const normalizeType=(value:unknown)=>{const type=String(value??'').trim().toUpperCase();return type==='OVER'?'DIGITOVER':type==='UNDER'?'DIGITUNDER':type==='EVEN'?'DIGITEVEN':type==='ODD'?'DIGITODD':type};
+   const samePendingType=!raw.contract_type||!pendingRequest?.contractType||normalizeType(raw.contract_type)===normalizeType(pendingRequest.contractType);
    const rawBuyPrice=Number(raw.buy_price);
    const samePendingStake=!Number.isFinite(rawBuyPrice)||!pendingRequest?.amount||Math.abs(rawBuyPrice-Number(pendingRequest.amount))<=0.03;
    const matchesPendingBuy=Boolean(pendingBuyStartedAtRef.current>0&&pendingBuyBotRef.current&&purchaseTime>=pendingAtSeconds-15&&purchaseTime<=Math.floor(Date.now()/1000)+10&&samePendingSymbol&&samePendingType&&samePendingStake);
@@ -193,7 +195,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    closedContractsRef.current.set(id,normalized);
    if(matchesPendingBuy&&normalized.sell_time&&Number(normalized.sell_time)>0){
     console.warn('[Deriv reconciliation] Recovered closed trade after buy acknowledgement was lost',{contract_id:id,bot:normalized.bot,contract_type:normalized.contract_type,purchase_time:normalized.purchase_time,profit_loss:normalized.profit_loss});
-    pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;
+    pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;
     latestProposalReqRef.current=null;setBuying(false);setProposal(null);setError(null);
    }
 
@@ -322,8 +324,20 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
        if(!response.ok||!refreshed?.wsUrl)throw new Error(refreshed?.error||`Unable to refresh Deriv WebSocket session (${response.status})`);
        return String(refreshed.wsUrl);
      });
-     ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.echo_req?.forget!==undefined)return;if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){setLoadingProfit(false);return}if(data.echo_req?.buy){const expiredProposal=String(data.error.code||'').toLowerCase().includes('contractproposal')||/unknown contract proposal|proposal.{0,35}(expired|no longer available|not valid|not found)|(?:expired|invalid).{0,35}proposal/i.test(message);const previousRequest=proposalRequestRef.current;const retryPrice=Number(data.echo_req?.price);if(expiredProposal&&!staleBuyRetryRef.current&&previousRequest&&Number.isFinite(retryPrice)&&retryPrice>0){staleBuyRetryRef.current=true;pendingBuyStartedAtRef.current=Date.now();pendingBuyLastRecoveryAtRef.current=0;console.warn('[Deriv buy fallback] Proposal ID rejected; retrying with direct contract parameters.',{code:data.error.code,price:retryPrice});setError(null);directBuy(ws,previousRequest,retryPrice,()=>{staleBuyRetryRef.current=false;pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;onBuyRejectedRef.current?.();setBuying(false);setProposal(null);activeContractRef.current=null;activeContractStartedAtRef.current=0;lastActiveContractUpdateAtRef.current=0;setActiveContractId(null);latestProposalReqRef.current=null;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;setError('Sem ligação à Deriv. Tente novamente.')});return;}pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;onBuyRejectedRef.current?.();setBuying(false);setProposal(null);activeContractRef.current=null;activeContractStartedAtRef.current=0;lastActiveContractUpdateAtRef.current=0;setActiveContractId(null);latestProposalReqRef.current=null;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;console.error('[Deriv buy rejected]',{message,code:data.error.code,proposal_id:data.echo_req.buy,price:data.echo_req.price});}if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null;const req=data.echo_req;console.error('[Deriv proposal rejected]',{message,code:data.error.code,contract_type:req.contract_type,symbol:req.underlying_symbol,duration:req.duration,duration_unit:req.duration_unit,barrier:req.barrier,amount:req.amount});}setError(data.echo_req?.proposal?'Proposta rejeitada pela Deriv: '+message:data.echo_req?.buy&&/unknown contract proposal/i.test(message)?'A proposta expirou ou deixou de ser válida. A tentar obter uma nova proposta.':message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
-     ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});ws.subscribe('balance',data=>{if(data.balance){balanceCacheRef.current=data.balance;setBalance(data.balance);saveTradingCache()}});ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});ws.subscribe('transaction',data=>{if(data.transaction)setTransaction(data.transaction)});ws.subscribe('profit_table',data=>{if(data.profit_table){mergeProfitTransactions(data.profit_table.transactions||[]);setLoadingProfit(false)}});
+     ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.echo_req?.forget!==undefined)return;if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){setLoadingProfit(false);return}if(/unknown contract/i.test(message)&&(data.echo_req?.profit_table||data.echo_req?.proposal_open_contract)){console.warn('[Deriv reconciliation] Contract/history lookup returned unknown contract',{message,code:data.error.code,request:data.echo_req,activeContractId:activeContractRef.current});setLoadingProfit(false);return}if(data.echo_req?.buy){const expiredProposal=String(data.error.code||'').toLowerCase().includes('contractproposal')||/unknown contract proposal|proposal.{0,35}(expired|no longer available|not valid|not found)|(?:expired|invalid).{0,35}proposal/i.test(message);const previousRequest=proposalRequestRef.current;const retryPrice=Number(data.echo_req?.price);if(expiredProposal&&!staleBuyRetryRef.current&&previousRequest&&Number.isFinite(retryPrice)&&retryPrice>0){staleBuyRetryRef.current=true;pendingBuyStartedAtRef.current=Date.now();pendingBuyLastRecoveryAtRef.current=0;console.warn('[Deriv buy fallback] Proposal ID rejected; retrying with direct contract parameters.',{code:data.error.code,price:retryPrice});setError(null);directBuy(ws,previousRequest,retryPrice,()=>{staleBuyRetryRef.current=false;pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;onBuyRejectedRef.current?.();setBuying(false);setProposal(null);activeContractRef.current=null;activeContractStartedAtRef.current=0;lastActiveContractUpdateAtRef.current=0;setActiveContractId(null);latestProposalReqRef.current=null;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;setError('Sem ligação à Deriv. Tente novamente.')});return;}pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;onBuyRejectedRef.current?.();setBuying(false);setProposal(null);activeContractRef.current=null;activeContractStartedAtRef.current=0;lastActiveContractUpdateAtRef.current=0;setActiveContractId(null);latestProposalReqRef.current=null;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;console.error('[Deriv buy rejected]',{message,code:data.error.code,proposal_id:data.echo_req.buy,price:data.echo_req.price});}if(data.echo_req?.proposal){setBuying(false);setProposal(null);latestProposalReqRef.current=null;const req=data.echo_req;console.error('[Deriv proposal rejected]',{message,code:data.error.code,contract_type:req.contract_type,symbol:req.underlying_symbol,duration:req.duration,duration_unit:req.duration_unit,barrier:req.barrier,amount:req.amount});}setError(data.echo_req?.proposal?'Proposta rejeitada pela Deriv: '+message:data.echo_req?.buy&&/unknown contract proposal/i.test(message)?'A proposta expirou ou deixou de ser válida. A tentar obter uma nova proposta.':message);if(data.error.code==='AuthorizationRequired'||data.error.code==='Unauthorized')setIsAuthorized(false)});
+     ws.subscribe('authorize',data=>{if(data.authorize)setIsAuthorized(true)});ws.subscribe('balance',data=>{if(data.balance){balanceCacheRef.current=data.balance;setBalance(data.balance);saveTradingCache()}});ws.subscribe('tick',data=>{if(data.tick)setTick(data.tick)});ws.subscribe('transaction',data=>{if(data.transaction)setTransaction(data.transaction)});ws.subscribe('profit_table',data=>{if(data.profit_table){
+      mergeProfitTransactions(data.profit_table.transactions||[]);
+      // Two empty portfolio checks plus a fresh closed-history response are required
+      // before releasing a pending buy whose acknowledgement was lost.
+      const pendingAge=pendingBuyStartedAtRef.current?Date.now()-pendingBuyStartedAtRef.current:0;
+      if(pendingBuyStartedAtRef.current>0&&pendingAge>=20000&&pendingBuyAbsenceCountRef.current>=2){
+       console.error('[Deriv reconciliation] Releasing unconfirmed buy lock after two portfolio checks and a fresh profit_table response found no matching trade',{pendingAge,absenceChecks:pendingBuyAbsenceCountRef.current,symbol:proposalRequestRef.current?.symbol,contractType:proposalRequestRef.current?.contractType,amount:proposalRequestRef.current?.amount});
+       pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;
+       latestProposalReqRef.current=null;setBuying(false);setProposal(null);setError('A Deriv não confirmou a compra nem devolveu uma posição aberta ou resultado correspondente após várias verificações. O bloqueio foi libertado; confirme o histórico antes de continuar.');
+       onBuyRejectedRef.current?.();
+      }
+      setLoadingProfit(false)
+     }});
      ws.subscribe('portfolio',data=>{
       const portfolio=data.portfolio;
       if(!portfolio)return;
@@ -347,6 +361,17 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
         }
         ws.requestContractStatus(activeId);
         refresh(true);
+        // A one-tick contract cannot remain open indefinitely. If two portfolio
+        // snapshots confirm it is absent and its close stream never returns,
+        // clear the stale active-contract lock after 20 seconds. History remains
+        // monitored so a delayed financial result can still be processed.
+        const activeAge=now-(activeContractStartedAtRef.current||now);
+        if(portfolioAbsenceCountRef.current>=2&&activeAge>=20000){
+         console.error('[Deriv reconciliation] Releasing stale active-contract lock after two portfolio snapshots showed no open position',{contract_id:activeId,activeAge,absenceChecks:portfolioAbsenceCountRef.current});
+         setError('O contrato já não aparece na carteira aberta após duas verificações, mas o resultado ainda não chegou. O bloqueio foi libertado e o histórico continua a ser sincronizado.');
+         settleActiveContract(activeId,'profit_table');
+         return;
+        }
        }
       }
       const pendingAt=pendingBuyStartedAtRef.current;
@@ -375,7 +400,8 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
         onContractBoughtRef.current?.(recoveredId);ws.reconcileContract(recoveredId);return;
        }
        if(now-pendingAt>8000){
-        console.warn('[Deriv reconciliation] No matching open position found for unacknowledged buy; checking closed history',{ageMs:now-pendingAt,symbol:pendingRequest.symbol,contractType:pendingRequest.contractType,amount:pendingRequest.amount,candidates:candidates.length});
+        pendingBuyAbsenceCountRef.current+=1;
+        console.warn('[Deriv reconciliation] No matching open position found for unacknowledged buy; checking closed history',{ageMs:now-pendingAt,absenceChecks:pendingBuyAbsenceCountRef.current,symbol:pendingRequest.symbol,contractType:pendingRequest.contractType,amount:pendingRequest.amount,candidates:candidates.length});
         refresh(true);
        }
       }
@@ -412,7 +438,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       setLoadingProfit(false);
      });
       ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current===null||responseReqId!==latestProposalReqRef.current)return;const requested=proposalRequestRef.current;setProposal({id:String(data.proposal.id||''),ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:String(data.proposal.contract_type||''),symbol:data.proposal.symbol||data.proposal.underlying_symbol||requested?.symbol||'',duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier,requested_contract_type:requested?.contractType,requested_barrier:requested?.barrier});setError(null)});
-     ws.subscribe('buy',data=>{if(!data.buy)return;staleBuyRetryRef.current=false;setError(null);setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;activeContractStartedAtRef.current=Date.now();lastActiveContractUpdateAtRef.current=Date.now();lastContractReconcileAtRef.current=0;portfolioAbsenceCountRef.current=0;sessionContractIdsRef.current.add(contractId);if(pendingBuyBotRef.current)contractBotRef.current.set(contractId,pendingBuyBotRef.current);pendingBuyBotRef.current=null;if(pendingBuyBarrierRef.current!==null)contractBarrierRef.current.set(contractId,pendingBuyBarrierRef.current);pendingBuyBarrierRef.current=null;const requestedSymbol=proposalRequestRef.current?.symbol;if(requestedSymbol)contractSymbolRef.current.set(contractId,requestedSymbol);activeContractRef.current=contractId;onContractBoughtRef.current?.(contractId);setActiveContractId(contractId);setContractStage('aberto');latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});ws.connect();
+     ws.subscribe('buy',data=>{if(!data.buy)return;staleBuyRetryRef.current=false;setError(null);setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;activeContractStartedAtRef.current=Date.now();lastActiveContractUpdateAtRef.current=Date.now();lastContractReconcileAtRef.current=0;portfolioAbsenceCountRef.current=0;sessionContractIdsRef.current.add(contractId);if(pendingBuyBotRef.current)contractBotRef.current.set(contractId,pendingBuyBotRef.current);pendingBuyBotRef.current=null;if(pendingBuyBarrierRef.current!==null)contractBarrierRef.current.set(contractId,pendingBuyBarrierRef.current);pendingBuyBarrierRef.current=null;const requestedSymbol=proposalRequestRef.current?.symbol;if(requestedSymbol)contractSymbolRef.current.set(contractId,requestedSymbol);activeContractRef.current=contractId;onContractBoughtRef.current?.(contractId);setActiveContractId(contractId);setContractStage('aberto');latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});ws.connect();
      connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();if(!connected)connectionWasUpRef.current=false;if(connected&&!connectionWasUpRef.current){connectionWasUpRef.current=true;const activeId=activeContractRef.current;console.info('[DerivWS] Connection became available; reconciling pending trading state',{activeContractId:activeId,pendingBuyAgeMs:pendingBuyStartedAtRef.current?Date.now()-pendingBuyStartedAtRef.current:0});if(activeId!==null){lastContractReconcileAtRef.current=Date.now();ws.reconcileContract(activeId);lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}if(pendingBuyStartedAtRef.current>0){lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}}setIsConnected(connected);if(connected){
        // A WebSocket can remain OPEN while market-data delivery is silently dead.
        // Reconnect proactively so the trading loop cannot remain frozen waiting
@@ -473,12 +499,12 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    proposalRequestRef.current={symbol:normalized.symbol,contractType:normalized.contractType,amount:normalized.amount,duration:normalized.duration,barrier:Number(normalized.barrier??0)};
    pendingBuyBotRef.current=bot?String(bot):null;
    pendingBuyBarrierRef.current=Number.isFinite(Number(barrier??normalized.barrier))?Number(barrier??normalized.barrier):null;
-   pendingBuyStartedAtRef.current=Date.now();pendingBuyLastRecoveryAtRef.current=0;
+   pendingBuyStartedAtRef.current=Date.now();pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;
    staleBuyRetryRef.current=false;setProposal(null);setError(null);setBuying(true);
    const sent=ws.buyContractWithParameters(normalized,maxPrice);
    if(!sent){
     console.warn('[Deriv buyDirect] WebSocket refused to send direct buy',{connected:ws.isConnected(),symbol:normalized.symbol,contractType:normalized.contractType,amount:normalized.amount,currency:normalized.currency,duration:normalized.duration,barrier:normalized.barrier,price:maxPrice,bot});
-    pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;setBuying(false);
+    pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;pendingBuyBotRef.current=null;pendingBuyBarrierRef.current=null;setBuying(false);
     setError('Não foi possível enviar a compra directa à Deriv.');onBuyRejectedRef.current?.();
    }
    return Boolean(sent);
@@ -489,7 +515,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    if(!ws){setError('Não foi possível enviar a compra à Deriv.');return false;}
    pendingBuyBotRef.current=bot?String(bot):null;
    pendingBuyBarrierRef.current=Number.isFinite(Number(barrier))?Number(barrier):null;
-   pendingBuyStartedAtRef.current=Date.now();pendingBuyLastRecoveryAtRef.current=0;
+   pendingBuyStartedAtRef.current=Date.now();pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;
    setBuying(true);
    // Match Izidro's execution cycle: purchase the exact proposal returned by
    // Deriv, using its proposal ID and ask_price as the maximum buy price.
@@ -498,7 +524,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    const sent=ws.buyContract(proposalId,price);
    if(!sent){
     console.warn('[Deriv buy] WebSocket refused to send proposal buy',{connected:ws.isConnected(),proposalId,price,bot,activeContractId:activeContractRef.current});
-    pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyBotRef.current=null;
+    pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;pendingBuyBotRef.current=null;
     pendingBuyBarrierRef.current=null;
     setBuying(false);
     setProposal(null);
