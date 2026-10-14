@@ -349,7 +349,7 @@ export class DerivWebSocket {
     }
     // Deriv also supports buying with buy: 1 + contract parameters. This avoids
     // a stale proposal ID while preserving the quote's ask_price as the max price.
-    return this.send({ buy: 1, parameters, price, req_id: ++this.proposalRequestId });
+    return this.send({ buy: '1', parameters, price, req_id: ++this.proposalRequestId });
   }
 
 
