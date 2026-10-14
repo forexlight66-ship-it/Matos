@@ -6,7 +6,7 @@ import { DerivWebSocket } from '@/lib/websocket';
 interface Balance { balance:number; currency:string; loginid?:string }
 interface Tick { symbol:string; quote:number; epoch:number }
 interface Transaction { id:number; action:string; amount:number; currency:string; contract_id?:number }
-interface ProfitTransaction { contract_id:number; buy_price:number; sell_price:number|null; payout:number; purchase_time:number; sell_time:number|null; contract_type:string; longcode?:string; profit_loss?:number; exit_tick?:number|string|null; exit_spot?:number|string|null; bot?:string; status?:string; barrier?:number|null; symbol?:string }
+interface ProfitTransaction { contract_id:number; buy_price:number; sell_price:number|null; payout:number; purchase_time:number; sell_time:number|null; contract_type:string; longcode?:string; profit_loss?:number; profit?:number|string; exit_tick?:number|string|null; exit_spot?:number|string|null; bot?:string; status?:string; barrier?:number|null; symbol?:string }
 interface Proposal { id:string; ask_price:number; payout:number; stake:number; contract_type:string; symbol:string; duration:number; duration_unit:string; barrier?:number; requested_contract_type?:string; requested_barrier?:number }
 const TRADING_MIN_STAKE=0.35,SOROS_MIN=TRADING_MIN_STAKE,SOROS_MAX_WINS=3,SOROS_WIN_MULTIPLIER=1.95,SOROS_STORAGE='mozhyper-soros-state-v8',TRADING_SESSION_STORAGE='mozhyper-trading-session-v1',TRADING_CACHE_PREFIX='mozhyper-trading-cache-v2:',TRADING_CLEARED_AT_PREFIX='mozhyper-trading-cleared-at-v1:';
 interface SorosState{level:number;stake:number;initialStake:number;accumulatedProfit:number;lossRetryCount:number;enabled:boolean;blocked:boolean}
@@ -16,7 +16,7 @@ function loadSoros():SorosState|null{if(typeof window==='undefined')return null;
 function clearSorosStorage(){if(typeof window==='undefined')return;try{sessionStorage.removeItem(SOROS_STORAGE);sessionStorage.removeItem('mozhyper-soros-state-v7');sessionStorage.removeItem('mozhyper-soros-state-v6')}catch{}}
 type DirectBuyRequest=Parameters<DerivWebSocket['buyContractWithParameters']>[0];
 function directBuy(ws:DerivWebSocket,req:DirectBuyRequest,price:number,onFail:()=>void){let tries=0;const attempt=()=>{if(ws.isConnected()&&ws.buyContractWithParameters(req,price))return;if(++tries>=16){onFail();return}setTimeout(attempt,500)};attempt()}
-function calculateProfitLoss(tx:Partial<ProfitTransaction>):number{const explicit=Number(tx.profit_loss);if(Number.isFinite(explicit)&&Math.abs(explicit)>0.000001)return explicit;const buy=Number(tx.buy_price),sell=Number(tx.sell_price);if(Number.isFinite(buy)&&Number.isFinite(sell))return sell-buy;return Number.isFinite(explicit)?explicit:0}
+function calculateProfitLoss(tx:Partial<ProfitTransaction>):number{const explicit=Number(tx.profit_loss);if(Number.isFinite(explicit)&&Math.abs(explicit)>0.000001)return explicit;const apiProfit=Number(tx.profit);if(Number.isFinite(apiProfit)&&Math.abs(apiProfit)>0.000001)return apiProfit;const buy=Number(tx.buy_price),sell=Number(tx.sell_price);if(Number.isFinite(buy)&&Number.isFinite(sell))return sell-buy;if(Number.isFinite(explicit))return explicit;return Number.isFinite(apiProfit)?apiProfit:0}
 function cacheKey(accountType:'demo'|'real'){return `${TRADING_CACHE_PREFIX}${accountType}`}
 
 export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx:ProfitTransaction)=>void,onContractBought?: (contractId:number)=>void,onBuyRejected?:()=>void){
@@ -312,7 +312,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       if(!closed)return;
       const closedTx:ProfitTransaction={
        contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,
-       purchase_time:purchaseTime,sell_time:sellTime,contract_type:c.contract_type||'',
+       purchase_time:purchaseTime,sell_time:sellTime??(closed?Math.floor(Date.now()/1000):null),contract_type:c.contract_type||'',
        longcode:c.longcode,profit_loss:profitLoss,status:status||undefined,
        exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null,
        bot:contractBotRef.current.get(contractId)||undefined,
