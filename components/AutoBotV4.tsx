@@ -573,6 +573,10 @@ export default function AutoBotV4(){
   if(id===riskAwaitingContractRef.current)riskAwaitingContractRef.current=null;
   if((iaPower||sonic)&&Number.isFinite(Number(pendingRiskStakeRef.current)))pendingRiskStakeRef.current=null;
   if(iaPower||sonic)stakeReadyRef.current=true;
+  // A confirmed close (including one recovered from profit_table after a lost
+  // buy acknowledgement) completes the pending entry attempt. Reset its lock
+  // now, not after a watchdog timeout, so analysis can resume promptly.
+  requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();
  },[running,smartAnalyzer,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,setManualStake,setManualStatus]);
  const noteQuickRecoverContractBought=useCallback((contractId:number)=>{const quick=quickRecoverRef.current;const kind=quick.pendingKind;if(!kind)return;quick.contracts.set(Number(contractId),kind);if(kind==='recovery'){quick.directions.set(Number(contractId),quick.contractType);quick.forceNextDirection=false;}quick.pendingKind=null;},[]);
  const noteQuickRecoverBuyRejected=useCallback(()=>{quickRecoverRef.current.pendingKind=null;quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;pendingAutoEntryRef.current=null;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskAwaitingContractRef.current=null;riskLockStartedAt.current=0;lastActivityAt.current=Date.now();setBotActivity('reconcilingBot');setQuickRecoverRevision(v=>v+1)},[]);
