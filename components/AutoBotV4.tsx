@@ -23,6 +23,22 @@ const IA_RISK_STAKE=0.75;
 const IA_MIN_STAKE=0.35;
 const SYMBOLS:Record<string,string>={R_10:'Volatility 10 Index',R_25:'Volatility 25 Index',R_50:'Volatility 50 Index',R_75:'Volatility 75 Index',R_100:'Volatility 100 Index','1HZ10V':'Volatility 10 (1s)','1HZ25V':'Volatility 25 (1s)','1HZ50V':'Volatility 50 (1s)','1HZ75V':'Volatility 75 (1s)','1HZ100V':'Volatility 100 (1s)'};
 const TYPES:Record<Contract,string>={EVEN:'DIGITEVEN',ODD:'DIGITODD',OVER:'DIGITOVER',UNDER:'DIGITUNDER',RISE:'CALL',FALL:'PUT',DIFFER:'DIGITDIFF',MATCH0:'DIGITMATCH'};
+const payoutContractKey=(contractType:unknown,barrier?:unknown)=>`${String(contractType||'').toUpperCase()}:${['DIGITOVER','DIGITUNDER'].includes(String(contractType||'').toUpperCase())&&Number.isFinite(Number(barrier))?Number(barrier):'-'}`;
+const estimateNetPayoutRatio=(contractType:unknown,barrier?:unknown):number|null=>{
+ const type=String(contractType||'').toUpperCase();
+ if(type==='DIGITEVEN'||type==='DIGITODD')return 0.90;
+ if(type==='DIGITDIFF')return 0.057;
+ if(type==='DIGITMATCH')return 8.5;
+ if(type==='DIGITOVER'||type==='DIGITUNDER'){
+  const b=Number(barrier);if(!Number.isFinite(b)||b<0||b>9)return null;
+  const winningDigits=type==='DIGITOVER'?9-b:b+1;
+  const probability=winningDigits/10;
+  const ratio=0.95/probability-1;
+  return Number.isFinite(ratio)&&ratio>0?ratio:null;
+ }
+ // Rise/Fall has no fallback estimate: caller uses the last observed session payout.
+ return null;
+};
 const decimalPlaces=(pipSize:number)=>{if(!Number.isFinite(pipSize)||pipSize<=0)return 0;return Math.max(0,Math.min(10,Math.round(-Math.log10(pipSize))))};
 // Deriv tick-stream pip_size is a decimal-place count (for example 5), not a price increment. Convert it to the actual increment before calculating the last digit.
 const normalizeTickPipSize=(value:unknown):number|undefined=>{const raw=Number(value);if(!Number.isFinite(raw)||raw<0)return undefined;if(Number.isInteger(raw)&&raw<=10)return Math.pow(10,-raw);return raw};
@@ -429,6 +445,13 @@ export default function AutoBotV4(){
  const barrierStateRef=useRef<BarrierState|null>(null);const manualTradeRef=useRef<{contractType:'DIGITOVER'|'DIGITUNDER';barrier:number;stake:number}|null>(null);const manualPowerBalanceRef=useRef<{balance:number;currency:string}>({balance:0,currency:'USD'});
  const gestorRef=useRef(criarGestorStake({stakeBase:IA_RISK_STAKE,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale}));
  const lastPayoutRatioRef=useRef(IA_PAYOUT);
+ const payoutRatiosByContractRef=useRef<Record<string,number>>({});
+ const payoutRatioForContract=(contractType:unknown,barrier?:unknown)=>{
+  const key=payoutContractKey(contractType,barrier);
+  const observed=payoutRatiosByContractRef.current[key];
+  if(Number.isFinite(observed)&&observed>0)return observed;
+  return estimateNetPayoutRatio(contractType,barrier)??(Number(lastPayoutRatioRef.current)>0?Number(lastPayoutRatioRef.current):IA_PAYOUT);
+ };
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE,payout:IA_PAYOUT,maxLevel:maxMartingale}));
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
@@ -535,6 +558,9 @@ export default function AutoBotV4(){
 
   if(Number.isFinite(payoutRatio)&&payoutRatio>0){
    lastPayoutRatioRef.current=payoutRatio;
+   const closedType=String(closed.contract_type||'').toUpperCase();
+   const closedBarrier=closed.barrier;
+   payoutRatiosByContractRef.current[payoutContractKey(closedType,closedBarrier)]=payoutRatio;
   }
 
   if(iaPower&&!processedStakeContractsRef.current.has(id)){
@@ -717,6 +743,9 @@ export default function AutoBotV4(){
   if(!proposal||!proposal.ask_price)return;
   const ratio=(proposal.payout-proposal.ask_price)/proposal.ask_price;
   if(Number.isFinite(ratio)&&ratio>0){
+   const proposalType=String(proposal.contract_type||proposal.requested_contract_type||'').toUpperCase();
+   const proposalBarrier=proposal.barrier??proposal.requested_barrier;
+   payoutRatiosByContractRef.current[payoutContractKey(proposalType,proposalBarrier)]=ratio;
    lastPayoutRatioRef.current=ratio;
    sonicRef.current.atualizarPayout(ratio);
    gestorRef.current.atualizarPayout(ratio);
@@ -843,8 +872,10 @@ export default function AutoBotV4(){
   let amount=Math.max(0.35,Math.min(desiredStake,maxStakeByBalance));
   // Direct buys skip proposal requests. Recovery uses the latest observed real
   // payout ratio; if the balance cannot cover the estimated full recovery, pause.
-  const recoveryRatio=Math.max(0.01,Number(lastPayoutRatioRef.current)||0.95);
-  if(quickState.active||quickState.fallbackActive||(iaPower&&iaRecovery)){
+  const recoveryRatio=Math.max(0.01,payoutRatioForContract(contractTypeStr,barrier));
+  // Quick Recover itself must always use the exact live proposal payout below.
+  // This estimate is only for the selected original bot during fallback, and other recovery managers.
+  if(quickState.fallbackActive||(!quickState.active&&iaPower&&iaRecovery)){
    const deficit=(quickState.active||quickState.fallbackActive)?Number(quickState.deficit):Number(iaState?.deficitRecuperacao||0);
    const recoveryStake=Math.max(0.35,Math.ceil((Math.max(0,deficit)/recoveryRatio)*100-1e-9)/100);
    if(recoveryStake>maxStakeByBalance+0.005){
