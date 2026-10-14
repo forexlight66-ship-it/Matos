@@ -693,7 +693,7 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&requestStartedAt.current>0&&!proposal&&!buying&&activeContractId===null&&Date.now()-requestStartedAt.current>5000){console.warn('[Bot watchdog] Solicitação sem proposta, compra ou contrato ativo durante 5s; a libertar bloqueios.',{riskAwaitingContractId:riskAwaitingContractRef.current,iaPower,sonic});requested.current=false;requestStartedAt.current=0;if(riskAwaitingContractRef.current!==null)riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;pendingAutoEntryRef.current=null;setBotActivity('reconcilingBot');lastActivityAt.current=Date.now()}if((iaPower||sonic)&&!stakeReadyRef.current&&riskLockStartedAt.current>0&&activeContractId===null&&!proposal&&!buying&&!requested.current&&Date.now()-riskLockStartedAt.current>5000){console.warn('[Bot watchdog] Bloqueio de gestão de risco ficou preso sem compra/proposta/contrato ativo; a libertar a próxima entrada.',{riskAwaitingContractId:riskAwaitingContractRef.current,ageMs:Date.now()-riskLockStartedAt.current});riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;setBotActivity('reconcilingBot');lastActivityAt.current=Date.now()}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic]);
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
-  // Bot normal: 9 ticks ao vivo com gatilho de 65%.
+  // Bot normal: últimos 5 ticks ao vivo com gatilho de 65%.
   // AI Analyst normal: 25 ticks ao vivo (5 blocos de 5), gatilho de 65%.
   // Os 28 Exit Spots e o gatilho de 20% são uma modalidade separada e não podem
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
@@ -701,7 +701,7 @@ export default function AutoBotV4(){
   if(hypercoverAlternationRef.current.pauseTicksRemaining>0&&(strategy==='HYPERCOVER'||smartAnalyzer||hypercoverAlternationRef.current.forceNextDirection)){setBotActivity('waitingRobotSignal');return;}
   const forceHypercover=!quickRecover&&hypercoverAlternationRef.current.forceNextDirection;
   if(quickRecover&&quickRecoverPausedForBalanceRef.current){const required=quickRecoverQuoteTargetRef.current;if(required!==null&&Number(balance?.balance)>=required)quickRecoverPausedForBalanceRef.current=false;else return;}
-  if(!quickRecover&&!forceHypercover&&(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9)){setBotActivity(smartAnalyzer?(exitSpotsMode?'waitingExitSpots':'collectingTicks'):'collectingTicks');return;}
+  if(!quickRecover&&!forceHypercover&&(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<5)){setBotActivity(smartAnalyzer?(exitSpotsMode?'waitingExitSpots':'collectingTicks'):'collectingTicks');return;}
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer&&!quickRecover&&!forceHypercover){
    if(!smartAdvice||(!exitSpotsMode&&smartAdvice.noTrade)){setBotActivity('waitingAnalystSignal');return;}
@@ -728,9 +728,9 @@ export default function AutoBotV4(){
     }
    }
   }else if(isRecoveryStrategy(strategy)){
-   freshSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,65,9);
+   freshSignal=makeBarrierSignal(ticks.slice(-5),barrierStateRef.current,tickPipSize,65,5);
   }else{
-   freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
+   freshSignal=makeSignal(ticks.slice(-5),strategy,tickPipSize,false,65,5);
   }
   if(!freshSignal){setBotActivity('waitingRobotSignal');return;}
   if(requested.current){setBotActivity('requestingProposal');return;}
