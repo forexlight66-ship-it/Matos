@@ -370,12 +370,12 @@ function analyzeStrategies100(v:number[],pipSize?:number){
         (consistency<40?8:0)+
         (recent<olderMean-0.08?6:0))
     : 0;
-  const quality=signalQuality(v.slice(-25),ANALYZER_STRATEGY_TO_BOT[x.strategy]||x.strategy,x.label,pipSize);
-  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0)-weakRecentPenalty-quality.penalty);
+  // AI Analyst normal: no quality/concentration filter; retain 25 ticks in five blocks and early-rise scoring.
+  const score=aiClamp(strength*.28+confidence*.24+stability*.18+consistency*.15+trend*.15-Math.max(0,50-stability)*.15+(earlyMomentum?6:0)-weakRecentPenalty);
   return{
    strategy:x.strategy,label:x.label,contract:x.contract,strength,confidence,stability,trend,acceleration,consistency,score,
-   risk:aiClamp(100-stability+weakRecentPenalty+quality.penalty),direction:x.direction,regimeChange:recent-olderMean>=0.20||earlyMomentum,
-   recentStrength:recent*100,olderStrength:olderMean*100,phase,earlyMomentum,qualityPenalty:quality.penalty,qualityBlocked:!quality.allowed,qualityReason:quality.reason
+   risk:aiClamp(100-stability+weakRecentPenalty),direction:x.direction,regimeChange:recent-olderMean>=0.20||earlyMomentum,
+   recentStrength:recent*100,olderStrength:olderMean*100,phase,earlyMomentum,qualityPenalty:0,qualityBlocked:false,qualityReason:''
   };
  });
 
@@ -393,7 +393,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
  const regimeChange=Boolean(best.regimeChange)||(recentLead>=18&&best.recentStrength>=75);
  const earlyEntry=best.phase==='EMERGENTE'&&Boolean(best.earlyMomentum)&&best.score>=55&&best.confidence>=52&&best.stability>=35;
  const protectedBelow4=best.strategy==='HyperStrike'&&best.label==='ABAIXO 4'&&best.recentStrength<60&&best.acceleration<0;
- const noTrade=(best.qualityBlocked||(!earlyEntry&&(best.score<65||best.confidence<60||best.stability<45||best.phase==='FORA DA FASE'||protectedBelow4)));
+ const noTrade=best.score<65;
  return{
   ...best,rankings:ranked,secondStrategy:second?.strategy??null,secondScore:second?.score??0,
   advantage,regimeChange,earlyEntry,noTrade,confidenceBand:confidenceBand(best.score)
@@ -1086,24 +1086,17 @@ export default function AutoBotV4(){
   const candidateStability=Number(candidate.stability)||0;
   const candidatePhase=String(candidate.phase||'');
   const allowedEmerging=candidatePhase==='EMERGENTE'&&candidate.earlyMomentum===true&&candidateScore>=55&&candidateConfidence>=52&&candidateStability>=35;
-  if(candidate.qualityBlocked===true||candidate.noTrade===true)continue;
-  if(candidatePhase==='ENFRAQUECENDO'||candidatePhase==='FORA DA FASE')continue;
-  if(candidatePhase==='EMERGENTE'&&!allowedEmerging)continue;
-  if(!allowedEmerging&&(candidateScore<65||candidateConfidence<60||candidateStability<45))continue;
-  if(String(candidate.strategy)==='HyperStrike'&&String(candidate.label)==='ABAIXO 4'&&Number(candidate.recentStrength)<60&&Number(candidate.acceleration)<0)continue;
-  // Re-evaluate the 5-tick quality filter at selection time, including HyperStrike concentration rules.
-  const currentQuality=signalQuality(aiAnalysisValues.slice(-5),bot,String(candidate.label),tickPipSize);
-  if(!currentQuality.allowed)continue;
+  // AI Analyst normal uses only the 65% trigger; no quality, concentration, phase, stability, or last-5-tick filter.
+  if(candidate.noTrade===true||candidateScore<65)continue;
+  const currentQuality={allowed:true,penalty:0,reason:''};
   if(isRecoveryStrategy(bot)){
    const barrier=bot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(bot);
    const signal=makeBarrierSignal(aiAnalysisValues,barrier,tickPipSize,65,25);
-   const recentConfirmed=confirmBarrierRecent(aiAnalysisValues.slice(-5),barrier,tickPipSize);
-   if(signal&&recentConfirmed)actionable.push({...candidate,contract:signal.contract,label:signal.label,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:currentQuality.penalty,qualityReason:currentQuality.reason});
+   if(signal)actionable.push({...candidate,contract:signal.contract,label:signal.label,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:0,qualityReason:''});
   }else{
    const signal=makeSignal(aiAnalysisValues,bot,tickPipSize,false,65,25);
-   const recentConfirmed=confirmAnalyzerRecent(aiAnalysisValues,String(candidate.strategy),String(candidate.label),tickPipSize);
-   if(signal&&signal.contract===candidate.contract&&recentConfirmed){
-    actionable.push({...candidate,contract:signal.contract,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:currentQuality.penalty,qualityReason:currentQuality.reason});
+   if(signal&&signal.contract===candidate.contract){
+    actionable.push({...candidate,contract:signal.contract,strength:signal.strength,entrySignalStrength:signal.strength,noTrade:false,qualityBlocked:false,qualityPenalty:0,qualityReason:''});
    }
   }
  }
@@ -1111,7 +1104,7 @@ export default function AutoBotV4(){
   pendingAnalyzerStrategyRef.current=null;
   setSmartAdvice({...result,rankings,noTrade:true,qualityBlocked:false});
   setAnalyzerNoticeColor('#64748b');
-  setAnalyzerNotice('AGUARDA — gatilho 65% na janela de 25 ticks e confirmação nos últimos 5');
+  setAnalyzerNotice('AGUARDA — à procura de sinal de 65% nos 25 ticks e subida antecipada');
   return;
  }
  actionable.sort((a,b)=>Number(b.score)-Number(a.score));
