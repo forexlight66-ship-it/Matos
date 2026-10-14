@@ -735,7 +735,9 @@ export default function AutoBotV4(){
   if(!freshSignal){setBotActivity('waitingRobotSignal');return;}
   if(requested.current){setBotActivity('requestingProposal');return;}
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current)){setBotActivity('reconcilingBot');return;}
-  setBotActivity('sendingDirectBuy');
+  // Until a validated buy is actually sent, keep the state recoverable.
+  // Do not display SENDINGDIRECTBUY while computing the stake or exiting a guard.
+  setBotActivity('reconcilingBot');
   stakeReadyRef.current=false;riskLockStartedAt.current=Date.now();
   requested.current=true;
   requestStartedAt.current=Date.now();
@@ -758,9 +760,10 @@ export default function AutoBotV4(){
   const availableBalance=Number(balance?.balance);
   const maxStakeByBalance=Math.floor(availableBalance*100)/100;
   if(!Number.isFinite(availableBalance)||availableBalance<=0||maxStakeByBalance<0.35){
-   requested.current=false;
-   requestStartedAt.current=0;
-   stakeReadyRef.current=true;
+   console.warn('[Bot entry blocked: balance unavailable or below minimum]',{account,balance:balance?.balance,currency:balance?.currency,minimumStake:0.35,strategy});
+   requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
+   setBotActivity('reconcilingBot');lastActivityAt.current=Date.now();
+   setNotice('Operação aguardada: saldo indisponível ou inferior à stake mínima de 0,35. O robô voltará a tentar quando o saldo estiver válido.');
    return;
   }
   const iaState=iaPower?gestorRef.current.getEstado():null;
@@ -778,10 +781,9 @@ export default function AutoBotV4(){
   const desiredStake=Math.max(0.35,Number(rawAmount)||0.35);
   // Sonic recovery must be one full-deficit operation. Never silently cap it to the available balance.
   if(sonicRecovery&&!quickState.active&&desiredStake>maxStakeByBalance+0.005){
-   pendingRiskStakeRef.current=null;
-   requested.current=false;
-   requestStartedAt.current=0;
-   stakeReadyRef.current=true;
+   console.warn('[Bot entry blocked: Sonic recovery exceeds balance]',{account,balance:availableBalance,desiredStake,maxStakeByBalance,strategy});
+   pendingRiskStakeRef.current=null;requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+   setBotActivity('reconcilingBot');lastActivityAt.current=Date.now();
    setNotice('SONIC pausado: saldo insuficiente para recuperar todo o défice numa única operação. A recuperação não será reduzida nem executada parcialmente.');
    return;
   }
@@ -793,7 +795,9 @@ export default function AutoBotV4(){
    const deficit=quickState.active?Number(quickState.deficit):Number(iaState?.deficitRecuperacao||0);
    const recoveryStake=Math.max(0.35,Math.ceil((Math.max(0,deficit)/recoveryRatio)*100-1e-9)/100);
    if(recoveryStake>maxStakeByBalance+0.005){
-    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;
+    console.warn('[Bot entry blocked: recovery exceeds balance]',{account,balance:availableBalance,deficit,recoveryRatio,recoveryStake,maxStakeByBalance,strategy});
+    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
+    setBotActivity('reconcilingBot');lastActivityAt.current=Date.now();
     if(quickState.active){quickRecoverPausedForBalanceRef.current=true;quickRecoverQuoteTargetRef.current=recoveryStake;}
     setNotice('Recuperação pausada: o saldo não cobre a stake estimada para recuperar todo o défice numa única operação.');
     return;
@@ -809,7 +813,9 @@ export default function AutoBotV4(){
    const expectedType=contractTypeStr==='DIGITOVER'?'DIGITOVER':contractTypeStr==='DIGITUNDER'?'DIGITUNDER':'';
    const expectedBarrier=expectedType==='DIGITOVER'?0:expectedType==='DIGITUNDER'?9:NaN;
    if(!expectedType||barrier!==expectedBarrier){
-    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;
+    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+    setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
+    console.warn('[Hypercover entry blocked: invalid contract/barrier]',{contractTypeStr,barrier,expectedType,expectedBarrier});
     setNotice('Hypercover: compra directa cancelada; só são permitidos OVER 0 e UNDER 9.');
     return;
    }
@@ -820,18 +826,32 @@ export default function AutoBotV4(){
   // Quick Recover requires a fresh proposal for this exact contract. Keep quoting until
   // Deriv's net payout covers the complete accumulated deficit, then buy exactly once.
   if(quickState.active){
+   setBotActivity('requestingProposal');
    const seedStake=0.35;
    quickRecoverQuoteTargetRef.current=seedStake;
    requestedHypercoverContractRef.current={contractType:contractTypeStr as 'DIGITOVER'|'DIGITUNDER',barrier};
    requested.current=true;requestStartedAt.current=Date.now();
    if(!getProposal(symbol,contractTypeStr,seedStake,1,barrier,false)){
     quickRecoverQuoteTargetRef.current=null;requestedHypercoverContractRef.current=null;quickRecoverRef.current.pendingKind=null;
-    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;
+    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+    setBotActivity('reconcilingBot');lastActivityAt.current=Date.now();
     setNotice('QUICK RECOVER pausado: não foi possível obter uma cotação actual do contrato de recuperação.');
    }
    return;
   }
-  const sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:1,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
+  // SENDINGDIRECTBUY now only covers the actual buy invocation.
+  setBotActivity('sendingDirectBuy');
+  let sent=false;
+  try{
+   sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:1,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
+  }catch(buyError){
+   console.error('[Bot direct buy exception]',buyError,{account,strategy,symbol,contractTypeStr,barrier,amount});
+   if(iaPower||sonic)pendingRiskStakeRef.current=null;
+   requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+   setBotActivity('reconcilingBot');lastActivityAt.current=Date.now();
+   setNotice('Compra não enviada por erro interno. O robô libertou o bloqueio e continuará a analisar.');
+   return;
+  }
   if(!sent){
    setBotActivity('reconcilingBot');
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
