@@ -37,6 +37,7 @@ interface PaymentAgentCashierProps {
   open: boolean;
   action: Action | null;
   currency: string;
+  agentCurrency?: string;
   light: boolean;
   onClose: () => void;
   onNotice?: (message: string) => void;
@@ -67,7 +68,7 @@ function withdrawalStatusMessage(status: string | undefined, language: string, c
   return title + ': ' + statusText(status, copy) + '.';
 }
 
-export default function PaymentAgentCashier({ open, action, currency, light, onClose, onNotice }: PaymentAgentCashierProps) {
+export default function PaymentAgentCashier({ open, action, currency, agentCurrency, light, onClose, onNotice }: PaymentAgentCashierProps) {
   const { language } = useLanguage();
   const isAiAnalyst = action === 'ai_analyst';
   const isCourse = action === 'course';
@@ -133,7 +134,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
   const [requestId, setRequestId] = useState('');
   const [agentCurrencies, setAgentCurrencies] = useState<AgentCurrency[]>([]);
   const [supportedCurrencies, setSupportedCurrencies] = useState<string[]>([]);
-  const [paymentCurrency, setPaymentCurrency] = useState(currency);
+  const [paymentCurrency, setPaymentCurrency] = useState(agentCurrency || currency);
   const [derivNickname, setDerivNickname] = useState('');
   const [nicknameLoading, setNicknameLoading] = useState(false);
   const [nicknameError, setNicknameError] = useState('');
@@ -179,7 +180,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
     setDepositStatus('');
     setAuthExpired(false);
     setSupportedCurrencies([]);
-    setPaymentCurrency((action === 'ai_analyst' || action === 'course') ? (currency.toUpperCase() === 'MZN' ? 'MZN' : 'USDT') : currency);
+    setPaymentCurrency((action === 'ai_analyst' || action === 'course') ? (currency.toUpperCase() === 'MZN' ? 'MZN' : 'USDT') : (agentCurrency || currency));
     try {
       const raw = sessionStorage.getItem('mozhyper_payment_agent_draft');
       if (raw) {
@@ -199,7 +200,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
             setPaymentName(String(draft.paymentName || ''));
           } else {
             setAmount(String(draft.amount || ''));
-            setPaymentCurrency(String(draft.paymentCurrency || currency));
+            setPaymentCurrency(String(draft.paymentCurrency || agentCurrency || currency));
             setPaymentMethod(draft.paymentMethod === 'emola' ? 'emola' : 'mpesa');
             setPaymentNumber(String(draft.paymentNumber || ''));
             setPaymentName(String(draft.paymentName || ''));
@@ -208,7 +209,7 @@ export default function PaymentAgentCashier({ open, action, currency, light, onC
         sessionStorage.removeItem('mozhyper_payment_agent_draft');
       }
     } catch {}
-  }, [open, action, currency]);
+  }, [open, action, currency, agentCurrency]);
 
   useEffect(() => {
     if (!open || isAiAnalyst || isCourse) return;
