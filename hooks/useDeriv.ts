@@ -20,8 +20,9 @@ function calculateProfitLoss(tx:Partial<ProfitTransaction>):number{const explici
 function cacheKey(accountType:'demo'|'real'){return `${TRADING_CACHE_PREFIX}${accountType}`}
 
 export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx:ProfitTransaction)=>void,onContractBought?: (contractId:number)=>void,onBuyRejected?:()=>void){
- const wsRef=useRef<DerivWebSocket|null>(null),activeContractRef=useRef<number|null>(null),pendingBuyBotRef=useRef<string|null>(null),pendingBuyBarrierRef=useRef<number|null>(null),contractBotRef=useRef<Map<number,string>>(new Map()),contractBarrierRef=useRef<Map<number,number>>(new Map()),contractSymbolRef=useRef<Map<number,string>>(new Map()),latestProposalReqRef=useRef<number|null>(null),proposalRequestRef=useRef<{symbol:string;contractType:string;amount:number;duration:number;barrier:number}|null>(null),staleBuyRetryRef=useRef(false),closedContractsRef=useRef<Map<number,ProfitTransaction>>(new Map()),sessionStartedAtRef=useRef(0),sessionContractIdsRef=useRef<Set<number>>(new Set()),emittedClosedContractsRef=useRef<Set<number>>(new Set()),sorosRef=useRef<SorosState>(defaultSoros()),processedSorosContractsRef=useRef<Set<number>>(new Set()),balanceCacheRef=useRef<Balance|null>(null),originalSorosEnabledRef=useRef(true),activeContractStartedAtRef=useRef(0),lastActiveContractUpdateAtRef=useRef(0),lastContractReconcileAtRef=useRef(0),lastPortfolioRequestAtRef=useRef(0),portfolioRequestIdRef=useRef<number|null>(null),portfolioAbsenceCountRef=useRef(0),pendingBuyAbsenceCountRef=useRef(0),connectionWasUpRef=useRef(false),pendingBuyStartedAtRef=useRef(0),pendingBuyLastRecoveryAtRef=useRef(0);
+ const wsRef=useRef<DerivWebSocket|null>(null),activeContractRef=useRef<number|null>(null),activeContractStateRef=useRef<number|null>(null),pendingBuyBotRef=useRef<string|null>(null),pendingBuyBarrierRef=useRef<number|null>(null),contractBotRef=useRef<Map<number,string>>(new Map()),contractBarrierRef=useRef<Map<number,number>>(new Map()),contractSymbolRef=useRef<Map<number,string>>(new Map()),latestProposalReqRef=useRef<number|null>(null),proposalRequestRef=useRef<{symbol:string;contractType:string;amount:number;duration:number;barrier:number}|null>(null),staleBuyRetryRef=useRef(false),closedContractsRef=useRef<Map<number,ProfitTransaction>>(new Map()),sessionStartedAtRef=useRef(0),sessionContractIdsRef=useRef<Set<number>>(new Set()),emittedClosedContractsRef=useRef<Set<number>>(new Set()),sorosRef=useRef<SorosState>(defaultSoros()),processedSorosContractsRef=useRef<Set<number>>(new Set()),balanceCacheRef=useRef<Balance|null>(null),originalSorosEnabledRef=useRef(true),activeContractStartedAtRef=useRef(0),lastActiveContractUpdateAtRef=useRef(0),lastContractReconcileAtRef=useRef(0),lastPortfolioRequestAtRef=useRef(0),portfolioRequestIdRef=useRef<number|null>(null),portfolioAbsenceCountRef=useRef(0),pendingBuyAbsenceCountRef=useRef(0),connectionWasUpRef=useRef(false),pendingBuyStartedAtRef=useRef(0),pendingBuyLastRecoveryAtRef=useRef(0);
  const[balance,setBalance]=useState<Balance|null>(null),[tick,setTick]=useState<Tick|null>(null),[transaction,setTransaction]=useState<Transaction|null>(null),[isConnected,setIsConnected]=useState(false),[isAuthorized,setIsAuthorized]=useState(false),[error,setError]=useState<string|null>(null),[profitTransactions,setProfitTransactions]=useState<ProfitTransaction[]>([]),[profitCount,setProfitCount]=useState(0),[proposal,setProposal]=useState<Proposal|null>(null),[loadingProfit,setLoadingProfit]=useState(false),[buying,setBuying]=useState(false),[contractClosedSeq,setContractClosedSeq]=useState(0),[lastClosedTransaction,setLastClosedTransaction]=useState<ProfitTransaction|null>(null),[activeContractId,setActiveContractId]=useState<number|null>(null),[contractStage,setContractStage]=useState<'analisando'|'aberto'|'fechado'>('analisando'),[soros,setSoros]=useState<SorosState>(()=>defaultSoros());
+ activeContractStateRef.current=activeContractId;
  const onContractClosedRef=useRef<((tx:ProfitTransaction)=>void)|undefined>(onContractClosed);
  onContractClosedRef.current=onContractClosed;
  const onContractBoughtRef=useRef<((contractId:number)=>void)|undefined>(onContractBought);
@@ -91,9 +92,13 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
  // then allow AutoBotV4 to prepare the next signal after React sees null.
  const settleActiveContract=useCallback((contractIdInput:number,source:'proposal_open_contract'|'profit_table')=>{
   const id=Number(contractIdInput);
-  if(!Number.isFinite(id)||id<=0||activeContractRef.current!==id)return false;
-  console.info('[Deriv contract lifecycle] Settling active contract',{contract_id:id,source});
-  activeContractRef.current=null;
+  if(!Number.isFinite(id)||id<=0)return false;
+  const trackedByRef=activeContractRef.current===id;
+  const trackedByState=activeContractStateRef.current===id;
+  if(!trackedByRef&&!trackedByState)return false;
+  console.info('[Deriv contract lifecycle] Settling active contract',{contract_id:id,source,trackedByRef,trackedByState});
+  if(trackedByRef)activeContractRef.current=null;
+  if(trackedByState)activeContractStateRef.current=null;
   activeContractStartedAtRef.current=0;lastActiveContractUpdateAtRef.current=0;lastContractReconcileAtRef.current=0;portfolioAbsenceCountRef.current=0;
   latestProposalReqRef.current=null;
   staleBuyRetryRef.current=false;
@@ -344,11 +349,15 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       portfolioRequestIdRef.current=null;
       const contracts:any[]=Array.isArray(portfolio.contracts)?portfolio.contracts:[];
       const now=Date.now();
-      const activeId=activeContractRef.current;
+      const activeId=activeContractRef.current??activeContractStateRef.current;
       if(activeId!==null){
        const activeListed=contracts.some((item:any)=>Number(item?.contract_id)===activeId);
        if(activeListed){
         portfolioAbsenceCountRef.current=0;
+        // Keep React state and the internal contract reference in sync. A stale
+        // null UI state must not permit another buy while a contract is open.
+        activeContractRef.current=activeId;activeContractStateRef.current=activeId;
+        setActiveContractId(activeId);setContractStage('aberto');setBuying(false);setProposal(null);setError(null);
         console.info('[Deriv reconciliation] Active contract confirmed in portfolio',{contract_id:activeId,ageMs:now-(activeContractStartedAtRef.current||now)});
        }else{
         portfolioAbsenceCountRef.current+=1;
@@ -439,7 +448,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
      });
       ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current===null||responseReqId!==latestProposalReqRef.current)return;const requested=proposalRequestRef.current;setProposal({id:String(data.proposal.id||''),ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:String(data.proposal.contract_type||''),symbol:data.proposal.symbol||data.proposal.underlying_symbol||requested?.symbol||'',duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier,requested_contract_type:requested?.contractType,requested_barrier:requested?.barrier});setError(null)});
      ws.subscribe('buy',data=>{if(!data.buy)return;staleBuyRetryRef.current=false;setError(null);setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;activeContractStartedAtRef.current=Date.now();lastActiveContractUpdateAtRef.current=Date.now();lastContractReconcileAtRef.current=0;portfolioAbsenceCountRef.current=0;sessionContractIdsRef.current.add(contractId);if(pendingBuyBotRef.current)contractBotRef.current.set(contractId,pendingBuyBotRef.current);pendingBuyBotRef.current=null;if(pendingBuyBarrierRef.current!==null)contractBarrierRef.current.set(contractId,pendingBuyBarrierRef.current);pendingBuyBarrierRef.current=null;const requestedSymbol=proposalRequestRef.current?.symbol;if(requestedSymbol)contractSymbolRef.current.set(contractId,requestedSymbol);activeContractRef.current=contractId;onContractBoughtRef.current?.(contractId);setActiveContractId(contractId);setContractStage('aberto');latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});ws.connect();
-     connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();if(!connected)connectionWasUpRef.current=false;if(connected&&!connectionWasUpRef.current){connectionWasUpRef.current=true;const activeId=activeContractRef.current;console.info('[DerivWS] Connection became available; reconciling pending trading state',{activeContractId:activeId,pendingBuyAgeMs:pendingBuyStartedAtRef.current?Date.now()-pendingBuyStartedAtRef.current:0});if(activeId!==null){lastContractReconcileAtRef.current=Date.now();ws.reconcileContract(activeId);lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}if(pendingBuyStartedAtRef.current>0){lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}}setIsConnected(connected);if(connected){
+     connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();if(!connected)connectionWasUpRef.current=false;if(connected&&!connectionWasUpRef.current){connectionWasUpRef.current=true;const activeId=activeContractRef.current??activeContractStateRef.current;console.info('[DerivWS] Connection became available; reconciling pending trading state',{activeContractId:activeId,pendingBuyAgeMs:pendingBuyStartedAtRef.current?Date.now()-pendingBuyStartedAtRef.current:0});if(activeId!==null){lastContractReconcileAtRef.current=Date.now();ws.reconcileContract(activeId);lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}if(pendingBuyStartedAtRef.current>0){lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}}setIsConnected(connected);if(connected){
        // A WebSocket can remain OPEN while market-data delivery is silently dead.
        // Reconnect proactively so the trading loop cannot remain frozen waiting
        // forever for the next tick/proposal.
@@ -459,7 +468,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       const currentWs=wsRef.current;
       if(!currentWs?.isConnected())return;
       const now=Date.now();
-      const activeId=activeContractRef.current;
+      const activeId=activeContractRef.current??activeContractStateRef.current;
       if(activeId!==null){
        const age=now-(activeContractStartedAtRef.current||now);
        const silence=now-(lastActiveContractUpdateAtRef.current||activeContractStartedAtRef.current||now);
@@ -533,5 +542,5 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    return Boolean(sent);
   },[buying]);
  const sell=useCallback((contractId:number)=>wsRef.current?.sellContract(contractId),[]);
- return{balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,activeContractId,contractClosedSeq,lastClosedTransaction,contractStage,subscribeTicks,fetchProfitTable,getTicksHistory,getProposal,clearProposal,buy,buyDirect,sell,soros,resetSoros,setSorosEnabled,setSorosStake,resetTradingSession};
+ return{balance,tick,transaction,isConnected,isAuthorized,error,profitTransactions,profitCount,proposal,loadingProfit,buying,activeContractId,trackedContractId:activeContractRef.current??activeContractStateRef.current,contractClosedSeq,lastClosedTransaction,contractStage,subscribeTicks,fetchProfitTable,getTicksHistory,getProposal,clearProposal,buy,buyDirect,sell,soros,resetSoros,setSorosEnabled,setSorosStake,resetTradingSession};
 }
