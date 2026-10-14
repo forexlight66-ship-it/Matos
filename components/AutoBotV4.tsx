@@ -487,7 +487,19 @@ export default function AutoBotV4(){
     quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;setQuickRecoverRevision(v=>v+1);
     if(result<0){
      quick.deficit=Number((quick.deficit+Math.abs(result)).toFixed(2));quick.consecutive++;
-     if(!quick.active&&tradeKind==='exit'&&quick.consecutive>=3){
+     if(quick.active&&tradeKind==='recovery'){
+      // Quick Recover gets one attempt only. A loss returns control to the selected bot.
+      quick.active=false;quick.fallbackActive=true;quick.fallbackLevel=1;quick.forceNextDirection=false;
+      hypercoverAlternationRef.current.forceNextDirection=false;
+      quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;
+      setNotice('QUICK RECOVER perdeu. A regressar ao bot original selecionado — Martingale 1/'+maxMartingale+'. Défice total $'+quick.deficit.toFixed(2)+'.');
+     }else if(quick.fallbackActive&&tradeKind==='recovery'){
+      quick.fallbackLevel++;
+      if(quick.fallbackLevel>maxMartingale){
+       quick.fallbackActive=false;stopped.current=true;botArmedRef.current=false;requested.current=false;requestStartedAt.current=0;setRunning(false);setSmartAnalyzer(false);
+       setNotice('LIMITE MARTINGALE ATINGIDO ('+maxMartingale+'). Robô pausado; défice ainda por recuperar: $'+quick.deficit.toFixed(2)+'.');
+      }else setNotice('BOT ORIGINAL EM RECUPERAÇÃO — Martingale '+quick.fallbackLevel+'/'+maxMartingale+'; défice total $'+quick.deficit.toFixed(2)+'.');
+     }else if(!quick.active&&!quick.fallbackActive&&tradeKind==='exit'&&quick.consecutive>=3){
       quick.active=true;
       if(isHypercoverTrade){
        quick.forceNextDirection=true;quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;
@@ -496,23 +508,7 @@ export default function AutoBotV4(){
       }
       pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;
       setNotice(isHypercoverTrade?'HYPERCOVER QUICK RECOVER activo após 3 perdas. Pausa de 30 ticks; depois tentará recuperar o défice total numa única operação. Défice $'+quick.deficit.toFixed(2)+'.':'QUICK RECOVER ATIVO — 3 perdas consecutivas; défice $'+quick.deficit.toFixed(2)+'.');
-     }else if(quick.active&&tradeKind==='recovery'){
-      if(isHypercoverTrade){
-       // Hypercover already selected the opposite direction for this loss.
-       quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;quick.forceNextDirection=true;
-      }else{
-       const lostDirection=closedDirection||quick.contractType;
-       quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?1:8;quick.forceNextDirection=true;
-      }
-      if(quick.active&&tradeKind==='recovery'){
-      quick.active=false;quick.fallbackActive=true;quick.fallbackLevel=1;quick.forceNextDirection=false;
-      hypercoverAlternationRef.current.forceNextDirection=false;quickRecoverQuoteTargetRef.current=null;quickRecoverPausedForBalanceRef.current=false;
-      setNotice('QUICK RECOVER perdeu. A regressar ao bot original selecionado — Martingale 1/'+maxMartingale+'. Défice total $'+quick.deficit.toFixed(2)+'.');
-     }else if(quick.fallbackActive&&tradeKind==='recovery'){
-      quick.fallbackLevel++;
-      if(quick.fallbackLevel>maxMartingale){quick.fallbackActive=false;stopped.current=true;botArmedRef.current=false;requested.current=false;requestStartedAt.current=0;setRunning(false);setSmartAnalyzer(false);setNotice('LIMITE MARTINGALE ATINGIDO ('+maxMartingale+'). Robô pausado; défice ainda por recuperar: $'+quick.deficit.toFixed(2)+'.');}
-      else setNotice('BOT ORIGINAL EM RECUPERAÇÃO — Martingale '+quick.fallbackLevel+'/'+maxMartingale+'; défice total $'+quick.deficit.toFixed(2)+'.');
-     }else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
+     }
     }else if(result>0){
      quick.consecutive=0;quick.deficit=Number(Math.max(0,quick.deficit-result).toFixed(2));
      if((quick.active||quick.fallbackActive)&&quick.deficit<=0.01){
