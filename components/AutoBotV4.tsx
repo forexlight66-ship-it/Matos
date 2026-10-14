@@ -853,9 +853,14 @@ export default function AutoBotV4(){
    return;
   }
   if(!sent){
+   console.warn('[Bot direct buy returned false]',{account,strategy,symbol,contractType:contractTypeStr,barrier,amount,availableBalance,buying,activeContractId,botName,at:new Date().toISOString()});
    setBotActivity('reconcilingBot');
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
+   // The hook logs whether this was a duplicate/in-flight request or a socket refusal.
+   // Release only this local attempt; the active-contract lifecycle owns any open trade.
    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+   lastActivityAt.current=Date.now();
+   setNotice('A compra não foi enviada. O motivo ficou registado para diagnóstico; o robô está a reconciliar o estado da conta.');
    return;
   }
   if(botName==='Hypercover'){
