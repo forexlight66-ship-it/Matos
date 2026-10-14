@@ -137,14 +137,14 @@ function makeHyperCoverExitSignal(values:number[],pipSize?:number){
  if(usable.length<9)return null;
  const sample=usable;
  const blocks=sample.length>=28?Array.from({length:4},(_,i)=>sample.slice(i*7,(i+1)*7)):[sample];
- const scoreDirection=(items:number[],kind:'OVER0'|'UNDER9')=>{
+ const scoreDirection=(items:number[],kind:'OVER1'|'UNDER8')=>{
   const ds=items.map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
   if(!ds.length)return 0;
-  return ds.filter(n=>kind==='OVER0'?n>0:n<9).length/ds.length*100;
+  return ds.filter(n=>kind==='OVER1'?n>1:n<8).length/ds.length*100;
  };
  const directions=[
-  {kind:'OVER0' as const,contract:'OVER' as Contract,contractType:'DIGITOVER' as const,barrier:0,label:'ACIMA 0 — OVER 0',baseline:90},
-  {kind:'UNDER9' as const,contract:'UNDER' as Contract,contractType:'DIGITUNDER' as const,barrier:9,label:'ABAIXO 9 — UNDER 9',baseline:90}
+  {kind:'OVER1' as const,contract:'OVER' as Contract,contractType:'DIGITOVER' as const,barrier:1,label:'ACIMA 1 — OVER 1',baseline:80},
+  {kind:'UNDER8' as const,contract:'UNDER' as Contract,contractType:'DIGITUNDER' as const,barrier:8,label:'ABAIXO 8 — UNDER 8',baseline:80}
  ].map(item=>{
   const overall=scoreDirection(sample,item.kind);
   const blockScores=blocks.map(block=>scoreDirection(block,item.kind));
@@ -415,7 +415,7 @@ export default function AutoBotV4(){
  const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('1HZ100V'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('PAR_IMPAR'),[tickWindow,setTickWindow]=useState(9),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(33),[lossLimit,setLossLimit]=useState(62.50),[metas,setMetas]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[notice,setNotice]=useState<string|null>(null),[botActivity,setBotActivity]=useState<'collectingTicks'|'waitingExitSpots'|'waitingRobotSignal'|'waitingAnalystSignal'|'requestingProposal'|'sendingDirectBuy'|'waitingBuyConfirmation'|'reconcilingBot'|'reconnectingDeriv'|'analyzing'>('analyzing'),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]),[manualPanelOpen,setManualPanelOpen]=useState(false),[manualStatus,setManualStatus]=useState(''),[manualAboveBarrier,setManualAboveBarrier]=useState('5'),[manualBelowBarrier,setManualBelowBarrier]=useState('4'),[manualStake,setManualStake]=useState(0.75);
  const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[exitSpotsMode,setExitSpotsMode]=useState(false),[exitSpotsAutoEnabled,setExitSpotsAutoEnabled]=useState(true),[exitSpotsMonitorStatus,setExitSpotsMonitorStatus]=useState('A aguardar os primeiros 28 Exit Spots fechados.'),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[quickRecoverRevision,setQuickRecoverRevision]=useState(0),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|'ai_analyst'|'course'|null>(null),[supportOpen,setSupportOpen]=useState(false);
- const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),activeContractIdForRiskRef=useRef<number|null>(null),recoveryBalancePauseRef=useRef<number|null>(null),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),riskLockStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),analyzerDecisionHistoryRef=useRef<any[]>([]),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),processedClosedTradeIdsRef=useRef(new Set<number>()),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),pendingAutoEntryRef=useRef<{signal:any;strategy:Strategy;symbol:string;requestedAt:number;smartAnalyzer:boolean;exitSpotsMode:boolean}|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null),hypercoverAlternationRef=useRef<{forceNextDirection:boolean;contractType:'DIGITUNDER'|'DIGITOVER';barrier:number;lastDirection:'DIGITUNDER'|'DIGITOVER'|null;lossStreak:number;pauseTicksRemaining:number}>({forceNextDirection:false,contractType:'DIGITUNDER',barrier:9,lastDirection:null,lossStreak:0,pauseTicksRemaining:0}),quickRecoverRef=useRef<{active:boolean;deficit:number;consecutive:number;contractType:'DIGITUNDER'|'DIGITOVER';barrier:number;forceNextDirection:boolean;pendingKind:'exit'|'recovery'|null;contracts:Map<number,'exit'|'recovery'>;directions:Map<number,'DIGITUNDER'|'DIGITOVER'>}>({active:false,deficit:0,consecutive:0,contractType:'DIGITUNDER',barrier:8,forceNextDirection:false,pendingKind:null,contracts:new Map(),directions:new Map()}),quickRecoverQuoteTargetRef=useRef<number|null>(null),quickRecoverPausedForBalanceRef=useRef(false),requestedHypercoverContractRef=useRef<{contractType:'DIGITUNDER'|'DIGITOVER';barrier:number}|null>(null);
+ const lastEpoch=useRef<number|null>(null),requested=useRef(false),stopped=useRef(false),botArmedRef=useRef(false),activeContractIdForRiskRef=useRef<number|null>(null),recoveryBalancePauseRef=useRef<number|null>(null),lastRequestedClose=useRef(0),requestStartedAt=useRef(0),riskLockStartedAt=useRef(0),lastActivityAt=useRef(Date.now()),lastProcessedStakeResult=useRef<number|string|null>(null),lastProcessedSonicResult=useRef<number|string|null>(null),processedStakeContractsRef=useRef(new Set<number>()),processedSonicContractsRef=useRef(new Set<number>()),pendingRiskStakeRef=useRef<number|null>(null),stakeReadyRef=useRef(true),riskAwaitingContractRef=useRef<number|null>(null),iaRecoveryQuotePendingRef=useRef(false),lastAdvisorKeyRef=useRef(''),totalTickCountRef=useRef(0),lastAnalyzerEvalTickRef=useRef(0),analyzerStableKeyRef=useRef<string|null>(null),analyzerStableCountRef=useRef(0),analyzerLastSwitchTickRef=useRef(-1000),analyzerLastSwitchAtRef=useRef(0),analyzerNoticeTimerRef=useRef<number|null>(null),analyzerDecisionHistoryRef=useRef<any[]>([]),historyRef=useRef<HTMLDivElement|null>(null),lastProcessedRecoveryContractRef=useRef<number|null>(null),processedClosedTradeIdsRef=useRef(new Set<number>()),pendingAnalyzerStrategyRef=useRef<Strategy|null>(null),pendingAutoEntryRef=useRef<{signal:any;strategy:Strategy;symbol:string;requestedAt:number;smartAnalyzer:boolean;exitSpotsMode:boolean}|null>(null),analyzerConfirmedRef=useRef(false),analyzerConfirmedStrategyRef=useRef<Strategy|null>(null),hypercoverAlternationRef=useRef<{forceNextDirection:boolean;contractType:'DIGITUNDER'|'DIGITOVER';barrier:number;lastDirection:'DIGITUNDER'|'DIGITOVER'|null;lossStreak:number;pauseTicksRemaining:number}>({forceNextDirection:false,contractType:'DIGITUNDER',barrier:8,lastDirection:null,lossStreak:0,pauseTicksRemaining:0}),quickRecoverRef=useRef<{active:boolean;deficit:number;consecutive:number;contractType:'DIGITUNDER'|'DIGITOVER';barrier:number;forceNextDirection:boolean;pendingKind:'exit'|'recovery'|null;contracts:Map<number,'exit'|'recovery'>;directions:Map<number,'DIGITUNDER'|'DIGITOVER'>}>({active:false,deficit:0,consecutive:0,contractType:'DIGITUNDER',barrier:8,forceNextDirection:false,pendingKind:null,contracts:new Map(),directions:new Map()}),quickRecoverQuoteTargetRef=useRef<number|null>(null),quickRecoverPausedForBalanceRef=useRef(false),requestedHypercoverContractRef=useRef<{contractType:'DIGITUNDER'|'DIGITOVER';barrier:number}|null>(null);
  const pipSizeBySymbolRef=useRef(new Map<string,number>());
  useEffect(() => {
   const params = new URLSearchParams(window.location.search);
@@ -472,12 +472,13 @@ export default function AutoBotV4(){
    if(isHypercoverTrade&&!hypercoverWon){
     const actualDirection=closedType==='DIGITOVER'?'DIGITOVER':closedType==='DIGITUNDER'?'DIGITUNDER':hypercoverAlternationRef.current.lastDirection||'DIGITUNDER';
     const nextDirection=actualDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';
+    const nextBarrier=nextDirection==='DIGITOVER'?1:8;
     const nextLossStreak=hypercoverAlternationRef.current.lossStreak+1;
     const shouldPause=nextLossStreak>=3;
-    hypercoverAlternationRef.current={...hypercoverAlternationRef.current,forceNextDirection:true,contractType:nextDirection,barrier:nextDirection==='DIGITOVER'?0:9,lastDirection:actualDirection,lossStreak:shouldPause?0:nextLossStreak,pauseTicksRemaining:shouldPause?30:hypercoverAlternationRef.current.pauseTicksRemaining};
-    quick.contractType=nextDirection;quick.barrier=nextDirection==='DIGITOVER'?0:9;quick.forceNextDirection=true;
+    hypercoverAlternationRef.current={...hypercoverAlternationRef.current,forceNextDirection:true,contractType:nextDirection,barrier:nextBarrier,lastDirection:actualDirection,lossStreak:shouldPause?0:nextLossStreak,pauseTicksRemaining:shouldPause?30:hypercoverAlternationRef.current.pauseTicksRemaining};
+    quick.contractType=nextDirection;quick.barrier=nextBarrier;quick.forceNextDirection=true;
     setQuickRecoverRevision(v=>v+1);
-    setNotice(shouldPause?'HYPERCOVER: 3 perdas consecutivas. Pausa de 30 ticks; depois retoma com '+(nextDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+'.':'HYPERCOVER perdeu ('+(actualDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+'). Próxima operação obrigatoriamente '+(nextDirection==='DIGITOVER'?'OVER 0':'UNDER 9')+', independentemente das estatísticas.');
+    setNotice(shouldPause?'HYPERCOVER: 3 perdas consecutivas. Pausa de 30 ticks; depois retoma com '+(nextDirection==='DIGITOVER'?'OVER 1':'UNDER 8')+'.':'HYPERCOVER perdeu ('+(actualDirection==='DIGITOVER'?'OVER 1':'UNDER 8')+'). Próxima operação obrigatoriamente '+(nextDirection==='DIGITOVER'?'OVER 1':'UNDER 8')+', independentemente das estatísticas.');
    }else if(isHypercoverTrade&&hypercoverWon){
     hypercoverAlternationRef.current.lossStreak=0;
    }
@@ -491,7 +492,7 @@ export default function AutoBotV4(){
       if(isHypercoverTrade){
        quick.forceNextDirection=true;quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;
       }else{
-       quick.forceNextDirection=true;quick.contractType='DIGITUNDER';quick.barrier=9;
+       quick.forceNextDirection=true;quick.contractType='DIGITUNDER';quick.barrier=8;
       }
       pendingAnalyzerStrategyRef.current=null;requested.current=false;requestStartedAt.current=0;
       setNotice(isHypercoverTrade?'HYPERCOVER QUICK RECOVER activo após 3 perdas. Pausa de 30 ticks; depois tentará recuperar o défice total numa única operação. Défice $'+quick.deficit.toFixed(2)+'.':'QUICK RECOVER ATIVO — 3 perdas consecutivas; défice $'+quick.deficit.toFixed(2)+'.');
@@ -501,7 +502,7 @@ export default function AutoBotV4(){
        quick.contractType=hypercoverAlternationRef.current.contractType;quick.barrier=hypercoverAlternationRef.current.barrier;quick.forceNextDirection=true;
       }else{
        const lostDirection=closedDirection||quick.contractType;
-       quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?0:9;quick.forceNextDirection=true;
+       quick.contractType=lostDirection==='DIGITOVER'?'DIGITUNDER':'DIGITOVER';quick.barrier=quick.contractType==='DIGITOVER'?1:8;quick.forceNextDirection=true;
       }
       setNotice('QUICK RECOVER continua — próxima direcção '+(quick.contractType==='DIGITOVER'?'OVER 0':'UNDER 9')+'; défice total $'+quick.deficit.toFixed(2)+'.');
      }else if(quick.active)setNotice('QUICK RECOVER continua — défice $'+quick.deficit.toFixed(2)+'.');
@@ -750,7 +751,7 @@ export default function AutoBotV4(){
   if(!quickRecover&&!forceHypercover&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
   if(proposal||buying||activeContractId!==null||trackedContractId!==null||!isAuthorized||!isConnected){setBotActivity(!isConnected||!isAuthorized?'reconnectingDeriv':(buying?'waitingBuyConfirmation':'reconcilingBot'));return;}
   let freshSignal:any=null;
-  if(quickRecover){const quick=quickRecoverRef.current;const cover=quick.forceNextDirection?{contract:quick.contractType==='DIGITOVER'?'OVER' as Contract:'UNDER' as Contract,contractType:quick.contractType,barrier:quick.barrier,label:quick.contractType==='DIGITOVER'?'ACIMA 0':'ABAIXO 9',strength:100,score:100}:makeHyperCoverExitSignal(analysisExitValues.length>=9?analysisExitValues:aiAnalysisValues,tickPipSize);if(!cover)return;quick.contractType=cover.contractType;quick.barrier=cover.barrier;freshSignal={contract:cover.contract,label:'QUICK RECOVER HYPERCOVER '+cover.label,strength:cover.strength,score:cover.score,barrier:cover.barrier,contractType:cover.contractType,quickRecover:true};}else if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 0':'ABAIXO 9',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(smartAnalyzer){
+  if(quickRecover){const quick=quickRecoverRef.current;const cover=quick.forceNextDirection?{contract:quick.contractType==='DIGITOVER'?'OVER' as Contract:'UNDER' as Contract,contractType:quick.contractType,barrier:quick.barrier,label:quick.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100}:makeHyperCoverExitSignal(analysisExitValues.length>=9?analysisExitValues:aiAnalysisValues,tickPipSize);if(!cover)return;quick.contractType=cover.contractType;quick.barrier=cover.barrier;freshSignal={contract:cover.contract,label:'QUICK RECOVER HYPERCOVER '+cover.label,strength:cover.strength,score:cover.score,barrier:cover.barrier,contractType:cover.contractType,quickRecover:true};}else if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(smartAnalyzer){
    if(exitSpotsMode){
     const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,true)):null;
     if(exitSignal)freshSignal=exitSignal;
@@ -852,12 +853,12 @@ export default function AutoBotV4(){
   const botName=(quickState.active||hypercoverAlternationRef.current.forceNextDirection)?'Hypercover':STRATEGY_BOT_NAMES[strategy];
   if(botName==='Hypercover'){
    const expectedType=contractTypeStr==='DIGITOVER'?'DIGITOVER':contractTypeStr==='DIGITUNDER'?'DIGITUNDER':'';
-   const expectedBarrier=expectedType==='DIGITOVER'?0:expectedType==='DIGITUNDER'?9:NaN;
+   const expectedBarrier=expectedType==='DIGITOVER'?1:expectedType==='DIGITUNDER'?8:NaN;
    if(!expectedType||barrier!==expectedBarrier){
     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
     setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
     console.warn('[Hypercover entry blocked: invalid contract/barrier]',{contractTypeStr,barrier,expectedType,expectedBarrier});
-    setNotice('Hypercover: compra directa cancelada; só são permitidos OVER 0 e UNDER 9.');
+    setNotice('Hypercover: compra directa cancelada; só são permitidos OVER 1 e UNDER 8.');
     return;
    }
    requestedHypercoverContractRef.current={contractType:expectedType as 'DIGITOVER'|'DIGITUNDER',barrier:expectedBarrier};
@@ -1084,14 +1085,14 @@ export default function AutoBotV4(){
     const requestContract=requestedHypercoverContractRef.current;
     const intendedType=requestContract?.contractType??'';
     const expectedBarrier=requestContract?.barrier??NaN;
-    const requiredBarrier=intendedType==='DIGITOVER'?0:intendedType==='DIGITUNDER'?9:NaN;
+    const requiredBarrier=intendedType==='DIGITOVER'?1:intendedType==='DIGITUNDER'?8:NaN;
     const requestedQuoteType=String((proposal as any).requested_contract_type||(proposal as any).contract_type||'').toUpperCase();
     const requestedQuoteBarrier=Number((proposal as any).requested_barrier);
     const quotedBarrier=Number.isFinite(requestedQuoteBarrier)?requestedQuoteBarrier:Number((proposal as any).barrier);
     const typeMismatch=requestedQuoteType!==intendedType;
     const barrierMismatch=!Number.isFinite(quotedBarrier)||quotedBarrier!==requiredBarrier;
     if(!requestContract||!Number.isFinite(requiredBarrier)||expectedBarrier!==requiredBarrier||typeMismatch||barrierMismatch){
-     setNotice('Hypercover: operação cancelada. A cotação não corresponde exactamente a OVER 0 ou UNDER 9.');
+     setNotice('Hypercover: operação cancelada. A cotação não corresponde exactamente a OVER 1 ou UNDER 8.');
      clearProposal();requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;quickRecoverRef.current.pendingKind=null;requestedHypercoverContractRef.current=null;
      return;
     }
