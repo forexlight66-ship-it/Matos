@@ -95,7 +95,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
   if(!Number.isFinite(id)||id<=0)return false;
   const trackedByRef=activeContractRef.current===id;
   const trackedByState=activeContractStateRef.current===id;
-  if(!trackedByRef&&!trackedByState)return false;
+  if(!trackedByRef&&(!trackedByState||(activeContractRef.current!==null&&activeContractRef.current!==id)))return false;
   console.info('[Deriv contract lifecycle] Settling active contract',{contract_id:id,source,trackedByRef,trackedByState});
   if(trackedByRef)activeContractRef.current=null;
   if(trackedByState)activeContractStateRef.current=null;
