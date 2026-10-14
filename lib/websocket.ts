@@ -243,7 +243,35 @@ export class DerivWebSocket {
   subscribeContract(contractId: number) {
     if (!Number.isFinite(contractId) || contractId <= 0) return false;
     this.contractSubscriptions.add(contractId);
-    return this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
+    return this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1, req_id: ++this.proposalRequestId });
+  }
+
+  // Recreate a contract stream explicitly after a reconnect or a silent stream gap.
+  // The active-contract set is retained across reconnects, but this method also
+  // replaces a possibly stale subscription on the current socket.
+  reconcileContract(contractId: number) {
+    if (!Number.isFinite(contractId) || contractId <= 0) return false;
+    this.contractSubscriptions.add(contractId);
+    const previousSubscription = this.contractSubscriptionIds.get(contractId);
+    if (previousSubscription && this.isConnected()) {
+      this.send({ forget: previousSubscription });
+    }
+    this.contractSubscriptionIds.delete(contractId);
+    return this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1, req_id: ++this.proposalRequestId });
+  }
+
+  // Portfolio lists only currently open positions. It is used as a recovery
+  // check when a buy acknowledgement or contract update may have been lost.
+  requestPortfolio() {
+    const reqId = ++this.proposalRequestId;
+    return this.send({ portfolio: 1, req_id: reqId }) ? reqId : null;
+  }
+
+  // One-shot status query; unlike subscribeContract this does not add a stream.
+  requestContractStatus(contractId: number) {
+    if (!Number.isFinite(contractId) || contractId <= 0) return null;
+    const reqId = ++this.proposalRequestId;
+    return this.send({ proposal_open_contract: 1, contract_id: contractId, req_id: reqId }) ? reqId : null;
   }
 
   unsubscribeContract(contractId: number) {
