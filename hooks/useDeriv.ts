@@ -303,7 +303,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       const buyPrice=Number(c.buy_price??0);
       const sellPrice=c.sell_price==null?null:Number(c.sell_price);
       const payout=Number(c.payout??0);
-      const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss});
+      const profitLoss=calculateProfitLoss({buy_price:buyPrice,sell_price:sellPrice,profit_loss:c.profit_loss,profit:c.profit});
       const purchaseTime=Number(c.purchase_time||Math.floor(Date.now()/1000));
       const sellTime=c.sell_time?Number(c.sell_time):null;
       const status=String(c.status||'').trim().toLowerCase();
@@ -313,7 +313,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       const closedTx:ProfitTransaction={
        contract_id:contractId,buy_price:buyPrice,sell_price:sellPrice,payout,
        purchase_time:purchaseTime,sell_time:sellTime??(closed?Math.floor(Date.now()/1000):null),contract_type:c.contract_type||'',
-       longcode:c.longcode,profit_loss:profitLoss,status:status||undefined,
+       longcode:c.longcode,profit:c.profit==null?undefined:Number(c.profit),profit_loss:profitLoss,status:status||undefined,
        exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null,
        bot:contractBotRef.current.get(contractId)||undefined,
        barrier:c.barrier!=null&&Number.isFinite(Number(c.barrier))?Number(c.barrier):(contractBarrierRef.current.get(contractId)??null),
