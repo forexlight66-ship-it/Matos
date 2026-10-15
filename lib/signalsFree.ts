@@ -43,7 +43,7 @@ export async function createSignalsFreeRequest(
   user: { id: string | number; name: string; email: string },
   mt5Id: string,
   externalReferenceId: string,
-)
+) {
   await ensureSignalsFreeSchema();
   const existing = await pool.query(
     "SELECT id, mt5_id, deriv_client_id, status, created_at FROM signals_free_requests WHERE user_id=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1",
