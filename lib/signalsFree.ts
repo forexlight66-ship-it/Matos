@@ -65,7 +65,7 @@ export async function createSignalsFreeRequest(
         `Pedido: <b>#${row.id}</b>`,
         `Nome: <b>${esc(user.name || 'Utilizador')}</b>`,
         `Email: <b>${esc(user.email || '—')}</b>`,
-        `ID de cliente Deriv (verificado): <code>${esc(clientId)}</code>`,
+        `ID de identidade Deriv (verificado): <code>${esc(clientId)}</code>`,
         `ID MT5: <code>${esc(mt5Id)}</code>`,
         '',
         'Aprove ou rejeite este pedido:',
