@@ -9,10 +9,10 @@ interface Transaction { id:number; action:string; amount:number; currency:string
 interface ProfitTransaction { contract_id:number; buy_price:number; sell_price:number|null; payout:number; purchase_time:number; sell_time:number|null; contract_type:string; longcode?:string; profit_loss?:number; profit?:number|string; exit_tick?:number|string|null; exit_spot?:number|string|null; bot?:string; status?:string; barrier?:number|null; symbol?:string }
 interface Proposal { id:string; ask_price:number; payout:number; stake:number; contract_type:string; symbol:string; duration:number; duration_unit:string; barrier?:number; requested_contract_type?:string; requested_barrier?:number }
 const TRADING_MIN_STAKE=0.35,SOROS_MIN=TRADING_MIN_STAKE,SOROS_MAX_WINS=3,SOROS_WIN_MULTIPLIER=1.95,SOROS_STORAGE='mozhyper-soros-state-v8',TRADING_SESSION_STORAGE='mozhyper-trading-session-v1',TRADING_CACHE_PREFIX='mozhyper-trading-cache-v2:',TRADING_CLEARED_AT_PREFIX='mozhyper-trading-cleared-at-v1:';
-interface SorosState{level:number;stake:number;initialStake:number;accumulatedProfit:number;lossRetryCount:number;enabled:boolean;blocked:boolean}
-const defaultSoros=(initialStake=SOROS_MIN):SorosState=>({level:0,stake:Math.max(SOROS_MIN,initialStake),initialStake:Math.max(SOROS_MIN,initialStake),accumulatedProfit:0,lossRetryCount:0,enabled:true,blocked:false});
+interface SorosState{level:number;stake:number;initialStake:number;accumulatedProfit:number;lossRetryCount:number;recoveryDeficit:number;enabled:boolean;blocked:boolean}
+const defaultSoros=(initialStake=SOROS_MIN):SorosState=>({level:0,stake:Math.max(SOROS_MIN,initialStake),initialStake:Math.max(SOROS_MIN,initialStake),accumulatedProfit:0,lossRetryCount:0,recoveryDeficit:0,enabled:true,blocked:false});
 function saveSoros(s:SorosState){if(typeof window==='undefined')return;try{sessionStorage.setItem(SOROS_STORAGE,JSON.stringify(s))}catch{}}
-function loadSoros():SorosState|null{if(typeof window==='undefined')return null;try{const raw=sessionStorage.getItem(SOROS_STORAGE);if(!raw)return null;const s=JSON.parse(raw);if(!s||!Number.isFinite(Number(s.initialStake)))return null;const initial=Math.max(SOROS_MIN,Number(s.initialStake));const level=Math.max(0,Math.min(SOROS_MAX_WINS-1,Math.floor(Number(s.level)||0)));return{...defaultSoros(initial),...s,initialStake:initial,level,stake:level>0?Math.max(SOROS_MIN,Number(s.stake)||initial):initial,enabled:true,blocked:false,accumulatedProfit:Number.isFinite(Number(s.accumulatedProfit))?Number(s.accumulatedProfit):0,lossRetryCount:Math.max(0,Math.floor(Number(s.lossRetryCount)||0))}}catch{return null}}
+function loadSoros():SorosState|null{if(typeof window==='undefined')return null;try{const raw=sessionStorage.getItem(SOROS_STORAGE);if(!raw)return null;const s=JSON.parse(raw);if(!s||!Number.isFinite(Number(s.initialStake)))return null;const initial=Math.max(SOROS_MIN,Number(s.initialStake));const level=Math.max(0,Math.min(SOROS_MAX_WINS-1,Math.floor(Number(s.level)||0)));return{...defaultSoros(initial),...s,initialStake:initial,level,stake:level>0?Math.max(SOROS_MIN,Number(s.stake)||initial):initial,enabled:true,blocked:false,accumulatedProfit:Number.isFinite(Number(s.accumulatedProfit))?Number(s.accumulatedProfit):0,lossRetryCount:Math.max(0,Math.floor(Number(s.lossRetryCount)||0)),recoveryDeficit:Math.max(0,Number(s.recoveryDeficit)||0)}}catch{return null}}
 function clearSorosStorage(){if(typeof window==='undefined')return;try{sessionStorage.removeItem(SOROS_STORAGE);sessionStorage.removeItem('mozhyper-soros-state-v7');sessionStorage.removeItem('mozhyper-soros-state-v6')}catch{}}
 type DirectBuyRequest=Parameters<DerivWebSocket['buyContractWithParameters']>[0];
 function directBuy(ws:DerivWebSocket,req:DirectBuyRequest,price:number,onFail:()=>void){let tries=0;const attempt=()=>{if(ws.isConnected()&&ws.buyContractWithParameters(req,price))return;if(++tries>=16){onFail();return}setTimeout(attempt,500)};attempt()}
@@ -56,9 +56,20 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
     :Number(sorosRef.current.stake)||base,
   );
 
+  const previousDeficit=Math.max(0,Number(sorosRef.current.recoveryDeficit)||0);
   if(pnl<=0){
-   // Uma perda encerra o ciclo Soros normal e volta à stake base.
-   syncSoros(defaultSoros(base));
+   // Após uma perda Soros, a próxima operação tenta recuperar todo o défice acumulado.
+   const deficit=Number((previousDeficit+Math.abs(pnl)).toFixed(2));
+   const recoveryStake=Number(Math.max(SOROS_MIN,deficit/Math.max(0.01,SOROS_WIN_MULTIPLIER-1)).toFixed(2));
+   syncSoros({level:0,stake:recoveryStake,initialStake:base,accumulatedProfit:0,lossRetryCount:Math.max(0,Number(sorosRef.current.lossRetryCount)||0)+1,recoveryDeficit:deficit,enabled:true,blocked:false});
+   return;
+  }
+
+  if(previousDeficit>0.01){
+   const remaining=Number(Math.max(0,previousDeficit-pnl).toFixed(2));
+   if(remaining<=0.01){syncSoros(defaultSoros(base));return}
+   const recoveryStake=Number(Math.max(SOROS_MIN,remaining/Math.max(0.01,SOROS_WIN_MULTIPLIER-1)).toFixed(2));
+   syncSoros({level:0,stake:recoveryStake,initialStake:base,accumulatedProfit:0,lossRetryCount:Math.max(0,Number(sorosRef.current.lossRetryCount)||0),recoveryDeficit:remaining,enabled:true,blocked:false});
    return;
   }
 
@@ -73,6 +84,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
     initialStake:base,
     accumulatedProfit:Number((Number(sorosRef.current.accumulatedProfit||0)+pnl).toFixed(2)),
     lossRetryCount:0,
+    recoveryDeficit:0,
     enabled:true,
     blocked:false
    });
@@ -491,7 +503,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
  const subscribeTicks=useCallback((symbol:string)=>wsRef.current?.subscribeTicks(symbol),[]);
  const fetchProfitTable=useCallback((options?:{limit?:number;offset?:number;sort?:'ASC'|'DESC'})=>{setLoadingProfit(true);wsRef.current?.getProfitTable({description:1,...options})},[]);
  const getTicksHistory=useCallback((symbol:string,count=5)=>wsRef.current?.getTicksHistory(symbol,count)??Promise.reject(new Error('WebSocket not connected')),[]);
- const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=0,useOriginalSoros=true)=>{if(activeContractRef.current!==null)return false;const s=sorosRef.current;const fallback=Math.max(TRADING_MIN_STAKE,Number(amount)||TRADING_MIN_STAKE);const effectiveAmount=useOriginalSoros&&originalSorosEnabledRef.current?Math.max(TRADING_MIN_STAKE,Number(s.level>0?s.stake:s.initialStake)):fallback;if(useOriginalSoros&&originalSorosEnabledRef.current&&s.level===0&&Math.abs(s.initialStake-effectiveAmount)>0.000001){const next={...s,stake:effectiveAmount,initialStake:effectiveAmount,enabled:true};sorosRef.current=next;setSoros(next);saveSoros(next)}setProposal(null);setError(null);proposalRequestRef.current={symbol,contractType,amount:effectiveAmount,duration,barrier};staleBuyRetryRef.current=false;const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);if(typeof reqId==='number')latestProposalReqRef.current=reqId;return typeof reqId==='number'},[]);
+ const getProposal=useCallback((symbol:string,contractType:string,amount:number,duration:number,barrier=0,useOriginalSoros=true)=>{if(activeContractRef.current!==null)return false;const s=sorosRef.current;const fallback=Math.max(TRADING_MIN_STAKE,Number(amount)||TRADING_MIN_STAKE);const recoveryDeficit=useOriginalSoros&&originalSorosEnabledRef.current?Math.max(0,Number(s.recoveryDeficit)||0):0;const effectiveAmount=useOriginalSoros&&originalSorosEnabledRef.current?(recoveryDeficit>0.01?Math.max(TRADING_MIN_STAKE,Number(s.stake)||Number((recoveryDeficit/Math.max(0.01,SOROS_WIN_MULTIPLIER-1)).toFixed(2))):Math.max(TRADING_MIN_STAKE,Number(s.level>0?s.stake:s.initialStake))):fallback;if(useOriginalSoros&&originalSorosEnabledRef.current&&s.level===0&&Math.abs(s.initialStake-effectiveAmount)>0.000001){const next={...s,stake:effectiveAmount,initialStake:effectiveAmount,enabled:true};sorosRef.current=next;setSoros(next);saveSoros(next)}setProposal(null);setError(null);proposalRequestRef.current={symbol,contractType,amount:effectiveAmount,duration,barrier};staleBuyRetryRef.current=false;const reqId=wsRef.current?.getProposal(symbol,contractType,effectiveAmount,duration,barrier);if(typeof reqId==='number')latestProposalReqRef.current=reqId;return typeof reqId==='number'},[]);
  const clearProposal=useCallback(()=>{latestProposalReqRef.current=null;setProposal(null)},[]);
  const buyDirect=useCallback((request:{symbol:string;contractType:string;amount:number;duration:number;barrier?:number;currency?:string},price:number,bot?:string,barrier?:number)=>{
    if(buying||activeContractRef.current!==null){const reason=buying?'buy acknowledgement already pending':'another active contract exists';console.warn('[Deriv buyDirect] Refused locally',{reason,buying,activeContractId:activeContractRef.current,requestedSymbol:request?.symbol,contractType:request?.contractType,amount:request?.amount});return false;}
