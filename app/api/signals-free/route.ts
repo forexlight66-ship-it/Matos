@@ -43,7 +43,6 @@ function paymentSummary(row: any) {
 function onboardingSummary(row: any) {
   if (!row) return null;
   return {
-    mt5_id: String(row.mt5_id || ''),
     deriv_nickname: String(row.deriv_nickname || ''),
     status: String(row.status || ''),
     amyProofUploaded: Boolean(row.amy_screenshot),
@@ -111,12 +110,6 @@ export async function POST(request: NextRequest) {
     const user = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
     if (!user) return respond({ error: 'Inicie sessão para pedir acesso ao Signals Free.', code: 'AUTH_REQUIRED' }, identity, 401);
 
-    const body = await request.json().catch(() => ({}));
-    const mt5Id = String(body?.mt5Id ?? '').trim();
-    if (!/^\d{5,15}$/.test(mt5Id)) {
-      return respond({ error: 'Introduza um ID MT5 válido, apenas com 5 a 15 dígitos.', code: 'MT5_ID_FORMAT_INVALID' }, identity, 400);
-    }
-
     identity = await resolveDerivIdentityForRequest(request, user.id);
     await ensureSignalsFreeOnboardingSchema();
     const current = await currentOnboarding(identity.externalReferenceId, user.id);
@@ -145,7 +138,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       externalReferenceId: identity.externalReferenceId,
       derivNickname: identity.nickname,
-      mt5Id,
+      mt5Id: '',
       status: isTagged ? 'ready_for_payment' : 'verification_required',
     });
     const proofUploaded = Boolean(onboarding.amy_proof_uploaded);
@@ -154,7 +147,7 @@ export async function POST(request: NextRequest) {
         nextStep: 'amy_verification',
         alreadySentToAmy: proofUploaded,
         amyProofUploaded: proofUploaded,
-        onboarding: { mt5_id: String(onboarding.mt5_id || mt5Id), deriv_nickname: identity.nickname, status: String(onboarding.status || 'verification_required') },
+        onboarding: { deriv_nickname: identity.nickname, status: String(onboarding.status || 'verification_required') },
       }, identity);
     }
 
@@ -162,7 +155,7 @@ export async function POST(request: NextRequest) {
       nextStep: 'payment',
       eligibleForLocalPayment: String(user.country || '').trim().toUpperCase() === 'MZ',
       amyProofUploaded: proofUploaded,
-      onboarding: { mt5_id: String(onboarding.mt5_id || mt5Id), deriv_nickname: identity.nickname, status: String(onboarding.status || 'ready_for_payment') },
+      onboarding: { deriv_nickname: identity.nickname, status: String(onboarding.status || 'ready_for_payment') },
     }, identity);
   } catch (error) {
     console.error('[Signals Free] submission failed', error);
