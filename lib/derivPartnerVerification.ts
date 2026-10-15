@@ -15,6 +15,63 @@ type PartnerCheckResult = {
   isTagged: boolean;
 };
 
+type ActivePartnerToken = {
+  accessToken: string;
+  partnerId: string;
+};
+
+let partnerTokenRefreshInFlight: Promise<ActivePartnerToken> | null = null;
+
+async function getActivePartnerToken(appId: string): Promise<ActivePartnerToken> {
+  if (partnerTokenRefreshInFlight) return partnerTokenRefreshInFlight;
+
+  const operation = (async (): Promise<ActivePartnerToken> => {
+    const credential = await getDerivPartnerRefreshCredential();
+    if (!credential) {
+      throw apiError(
+        'A conta Deriv de parceiro ainda não está ligada ao Matos. O administrador deve iniciar sessão novamente com a conta de parceiro para registar a ligação.',
+        503,
+        'PARTNER_CREDENTIAL_NOT_CONFIGURED',
+      );
+    }
+
+    let token: Awaited<ReturnType<typeof refreshAccessToken>>;
+    try {
+      token = await refreshAccessToken(appId, credential.refreshToken);
+    } catch (error) {
+      console.error('[Signals Free] Could not refresh the stored partner OAuth token:', error instanceof Error ? error.message : 'unknown error');
+      throw apiError(
+        'Não foi possível renovar a ligação Deriv do parceiro. Volte a ligar a conta de parceiro ao Matos.',
+        503,
+        'PARTNER_TOKEN_REFRESH_FAILED',
+      );
+    }
+
+    // Persist a rotated refresh token before releasing the shared promise. This
+    // prevents simultaneous Signals Free requests from refreshing the same
+    // single-use token concurrently within one server instance.
+    if (token.refresh_token && token.refresh_token !== credential.refreshToken) {
+      const saved = await saveDerivPartnerRefreshToken(
+        credential.linkedUserId,
+        credential.partnerId,
+        token.refresh_token,
+      );
+      if (!saved) {
+        throw apiError('A credencial do parceiro mudou inesperadamente. A verificação foi interrompida por segurança.', 503, 'PARTNER_CREDENTIAL_LOCK_MISMATCH');
+      }
+    }
+
+    return { accessToken: token.access_token, partnerId: credential.partnerId };
+  })();
+
+  partnerTokenRefreshInFlight = operation;
+  try {
+    return await operation;
+  } finally {
+    if (partnerTokenRefreshInFlight === operation) partnerTokenRefreshInFlight = null;
+  }
+}
+
 function apiError(message: string, status: number, code: string) {
   return Object.assign(new Error(message), { status, code });
 }
@@ -121,41 +178,11 @@ export async function verifyDerivPartnerClient(externalReferenceId: string): Pro
     throw apiError('A configuração OAuth2 da Deriv está incompleta no servidor.', 503, 'DERIV_APP_ID_MISSING');
   }
 
-  const partnerCredential = await getDerivPartnerRefreshCredential();
-  if (!partnerCredential) {
-    throw apiError(
-      'A conta Deriv de parceiro ainda não está ligada ao Matos. O administrador deve iniciar sessão novamente com a conta de parceiro para registar a ligação.',
-      503,
-      'PARTNER_CREDENTIAL_NOT_CONFIGURED',
-    );
-  }
-
-  let token: Awaited<ReturnType<typeof refreshAccessToken>>;
-  try {
-    token = await refreshAccessToken(appId, partnerCredential.refreshToken);
-  } catch (error) {
-    console.error('[Signals Free] Could not refresh the stored partner OAuth token:', error instanceof Error ? error.message : 'unknown error');
-    throw apiError(
-      'Não foi possível renovar a ligação Deriv do parceiro. Volte a ligar a conta de parceiro ao Matos.',
-      503,
-      'PARTNER_TOKEN_REFRESH_FAILED',
-    );
-  }
-
-  if (token.refresh_token && token.refresh_token !== partnerCredential.refreshToken) {
-    const saved = await saveDerivPartnerRefreshToken(
-      partnerCredential.linkedUserId,
-      partnerCredential.partnerId,
-      token.refresh_token,
-    );
-    if (!saved) {
-      throw apiError('A credencial do parceiro mudou inesperadamente. A verificação foi interrompida por segurança.', 503, 'PARTNER_CREDENTIAL_LOCK_MISMATCH');
-    }
-  }
+  const partner = await getActivePartnerToken(appId);
 
   let response: Response;
   try {
-    response = await postClientTagCheck(token.access_token, [externalReferenceId]);
+    response = await postClientTagCheck(partner.accessToken, [externalReferenceId]);
   } catch {
     throw apiError('O serviço de verificação da Deriv está temporariamente indisponível. Tente novamente.', 503, 'PARTNER_CHECK_UNAVAILABLE');
   }
@@ -178,7 +205,7 @@ export async function verifyDerivPartnerClient(externalReferenceId: string): Pro
   }
 
   const checked = await readPartnerCheck(response, externalReferenceId);
-  if (checked.partnerId !== partnerCredential.partnerId) {
+  if (checked.partnerId !== partner.partnerId) {
     console.error('[Signals Free] Partner ID mismatch; refusing to trust the tag response.');
     throw apiError('A identidade do parceiro não corresponde à credencial guardada. A verificação foi interrompida por segurança.', 503, 'PARTNER_ID_MISMATCH');
   }
