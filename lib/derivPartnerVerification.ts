@@ -114,7 +114,7 @@ export async function verifyDerivPartnerClient(clientId: string): Promise<boolea
   const partnerCredential = await getDerivPartnerRefreshCredential();
   if (!partnerCredential) {
     throw apiError(
-      'A conta Deriv de parceiro ainda não foi ligada ao Matos. Entre novamente no Matos com a conta Deriv de parceiro para registar a ligação.',
+      'A conta Deriv de parceiro ainda não está ligada ao Matos. O administrador deve iniciar sessão novamente com a conta de parceiro para registar a ligação.',
       503,
       'PARTNER_CREDENTIAL_NOT_CONFIGURED',
     );
