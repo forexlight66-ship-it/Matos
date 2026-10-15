@@ -3,6 +3,7 @@ import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIA
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
 import { derivPaymentRequest, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
+import { reviewSignalsFreeRequest, SIGNALS_FREE_GROUP_URL } from '@/lib/signalsFree';
 
 function callbackBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN2?.trim()
@@ -68,6 +69,34 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
       await answerTelegramCallback(callbackId, 'Sem autorização.', true).catch(() => undefined);
     }
     return false;
+  }
+
+  const signalsMatch = data.match(/^sf:(approve|reject):(\\d{1,18})$/);
+  if (signalsMatch) {
+    try {
+      const status = signalsMatch[1] === 'approve' ? 'approved' : 'rejected';
+      const reviewed = await reviewSignalsFreeRequest(signalsMatch[2], status, fromId);
+      if (!reviewed) {
+        await answerTelegramCallback(callbackId, 'Este pedido já foi processado ou não existe.', true).catch(() => undefined);
+        return true;
+      }
+      const isApproved = status === 'approved';
+      await answerTelegramCallback(callbackId, isApproved ? 'Signals Free aprovado.' : 'Pedido Signals Free rejeitado.').catch(() => undefined);
+      await editPaymentMessage(query, [
+        isApproved ? '✅ <b>SIGNALS FREE — PEDIDO APROVADO</b>' : '❌ <b>SIGNALS FREE — PEDIDO REJEITADO</b>',
+        '',
+        `Pedido: <b>#${reviewed.id}</b>`,
+        `ID MT5: <code>${escapeHtml(String(reviewed.mt5_id))}</code>`,
+        '',
+        isApproved ? 'O utilizador verá o convite do grupo Signals Free ao atualizar o estado do pedido.' : 'O utilizador verá que o pedido foi rejeitado.',
+        ...(isApproved ? [`Grupo: ${SIGNALS_FREE_GROUP_URL}`] : []),
+      ].join('\\n'));
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível processar o pedido Signals Free.';
+      await answerTelegramCallback(callbackId, message.slice(0, 190), true).catch(() => undefined);
+      return true;
+    }
   }
 
   const match = data.match(/^pa:(confirm|reject|approve|retry-options):([A-Za-z0-9_-]{1,128})$/);
