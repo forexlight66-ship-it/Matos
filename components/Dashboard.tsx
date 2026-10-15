@@ -29,9 +29,9 @@ export default function Dashboard() {
         html,body{margin:0;padding:0;width:100%;min-height:100%;overflow-x:hidden;background:var(--mh-bg)}
         body{font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif}
         .matos-page{width:100%;min-height:100dvh;background:var(--mh-bg);color:var(--mh-text)}
-        .matos-shell{width:100%;min-height:100dvh;margin:0;padding:16px 0 32px;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
+        .matos-shell{width:100%;min-height:100dvh;margin:0;padding:0 0 32px;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
         .matos-phone{width:380px;max-width:calc(100vw - 20px);margin:0;border:1px solid var(--mh-border);border-radius:12px;background:var(--mh-bg);box-sizing:border-box;padding:0;overflow:visible}
-        .matos-phone>div{width:100%;max-width:none}.matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}.matos-phone>.mx-auto.w-full{padding:16px!important;max-width:none!important;width:100%!important;min-height:0!important;box-sizing:border-box!important}
+        .matos-phone>div{width:100%;max-width:none}.matos-phone .mx-auto{max-width:none!important;width:100%!important;margin-left:0!important;margin-right:0!important}.matos-phone>.mx-auto.w-full{padding:8px!important;max-width:none!important;width:100%!important;min-height:0!important;box-sizing:border-box!important}
         .matos-phone .av4{width:100%!important;max-width:none!important;min-height:0!important;box-sizing:border-box;padding:0!important;border:0!important;border-radius:0!important;background:var(--mh-bg)!important;color:var(--mh-text)!important;box-shadow:none!important}
         .matos-phone .av4 .card,.matos-phone .av4 .profit-card,.matos-phone .av4 .balance-card,.matos-phone .av4 .account-strategy,.matos-phone .av4 .auto-status-card,.matos-phone .av4 .auto-log{background:var(--mh-surface)!important;border-color:var(--mh-border)!important;border-radius:8px!important;color:var(--mh-text)!important;box-shadow:none!important}
         .matos-phone .av4 .profit-card{border-color:var(--mh-border)!important}.matos-phone .av4 .muted{color:var(--mh-text-3)!important}.matos-phone .av4 .account-strategy{border-color:var(--mh-border)!important;overflow:hidden}.matos-phone .av4 .account-strategy>label+label{border-left-color:var(--mh-border)!important}.matos-phone .av4 select,.matos-phone .av4 input{font-family:inherit;color:var(--mh-text)!important;background:var(--mh-surface)!important;border-color:var(--mh-border)!important}
@@ -48,7 +48,7 @@ export default function Dashboard() {
         @media(min-width:768px){
           .matos-shell{width:100%;max-width:none;min-height:100dvh;padding:0;display:flex;align-items:stretch;}
           .matos-phone{width:100%;max-width:none;min-height:100dvh;margin:0;border:0;border-radius:0;box-shadow:none;background:var(--mh-bg);}
-          .matos-phone>.mx-auto.w-full{width:100%!important;max-width:none!important;min-height:100dvh!important;padding:clamp(20px,2vw,40px)!important;box-sizing:border-box!important;}
+          .matos-phone>.mx-auto.w-full{width:100%!important;max-width:none!important;min-height:100dvh!important;padding:12px!important;box-sizing:border-box!important;}
           .matos-phone .av4{width:100%!important;max-width:none!important;min-height:calc(100dvh - 2px)!important;}
           #tutorial{width:100%;max-width:none;margin-top:0;padding:clamp(20px,2vw,40px);box-sizing:border-box;}
           #tutorial>.card{width:100%;max-width:none;box-sizing:border-box;}
@@ -57,7 +57,7 @@ export default function Dashboard() {
           .matos-phone>.mx-auto.w-full{padding:32px 48px!important;}
           #tutorial{padding:32px 48px;}
         }
-        @media(max-width:430px){.matos-page{padding:22px 0 36px}.matos-shell{padding:0 0 24px}.matos-phone{width:100%;max-width:none;border:0;border-radius:0}.matos-phone>.mx-auto.w-full{padding:12px!important}}@media(min-width:768px){.matos-shell{padding-top:24px}.matos-phone{box-shadow:0 20px 60px rgba(0,0,0,.28)}}
+        @media(max-width:430px){.matos-page{padding:0 0 36px}.matos-shell{padding:0 0 24px}.matos-phone{width:100%;max-width:none;border:0;border-radius:0}.matos-phone>.mx-auto.w-full{padding:12px!important}}@media(min-width:768px){.matos-shell{padding-top:0}.matos-phone{box-shadow:0 20px 60px rgba(0,0,0,.28)}}
       `}</style>
       <div className="matos-shell"><div className="matos-phone">{currencyReady && <><AutoBotEnhancements /><AutoBotV4 /></>}</div><div id="tutorial"><TutorialSection/></div></div>
     </div>
