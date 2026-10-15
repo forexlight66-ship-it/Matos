@@ -112,10 +112,10 @@ export async function tryRegisterDerivPartnerRefreshToken(
 }
 
 /**
- * Checks a submitted client ID using the single, server-side partner credential.
- * Never uses the requesting client's own OAuth token as the partner token.
+ * Checks the authenticated Deriv external identity ID against the server-side partner credential.
+ * Never trusts a client ID typed by the requester or uses the requester's token as the partner token.
  */
-export async function verifyDerivPartnerClient(clientId: string): Promise<boolean> {
+export async function verifyDerivPartnerClient(externalReferenceId: string): Promise<boolean> {
   const appId = process.env.DERIV_APP_ID?.trim();
   if (!appId) {
     throw apiError('A configuração OAuth2 da Deriv está incompleta no servidor.', 503, 'DERIV_APP_ID_MISSING');
@@ -155,7 +155,7 @@ export async function verifyDerivPartnerClient(clientId: string): Promise<boolea
 
   let response: Response;
   try {
-    response = await postClientTagCheck(token.access_token, [clientId]);
+    response = await postClientTagCheck(token.access_token, [externalReferenceId]);
   } catch {
     throw apiError('O serviço de verificação da Deriv está temporariamente indisponível. Tente novamente.', 503, 'PARTNER_CHECK_UNAVAILABLE');
   }
@@ -163,7 +163,7 @@ export async function verifyDerivPartnerClient(clientId: string): Promise<boolea
   if (!response.ok) {
     const status = response.status;
     if (status === 400 || status === 422) {
-      throw apiError('O ID de cliente enviado não foi aceite pela Deriv. Confirme o identificador.', 400, 'CLIENT_ID_REJECTED');
+      throw apiError('O ID de identidade Deriv não foi aceite pela API de parceiros.', 400, 'CLIENT_ID_REJECTED');
     }
     if (status === 401 || status === 403 || status === 404) {
       console.error('[Signals Free] Stored partner credential rejected by the partner API:', status);
@@ -177,7 +177,7 @@ export async function verifyDerivPartnerClient(clientId: string): Promise<boolea
     throw apiError('O serviço de verificação da Deriv está temporariamente indisponível. Tente novamente.', 503, 'PARTNER_CHECK_UNAVAILABLE');
   }
 
-  const checked = await readPartnerCheck(response, clientId);
+  const checked = await readPartnerCheck(response, externalReferenceId);
   if (checked.partnerId !== partnerCredential.partnerId) {
     console.error('[Signals Free] Partner ID mismatch; refusing to trust the tag response.');
     throw apiError('A identidade do parceiro não corresponde à credencial guardada. A verificação foi interrompida por segurança.', 503, 'PARTNER_ID_MISMATCH');
