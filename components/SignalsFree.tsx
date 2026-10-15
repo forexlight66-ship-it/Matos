@@ -73,7 +73,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
     }
     if (legacy?.status === 'approved') {
       setStep('active');
-      setNotice(en ? 'Your previous Signals Free request is approved.' : 'O seu pedido anterior do Signals Free foi aprovado.');
+      setNotice(en ? 'Your previous Signal Unlimited request is approved.' : 'O seu pedido anterior do Signals Free foi aprovado.');
       return;
     }
     if (currentPayment) {
@@ -112,7 +112,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
       const response = await fetch('/api/signals-free', { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(String(data?.error || (en ? 'Could not load Signals Free status.' : 'Não foi possível consultar o estado do Signals Free.')));
+        setError(String(data?.error || (en ? 'Could not load Signal Unlimited status.' : 'Não foi possível consultar o estado do Signals Free.')));
         if (response.status === 401) setStep('start');
         return;
       }
@@ -349,8 +349,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
       type="button"
       className="icon-btn signals-free-trigger"
       onClick={() => { setOpen(true); setError(''); }}
-      aria-label="Signals Free"
-      title="Signals Free"
+      aria-label="Signal Unlimited"
+      title="Signal Unlimited"
       style={{ width: 30, height: 30, padding: 0, borderRadius: 9, overflow: 'hidden', border: '1px solid #3f8c43', background: 'linear-gradient(145deg,#087ec2,#07519b)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
     >
       <img src="/signals-free.svg" alt="" width="30" height="30" style={{ display: 'block', width: '30px', height: '30px', objectFit: 'cover' }} />
@@ -359,7 +359,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
     {open && <div className="modal-backdrop" onClick={() => setOpen(false)}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="signals-free-title" onClick={e => e.stopPropagation()} style={{ width: 'min(94vw,460px)', maxHeight: '90vh', overflowY: 'auto', borderColor: '#2c9c55', background: light ? '#fff' : '#0d2347', color: light ? '#0f172a' : '#f8fafc' }}>
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2"><span style={{ fontSize: 24 }}>🟢</span><b id="signals-free-title">Signals Free Unlimited</b></div>
+          <div className="flex items-center gap-2"><span style={{ fontSize: 24 }}>🟢</span><b id="signals-free-title">Signal Unlimited</b></div>
           <button type="button" onClick={() => setOpen(false)} aria-label={en ? 'Close' : 'Fechar'}>✕</button>
         </div>
 
@@ -435,7 +435,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
 
         {(step === 'payment_instructions' || step === 'waiting') && payment && <>
           <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
-            <div className="text-[10px] font-black uppercase tracking-wide text-emerald-600">{en ? 'Signals Free Unlimited' : 'Signals Free ilimitado'}</div>
+            <div className="text-[10px] font-black uppercase tracking-wide text-emerald-600">{en ? 'Signal Unlimited' : 'Signals Free ilimitado'}</div>
             <div className="mt-1 text-2xl font-black">{paymentIsCrypto ? '3 USDT' : '250 MT'}</div>
             <div className="mt-1 text-xs">{en ? 'Payment method' : 'Método de pagamento'}: <b>{paymentIsCrypto ? 'Binance — USDT TRC20' : payment.paymentMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b></div>
           </div>
@@ -474,8 +474,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
             <div className="text-[10px] font-black uppercase tracking-wide text-emerald-600">{en ? 'Access active' : 'Acesso activo'}</div>
             <div className="mt-2 text-xl font-black">{onboarding?.status === 'active' ? (en ? 'Unlimited package activated' : 'Pacote ilimitado activado') : (en ? 'Signals Free approved' : 'Signals Free aprovado')}</div>
             <div className="mt-2 text-xs">{onboarding?.status === 'active'
-              ? (en ? 'Your Signals Free Unlimited package has no expiry date.' : 'O seu pacote Signals Free Unlimited não tem data de expiração.')
-              : (en ? 'Your previous Signals Free request was approved.' : 'O seu pedido anterior do Signals Free foi aprovado.')}</div>
+              ? (en ? 'Your Signal Unlimited package has no expiry date.' : 'O seu pacote Signal Unlimited não tem data de expiração.')
+              : (en ? 'Your previous Signal Unlimited request was approved.' : 'O seu pedido anterior do Signals Free foi aprovado.')}</div>
             <a href={GROUP_URL} target="_blank" rel="noopener noreferrer" className="mt-4 block rounded-xl bg-emerald-600 p-3 text-center text-sm font-black text-white no-underline">{en ? 'Join Signals Free on Telegram' : 'Entrar no Signals Free no Telegram'} ↗</a>
           </div>
         </>}
@@ -484,7 +484,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
           <div className="mt-4 rounded-xl border border-amber-400/50 p-3">
             <div className="text-[10px] font-black uppercase muted">{en ? 'Previous request status' : 'Estado do pedido anterior'}</div>
             <b className="mt-1 block text-sm">{en ? 'Waiting for administrator review' : 'A aguardar análise do administrador'}</b>
-            <p className="mt-2 text-xs muted">{en ? 'Your earlier Signals Free request is still pending.' : 'O seu pedido anterior de Signals Free ainda está pendente.'}</p>
+            <p className="mt-2 text-xs muted">{en ? 'Your earlier Signal Unlimited request is still pending.' : 'O seu pedido anterior de Signals Free ainda está pendente.'}</p>
           </div>
         </>}
 
