@@ -54,7 +54,7 @@ export async function createSignalsFreeRequest(user: { id: string | number; name
       ]],
     );
   } catch (error) {
-    await pool.query("UPDATE signals_free_requests SET status='rejected', reviewed_at=NOW(), reviewed_by='notification_error' WHERE id=$1", [row.id]);
+    await pool.query('DELETE FROM signals_free_requests WHERE id=$1 AND status=\'pending\'', [row.id]);
     throw new Error(error instanceof Error ? `Não foi possível notificar o Payment Agent 503 no Telegram: ${error.message}` : 'Não foi possível notificar o Telegram.');
   }
   return row;
