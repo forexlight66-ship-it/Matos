@@ -6,9 +6,6 @@ import {
 } from '@/lib/platform-auth';
 
 const DERIV_PARTNER_TAGS_URL = 'https://api.derivws.com/partners/client-tags/check';
-// A schema-valid alphanumeric sentinel is used only to detect whether an OAuth
-// identity is a partner. Its tag value is deliberately ignored.
-const PARTNER_CAPABILITY_PROBE_ID = 'MATOSPARTNERCAPABILITYCHECK00001';
 
 type PartnerCheckResult = {
   partnerId: string;
@@ -122,6 +119,7 @@ export async function tryRegisterDerivPartnerRefreshToken(
   accessToken: string,
   refreshToken: string | undefined,
   platformUserId: string | number,
+  externalReferenceId: string,
 ): Promise<{ registered: boolean; reason?: string }> {
   if (!refreshToken?.trim()) return { registered: false, reason: 'REFRESH_TOKEN_NOT_RETURNED' };
 
@@ -135,7 +133,7 @@ export async function tryRegisterDerivPartnerRefreshToken(
 
   let response: Response;
   try {
-    response = await postClientTagCheck(accessToken, [PARTNER_CAPABILITY_PROBE_ID]);
+    response = await postClientTagCheck(accessToken, [externalReferenceId]);
   } catch {
     return { registered: false, reason: 'PARTNER_CHECK_UNAVAILABLE' };
   }
@@ -147,7 +145,7 @@ export async function tryRegisterDerivPartnerRefreshToken(
 
   let checked: PartnerCheckResult;
   try {
-    checked = await readPartnerCheck(response, PARTNER_CAPABILITY_PROBE_ID);
+    checked = await readPartnerCheck(response, externalReferenceId);
   } catch {
     return { registered: false, reason: 'PARTNER_RESPONSE_INVALID' };
   }
