@@ -45,6 +45,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ request: created }, { status: 201 });
   } catch (error) {
     console.error('[Signals Free] request failed', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível enviar o pedido.' }, { status: 500 });
+    const status = typeof error === 'object' && error !== null && 'status' in error
+      && typeof (error as { status?: unknown }).status === 'number'
+      ? Math.min(599, Math.max(400, (error as { status: number }).status))
+      : 500;
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível enviar o pedido.' }, { status });
   }
 }
