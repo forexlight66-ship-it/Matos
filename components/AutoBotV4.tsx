@@ -412,6 +412,7 @@ const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d
  {id:'HYPERSWAP',name:'HyperSwap',pct:90,color:'#A855F7'},
  {id:'HYPERCOVER',name:'Hypercover',pct:90,color:'#0EA5E9'}
 ];
+const botAnalysisThreshold=(s:Strategy)=>BOT_PICKER_OPTIONS.find(bot=>bot.id===s)?.pct??65;
 let lastAnalyzerAlertAt=0;
 function analyzerAlertSound(){try{const nowMs=Date.now();if(nowMs-lastAnalyzerAlertAt<1500)return;lastAnalyzerAlertAt=nowMs;const C=window.AudioContext||(window as any).webkitAudioContext,c=new C();if(c.state==='suspended')c.resume();const now=c.currentTime,master=c.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.16,now+.02);master.gain.exponentialRampToValueAtTime(.0001,now+.52);master.connect(c.destination);[880,1174,1568].forEach((freq,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now+i*.12);g.gain.exponentialRampToValueAtTime(.2,now+i*.12+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.12+.17);o.connect(g);g.connect(master);o.start(now+i*.12);o.stop(now+i*.12+.2)});setTimeout(()=>c.close(),750)}catch{}}
 function sound(kind:'win'|'loss'|'target'){try{const C=window.AudioContext||(window as any).webkitAudioContext,c=new C();if(c.state==='suspended')c.resume();const now=c.currentTime;if(kind==='win'){const master=c.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.16,now+.025);master.gain.exponentialRampToValueAtTime(.0001,now+1.05);master.connect(c.destination);const notes=[659.25,783.99,987.77,1318.51];notes.forEach((freq,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(freq,now+i*.12);o.frequency.exponentialRampToValueAtTime(freq*1.015,now+i*.12+.18);g.gain.setValueAtTime(.0001,now+i*.12);g.gain.exponentialRampToValueAtTime(.22,now+i*.12+.025);g.gain.exponentialRampToValueAtTime(.0001,now+i*.12+.32);o.connect(g);g.connect(master);o.start(now+i*.12);o.stop(now+i*.12+.34)});const sparkle=c.createOscillator(),sg=c.createGain();sparkle.type='triangle';sparkle.frequency.setValueAtTime(1760,now+.48);sparkle.frequency.exponentialRampToValueAtTime(2640,now+.82);sg.gain.setValueAtTime(.0001,now+.48);sg.gain.exponentialRampToValueAtTime(.09,now+.52);sg.gain.exponentialRampToValueAtTime(.0001,now+.9);sparkle.connect(sg);sg.connect(master);sparkle.start(now+.48);sparkle.stop(now+.92);setTimeout(()=>c.close(),1300)}else{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=kind==='loss'?180:1040;g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.12,now+.02);g.gain.exponentialRampToValueAtTime(.0001,now+.35);o.connect(g);g.connect(c.destination);o.start(now);o.stop(now+.4);setTimeout(()=>c.close(),500)}}catch{}}
@@ -770,9 +771,9 @@ export default function AutoBotV4(){
     }
    }
   }else if(isRecoveryStrategy(strategy)){
-   freshSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,65,9);
+   freshSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,botAnalysisThreshold(strategy),9);
   }else{
-   freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
+   freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,botAnalysisThreshold(strategy),9);
   }
   if(!freshSignal){setBotActivity('waitingRobotSignal');return;}
   if(requested.current){setBotActivity('requestingProposal');return;}
@@ -1003,13 +1004,13 @@ export default function AutoBotV4(){
      if(pendingMatches){
       validationSignal=pending.signal;
      }else if(isRecoveryStrategy(strategy)){
-      validationSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,65,9);
+      validationSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,botAnalysisThreshold(strategy),9);
      }else{
-      validationSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
+      validationSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,botAnalysisThreshold(strategy),9);
      }
     }
     if(!validationSignal){
-     cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: falta o gatilho de 65% nos últimos 9 ticks.');
+     cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: o sinal ainda não atingiu o gatilho de análise do bot selecionado nos últimos 9 ticks.');
      return;
     }
     const expectedContract=validationSignal.contract as Contract|null;
