@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     identity = await resolveDerivIdentityForRequest(request, user.id);
     const onboarding = await getSignalsFreeOnboarding(identity.externalReferenceId);
     if (!onboarding) {
-      return response({ error: 'Submeta primeiro o seu ID MT5 para iniciar a verificação.', code: 'SIGNALS_FREE_ONBOARDING_NOT_FOUND' }, identity, 409);
+      return response({ error: 'Inicie primeiro a verificação automática da conta Deriv.', code: 'SIGNALS_FREE_ONBOARDING_NOT_FOUND' }, identity, 409);
     }
 
     // Keep the first valid proof permanently: clients do not have to send the
