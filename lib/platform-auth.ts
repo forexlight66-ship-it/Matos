@@ -288,7 +288,7 @@ export async function getDerivPartnerRefreshCredential(): Promise<{
  * replace it. Returns false when an existing different partner_id is locked.
  */
 export async function saveDerivPartnerRefreshToken(
-  userId: string | number,
+  userId: string | number | null,
   partnerId: string | number,
   refreshToken: string,
 ): Promise<boolean> {
