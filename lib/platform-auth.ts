@@ -46,6 +46,16 @@ async function ensureSchema() {
   `);
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS country TEXT');
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_refresh_ciphertext TEXT');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS deriv_partner_credentials (
+      id SMALLINT PRIMARY KEY CHECK (id = 1),
+      partner_id TEXT NOT NULL,
+      deriv_refresh_ciphertext TEXT NOT NULL,
+      linked_user_id BIGINT REFERENCES platform_users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
 }
 
 function derivTokenEncryptionKey() {
@@ -224,6 +234,83 @@ export async function getDerivRefreshToken(userId: string | number) {
   } catch {
     return null;
   }
+}
+
+export type DerivPartnerCredentialMetadata = {
+  partnerId: string;
+  linkedUserId: string | null;
+};
+
+export async function getDerivPartnerCredentialMetadata(): Promise<DerivPartnerCredentialMetadata | null> {
+  await ensureSchema();
+  const result = await pool.query(
+    'SELECT partner_id, linked_user_id FROM deriv_partner_credentials WHERE id=1',
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    partnerId: String(row.partner_id),
+    linkedUserId: row.linked_user_id == null ? null : String(row.linked_user_id),
+  };
+}
+
+/**
+ * Returns the app-wide partner credential. This is intentionally separate from
+ * each requesting user's Deriv refresh token: client-tag checks must be made
+ * as the Matos owner/partner, not as the client submitting a Signals Free form.
+ */
+export async function getDerivPartnerRefreshCredential(): Promise<{
+  refreshToken: string;
+  partnerId: string;
+  linkedUserId: string | null;
+} | null> {
+  await ensureSchema();
+  const result = await pool.query(
+    'SELECT partner_id, deriv_refresh_ciphertext, linked_user_id FROM deriv_partner_credentials WHERE id=1',
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+
+  try {
+    return {
+      refreshToken: decryptDerivRefreshToken(String(row.deriv_refresh_ciphertext)),
+      partnerId: String(row.partner_id),
+      linkedUserId: row.linked_user_id == null ? null : String(row.linked_user_id),
+    };
+  } catch {
+    throw new Error('A credencial OAuth2 do parceiro está guardada, mas não pode ser descodificada. Verifique a chave de cifragem do Matos.');
+  }
+}
+
+/**
+ * Saves/rotates the encrypted partner refresh token. The first verified partner
+ * identity is locked in; a later OAuth login from a different partner cannot
+ * replace it. Returns false when an existing different partner_id is locked.
+ */
+export async function saveDerivPartnerRefreshToken(
+  userId: string | number,
+  partnerId: string | number,
+  refreshToken: string,
+): Promise<boolean> {
+  const normalizedPartnerId = String(partnerId).trim();
+  const normalizedToken = refreshToken.trim();
+  if (!/^\\d{1,20}$/.test(normalizedPartnerId) || !normalizedToken) return false;
+
+  await ensureSchema();
+  const encrypted = encryptDerivRefreshToken(normalizedToken);
+  const result = await pool.query(
+    `INSERT INTO deriv_partner_credentials
+       (id, partner_id, deriv_refresh_ciphertext, linked_user_id)
+     VALUES (1, $1, $2, $3)
+     ON CONFLICT (id) DO UPDATE SET
+       deriv_refresh_ciphertext = EXCLUDED.deriv_refresh_ciphertext,
+       linked_user_id = COALESCE(deriv_partner_credentials.linked_user_id, EXCLUDED.linked_user_id),
+       updated_at = NOW()
+     WHERE deriv_partner_credentials.partner_id = EXCLUDED.partner_id
+     RETURNING partner_id`,
+    [normalizedPartnerId, encrypted, userId],
+  );
+  return result.rowCount === 1;
 }
 
 
