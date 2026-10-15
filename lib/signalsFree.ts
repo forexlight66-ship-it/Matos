@@ -32,7 +32,7 @@ export async function ensureSignalsFreeSchema() {
       ) THEN
         ALTER TABLE signals_free_requests ALTER COLUMN deriv_client_id TYPE VARCHAR(64);
       END IF;
-    END
+    END;
     $mig$;
     CREATE INDEX IF NOT EXISTS signals_free_user_created_idx ON signals_free_requests(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS signals_free_status_idx ON signals_free_requests(status);
