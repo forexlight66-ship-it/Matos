@@ -92,10 +92,15 @@ export default function SignalsFree({ light }: { light: boolean }) {
       return;
     }
     if (currentOnboarding?.status === 'ready_for_payment') {
-      setStep('payment');
-      setNotice(currentOnboarding.amyProofUploaded
-        ? (en ? 'Your previous Ask Amy screenshot is saved and will be reused.' : 'O screenshot anterior do Ask Amy está guardado e será reutilizado.')
-        : '');
+      if (currentOnboarding.amyProofUploaded) {
+        setStep('amy');
+        setNotice(en
+          ? 'You already sent the message to Ask Amy. You do not need to send it again or upload another screenshot; Matos will reuse the saved proof.'
+          : 'Já enviou a mensagem para Ask Amy. Não precisa de a enviar novamente nem de carregar outro screenshot; o Matos reutilizará o comprovativo guardado.');
+      } else {
+        setStep('payment');
+        setNotice('');
+      }
       return;
     }
     if (legacy?.status === 'pending') {
