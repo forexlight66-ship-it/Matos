@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const mt5Id = String(body?.mt5Id ?? '').trim();
     const clientId = String(body?.clientId ?? '').trim().toUpperCase();
-    if (!/^[A-Z]{0,4}\d{5,20}$/.test(clientId)) {
-      return NextResponse.json({ error: 'Introduza um ID de cliente Deriv válido (ex.: CR1234567).' }, { status: 400 });
+    if (!/^[A-Z0-9][A-Z0-9-]{0,63}$/.test(clientId)) {
+      return NextResponse.json({ error: 'Introduza um ID de cliente Deriv válido (por exemplo, CU52765). Não use o nickname.' }, { status: 400 });
     }
     if (!/^\d{5,15}$/.test(mt5Id)) {
       return NextResponse.json({ error: 'Introduza um ID MT5 válido, apenas com 5 a 15 dígitos.' }, { status: 400 });
