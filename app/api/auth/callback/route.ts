@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCode } from '@/lib/oauth';
 import { getSession, PLATFORM_SESSION_COOKIE, createDerivOAuthSession, saveDerivRefreshToken, consumeDerivOAuthState } from '@/lib/platform-auth';
+import { tryRegisterDerivPartnerRefreshToken } from '@/lib/derivPartnerVerification';
 
 const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
 const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
@@ -58,6 +59,26 @@ export async function GET(request: NextRequest) {
     }
     if (refresh_token && oauthUserId) {
       await saveDerivRefreshToken(oauthUserId, refresh_token);
+
+      // When the owner connects with the actual Deriv partner account, verify
+      // partner capability through Deriv and persist the refresh token encrypted
+      // as the app-wide partner credential. Ordinary client logins are ignored.
+      try {
+        const partnerSetup = await tryRegisterDerivPartnerRefreshToken(
+          access_token,
+          refresh_token,
+          oauthUserId,
+        );
+        if (partnerSetup.registered) {
+          console.info('[OAuth] Verified Deriv partner credential saved securely.');
+        } else if (partnerSetup.reason !== 'PARTNER_ALREADY_CONFIGURED' && partnerSetup.reason !== 'NOT_A_DERIV_PARTNER') {
+          console.info('[OAuth] Partner credential setup not completed:', partnerSetup.reason || 'unknown reason');
+        }
+      } catch (partnerSetupError) {
+        // Partner setup is optional for a normal sign-in; do not fail OAuth when
+        // the partner verification endpoint is temporarily unavailable.
+        console.warn('[OAuth] Partner credential setup deferred:', partnerSetupError instanceof Error ? partnerSetupError.message : 'unknown error');
+      }
     }
     response.cookies.set('deriv_access_token', access_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
     if (platformSession?.country) response.cookies.set('matos_country', String(platformSession.country).toUpperCase(), { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 });
