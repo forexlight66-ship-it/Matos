@@ -71,9 +71,9 @@ export default function SignalsFree({ light }: { light: boolean }) {
       onClick={() => { setOpen(true); setError(''); }}
       aria-label="Signals Free"
       title="Signals Free"
-      style={{ width: 38, height: 38, padding: 0, borderRadius: 12, overflow: 'hidden', border: '1px solid #3f8c43', background: 'linear-gradient(145deg,#087ec2,#07519b)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: 30, height: 30, padding: 0, borderRadius: 9, overflow: 'hidden', border: '1px solid #3f8c43', background: 'linear-gradient(145deg,#087ec2,#07519b)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
     >
-      <img src="/signals-free.svg" alt="" width="38" height="38" style={{ display: 'block', width: '38px', height: '38px', objectFit: 'cover' }} />
+      <img src="/signals-free.svg" alt="" width="30" height="30" style={{ display: 'block', width: '30px', height: '30px', objectFit: 'cover' }} />
     </button>
     {open && <div className="modal-backdrop" onClick={() => setOpen(false)}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="signals-free-title" onClick={e => e.stopPropagation()} style={{ width: 'min(94vw,420px)', maxHeight: '88vh', overflowY: 'auto', borderColor: '#2c9c55' }}>
