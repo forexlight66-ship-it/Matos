@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
             ...(row.payer_name || row.payer_number ? [`Nome usado: <b>${escapeHtml(row.payer_name || '—')}</b>`,`Número usado: <b>${escapeHtml(row.payer_number || '—')}</b>`] : []),
             '',
             '⚠️ O cliente informou o pagamento. Confirme o recebimento antes de ativar o pacote ilimitado.',
-          ].join('\\n')
+          ].join('\n')
         : isCourse
         ? [
             '🔔 <b>COMPLETE COURSE — PAGAMENTO INFORMADO</b>',
