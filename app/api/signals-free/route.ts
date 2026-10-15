@@ -10,107 +10,157 @@ import {
 } from '@/lib/signalsFree';
 import { getPaymentRequest } from '@/lib/paymentAgentRequests';
 import { verifyDerivPartnerClient } from '@/lib/derivPartnerVerification';
-import {
-  attachDerivIdentityCookies,
-  resolveDerivIdentityForRequest,
-} from '@/lib/derivRequestAuth';
+import { attachDerivIdentityCookies, resolveDerivIdentityForRequest } from '@/lib/derivRequestAuth';
 import type { AuthenticatedDerivIdentity } from '@/lib/derivNickname';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-function attachRefreshedDerivCookies(response: NextResponse, identity: AuthenticatedDerivIdentity | null) {
-  if (!identity?.refreshed) return response;
+function respond(body: unknown, identity: AuthenticatedDerivIdentity | null, status = 200) {
+  return attachDerivIdentityCookies(NextResponse.json(body, {
+    status,
+    headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },
+  }), identity);
+}
 
-  response.cookies.set('deriv_access_token', identity.accessToken, {
-    httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600,
-  });
-  if (identity.refreshToken) {
-    response.cookies.set('deriv_refresh_token', identity.refreshToken, {
-      httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30,
-    });
+function paymentSummary(row: any) {
+  if (!row) return null;
+  return {
+    requestId: String(row.id),
+    status: String(row.status || ''),
+    paymentMethod: String(row.payment_method || ''),
+    paymentNumber: String(row.payment_number || ''),
+    paymentName: String(row.payment_name || ''),
+    amountMzn: Number(row.local_amount_mzn || 0),
+    amountUsdt: Number(row.amount_usd || 0),
+    cryptoAddress: String(row.crypto_address || ''),
+    cryptoNetwork: String(row.crypto_network || ''),
+    payerName: String(row.payer_name || ''),
+    payerNumber: String(row.payer_number || ''),
+  };
+}
+
+function onboardingSummary(row: any) {
+  if (!row) return null;
+  return {
+    mt5_id: String(row.mt5_id || ''),
+    deriv_nickname: String(row.deriv_nickname || ''),
+    status: String(row.status || ''),
+    amyProofUploaded: Boolean(row.amy_screenshot),
+    amyMessageSentAt: row.amy_message_sent_at || null,
+    paymentRequestId: row.payment_request_id ? String(row.payment_request_id) : null,
+    activatedAt: row.activated_at || null,
+  };
+}
+
+async function currentOnboarding(externalReferenceId: string, userId: string | number) {
+  let onboarding = await getSignalsFreeOnboarding(externalReferenceId);
+  let payment: any = null;
+  if (onboarding?.payment_request_id) {
+    payment = await getPaymentRequest(onboarding.payment_request_id);
+    if (payment && String(payment.user_id) !== String(userId)) payment = null;
+    if (payment && ['rejected', 'failed'].includes(String(payment.status))) {
+      await resetSignalsFreePaymentRequest(userId, String(payment.id));
+      onboarding = await getSignalsFreeOnboarding(externalReferenceId);
+      payment = null;
+    } else if (payment?.status === 'payment_confirmed' && onboarding?.status !== 'active') {
+      await activateSignalsFreeUnlimited(userId, String(payment.id));
+      onboarding = await getSignalsFreeOnboarding(externalReferenceId);
+    }
   }
-  return response;
+  const visiblePayment = payment && [
+    'awaiting_payment', 'client_marked_paid', 'payment_confirmed', 'completed',
+  ].includes(String(payment.status)) ? paymentSummary(payment) : null;
+  return { onboarding, payment: visiblePayment };
 }
 
 export async function GET(request: NextRequest) {
+  let identity: AuthenticatedDerivIdentity | null = null;
   try {
     const user = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-    if (!user) return NextResponse.json({ error: 'Inicie sessão para consultar o pedido.' }, { status: 401 });
-    return NextResponse.json({ request: await getSignalsFreeRequest(user.id) }, { headers: { 'Cache-Control': 'no-store' } });
+    if (!user) return respond({ error: 'Inicie sessão para consultar o Signals Free.', code: 'AUTH_REQUIRED' }, identity, 401);
+    const legacyRequest = await getSignalsFreeRequest(user.id);
+    identity = await resolveDerivIdentityForRequest(request, user.id);
+    await ensureSignalsFreeOnboardingSchema();
+    const current = await currentOnboarding(identity.externalReferenceId, user.id);
+    const localEligible = String(user.country || '').trim().toUpperCase() === 'MZ';
+    return respond({
+      derivConnected: true,
+      eligibleForLocalPayment: localEligible,
+      onboarding: onboardingSummary(current.onboarding),
+      payment: current.payment,
+      request: legacyRequest,
+    }, identity);
   } catch (error) {
-    console.error('[Signals Free] status failed', error);
-    return NextResponse.json({ error: 'Não foi possível consultar o pedido.' }, { status: 500 });
+    console.error('[Signals Free] status lookup failed', error);
+    const status = typeof error === 'object' && error !== null && 'status' in error
+      && typeof (error as { status?: unknown }).status === 'number'
+      ? Math.min(599, Math.max(400, (error as { status: number }).status))
+      : 500;
+    const code = typeof error === 'object' && error !== null && 'code' in error
+      && typeof (error as { code?: unknown }).code === 'string'
+      ? (error as { code: string }).code
+      : 'SIGNALS_FREE_STATUS_FAILED';
+    return respond({ error: error instanceof Error ? error.message : 'Não foi possível consultar o Signals Free.', code }, identity, status);
   }
 }
 
 export async function POST(request: NextRequest) {
   let identity: AuthenticatedDerivIdentity | null = null;
-  const respond = (body: unknown, status = 200) =>
-    attachRefreshedDerivCookies(NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } }), identity);
-
   try {
     const user = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-    if (!user) return respond({ error: 'Inicie sessão para pedir acesso ao Signals Free.' }, 401);
+    if (!user) return respond({ error: 'Inicie sessão para pedir acesso ao Signals Free.', code: 'AUTH_REQUIRED' }, identity, 401);
 
     const body = await request.json().catch(() => ({}));
     const mt5Id = String(body?.mt5Id ?? '').trim();
     if (!/^\d{5,15}$/.test(mt5Id)) {
-      return respond({ error: 'Introduza um ID MT5 válido, apenas com 5 a 15 dígitos.' }, 400);
+      return respond({ error: 'Introduza um ID MT5 válido, apenas com 5 a 15 dígitos.', code: 'MT5_ID_FORMAT_INVALID' }, identity, 400);
     }
 
-    const appId = process.env.DERIV_APP_ID?.trim();
-    if (!appId) {
-      return respond({ error: 'A configuração OAuth2 da Deriv está incompleta no servidor.', code: 'DERIV_APP_ID_MISSING' }, 503);
+    identity = await resolveDerivIdentityForRequest(request, user.id);
+    await ensureSignalsFreeOnboardingSchema();
+    const current = await currentOnboarding(identity.externalReferenceId, user.id);
+    if (current.onboarding?.status === 'active') {
+      return respond({ nextStep: 'active', onboarding: onboardingSummary(current.onboarding) }, identity);
+    }
+    if (current.onboarding?.status === 'payment_pending' && current.payment) {
+      return respond({ nextStep: 'payment_instructions', onboarding: onboardingSummary(current.onboarding), payment: current.payment }, identity);
     }
 
-    const accessCookie = request.cookies.get('deriv_access_token')?.value || '';
-    const cookieRefreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
-    const savedRefreshToken = await getDerivRefreshToken(user.id);
-    const preferredRefreshToken = cookieRefreshToken || savedRefreshToken || '';
-
+    let isTagged = false;
     try {
-      identity = await getAuthenticatedDerivIdentity({
-        accessToken: accessCookie,
-        refreshToken: preferredRefreshToken,
-        appId,
-      });
-    } catch (firstAuthError) {
-      // Some older sessions may have a rotated refresh token in the database
-      // while the browser still has a stale refresh-token cookie (or vice versa).
-      if (!cookieRefreshToken || !savedRefreshToken || cookieRefreshToken === savedRefreshToken) {
-        throw firstAuthError;
-      }
-      identity = await getAuthenticatedDerivIdentity({
-        accessToken: accessCookie,
-        refreshToken: savedRefreshToken,
-        appId,
-      });
+      isTagged = await verifyDerivPartnerClient(identity.externalReferenceId);
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code || '') : '';
+      if (code !== 'CLIENT_ID_REJECTED') throw error;
     }
 
-    if (identity.refreshed && identity.refreshToken) {
-      await saveDerivRefreshToken(user.id, identity.refreshToken);
-    }
-
-    // Deriv issues this UUID for the authenticated identity. The form cannot
-    // supply or override it, and the nickname is never used as the identity ID.
-    const externalReferenceId = identity.externalReferenceId;
-    const isTagged = await verifyDerivPartnerClient(externalReferenceId);
+    const onboarding = await upsertSignalsFreeOnboarding({
+      userId: user.id,
+      externalReferenceId: identity.externalReferenceId,
+      derivNickname: identity.nickname,
+      mt5Id,
+      status: isTagged ? 'ready_for_payment' : 'verification_required',
+    });
+    const proofUploaded = Boolean(onboarding.amy_proof_uploaded);
     if (!isTagged) {
       return respond({
-        error: 'A conta Deriv autenticada não está diretamente associada ao parceiro. O pedido não foi enviado.',
-        code: 'CLIENT_NOT_TAGGED',
-      }, 403);
+        nextStep: 'amy_verification',
+        alreadySentToAmy: proofUploaded,
+        amyProofUploaded: proofUploaded,
+        onboarding: { mt5_id: String(onboarding.mt5_id || mt5Id), deriv_nickname: identity.nickname, status: String(onboarding.status || 'verification_required') },
+      }, identity);
     }
 
-    const created = await createSignalsFreeRequest(
-      { id: user.id, name: String(user.name || 'Utilizador'), email: String(user.email || '') },
-      mt5Id,
-      externalReferenceId,
-    );
-    return respond({ request: created }, 201);
+    return respond({
+      nextStep: 'payment',
+      eligibleForLocalPayment: String(user.country || '').trim().toUpperCase() === 'MZ',
+      amyProofUploaded: proofUploaded,
+      onboarding: { mt5_id: String(onboarding.mt5_id || mt5Id), deriv_nickname: identity.nickname, status: String(onboarding.status || 'ready_for_payment') },
+    }, identity);
   } catch (error) {
-    console.error('[Signals Free] request failed', error);
+    console.error('[Signals Free] submission failed', error);
     const status = typeof error === 'object' && error !== null && 'status' in error
       && typeof (error as { status?: unknown }).status === 'number'
       ? Math.min(599, Math.max(400, (error as { status: number }).status))
@@ -119,7 +169,6 @@ export async function POST(request: NextRequest) {
       && typeof (error as { code?: unknown }).code === 'string'
       ? (error as { code: string }).code
       : 'SIGNALS_FREE_REQUEST_FAILED';
-    const message = error instanceof Error ? error.message : 'Não foi possível enviar o pedido.';
-    return respond({ error: message, code }, status);
+    return respond({ error: error instanceof Error ? error.message : 'Não foi possível enviar o pedido.', code }, identity, status);
   }
 }
