@@ -40,8 +40,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
     event.preventDefault();
     setError('');
     const normalizedClientId = clientId.trim().toUpperCase();
-    if (!/^[A-Z]{0,4}\d{5,20}$/.test(normalizedClientId)) {
-      setError(en ? 'Enter a valid Deriv client ID (for example, CR1234567), not your nickname.' : 'Introduza um ID de cliente Deriv válido (por exemplo, CR1234567), não o nickname.');
+    if (!/^[A-Z0-9][A-Z0-9-]{0,63}$/.test(normalizedClientId)) {
+      setError(en ? 'Enter a valid Deriv client ID (for example, CU52765), not your nickname.' : 'Introduza um ID de cliente Deriv válido (por exemplo, CU52765), não o nickname.');
       return;
     }
     if (!/^\d{5,15}$/.test(mt5Id.trim())) {
@@ -88,7 +88,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
           <div className="flex items-center gap-2"><span style={{ fontSize: 24 }}>🟢</span><b id="signals-free-title">Signals Free</b></div>
           <button type="button" onClick={() => setOpen(false)} aria-label={en ? 'Close' : 'Fechar'}>✕</button>
         </div>
-        <p className="mt-3 text-xs muted">{en ? 'Enter your Deriv client ID and MT5 account ID. The Deriv client ID is checked against the partner account before submission.' : 'Introduza o ID de cliente Deriv e o ID da conta MT5. O ID de cliente Deriv será verificado antes do envio.'}</p>
+        <p className="mt-3 text-xs muted">{en ? 'Enter your Deriv client ID and MT5 account ID. Use the client ID shown by Deriv/your partner records, not your nickname; it is checked against the partner account before submission.' : 'Introduza o ID de cliente Deriv e o ID da conta MT5. Use o ID de cliente apresentado pela Deriv/registos do parceiro, não o nickname; o ID será verificado antes do envio.'}</p>
         {request ? <div className="mt-4 rounded-xl border p-3" style={{ borderColor: request.status === 'approved' ? '#22c55e' : request.status === 'rejected' ? '#ef4444' : '#eab308' }}>
           <div className="text-[10px] font-bold uppercase muted">{en ? 'Request status' : 'Estado do pedido'}</div>
           <b className="mt-1 block text-sm">{statusLabel}</b>
@@ -99,7 +99,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
           {request.status === 'rejected' && <button type="button" onClick={() => { setRequest(null); setMt5Id(''); setClientId(''); }} className="mt-3 w-full rounded-xl border p-3 text-sm font-bold">{en ? 'Submit another request' : 'Submeter novo pedido'}</button>}
         </div> : <form onSubmit={submit} className="mt-4">
           <label className="block text-xs font-bold">{en ? 'Deriv client ID (not nickname)' : 'ID de cliente Deriv (não nickname)'}
-            <input value={clientId} onChange={e => setClientId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 24))} autoCapitalize="characters" autoComplete="off" required placeholder="CR1234567" className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
+            <input value={clientId} onChange={e => setClientId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 64))} autoCapitalize="characters" autoComplete="off" required placeholder="CU52765" className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
           </label>
           <label className="mt-3 block text-xs font-bold">{en ? 'MT5 account ID' : 'ID da conta MT5'}
             <input value={mt5Id} onChange={e => setMt5Id(e.target.value.replace(/\D/g, '').slice(0, 15))} inputMode="numeric" pattern="[0-9]{5,15}" minLength={5} maxLength={15} required placeholder={en ? 'Enter your MT5 ID' : 'Introduza o seu ID MT5'} className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
