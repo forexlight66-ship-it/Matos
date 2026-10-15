@@ -180,7 +180,12 @@ export default function SignalsFree({ light }: { light: boolean }) {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(data?.error || (en ? 'Verification failed.' : 'A verificação falhou.')));
-      if (data?.onboarding) setOnboarding(data.onboarding);
+      if (data?.onboarding) {
+        setOnboarding({
+          ...data.onboarding,
+          amyProofUploaded: Boolean(data?.amyProofUploaded ?? data.onboarding?.amyProofUploaded),
+        });
+      }
       if (data?.eligibleForLocalPayment !== undefined) setEligibleForLocalPayment(Boolean(data.eligibleForLocalPayment));
       if (data?.nextStep === 'amy_verification') {
         setStep('amy');
