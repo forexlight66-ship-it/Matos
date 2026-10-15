@@ -278,7 +278,7 @@ export async function getDerivPartnerRefreshCredential(): Promise<{
       linkedUserId: row.linked_user_id == null ? null : String(row.linked_user_id),
     };
   } catch {
-    throw new Error('A credencial OAuth2 do parceiro está guardada, mas não pode ser descodificada. Verifique a chave de cifragem do Matos.');
+    throw Object.assign(new Error('A credencial OAuth2 do parceiro está guardada, mas não pode ser descodificada. Verifique a chave de cifragem do Matos.'), { status: 503, code: 'PARTNER_CREDENTIAL_DECRYPT_FAILED' });
   }
 }
 
