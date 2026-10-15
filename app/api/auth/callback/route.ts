@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCode } from '@/lib/oauth';
 import { getSession, PLATFORM_SESSION_COOKIE, createDerivOAuthSession, saveDerivRefreshToken, consumeDerivOAuthState } from '@/lib/platform-auth';
 import { tryRegisterDerivPartnerRefreshToken } from '@/lib/derivPartnerVerification';
+import { getDerivIdentity } from '@/lib/derivNickname';
 
 const PRODUCTION_APP_URL = 'https://matos-1n.onrender.com';
 const PRODUCTION_CALLBACK_URL = `${PRODUCTION_APP_URL}/api/auth/callback`;
@@ -64,10 +65,12 @@ export async function GET(request: NextRequest) {
       // partner capability through Deriv and persist the refresh token encrypted
       // as the app-wide partner credential. Ordinary client logins are ignored.
       try {
+        const derivIdentity = await getDerivIdentity(access_token, clientId);
         const partnerSetup = await tryRegisterDerivPartnerRefreshToken(
           access_token,
           refresh_token,
           oauthUserId,
+          derivIdentity.externalReferenceId,
         );
         if (partnerSetup.registered) {
           console.info('[OAuth] Verified Deriv partner credential saved securely.');
