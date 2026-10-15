@@ -3,7 +3,7 @@ import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIA
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
 import { derivPaymentRequest, PAYMENT_AGENT_ID } from '@/lib/paymentAgent';
 import { refreshAccessToken } from '@/lib/oauth';
-import { reviewSignalsFreeRequest, SIGNALS_FREE_GROUP_URL } from '@/lib/signalsFree';
+import { activateSignalsFreeUnlimited, resetSignalsFreePaymentRequest, reviewSignalsFreeRequest, SIGNALS_FREE_GROUP_URL } from '@/lib/signalsFree';
 
 function callbackBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN2?.trim()
@@ -129,6 +129,26 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
         ].join('\n'));
         return true;
       }
+      if (String((updated as any).purpose || '') === 'signals_free_unlimited') {
+        const access = await activateSignalsFreeUnlimited(updated.user_id, updated.id);
+        await answerTelegramCallback(callbackId, 'Signals Free Unlimited ativado permanentemente.').catch(() => undefined);
+        await editPaymentMessage(query, [
+          '✅ <b>SIGNALS FREE UNLIMITED ATIVADO</b>',
+          '',
+          `Cliente: <b>${escapeHtml(updated.client_name)}</b>`,
+          `Conta Deriv: <b>${escapeHtml(updated.client_nickname)}</b>`,
+          `ID MT5: <code>${escapeHtml(String(updated.client_mt5_id || access.mt5_id || '—'))}</code>`,
+          'Plano: <b>Signals Free — acesso ilimitado</b>',
+          `Valor: <b>${updated.payment_method === 'binance_usdt_trc20' ? '3 USDT' : '250 MZN'}</b>`,
+          `Método: <b>${updated.payment_method === 'binance_usdt_trc20' ? 'Binance — TRC20' : updated.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
+          ...(updated.payer_name || updated.payer_number ? [`Pagador: <b>${escapeHtml(updated.payer_name || '—')}</b>`, `Número usado: <b>${escapeHtml(updated.payer_number || '—')}</b>`] : []),
+          '',
+          'Acesso: <b>ILIMITADO</b>',
+          `Grupo: ${SIGNALS_FREE_GROUP_URL}`,
+        ].join('\\n'));
+        return true;
+      }
+
       if (String((updated as any).purpose || '') === 'ai_analyst') {
         const subscription = await activateAIAnalystSubscription(updated.user_id, updated.id);
         await answerTelegramCallback(callbackId, 'AI Analyst confirmado por 30 dias.').catch(() => undefined);
@@ -182,6 +202,9 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
 
     if (action === 'reject') {
       const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'rejected');
+      if (String((updated as any).purpose || '') === 'signals_free_unlimited') {
+        await resetSignalsFreePaymentRequest(updated.user_id, updated.id);
+      }
       await answerTelegramCallback(callbackId, updated.type === 'deposit' ? 'Pedido de depósito rejeitado.' : 'Pedido de levantamento rejeitado.').catch(error => {
         console.error('[Payment Agent Telegram] callback acknowledgement failed', error);
       });
