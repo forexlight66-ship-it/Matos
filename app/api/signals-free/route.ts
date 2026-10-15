@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const mt5Id = String(body?.mt5Id ?? '').trim();
-    if (!/^\\d{5,15}$/.test(mt5Id)) {
+    if (!/^\d{5,15}$/.test(mt5Id)) {
       return respond({ error: 'Introduza um ID MT5 válido, apenas com 5 a 15 dígitos.' }, 400);
     }
 
