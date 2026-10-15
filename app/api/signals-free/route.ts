@@ -131,9 +131,14 @@ export async function POST(request: NextRequest) {
     try {
       isTagged = await verifyDerivPartnerClient(identity.externalReferenceId);
     } catch (error) {
+      // If the identity cannot be conclusively verified, guide the customer
+      // through the explicit Ask Amy retag process and require a screenshot.
+      // Authentication failures are handled before this point; verification
+      // failures must never silently be treated as an approved partner tag.
       const code = typeof error === 'object' && error !== null && 'code' in error
-        ? String((error as { code?: unknown }).code || '') : '';
-      if (code !== 'CLIENT_ID_REJECTED') throw error;
+        ? String((error as { code?: unknown }).code || '') : 'UNKNOWN';
+      console.warn('[Signals Free] Partner tag was not conclusively verified; routing to Ask Amy:', code);
+      isTagged = false;
     }
 
     const onboarding = await upsertSignalsFreeOnboarding({
