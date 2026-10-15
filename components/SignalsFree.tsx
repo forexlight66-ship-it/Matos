@@ -5,13 +5,14 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 const GROUP_URL = 'https://t.me/+S4A_5SgZB6x4P_UQ';
 
-type RequestState = { id: number | string; mt5_id: string; status: 'pending' | 'approved' | 'rejected'; created_at?: string } | null;
+type RequestState = { id: number | string; mt5_id: string; deriv_client_id?: string | null; status: 'pending' | 'approved' | 'rejected'; created_at?: string } | null;
 
 export default function SignalsFree({ light }: { light: boolean }) {
   const { language } = useLanguage();
   const en = language === 'en';
   const [open, setOpen] = useState(false);
   const [mt5Id, setMt5Id] = useState('');
+  const [clientId, setClientId] = useState('');
   const [request, setRequest] = useState<RequestState>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +24,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
       if (response.ok) {
         setRequest(data.request || null);
         if (data.request?.mt5_id) setMt5Id(String(data.request.mt5_id));
+        if (data.request?.deriv_client_id) setClientId(String(data.request.deriv_client_id));
       }
     } catch {}
   }, []);
@@ -37,6 +39,11 @@ export default function SignalsFree({ light }: { light: boolean }) {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+    const normalizedClientId = clientId.trim().toUpperCase();
+    if (!/^[A-Z]{0,4}\d{5,20}$/.test(normalizedClientId)) {
+      setError(en ? 'Enter a valid Deriv client ID (for example, CR1234567), not your nickname.' : 'Introduza um ID de cliente Deriv válido (por exemplo, CR1234567), não o nickname.');
+      return;
+    }
     if (!/^\d{5,15}$/.test(mt5Id.trim())) {
       setError(en ? 'Enter a valid MT5 ID (5–15 digits).' : 'Introduza um ID MT5 válido (5–15 dígitos).');
       return;
@@ -46,7 +53,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
       const response = await fetch('/api/signals-free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mt5Id: mt5Id.trim() }),
+        body: JSON.stringify({ clientId: normalizedClientId, mt5Id: mt5Id.trim() }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || (en ? 'Could not submit the request.' : 'Não foi possível submeter o pedido.'));
@@ -81,16 +88,20 @@ export default function SignalsFree({ light }: { light: boolean }) {
           <div className="flex items-center gap-2"><span style={{ fontSize: 24 }}>🟢</span><b id="signals-free-title">Signals Free</b></div>
           <button type="button" onClick={() => setOpen(false)} aria-label={en ? 'Close' : 'Fechar'}>✕</button>
         </div>
-        <p className="mt-3 text-xs muted">{en ? 'Submit your MT5 account ID. The Payment Agent 503 administrator will review your request.' : 'Submeta o ID da sua conta MT5. O administrador do Payment Agent 503 analisará o seu pedido.'}</p>
+        <p className="mt-3 text-xs muted">{en ? 'Enter your Deriv client ID and MT5 account ID. The Deriv client ID is checked against the partner account before submission.' : 'Introduza o ID de cliente Deriv e o ID da conta MT5. O ID de cliente Deriv será verificado antes do envio.'}</p>
         {request ? <div className="mt-4 rounded-xl border p-3" style={{ borderColor: request.status === 'approved' ? '#22c55e' : request.status === 'rejected' ? '#ef4444' : '#eab308' }}>
           <div className="text-[10px] font-bold uppercase muted">{en ? 'Request status' : 'Estado do pedido'}</div>
           <b className="mt-1 block text-sm">{statusLabel}</b>
+          {request.deriv_client_id && <div className="mt-1 text-xs muted">{en ? 'Deriv client ID' : 'ID de cliente Deriv'}: {request.deriv_client_id}</div>}
           <div className="mt-1 text-xs muted">MT5 ID: {request.mt5_id}</div>
           {request.status === 'pending' && <p className="mt-2 text-xs muted">{en ? 'This window checks for approval automatically.' : 'Esta janela verifica automaticamente se o pedido foi aprovado.'}</p>}
           {request.status === 'approved' && <a href={GROUP_URL} target="_blank" rel="noopener noreferrer" className="mt-3 block rounded-xl bg-emerald-600 p-3 text-center text-sm font-black text-white no-underline">{en ? 'Join Signals Free on Telegram' : 'Entrar no Signals Free no Telegram'} ↗</a>}
-          {request.status === 'rejected' && <button type="button" onClick={() => { setRequest(null); setMt5Id(''); }} className="mt-3 w-full rounded-xl border p-3 text-sm font-bold">{en ? 'Submit another request' : 'Submeter novo pedido'}</button>}
+          {request.status === 'rejected' && <button type="button" onClick={() => { setRequest(null); setMt5Id(''); setClientId(''); }} className="mt-3 w-full rounded-xl border p-3 text-sm font-bold">{en ? 'Submit another request' : 'Submeter novo pedido'}</button>}
         </div> : <form onSubmit={submit} className="mt-4">
-          <label className="block text-xs font-bold">{en ? 'MT5 account ID' : 'ID da conta MT5'}
+          <label className="block text-xs font-bold">{en ? 'Deriv client ID (not nickname)' : 'ID de cliente Deriv (não nickname)'}
+            <input value={clientId} onChange={e => setClientId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 24))} autoCapitalize="characters" autoComplete="off" required placeholder="CR1234567" className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
+          </label>
+          <label className="mt-3 block text-xs font-bold">{en ? 'MT5 account ID' : 'ID da conta MT5'}
             <input value={mt5Id} onChange={e => setMt5Id(e.target.value.replace(/\D/g, '').slice(0, 15))} inputMode="numeric" pattern="[0-9]{5,15}" minLength={5} maxLength={15} required placeholder={en ? 'Enter your MT5 ID' : 'Introduza o seu ID MT5'} className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
           </label>
           {error && <div role="alert" className="mt-2 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-500">{error}</div>}
