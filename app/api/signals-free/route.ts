@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRefreshToken } from '@/lib/platform-auth';
-import { createSignalsFreeRequest, getSignalsFreeRequest } from '@/lib/signalsFree';
+import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import {
+  ensureSignalsFreeOnboardingSchema,
+  getSignalsFreeOnboarding,
+  getSignalsFreeRequest,
+  upsertSignalsFreeOnboarding,
+  activateSignalsFreeUnlimited,
+  resetSignalsFreePaymentRequest,
+} from '@/lib/signalsFree';
+import { getPaymentRequest } from '@/lib/paymentAgentRequests';
 import { verifyDerivPartnerClient } from '@/lib/derivPartnerVerification';
-import { getAuthenticatedDerivIdentity, type AuthenticatedDerivIdentity } from '@/lib/derivNickname';
+import {
+  attachDerivIdentityCookies,
+  resolveDerivIdentityForRequest,
+} from '@/lib/derivRequestAuth';
+import type { AuthenticatedDerivIdentity } from '@/lib/derivNickname';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
