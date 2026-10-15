@@ -80,10 +80,10 @@ export async function POST(request: NextRequest) {
       await saveDerivRefreshToken(user.id, identity.refreshToken);
     }
 
-    // This UUID is issued by Deriv for the OAuth-authenticated identity. Do not
-    // accept a client ID typed into the form, and never substitute the nickname.
-    const clientId = identity.externalReferenceId;
-    const isTagged = await verifyDerivPartnerClient(clientId);
+    // Deriv issues this UUID for the authenticated identity. The form cannot
+    // supply or override it, and the nickname is never used as the identity ID.
+    const externalReferenceId = identity.externalReferenceId;
+    const isTagged = await verifyDerivPartnerClient(externalReferenceId);
     if (!isTagged) {
       return respond({
         error: 'A conta Deriv autenticada não está diretamente associada ao parceiro. O pedido não foi enviado.',
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     const created = await createSignalsFreeRequest(
       { id: user.id, name: String(user.name || 'Utilizador'), email: String(user.email || '') },
       mt5Id,
-      clientId,
+      externalReferenceId,
     );
     return respond({ request: created }, 201);
   } catch (error) {
