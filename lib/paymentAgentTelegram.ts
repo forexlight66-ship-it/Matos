@@ -57,6 +57,25 @@ async function editPaymentMessage(query: any, text: string, buttons: Array<Array
   await editTelegramMessage(chatId, messageId, text, buttons);
 }
 
+async function notifySignalsFreeUnlimitedActivation(query: any, callbackId: string, row: any) {
+  const access = await activateSignalsFreeUnlimited(row.user_id, String(row.id));
+  await answerTelegramCallback(callbackId, 'Signals Free Unlimited ativado permanentemente.').catch(() => undefined);
+  await editPaymentMessage(query, [
+    '✅ <b>SIGNALS FREE UNLIMITED ATIVADO</b>',
+    '',
+    `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+    `Conta Deriv: <code>${escapeHtml(row.client_nickname)}</code>`,
+    `ID MT5: <code>${escapeHtml(String(row.client_mt5_id || access.mt5_id || '—'))}</code>`,
+    'Plano: <b>Signals Free — acesso ilimitado</b>',
+    `Valor: <b>${row.payment_method === 'binance_usdt_trc20' ? '3 USDT' : '250 MZN'}</b>`,
+    `Método: <b>${row.payment_method === 'binance_usdt_trc20' ? 'Binance — TRC20' : row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
+    ...(row.payer_name || row.payer_number ? [`Pagador: <b>${escapeHtml(row.payer_name || '—')}</b>`, `Número usado: <b>${escapeHtml(row.payer_number || '—')}</b>`] : []),
+    '',
+    'Acesso: <b>ILIMITADO</b>',
+    `Grupo: ${SIGNALS_FREE_GROUP_URL}`,
+  ].join('\\n'));
+}
+
 export async function handlePaymentAgentTelegramCallback(query: any) {
   const callbackId = String(query.id || '');
   const data = String(query.data || '');
@@ -110,6 +129,14 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
     if (!row) throw Object.assign(new Error('Pedido não encontrado.'), { status: 404 });
 
     if (action === 'confirm') {
+      if (
+        String((row as any).purpose || '') === 'signals_free_unlimited' &&
+        ['payment_confirmed', 'completed'].includes(String(row.status || ''))
+      ) {
+        await notifySignalsFreeUnlimitedActivation(query, callbackId, row);
+        return true;
+      }
+
       const updated = await transitionPaymentRequest(id, 'client_marked_paid', 'payment_confirmed');
       if (String((updated as any).purpose || '') === 'complete_course') {
         await activateCourseAccess(updated.user_id, updated.id);
@@ -130,25 +157,9 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
         return true;
       }
       if (String((updated as any).purpose || '') === 'signals_free_unlimited') {
-        const access = await activateSignalsFreeUnlimited(updated.user_id, updated.id);
-        await answerTelegramCallback(callbackId, 'Signals Free Unlimited ativado permanentemente.').catch(() => undefined);
-        await editPaymentMessage(query, [
-          '✅ <b>SIGNALS FREE UNLIMITED ATIVADO</b>',
-          '',
-          `Cliente: <b>${escapeHtml(updated.client_name)}</b>`,
-          `Conta Deriv: <b>${escapeHtml(updated.client_nickname)}</b>`,
-          `ID MT5: <code>${escapeHtml(String(updated.client_mt5_id || access.mt5_id || '—'))}</code>`,
-          'Plano: <b>Signals Free — acesso ilimitado</b>',
-          `Valor: <b>${updated.payment_method === 'binance_usdt_trc20' ? '3 USDT' : '250 MZN'}</b>`,
-          `Método: <b>${updated.payment_method === 'binance_usdt_trc20' ? 'Binance — TRC20' : updated.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
-          ...(updated.payer_name || updated.payer_number ? [`Pagador: <b>${escapeHtml(updated.payer_name || '—')}</b>`, `Número usado: <b>${escapeHtml(updated.payer_number || '—')}</b>`] : []),
-          '',
-          'Acesso: <b>ILIMITADO</b>',
-          `Grupo: ${SIGNALS_FREE_GROUP_URL}`,
-        ].join('\n'));
+        await notifySignalsFreeUnlimitedActivation(query, callbackId, updated);
         return true;
       }
-
       if (String((updated as any).purpose || '') === 'ai_analyst') {
         const subscription = await activateAIAnalystSubscription(updated.user_id, updated.id);
         await answerTelegramCallback(callbackId, 'AI Analyst confirmado por 30 dias.').catch(() => undefined);
