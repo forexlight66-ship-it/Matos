@@ -42,8 +42,8 @@ export async function ensureSignalsFreeSchema() {
 export async function createSignalsFreeRequest(
   user: { id: string | number; name: string; email: string },
   mt5Id: string,
-  clientId: string,
-) {
+  externalReferenceId: string,
+)
   await ensureSignalsFreeSchema();
   const existing = await pool.query(
     "SELECT id, mt5_id, deriv_client_id, status, created_at FROM signals_free_requests WHERE user_id=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1",
@@ -53,7 +53,7 @@ export async function createSignalsFreeRequest(
 
   const result = await pool.query(
     'INSERT INTO signals_free_requests (user_id, mt5_id, deriv_client_id) VALUES ($1,$2,$3) RETURNING id, mt5_id, deriv_client_id, status, created_at',
-    [user.id, mt5Id, clientId],
+    [user.id, mt5Id, externalReferenceId],
   );
   const row = result.rows[0];
   const esc = (value: string) => value.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c] || c));
@@ -65,7 +65,7 @@ export async function createSignalsFreeRequest(
         `Pedido: <b>#${row.id}</b>`,
         `Nome: <b>${esc(user.name || 'Utilizador')}</b>`,
         `Email: <b>${esc(user.email || '—')}</b>`,
-        `ID de identidade Deriv (verificado): <code>${esc(clientId)}</code>`,
+        `ID de identidade Deriv (verificado): <code>${esc(externalReferenceId)}</code>`,
         `ID MT5: <code>${esc(mt5Id)}</code>`,
         '',
         'Aprove ou rejeite este pedido:',
