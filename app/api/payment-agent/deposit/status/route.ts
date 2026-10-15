@@ -13,10 +13,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const row = await getPaymentRequest(id);
-    const isBinanceAi = row?.purpose === 'ai_analyst' && row?.payment_method === 'binance_usdt_trc20';
-    if (!isPaymentAgentCountryAllowed(session.country) && !isBinanceAi) return NextResponse.json({ error: 'Pedido não elegível para este fluxo.', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED' }, { status: 403 });
     if (!row || String(row.user_id) !== String(session.id)) {
       return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 });
+    }
+    const isBinanceAi = row.purpose === 'ai_analyst' && row.payment_method === 'binance_usdt_trc20';
+    const isBinanceSignalsFree = row.purpose === 'signals_free_unlimited' && row.payment_method === 'binance_usdt_trc20';
+    const isSignalsFreeLocal = row.purpose === 'signals_free_unlimited'
+      && (row.payment_method === 'mpesa' || row.payment_method === 'emola')
+      && String(session.country || '').trim().toUpperCase() === 'MZ';
+    if (!isPaymentAgentCountryAllowed(session.country) && !isBinanceAi && !isBinanceSignalsFree) {
+      return NextResponse.json({ error: 'Pedido não elegível para este fluxo.', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED' }, { status: 403 });
+    }
+    if (row.purpose === 'signals_free_unlimited' && !isBinanceSignalsFree && !isSignalsFreeLocal) {
+      return NextResponse.json({ error: 'Método de pagamento não permitido para esta conta.', code: 'PAYMENT_METHOD_NOT_ALLOWED' }, { status: 403 });
     }
 
     return NextResponse.json({
