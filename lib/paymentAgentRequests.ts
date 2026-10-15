@@ -15,6 +15,8 @@ export const BINANCE_USDT_TRC20_ADDRESS = 'TYhiKauxruZ7Lux47nsgtq8R4j5jczRQeu';
 export const BINANCE_USDT_TRC20_NETWORK = 'TRC20';
 export const COURSE_PRICE_MZN = 999;
 export const COURSE_PRICE_USDT = 15;
+export const SIGNALS_FREE_PRICE_MZN = 250;
+export const SIGNALS_FREE_PRICE_USDT = 3;
 
 export type PaymentRequestType = 'deposit' | 'withdraw';
 export type PaymentRequestStatus =
@@ -34,6 +36,7 @@ export type PaymentRequest = {
   client_name: string;
   client_email: string;
   client_nickname: string;
+  client_mt5_id?: string | null;
   amount_usd: number;
   local_amount_mzn: number;
   exchange_rate: number;
@@ -101,6 +104,7 @@ export async function ensurePaymentRequestSchema() {
       client_name TEXT NOT NULL,
       client_email TEXT NOT NULL,
       client_nickname TEXT NOT NULL,
+      client_mt5_id TEXT,
       amount_usd NUMERIC(18,2) NOT NULL,
       local_amount_mzn NUMERIC(18,2) NOT NULL,
       exchange_rate NUMERIC(18,6) NOT NULL,
@@ -127,6 +131,7 @@ export async function ensurePaymentRequestSchema() {
     CREATE INDEX IF NOT EXISTS payment_agent_requests_created_idx ON payment_agent_requests(created_at DESC);
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS platform_transfer_request_id UUID;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'deposit';
+    ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS client_mt5_id TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS payer_name TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS payer_number TEXT;
     ALTER TABLE payment_agent_requests ADD COLUMN IF NOT EXISTS crypto_asset TEXT;
@@ -262,6 +267,62 @@ export async function createAIAnalystBinanceRequest(input: {
      VALUES ($1,'deposit','awaiting_payment',$2,$3,$4,$5,$6,$7,$8,'binance_usdt_trc20',$9,$10,'ai_analyst','USDT','TRC20',$9)
      RETURNING *`,
     [id,input.userId,input.clientName,input.clientEmail,input.clientNickname,amountUsd,localAmountMzn,localAmountMzn/amountUsd,BINANCE_USDT_TRC20_ADDRESS,'Binance USDT TRC20'],
+  );
+  return result.rows[0] as PaymentRequest;
+}
+
+export async function createSignalsFreeUnlimitedRequest(input: {
+  userId: string | number;
+  clientName: string;
+  clientEmail: string;
+  clientNickname: string;
+  mt5Id: string;
+  paymentMethod: 'mpesa' | 'emola' | 'binance_usdt_trc20';
+  payerName?: string;
+  payerNumber?: string;
+}) {
+  await ensurePaymentRequestSchema();
+
+  const id = requestId('sf');
+  const isCrypto = input.paymentMethod === 'binance_usdt_trc20';
+  const amountUsd = SIGNALS_FREE_PRICE_USDT;
+  const localAmountMzn = SIGNALS_FREE_PRICE_MZN;
+  const exchangeRate = localAmountMzn / amountUsd;
+  const paymentNumber = isCrypto
+    ? BINANCE_USDT_TRC20_ADDRESS
+    : input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER;
+  const paymentName = isCrypto ? 'Binance USDT TRC20' : PAYMENT_RECIPIENT_NAME;
+  const payerName = isCrypto ? null : (input.payerName?.trim() || null);
+  const payerNumber = isCrypto ? null : (input.payerNumber?.replace(/\\D/g, '') || null);
+
+  const result = await pool.query(
+    `INSERT INTO payment_agent_requests
+      (id, type, status, user_id, client_name, client_email, client_nickname, client_mt5_id,
+       amount_usd, local_amount_mzn, exchange_rate, payment_method, payment_number, payment_name,
+       payer_name, payer_number, purpose, crypto_asset, crypto_network, crypto_address)
+     VALUES
+      ($1, 'deposit', 'awaiting_payment', $2, $3, $4, $5, $6,
+       $7, $8, $9, $10, $11, $12, $13, $14, 'signals_free_unlimited',
+       CASE WHEN $10 = 'binance_usdt_trc20' THEN 'USDT' ELSE NULL END,
+       CASE WHEN $10 = 'binance_usdt_trc20' THEN 'TRC20' ELSE NULL END,
+       CASE WHEN $10 = 'binance_usdt_trc20' THEN $11 ELSE NULL END)
+     RETURNING *`,
+    [
+      id,
+      input.userId,
+      input.clientName,
+      input.clientEmail,
+      input.clientNickname,
+      input.mt5Id,
+      amountUsd,
+      localAmountMzn,
+      exchangeRate,
+      input.paymentMethod,
+      paymentNumber,
+      paymentName,
+      payerName,
+      payerNumber,
+    ],
   );
   return result.rows[0] as PaymentRequest;
 }
