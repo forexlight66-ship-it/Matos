@@ -226,6 +226,9 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
   });
 
   for(const tx of newlyClosed){
+   // Ensure every newly closed contract updates Soros before UI notification filtering.
+   // The processed contract set prevents duplicate progression in notifyClosedTransaction.
+   processSorosResult(tx);
    notifyClosedTransaction(tx);
 
    // Same settlement path as the live stream if profit_table is the first
@@ -248,7 +251,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
   setProfitTransactions(merged);
   setProfitCount(merged.length);
   saveTradingCache();
- },[accountType,notifyClosedTransaction,saveTradingCache,settleActiveContract]);
+ },[accountType,notifyClosedTransaction,processSorosResult,saveTradingCache,settleActiveContract]);
 
  const refreshProfitTable=useCallback(()=>wsRef.current?.getProfitTable({limit:2000,offset:0,sort:'DESC',description:1}),[]);
  const resetTradingSession=useCallback(()=>{const now=Math.floor(Date.now()/1000);sessionStartedAtRef.current=now;closedContractsRef.current.clear();sessionContractIdsRef.current.clear();emittedClosedContractsRef.current.clear();processedSorosContractsRef.current.clear();balanceCacheRef.current=null;setBalance(null);setProfitTransactions([]);setProfitCount(0);setContractClosedSeq(0);clearSorosStorage();try{localStorage.removeItem(cacheKey(accountType));localStorage.setItem(TRADING_CLEARED_AT_PREFIX+accountType,String(now));sessionStorage.setItem(TRADING_SESSION_STORAGE,String(now))}catch{};const fresh=defaultSoros(sorosRef.current.initialStake||SOROS_MIN);sorosRef.current=fresh;setSoros(fresh);wsRef.current?.subscribeBalance()},[accountType]);
