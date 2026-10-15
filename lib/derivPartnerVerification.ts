@@ -69,9 +69,6 @@ export async function tryRegisterDerivPartnerRefreshToken(
   if (!refreshToken?.trim()) return { registered: false, reason: 'REFRESH_TOKEN_NOT_RETURNED' };
 
   const existing = await getDerivPartnerCredentialMetadata();
-  if (existing?.linkedUserId && existing.linkedUserId !== String(platformUserId)) {
-    return { registered: false, reason: 'PARTNER_ALREADY_CONFIGURED' };
-  }
 
   let response: Response;
   try {
@@ -90,6 +87,13 @@ export async function tryRegisterDerivPartnerRefreshToken(
     checked = await readPartnerCheck(response, PARTNER_CAPABILITY_PROBE_ID);
   } catch {
     return { registered: false, reason: 'PARTNER_RESPONSE_INVALID' };
+  }
+
+  // A fresh OAuth login may rotate the same partner's refresh token even
+  // if the browser received a new platform session ID. Only the exact locked
+  // partner_id may update the global credential.
+  if (existing && existing.partnerId !== checked.partnerId) {
+    return { registered: false, reason: 'DIFFERENT_PARTNER_ALREADY_LOCKED' };
   }
 
   const saved = await saveDerivPartnerRefreshToken(
