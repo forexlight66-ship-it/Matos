@@ -294,7 +294,7 @@ export async function saveDerivPartnerRefreshToken(
 ): Promise<boolean> {
   const normalizedPartnerId = String(partnerId).trim();
   const normalizedToken = refreshToken.trim();
-  if (!/^\\d{1,20}$/.test(normalizedPartnerId) || !normalizedToken) return false;
+  if (!/^\d{1,20}$/.test(normalizedPartnerId) || !normalizedToken) return false;
 
   await ensureSchema();
   const encrypted = encryptDerivRefreshToken(normalizedToken);
