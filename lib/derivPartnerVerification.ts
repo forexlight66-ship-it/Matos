@@ -32,6 +32,7 @@ async function postClientTagCheck(accessToken: string, clientIds: string[]) {
     },
     body: JSON.stringify({ client_ids: clientIds }),
     cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
   });
 }
 
