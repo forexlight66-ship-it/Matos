@@ -86,6 +86,8 @@ export async function sendAgentPhotoAlert(
   buttons: Array<Array<{ text: string; callback_data?: string; copy_text?: { text: string } }>>,
 ) {
   const ids = chatIds();
+  const botToken = token();
+  if (!botToken) throw new Error('Payment Agent Telegram bot token is not configured');
   if (!ids.length) throw new Error('Payment Agent Telegram chat ID is not configured');
 
   void ensurePaymentAgentWebhook().catch(error => {
@@ -94,33 +96,70 @@ export async function sendAgentPhotoAlert(
 
   let lastError: unknown = null;
   for (const id of ids) {
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
-      try {
-        const form = new FormData();
-        form.append('chat_id', String(id));
-        form.append('photo', photo, 'payment-proof.jpg');
-        form.append('caption', caption.replace(/\\\\n/g, '\n'));
-        form.append('parse_mode', 'HTML');
-        form.append('reply_markup', JSON.stringify({ inline_keyboard: buttons }));
-        const response = await fetch(`${TELEGRAM_API}/bot${token()}/sendPhoto`, {
-          method: 'POST',
-          body: form,
-          cache: 'no-store',
-        });
-        const data = await response.json().catch(() => null);
-        if (!response.ok || data?.ok === false) {
-          throw new Error(data?.description || `Telegram API failed (${response.status})`);
-        }
-        return data;
-      } catch (error) {
-        lastError = error;
-        if (attempt === 2) {
-          console.error('[Telegram Agent Photo] delivery failed', {
-            chatId: id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
+    // Try photo first. Telegram sometimes rejects valid uploaded images with
+    // IMAGE_PROCESS_FAILED; retry the same proof as a document before falling
+    // back to a text alert so the agent never misses the payment notification.
+    try {
+      const form = new FormData();
+      form.append('chat_id', String(id));
+      form.append('photo', photo, 'payment-proof.jpg');
+      form.append('caption', caption.replace(/\\\\n/g, '\\n'));
+      form.append('parse_mode', 'HTML');
+      form.append('reply_markup', JSON.stringify({ inline_keyboard: buttons }));
+      const response = await fetch(`${TELEGRAM_API}/bot${botToken}/sendPhoto`, {
+        method: 'POST',
+        body: form,
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok === false) throw new Error(data?.description || `Telegram API failed (${response.status})`);
+      return data;
+    } catch (error) {
+      lastError = error;
+      console.error('[Payment Agent Telegram] sendPhoto failed; trying document fallback', {
+        chatId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    try {
+      const form = new FormData();
+      form.append('chat_id', String(id));
+      form.append('document', photo, 'payment-proof.jpg');
+      form.append('caption', caption.replace(/\\\\n/g, '\\n'));
+      form.append('parse_mode', 'HTML');
+      form.append('reply_markup', JSON.stringify({ inline_keyboard: buttons }));
+      const response = await fetch(`${TELEGRAM_API}/bot${botToken}/sendDocument`, {
+        method: 'POST',
+        body: form,
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok === false) throw new Error(data?.description || `Telegram API failed (${response.status})`);
+      return data;
+    } catch (error) {
+      lastError = error;
+      console.error('[Payment Agent Telegram] sendDocument fallback failed; trying text alert', {
+        chatId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    try {
+      const message = caption.replace(/\\\\n/g, '\\n').replace(/\\n\\n📎 <b>COMPROVATIVO DE PAGAMENTO ANEXADO<\\/b>/g, '\\n\\n⚠️ O comprovativo não pôde ser anexado automaticamente. Verifique o pedido na plataforma.');
+      return await telegramRequest('sendMessage', {
+        chat_id: id,
+        text: message,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: buttons },
+        disable_web_page_preview: true,
+      });
+    } catch (error) {
+      lastError = error;
+      console.error('[Payment Agent Telegram] text fallback failed', {
+        chatId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
