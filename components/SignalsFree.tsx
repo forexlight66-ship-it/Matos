@@ -99,7 +99,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
           {request.status === 'rejected' && <button type="button" onClick={() => { setRequest(null); setMt5Id(''); setClientId(''); }} className="mt-3 w-full rounded-xl border p-3 text-sm font-bold">{en ? 'Submit another request' : 'Submeter novo pedido'}</button>}
         </div> : <form onSubmit={submit} className="mt-4">
           <label className="block text-xs font-bold">{en ? 'Deriv client ID (not nickname)' : 'ID de cliente Deriv (não nickname)'}
-            <input value={clientId} onChange={e => setClientId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 64))} autoCapitalize="characters" autoComplete="off" required placeholder="CU52765" className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
+            <input value={clientId} onChange={e => setClientId(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 64))} autoCapitalize="characters" autoComplete="off" required placeholder="CU52765" className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
           </label>
           <label className="mt-3 block text-xs font-bold">{en ? 'MT5 account ID' : 'ID da conta MT5'}
             <input value={mt5Id} onChange={e => setMt5Id(e.target.value.replace(/\D/g, '').slice(0, 15))} inputMode="numeric" pattern="[0-9]{5,15}" minLength={5} maxLength={15} required placeholder={en ? 'Enter your MT5 ID' : 'Introduza o seu ID MT5'} className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
