@@ -1302,7 +1302,7 @@ useEffect(()=>{
   </button>
   {manualPanelOpen&&<div className="card mt-1 p-1.5" style={{borderColor:'#3b82f6'}}>
    <div className="mb-1 flex items-center justify-between gap-2"><b className="text-[10px] uppercase">{language==='en'?'Manual trading':language==='es'?'Operación manual':'Operação manual'}</b><span className="text-[9px] muted">{SYMBOLS[symbol]}</span></div>
-undefined   <div className="grid grid-cols-2 gap-1.5">
+   <div className="grid grid-cols-2 gap-1.5">
     <div className="min-w-0 flex flex-col rounded-lg border p-2" style={{borderColor:light?'#86efac':'#166534'}}>
      <div className="text-[10px] font-black text-emerald-600">{language==='en'?'ABOVE':language==='es'?'POR ENCIMA':'ACIMA DE'}</div>
      <label className="mt-1 block text-[9px] muted">{language==='en'?'Number (0–8)':language==='es'?'Número (0–8)':'Número (0–8)'}
