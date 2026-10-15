@@ -36,12 +36,36 @@ export async function POST(request: NextRequest) {
   try {
     const existing = await getPaymentRequest(id);
     const isBinanceAi = existing?.purpose === 'ai_analyst' && existing?.payment_method === 'binance_usdt_trc20';
-    if (!isPaymentAgentCountryAllowed(session.country) && !isBinanceAi) return NextResponse.json({ error: 'Pedido não elegível para este fluxo.' }, { status: 403 });
+    const isBinanceSignalsFree = existing?.purpose === 'signals_free_unlimited' && existing?.payment_method === 'binance_usdt_trc20';
+    const isSignalsFreeLocal = existing?.purpose === 'signals_free_unlimited'
+      && (existing?.payment_method === 'mpesa' || existing?.payment_method === 'emola')
+      && String(session.country || '').trim().toUpperCase() === 'MZ';
+    if (!isPaymentAgentCountryAllowed(session.country) && !isBinanceAi && !isBinanceSignalsFree) {
+      return NextResponse.json({ error: 'Pedido não elegível para este fluxo.' }, { status: 403 });
+    }
+    if (existing?.purpose === 'signals_free_unlimited' && !isBinanceSignalsFree && !isSignalsFreeLocal) {
+      return NextResponse.json({ error: 'Método de pagamento não permitido para esta conta.' }, { status: 403 });
+    }
     const row = await markDepositPaid(session.id, id);
     try {
       const isAiAnalyst = row.purpose === 'ai_analyst';
       const isCourse = row.purpose === 'complete_course';
-      const alertText = isCourse
+      const isSignalsFree = row.purpose === 'signals_free_unlimited';
+      const alertText = isSignalsFree
+        ? [
+            '🔔 <b>SIGNALS FREE UNLIMITED — PAGAMENTO INFORMADO</b>',
+            '',
+            `Cliente: <b>${escapeHtml(row.client_name)}</b>`,
+            `Conta Deriv: <code>${escapeHtml(row.client_nickname)}</code>`,
+            `ID MT5: <code>${escapeHtml(String(row.client_mt5_id || '—'))}</code>`,
+            'Plano: <b>Signals Free — acesso ilimitado</b>',
+            `Valor: <b>${row.payment_method === 'binance_usdt_trc20' ? '3 USDT' : '250 MZN'}</b>`,
+            `Método: <b>${row.payment_method === 'binance_usdt_trc20' ? 'Binance — TRC20' : row.payment_method === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b>`,
+            ...(row.payer_name || row.payer_number ? [`Nome usado: <b>${escapeHtml(row.payer_name || '—')}</b>`,`Número usado: <b>${escapeHtml(row.payer_number || '—')}</b>`] : []),
+            '',
+            '⚠️ O cliente informou o pagamento. Confirme o recebimento antes de ativar o pacote ilimitado.',
+          ].join('\\n')
+        : isCourse
         ? [
             '🔔 <b>COMPLETE COURSE — PAGAMENTO INFORMADO</b>',
             '',
