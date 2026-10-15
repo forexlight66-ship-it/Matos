@@ -1308,21 +1308,21 @@ useEffect(()=>{
     <input type="number" min="0.35" max={Number.isFinite(Number(balance?.balance))?Number(balance?.balance):undefined} step="0.01" inputMode="decimal" value={manualStake} onChange={e=>setManualStake(e.target.value===''?0:Number(e.target.value))} disabled={running||smartAnalyzer||buying||activeContractId!==null} className="w-24 rounded-lg border border-slate-300/60 bg-transparent px-2 py-1.5 text-sm font-black"/>
    </label>
    <div className="grid grid-cols-2 gap-1.5">
-    <div className="min-w-0 rounded-lg border p-1.5" style={{borderColor:light?'#86efac':'#166534'}}>
+    <div className="min-w-0 flex flex-col rounded-lg border p-2" style={{borderColor:light?'#86efac':'#166534'}}>
      <div className="text-[10px] font-black text-emerald-600">{language==='en'?'ABOVE':language==='es'?'POR ENCIMA':'ACIMA DE'}</div>
      <label className="mt-1 block text-[9px] muted">{language==='en'?'Number (0–8)':language==='es'?'Número (0–8)':'Número (0–8)'}
       <input type="number" inputMode="numeric" min="0" max="8" step="1" value={manualAboveBarrier} onChange={e=>setManualAboveBarrier(e.target.value)} onBlur={()=>setManualAboveBarrier(String(Math.min(8,Math.max(0,Math.floor(Number(manualAboveBarrier)||0)))))} disabled={running||smartAnalyzer||buying||activeContractId!==null} className="mt-1 w-full rounded-lg border border-slate-300/60 bg-transparent px-2 py-1 text-base font-black"/>
      </label>
      <div className="mt-1 text-[9px] muted">{language==='en'?'Block frequency':language==='es'?'Frecuencia del bloque':'Frequência no bloco'}: <b>{tickDataReady?Math.round(selectedTickDigits.filter(d=>d>Number(manualAboveBarrier||0)).length/Math.max(1,selectedTickDigits.length)*100)+'%':'—'}</b></div>
-     <button type="button" className="mt-1.5 min-h-9 w-full rounded-lg bg-emerald-600 px-1 py-2 text-[10px] font-black text-white disabled:opacity-50" disabled={!isConnected||!isAuthorized||running||smartAnalyzer||buying||activeContractId!==null} onClick={()=>submitManualTrade('DIGITOVER',Math.min(8,Math.max(0,Math.floor(Number(manualAboveBarrier)||0))))}>{language==='en'?'BET ABOVE':language==='es'?'APOSTAR ARRIBA':'APOSTAR ACIMA'} {manualAboveBarrier}</button>
+     <button type="button" className="mt-auto min-h-10 w-full rounded-lg bg-emerald-600 px-1 py-2 text-[10px] font-black text-white disabled:opacity-50" disabled={!isConnected||!isAuthorized||running||smartAnalyzer||buying||activeContractId!==null} onClick={()=>submitManualTrade('DIGITOVER',Math.min(8,Math.max(0,Math.floor(Number(manualAboveBarrier)||0))))}>{language==='en'?'BET ABOVE':language==='es'?'APOSTAR ARRIBA':'APOSTAR ACIMA'} {manualAboveBarrier}</button>
     </div>
-    <div className="min-w-0 rounded-lg border p-2" style={{borderColor:light?'#fca5a5':'#991b1b'}}>
+    <div className="min-w-0 flex flex-col rounded-lg border p-2" style={{borderColor:light?'#fca5a5':'#991b1b'}}>
      <div className="text-[10px] font-black text-red-500">{language==='en'?'BELOW':language==='es'?'POR DEBAJO':'ABAIXO DE'}</div>
      <label className="mt-1 block text-[9px] muted">{language==='en'?'Number (1–9)':language==='es'?'Número (1–9)':'Número (1–9)'}
       <input type="number" inputMode="numeric" min="1" max="9" step="1" value={manualBelowBarrier} onChange={e=>setManualBelowBarrier(e.target.value)} onBlur={()=>setManualBelowBarrier(String(Math.min(9,Math.max(1,Math.floor(Number(manualBelowBarrier)||1)))))} disabled={running||smartAnalyzer||buying||activeContractId!==null} className="mt-1 w-full rounded-lg border border-slate-300/60 bg-transparent px-2 py-1.5 text-base font-black"/>
      </label>
      <div className="mt-1 text-[9px] muted">{language==='en'?'Block frequency':language==='es'?'Frecuencia del bloque':'Frequência no bloco'}: <b>{tickDataReady?Math.round(selectedTickDigits.filter(d=>d<Number(manualBelowBarrier||1)).length/Math.max(1,selectedTickDigits.length)*100)+'%':'—'}</b></div>
-     <button type="button" className="mt-2 min-h-10 w-full rounded-lg bg-red-600 px-1 py-2 text-[10px] font-black text-white disabled:opacity-50" disabled={!isConnected||!isAuthorized||running||smartAnalyzer||buying||activeContractId!==null} onClick={()=>submitManualTrade('DIGITUNDER',Math.min(9,Math.max(1,Math.floor(Number(manualBelowBarrier)||1))))}>{language==='en'?'BET BELOW':language==='es'?'APOSTAR ABAJO':'APOSTAR ABAIXO'} {manualBelowBarrier}</button>
+     <button type="button" className="mt-auto min-h-10 w-full rounded-lg bg-red-600 px-1 py-2 text-[10px] font-black text-white disabled:opacity-50" disabled={!isConnected||!isAuthorized||running||smartAnalyzer||buying||activeContractId!==null} onClick={()=>submitManualTrade('DIGITUNDER',Math.min(9,Math.max(1,Math.floor(Number(manualBelowBarrier)||1))))}>{language==='en'?'BET BELOW':language==='es'?'APOSTAR ABAJO':'APOSTAR ABAIXO'} {manualBelowBarrier}</button>
     </div>
    </div>
    {manualStatus&&<div aria-live="polite" className="mt-2 rounded-lg border border-blue-400/40 bg-blue-500/10 p-2 text-[10px] font-semibold break-words">{manualStatus}</div>}
