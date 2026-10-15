@@ -145,7 +145,7 @@ export async function handlePaymentAgentTelegramCallback(query: any) {
           '',
           'Acesso: <b>ILIMITADO</b>',
           `Grupo: ${SIGNALS_FREE_GROUP_URL}`,
-        ].join('\\n'));
+        ].join('\n'));
         return true;
       }
 
