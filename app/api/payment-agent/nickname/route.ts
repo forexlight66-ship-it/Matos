@@ -30,12 +30,11 @@ export async function GET(request: NextRequest) {
       result = await derivPaymentRequest(activeToken, '/account/v1/nickname', 'GET', undefined, false);
 
       const nickname = String(result?.data?.nickname || result?.nickname || '').trim();
-      const externalReferenceId = String(result?.data?.external_reference_id || result?.external_reference_id || '').trim();
-      if (!nickname || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(externalReferenceId)) {
-        return NextResponse.json({ error: 'A Deriv não devolveu um ID de identidade válido.', code: 'DERIV_EXTERNAL_REFERENCE_ID_MISSING' }, { status: 502 });
+      if (!nickname) {
+        return NextResponse.json({ error: 'A Deriv não devolveu um nickname para esta identidade.', code: 'NICKNAME_EMPTY' }, { status: 404 });
       }
 
-      const response = NextResponse.json({ nickname, externalReferenceId }, { headers: { 'Cache-Control': 'no-store' } });
+      const response = NextResponse.json({ nickname }, { headers: { 'Cache-Control': 'no-store' } });
       response.cookies.set('deriv_access_token', activeToken, {
         httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600,
       });
@@ -48,11 +47,8 @@ export async function GET(request: NextRequest) {
     }
 
     const nickname = String(result?.data?.nickname || result?.nickname || '').trim();
-    const externalReferenceId = String(result?.data?.external_reference_id || result?.external_reference_id || '').trim();
-    if (!nickname || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(externalReferenceId)) {
-      return NextResponse.json({ error: 'A Deriv não devolveu um ID de identidade válido.', code: 'DERIV_EXTERNAL_REFERENCE_ID_MISSING' }, { status: 502 });
-    }
-    return NextResponse.json({ nickname, externalReferenceId }, { headers: { 'Cache-Control': 'no-store' } });
+    if (!nickname) return NextResponse.json({ error: 'A Deriv não devolveu um nickname para esta identidade.', code: 'NICKNAME_EMPTY' }, { status: 404 });
+    return NextResponse.json({ nickname }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const e = error as { status?: number; code?: string; message?: string };
     return NextResponse.json({ error: e.message || 'Não foi possível obter o nickname Deriv', code: e.code || 'NICKNAME_LOOKUP_FAILED' }, { status: e.status || 502 });
