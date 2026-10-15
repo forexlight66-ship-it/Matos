@@ -19,7 +19,21 @@ export async function ensureSignalsFreeSchema() {
       reviewed_by TEXT
     );
     ALTER TABLE signals_free_requests ADD COLUMN IF NOT EXISTS deriv_client_id VARCHAR(64);
-    ALTER TABLE signals_free_requests ALTER COLUMN deriv_client_id TYPE VARCHAR(64);
+    DO $
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'signals_free_requests'
+          AND column_name = 'deriv_client_id'
+          AND character_maximum_length IS NOT NULL
+          AND character_maximum_length < 64
+      ) THEN
+        ALTER TABLE signals_free_requests ALTER COLUMN deriv_client_id TYPE VARCHAR(64);
+      END IF;
+    END
+    $;
     CREATE INDEX IF NOT EXISTS signals_free_user_created_idx ON signals_free_requests(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS signals_free_status_idx ON signals_free_requests(status);
   `);
