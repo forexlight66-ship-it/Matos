@@ -12,13 +12,14 @@ export async function ensureSignalsFreeSchema() {
       id BIGSERIAL PRIMARY KEY,
       user_id BIGINT NOT NULL REFERENCES platform_users(id) ON DELETE CASCADE,
       mt5_id VARCHAR(32) NOT NULL,
-      deriv_client_id VARCHAR(32),
+      deriv_client_id VARCHAR(64),
       status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       reviewed_at TIMESTAMPTZ,
       reviewed_by TEXT
     );
-    ALTER TABLE signals_free_requests ADD COLUMN IF NOT EXISTS deriv_client_id VARCHAR(32);
+    ALTER TABLE signals_free_requests ADD COLUMN IF NOT EXISTS deriv_client_id VARCHAR(64);
+    ALTER TABLE signals_free_requests ALTER COLUMN deriv_client_id TYPE VARCHAR(64);
     CREATE INDEX IF NOT EXISTS signals_free_user_created_idx ON signals_free_requests(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS signals_free_status_idx ON signals_free_requests(status);
   `);
