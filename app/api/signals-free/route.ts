@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { createSignalsFreeRequest, getSignalsFreeRequest } from '@/lib/signalsFree';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
+    if (!user) return NextResponse.json({ error: 'Inicie sessão para consultar o pedido.' }, { status: 401 });
+    return NextResponse.json({ request: await getSignalsFreeRequest(user.id) });
+  } catch (error) {
+    console.error('[Signals Free] status failed', error);
+    return NextResponse.json({ error: 'Não foi possível consultar o pedido.' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
+    if (!user) return NextResponse.json({ error: 'Inicie sessão para pedir acesso ao Signals Free.' }, { status: 401 });
+
+    const body = await request.json().catch(() => ({}));
+    const mt5Id = String(body?.mt5Id ?? '').trim();
+    if (!/^\d{5,15}$/.test(mt5Id)) {
+      return NextResponse.json({ error: 'Introduza um ID MT5 válido, apenas com 5 a 15 dígitos.' }, { status: 400 });
+    }
+
+    const created = await createSignalsFreeRequest(
+      { id: user.id, name: String(user.name || 'Utilizador'), email: String(user.email || '') },
+      mt5Id,
+    );
+    return NextResponse.json({ request: created }, { status: 201 });
+  } catch (error) {
+    console.error('[Signals Free] request failed', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível enviar o pedido.' }, { status: 500 });
+  }
+}
