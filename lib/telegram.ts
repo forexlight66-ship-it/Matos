@@ -146,7 +146,7 @@ export async function sendAgentPhotoAlert(
     }
 
     try {
-      const message = caption.replaceAll('\\\\n', '\\n').replace('📎 <b>COMPROVATIVO DE PAGAMENTO ANEXADO</b>', '⚠️ O comprovativo não pôde ser anexado automaticamente. Verifique o pedido na plataforma.');
+      const message = caption.replaceAll('\\n', '\n').replace('📎 <b>COMPROVATIVO DE PAGAMENTO ANEXADO</b>', '⚠️ O comprovativo não pôde ser anexado automaticamente. Verifique o pedido na plataforma.');
       return await telegramRequest('sendMessage', {
         chat_id: id,
         text: message,
