@@ -9,7 +9,6 @@ const AMY_MESSAGE = 'Hello, I already have a Deriv account and would like to cha
 type Step = 'start' | 'amy' | 'payment' | 'payment_instructions' | 'waiting' | 'active' | 'legacy';
 type LegacyRequest = { id: number | string; mt5_id: string; deriv_client_id?: string | null; status: 'pending' | 'approved' | 'rejected'; created_at?: string } | null;
 type Onboarding = {
-  mt5_id: string;
   deriv_nickname: string;
   status: string;
   amyProofUploaded: boolean;
@@ -43,7 +42,6 @@ export default function SignalsFree({ light }: { light: boolean }) {
   const en = language === 'en';
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>('start');
-  const [mt5Id, setMt5Id] = useState('');
   const [onboarding, setOnboarding] = useState<Onboarding>(null);
   const [legacyRequest, setLegacyRequest] = useState<LegacyRequest>(null);
   const [eligibleForLocalPayment, setEligibleForLocalPayment] = useState(false);
@@ -67,7 +65,6 @@ export default function SignalsFree({ light }: { light: boolean }) {
     setLegacyRequest(legacy);
     setEligibleForLocalPayment(Boolean(data?.eligibleForLocalPayment));
     setPayment(currentPayment);
-    if (currentOnboarding?.mt5_id) setMt5Id(String(currentOnboarding.mt5_id));
 
     if (currentOnboarding?.status === 'active') {
       setStep('active');
@@ -167,21 +164,15 @@ export default function SignalsFree({ light }: { light: boolean }) {
     };
   }, [open, payment?.requestId, payment?.status, step, loadStatus, en]);
 
-  const submitMT5 = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const submitVerification = async () => {
     setError('');
     setNotice('');
-    const normalized = mt5Id.trim();
-    if (!/^\d{5,15}$/.test(normalized)) {
-      setError(en ? 'Enter a valid MT5 ID (5–15 digits).' : 'Introduza um ID MT5 válido (5–15 dígitos).');
-      return;
-    }
     setBusy(true);
     try {
       const response = await fetch('/api/signals-free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mt5Id: normalized }),
+        body: JSON.stringify({}),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(data?.error || (en ? 'Verification failed.' : 'A verificação falhou.')));
@@ -373,14 +364,12 @@ export default function SignalsFree({ light }: { light: boolean }) {
         </div>
 
         {step === 'start' && <>
-          <p className="mt-3 text-xs muted">{en ? 'Enter your MT5 account ID. Matos will check your authenticated Deriv identity before showing the unlimited package checkout.' : 'Introduza o ID da sua conta MT5. O Matos verificará a identidade Deriv autenticada antes de mostrar o pagamento do pacote ilimitado.'}</p>
-          <form onSubmit={submitMT5} className="mt-4">
-            <label className="block text-xs font-bold">{en ? 'MT5 account ID' : 'ID da conta MT5'}
-              <input value={mt5Id} onChange={e => setMt5Id(e.target.value.replace(/\D/g, '').slice(0, 15))} inputMode="numeric" pattern="[0-9]{5,15}" minLength={5} maxLength={15} required placeholder={en ? 'Enter your MT5 ID' : 'Introduza o seu ID MT5'} className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm font-bold" />
-            </label>
-            {errorBox}
-            <button type="submit" disabled={busy} style={actionButtonStyle(busy)}>{busy ? (en ? 'Verifying…' : 'A verificar…') : (en ? 'Submit and verify' : 'Submeter e verificar')}</button>
-          </form>
+          <div className="mt-4 rounded-xl border border-blue-400/40 bg-blue-500/10 p-4">
+            <b className="text-sm">{en ? 'Automatic Deriv verification' : 'Verificação automática pela Deriv'}</b>
+            <p className="mt-2 text-xs leading-5">{en ? 'Matos will use your connected Deriv account to check automatically whether you are tagged to our partner. No MT5 ID or email is required.' : 'O Matos utilizará a sua conta Deriv ligada para verificar automaticamente se está associado ao nosso parceiro. Não precisa de ID MT5 nem de email.'}</p>
+          </div>
+          {errorBox}
+          <button type="button" disabled={busy} onClick={() => void submitVerification()} style={actionButtonStyle(busy)}>{busy ? (en ? 'Checking Deriv account…' : 'A verificar a conta Deriv…') : (en ? 'Verify Deriv account' : 'Verificar conta Deriv')}</button>
         </>}
 
         {step === 'amy' && <>
