@@ -293,7 +293,7 @@ export async function createSignalsFreeUnlimitedRequest(input: {
     : input.paymentMethod === 'mpesa' ? MPESA_NUMBER : EMOLA_NUMBER;
   const paymentName = isCrypto ? 'Binance USDT TRC20' : PAYMENT_RECIPIENT_NAME;
   const payerName = isCrypto ? null : (input.payerName?.trim() || null);
-  const payerNumber = isCrypto ? null : (input.payerNumber?.replace(/\\D/g, '') || null);
+  const payerNumber = isCrypto ? null : (input.payerNumber?.replace(/\D/g, '') || null);
 
   const result = await pool.query(
     `INSERT INTO payment_agent_requests
