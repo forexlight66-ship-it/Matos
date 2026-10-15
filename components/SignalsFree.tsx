@@ -73,12 +73,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
       title="Signals Free"
       style={{ width: 38, height: 38, padding: 0, borderRadius: 12, overflow: 'hidden', border: '1px solid #3f8c43', background: 'linear-gradient(145deg,#087ec2,#07519b)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
     >
-      <span aria-hidden="true" style={{ position: 'relative', width: 31, height: 29, display: 'block' }}>
-        <span style={{ position: 'absolute', left: 2, top: 5, width: 21, height: 21, borderRadius: '50%', background: 'linear-gradient(145deg,#f6e94d,#9eaa00)', border: '2px solid #6b7b12' }} />
-        <span style={{ position: 'absolute', right: 0, top: 1, width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(145deg,#9de36c,#168c2c)', border: '2px solid #267c27' }} />
-        <span style={{ position: 'absolute', right: 0, bottom: 0, width: 19, height: 19, borderRadius: '50%', background: 'linear-gradient(145deg,#8fe3ff,#087fc5)', border: '2px solid #075a9d' }} />
-        <span style={{ position: 'absolute', left: 8, top: 6, width: 16, height: 16, borderRadius: '50%', background: '#fff', color: '#f08c32', fontSize: 12, lineHeight: '16px', fontWeight: 900, boxShadow: '0 1px 2px #17415b' }}>5</span>
-      </span>
+      <img src="/signals-free.svg" alt="" width="38" height="38" style={{ display: 'block', width: '38px', height: '38px', objectFit: 'cover' }} />
     </button>
     {open && <div className="modal-backdrop" onClick={() => setOpen(false)}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="signals-free-title" onClick={e => e.stopPropagation()} style={{ width: 'min(94vw,420px)', maxHeight: '88vh', overflowY: 'auto', borderColor: '#2c9c55' }}>
