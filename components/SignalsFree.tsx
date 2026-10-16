@@ -438,6 +438,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
 
           {notice && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs">{notice}</div>}
           {errorBox}
+          <button type="button" disabled={busy} onClick={() => void submitVerification()} style={actionButtonStyle(busy)}>{busy ? (en ? 'Rechecking Deriv partner status…' : 'A reverificar a associação Deriv…') : (en ? 'Verify again' : 'Verificar novamente')}</button>
           <button type="button" disabled={busy || !onboarding?.amyProofUploaded} onClick={() => { setError(''); setStep('payment'); }} style={actionButtonStyle(busy || !onboarding?.amyProofUploaded)}>{en ? 'Continue to payment' : 'Continuar para pagamento'}</button>
         </>}
 
