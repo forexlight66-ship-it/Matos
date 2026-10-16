@@ -361,7 +361,15 @@ export default function SignalsFree({ light }: { light: boolean }) {
             <p className="mt-2 text-xs leading-5">{en ? 'MozHyper will use your connected Deriv account to check automatically whether you are tagged to our partner. No MT5 ID or email is required.' : 'O MozHyper utilizará a sua conta Deriv ligada para verificar automaticamente se está associado ao nosso parceiro. Não precisa de ID MT5 nem de email.'}</p>
           </div>
           {errorBox}
-          <button type="button" disabled={busy} onClick={() => void submitVerification()} style={actionButtonStyle(busy)}>{busy ? (en ? 'Checking Deriv account…' : 'A verificar a conta Deriv…') : (en ? 'Verify Deriv account' : 'Verificar conta Deriv')}</button>
+          {(/ligação Deriv expirou|ligação Deriv expirou ou foi revogada|deriv connection expired|reconnect required/i.test(error)) ? (
+            <button type="button" disabled={busy} onClick={() => { window.location.href = '/api/auth/login?return_to=%2F'; }} style={actionButtonStyle(busy)}>
+              {en ? 'Reconnect Deriv account' : 'Ligar conta Deriv novamente'}
+            </button>
+          ) : (
+            <button type="button" disabled={busy} onClick={() => void submitVerification()} style={actionButtonStyle(busy)}>
+              {busy ? (en ? 'Checking Deriv account…' : 'A verificar a conta Deriv…') : (en ? 'Verify Deriv account' : 'Verificar conta Deriv')}
+            </button>
+          )}
         </>}
 
         {step === 'amy' && <>
