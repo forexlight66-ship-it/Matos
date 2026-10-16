@@ -428,15 +428,12 @@ export default function SignalsFree({ light }: { light: boolean }) {
             </div>
             <textarea readOnly value={AMY_MESSAGE} className="mt-3 w-full resize-none rounded-lg border border-slate-300/40 bg-transparent p-3 text-xs leading-5" rows={5} onFocus={e => e.currentTarget.select()} />
             <a href="https://deriv.com/" target="_blank" rel="noopener noreferrer" className="mt-3 block rounded-lg border border-blue-400/50 p-3 text-center text-xs font-bold text-blue-500">{en ? 'Open Deriv and contact Ask Amy ↗' : 'Abrir a Deriv e contactar Ask Amy ↗'}</a>
-            {onboarding?.amyProofUploaded ? (
-              <div className="mt-3 rounded-lg border border-slate-300/40 p-2 text-xs">{en ? 'Proof status: saved.' : 'Estado do comprovativo: guardado.'}</div>
-            ) : <>
-              <label className="mt-4 block text-xs font-bold">{en ? 'Screenshot of the message sent to Ask Amy' : 'Screenshot da mensagem enviada ao Ask Amy'}
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setAmyFile(e.target.files?.[0] || null)} disabled={busy} className="mt-2 block w-full text-xs" />
-              </label>
-              {amyFile && <div className="mt-2 break-all text-[10px] muted">✓ {amyFile.name} · {(amyFile.size / 1024).toFixed(0)} KB</div>}
-              <button type="button" disabled={busy || !amyFile} onClick={() => void uploadAmyProof()} style={actionButtonStyle(busy || !amyFile)}>{busy ? (en ? 'Saving screenshot…' : 'A guardar screenshot…') : (en ? 'Save screenshot' : 'Guardar screenshot')}</button>
-            </>}
+            {onboarding?.amyProofUploaded && <div className="mt-3 rounded-lg border border-slate-300/40 p-2 text-xs">{en ? 'A screenshot is already saved. You can replace it below if needed.' : 'Já existe um screenshot guardado. Pode substituí-lo abaixo, se necessário.'}</div>}
+            <label className="mt-4 block text-xs font-bold">{onboarding?.amyProofUploaded ? (en ? 'Replace saved screenshot (optional)' : 'Substituir screenshot guardado (opcional)') : (en ? 'Screenshot of the message sent to Ask Amy' : 'Screenshot da mensagem enviada ao Ask Amy')}
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setAmyFile(e.target.files?.[0] || null)} disabled={busy} className="mt-2 block w-full text-xs" />
+            </label>
+            {amyFile && <div className="mt-2 break-all text-[10px] muted">✓ {amyFile.name} · {(amyFile.size / 1024).toFixed(0)} KB</div>}
+            <button type="button" disabled={busy || !amyFile} onClick={() => void uploadAmyProof()} style={actionButtonStyle(busy || !amyFile)}>{busy ? (en ? 'Saving screenshot…' : 'A guardar screenshot…') : onboarding?.amyProofUploaded ? (en ? 'Replace screenshot' : 'Substituir screenshot') : (en ? 'Save screenshot' : 'Guardar screenshot')}</button>
           </div>
 
           {notice && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs">{notice}</div>}
