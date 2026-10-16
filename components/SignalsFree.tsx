@@ -266,6 +266,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
     try {
       const form = new FormData();
       form.append('screenshot', amyFile);
+      form.append('replace_existing', onboarding?.amyProofUploaded ? '1' : '0');
       const response = await fetch('/api/signals-free/amy-proof', { method: 'POST', body: form });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(data?.error || (en ? 'Could not save the screenshot.' : 'Não foi possível guardar o screenshot.')));
