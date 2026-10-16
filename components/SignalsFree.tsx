@@ -414,12 +414,26 @@ export default function SignalsFree({ light }: { light: boolean }) {
           {notice && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs">{notice}</div>}
           {eligibleForLocalPayment ? <>
             <div className="mt-4 text-xs font-black">{en ? 'Choose payment method' : 'Escolha o método de pagamento'}</div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setPaymentMethod('mpesa')} aria-pressed={paymentMethod === 'mpesa'} style={{ ...buttonStyle, borderColor: paymentMethod === 'mpesa' ? '#ef233c' : '#94a3b8', background: paymentMethod === 'mpesa' ? (light ? '#ffe4e6' : '#7f1d1d') : 'transparent', borderWidth: 2 }}>
-                <span className="flex flex-col items-center gap-2"><span aria-hidden="true" style={{ width: 54, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#d71920', color: '#fff', fontWeight: 900, fontSize: 15, letterSpacing: -1 }}>M-PESA</span><span>M-Pesa</span></span>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('mpesa')}
+                aria-label="M-Pesa"
+                aria-pressed={paymentMethod === 'mpesa'}
+                style={{ position: 'relative', minWidth: 0, height: 112, padding: 0, borderRadius: 14, border: paymentMethod === 'mpesa' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background: '#ed1b24', boxShadow: paymentMethod === 'mpesa' ? '0 0 0 3px #ff4654, 0 10px 25px rgba(237,27,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <img src="/payment-agent/mpesa.svg?v=2" alt="M-Pesa" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                {paymentMethod === 'mpesa' && <span aria-hidden="true" style={{ position: 'absolute', top: 7, right: 7, width: 26, height: 26, borderRadius: '50%', background: '#fff', color: '#ed1b24', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 900 }}>✓</span>}
               </button>
-              <button type="button" onClick={() => setPaymentMethod('emola')} aria-pressed={paymentMethod === 'emola'} style={{ ...buttonStyle, borderColor: paymentMethod === 'emola' ? '#ef233c' : '#94a3b8', background: paymentMethod === 'emola' ? (light ? '#ffe4e6' : '#7f1d1d') : 'transparent', borderWidth: 2 }}>
-                <span className="flex flex-col items-center gap-2"><span aria-hidden="true" style={{ width: 54, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f58220', color: '#fff', fontWeight: 900, fontSize: 14 }}>e-Mola</span><span>e-Mola</span></span>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('emola')}
+                aria-label="e-Mola"
+                aria-pressed={paymentMethod === 'emola'}
+                style={{ position: 'relative', minWidth: 0, height: 112, padding: 0, borderRadius: 14, border: paymentMethod === 'emola' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background: '#f97824', boxShadow: paymentMethod === 'emola' ? '0 0 0 3px #ff7a24, 0 10px 25px rgba(249,120,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <img src="/payment-agent/emola.svg?v=2" alt="e-Mola" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                {paymentMethod === 'emola' && <span aria-hidden="true" style={{ position: 'absolute', top: 7, right: 7, width: 26, height: 26, borderRadius: '50%', background: '#fff', color: '#f97824', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 900 }}>✓</span>}
               </button>
             </div>
             <label className="mt-3 block text-xs font-bold">{en ? 'Payer name' : 'Nome usado no pagamento'}
