@@ -83,17 +83,13 @@ export default function SignalsFree({ light }: { light: boolean }) {
     }
     if (currentOnboarding?.status === 'verification_required') {
       setStep('amy');
-      setNotice(currentOnboarding.amyProofUploaded
-        ? (en ? 'You already sent the Ask Amy message. No need to send it again; your saved screenshot will be reused.' : 'Já enviou a mensagem para Ask Amy. Não precisa de a enviar novamente; vamos reutilizar o screenshot guardado.')
-        : '');
+      setNotice('');
       return;
     }
     if (currentOnboarding?.status === 'ready_for_payment') {
       if (currentOnboarding.amyProofUploaded) {
         setStep('amy');
-        setNotice(en
-          ? 'You already sent the message to Ask Amy. You do not need to send it again or upload another screenshot; MozHyper will reuse the saved proof.'
-          : 'Já enviou a mensagem para Ask Amy. Não precisa de a enviar novamente nem de carregar outro screenshot; o MozHyper reutilizará o comprovativo guardado.');
+        setNotice('');
       } else {
         setStep('payment');
         setNotice('');
