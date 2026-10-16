@@ -206,6 +206,14 @@ export async function verifyDerivPartnerClient(externalReferenceId: string): Pro
   }
 
   const checked = await readPartnerCheck(response, externalReferenceId);
+  // Log only the API result metadata needed to diagnose false negatives. Never log
+  // the access/refresh token or the full client identity UUID.
+  console.info('[Signals Free] Partner tag check result', {
+    storedPartnerId: partner.partnerId,
+    responsePartnerId: checked.partnerId,
+    clientIdentityFormat: /^[0-9a-f-]{36}$/i.test(externalReferenceId) ? 'uuid' : 'other',
+    isTagged: checked.isTagged,
+  });
   if (checked.partnerId !== partner.partnerId) {
     console.error('[Signals Free] Partner ID mismatch; refusing to trust the tag response.');
     throw apiError('A identidade do parceiro não corresponde à credencial guardada. A verificação foi interrompida por segurança.', 503, 'PARTNER_ID_MISMATCH');
