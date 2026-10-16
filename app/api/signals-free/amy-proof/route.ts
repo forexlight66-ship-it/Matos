@@ -90,18 +90,20 @@ export async function POST(request: NextRequest) {
       return response({ error: 'Inicie primeiro a verificação automática da conta Deriv.', code: 'SIGNALS_FREE_ONBOARDING_NOT_FOUND' }, identity, 409);
     }
 
-    // Keep the first valid proof permanently: clients do not have to send the
-    // Ask Amy message or upload the same screenshot again on future attempts.
-    if (onboarding.amy_screenshot) {
+    const form = await request.formData();
+    const replaceExisting = String(form.get('replace_existing') || '') === '1';
+
+    // Do not require another upload on normal visits. If the user explicitly
+    // chooses to replace the saved proof, validate and save the new image below.
+    if (onboarding.amy_screenshot && !replaceExisting) {
       return response({
         ok: true,
         alreadyUploaded: true,
-        message: 'A mensagem para Ask Amy já foi comprovada. Não precisa de a enviar novamente.',
+        message: 'O comprovativo de Ask Amy já está guardado.',
         status: onboarding.status,
       }, identity);
     }
 
-    const form = await request.formData();
     const uploaded = form.get('screenshot');
     if (!(uploaded instanceof File) || uploaded.size <= 0) {
       return response({ error: 'Envie o screenshot da mensagem enviada ao Ask Amy.', code: 'AMY_SCREENSHOT_REQUIRED' }, identity, 400);
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
       mimeType: detectedMime,
       filename: uploaded.name || 'ask-amy-proof',
       bytes,
+      replaceExisting,
     });
     return response({
       ok: true,
