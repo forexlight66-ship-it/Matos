@@ -190,6 +190,20 @@ export async function verifyDerivPartnerClient(externalReferenceId: string): Pro
 
   if (!response.ok) {
     const status = response.status;
+    // Record status and a short, sanitized API error for diagnosis. Never log tokens
+    // or the full client identity. This distinguishes bad scope/partner credentials
+    // from an actual untagged client.
+    const apiPayload: any = await response.clone().json().catch(() => null);
+    const apiMessage = String(
+      apiPayload?.errors?.[0]?.message ??
+      apiPayload?.error?.message ??
+      apiPayload?.message ??
+      ''
+    ).replace(/[\\r\\n\\t]+/g, ' ').slice(0, 180);
+    console.error('[Signals Free] Partner tag API rejected request', {
+      status,
+      apiMessage: apiMessage || 'no message',
+    });
     if (status === 400 || status === 422) {
       throw apiError('O ID de identidade Deriv não foi aceite pela API de parceiros.', 400, 'CLIENT_ID_REJECTED');
     }
@@ -215,8 +229,11 @@ export async function verifyDerivPartnerClient(externalReferenceId: string): Pro
     isTagged: checked.isTagged,
   });
   if (checked.partnerId !== partner.partnerId) {
-    console.error('[Signals Free] Partner ID mismatch; refusing to trust the tag response.');
-    throw apiError('A identidade do parceiro não corresponde à credencial guardada. A verificação foi interrompida por segurança.', 503, 'PARTNER_ID_MISMATCH');
+    console.error('[Signals Free] Partner ID mismatch; refusing to trust the tag response.', {
+      storedPartnerId: partner.partnerId,
+      responsePartnerId: checked.partnerId,
+    });
+    throw apiError('A conta de parceiro guardada não corresponde ao parceiro que respondeu à Deriv. É necessária uma revisão da ligação de parceiro.', 503, 'PARTNER_ID_MISMATCH');
   }
 
   return checked.isTagged;
