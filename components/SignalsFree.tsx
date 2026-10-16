@@ -113,6 +113,48 @@ export default function SignalsFree({ light }: { light: boolean }) {
         return;
       }
       applyServerState(data);
+
+      // A saved "verification_required" state is only a previous result. Re-run
+      // the live partner check whenever the panel is opened so a newly tagged
+      // IB client is not trapped on a stale Ask Amy screen.
+      const savedStatus = String(data?.onboarding?.status || '');
+      if (!data?.payment && ['verification_required', 'ready_for_payment'].includes(savedStatus)) {
+        setBusy(true);
+        try {
+          const verifyResponse = await fetch('/api/signals-free', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+            cache: 'no-store',
+          });
+          const verifyData = await verifyResponse.json().catch(() => ({}));
+          if (!verifyResponse.ok) {
+            setError(String(verifyData?.error || (en ? 'Could not recheck the Deriv partner tag.' : 'Não foi possível voltar a verificar a associação Deriv.')));
+          } else {
+            const proofSaved = Boolean(verifyData?.amyProofUploaded ?? data?.onboarding?.amyProofUploaded);
+            if (verifyData?.onboarding) {
+              setOnboarding({ ...verifyData.onboarding, amyProofUploaded: proofSaved });
+            }
+            if (verifyData?.eligibleForLocalPayment !== undefined) setEligibleForLocalPayment(Boolean(verifyData.eligibleForLocalPayment));
+            if (verifyData?.nextStep === 'payment') {
+              setStep('payment');
+              setNotice('');
+            } else if (verifyData?.nextStep === 'amy_verification') {
+              setStep('amy');
+              setNotice('');
+            } else if (verifyData?.nextStep === 'payment_instructions' && verifyData?.payment) {
+              setPayment(verifyData.payment);
+              setStep(verifyData.payment.status === 'client_marked_paid' ? 'waiting' : 'payment_instructions');
+            } else if (verifyData?.nextStep === 'active') {
+              setStep('active');
+            }
+          }
+        } catch {
+          setError(en ? 'Could not recheck the Deriv partner tag. Try again.' : 'Não foi possível voltar a verificar a associação Deriv. Tente novamente.');
+        } finally {
+          setBusy(false);
+        }
+      }
     } catch {
       setError(en ? 'Connection error. Try again.' : 'Erro de ligação. Tente novamente.');
     }
