@@ -212,15 +212,16 @@ export async function saveSignalsFreeAmyProof(input: {
   mimeType: 'image/png' | 'image/jpeg' | 'image/webp';
   filename: string;
   bytes: Buffer;
+  replaceExisting?: boolean;
 }) {
   await ensureSignalsFreeOnboardingSchema();
   const sha256 = createHash('sha256').update(input.bytes).digest('hex');
   const result = await pool.query(
     `UPDATE signals_free_onboarding
-     SET amy_screenshot = COALESCE(amy_screenshot, $2::bytea),
-         amy_screenshot_mime = COALESCE(amy_screenshot_mime, $3),
-         amy_screenshot_filename = COALESCE(amy_screenshot_filename, $4),
-         amy_screenshot_sha256 = COALESCE(amy_screenshot_sha256, $5),
+     SET amy_screenshot = CASE WHEN $6::boolean THEN $2::bytea ELSE COALESCE(amy_screenshot, $2::bytea) END,
+         amy_screenshot_mime = CASE WHEN $6::boolean THEN $3 ELSE COALESCE(amy_screenshot_mime, $3) END,
+         amy_screenshot_filename = CASE WHEN $6::boolean THEN $4 ELSE COALESCE(amy_screenshot_filename, $4) END,
+         amy_screenshot_sha256 = CASE WHEN $6::boolean THEN $5 ELSE COALESCE(amy_screenshot_sha256, $5) END,
          amy_message_sent_at = COALESCE(amy_message_sent_at, NOW()),
          status = CASE WHEN status = 'verification_required'
                        THEN 'ready_for_payment' ELSE status END,
@@ -228,7 +229,7 @@ export async function saveSignalsFreeAmyProof(input: {
      WHERE deriv_external_reference_id = $1::uuid
      RETURNING status, mt5_id, (amy_screenshot IS NOT NULL) AS amy_proof_uploaded,
                amy_message_sent_at, amy_screenshot_mime`,
-    [input.externalReferenceId, input.bytes, input.mimeType, input.filename.slice(0, 180), sha256],
+    [input.externalReferenceId, input.bytes, input.mimeType, input.filename.slice(0, 180), sha256, Boolean(input.replaceExisting)],
   );
   if (!result.rows[0]) {
     throw Object.assign(new Error('Submeta primeiro o seu ID MT5 para iniciar a verificação.'), { status: 409, code: 'SIGNALS_FREE_ONBOARDING_NOT_FOUND' });
