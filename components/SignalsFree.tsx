@@ -32,7 +32,7 @@ type PaymentInfo = {
 
 function formatPaymentStatus(status: string, en: boolean) {
   if (status === 'payment_confirmed' || status === 'completed') return en ? 'Payment confirmed' : 'Pagamento confirmado';
-  if (status === 'client_marked_paid') return en ? 'Waiting for Payment Agent confirmation' : 'A aguardar confirmação do Payment Agent';
+  if (status === 'client_marked_paid') return en ? 'Waiting for MozHyper confirmation' : 'A aguardar confirmação do MozHyper';
   if (status === 'rejected') return en ? 'Payment rejected' : 'Pagamento rejeitado';
   return en ? 'Awaiting payment' : 'A aguardar pagamento';
 }
@@ -73,7 +73,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
     }
     if (legacy?.status === 'approved') {
       setStep('active');
-      setNotice(en ? 'Your previous Signal Unlimited request is approved.' : 'O seu pedido anterior do Signals Free foi aprovado.');
+      setNotice(en ? 'Your previous Signal Unlimited request is approved.' : 'O seu pedido anterior do Signal Unlimited foi aprovado.');
       return;
     }
     if (currentPayment) {
@@ -92,8 +92,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
       if (currentOnboarding.amyProofUploaded) {
         setStep('amy');
         setNotice(en
-          ? 'You already sent the message to Ask Amy. You do not need to send it again or upload another screenshot; Matos will reuse the saved proof.'
-          : 'Já enviou a mensagem para Ask Amy. Não precisa de a enviar novamente nem de carregar outro screenshot; o Matos reutilizará o comprovativo guardado.');
+          ? 'You already sent the message to Ask Amy. You do not need to send it again or upload another screenshot; MozHyper will reuse the saved proof.'
+          : 'Já enviou a mensagem para Ask Amy. Não precisa de a enviar novamente nem de carregar outro screenshot; o MozHyper reutilizará o comprovativo guardado.');
       } else {
         setStep('payment');
         setNotice('');
@@ -112,7 +112,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
       const response = await fetch('/api/signals-free', { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(String(data?.error || (en ? 'Could not load Signal Unlimited status.' : 'Não foi possível consultar o estado do Signals Free.')));
+        setError(String(data?.error || (en ? 'Could not load Signal Unlimited status.' : 'Não foi possível consultar o estado do Signal Unlimited.')));
         if (response.status === 401) setStep('start');
         return;
       }
@@ -308,7 +308,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
       setPayment(current => current ? { ...current, status: String(data.status || 'client_marked_paid') } : current);
       setPaymentProof(null);
       setStep('waiting');
-      setNotice(en ? 'Payment proof sent. Wait for Payment Agent 503 to confirm.' : 'Comprovativo enviado. Aguarde a confirmação do Payment Agent 503.');
+      setNotice(en ? 'Payment proof sent. Wait for MozHyper 503 to confirm.' : 'Comprovativo enviado. Aguarde a confirmação do MozHyper 503.');
     } catch (e) {
       setError(e instanceof Error ? e.message : (en ? 'Could not submit payment proof.' : 'Não foi possível enviar o comprovativo do pagamento.'));
     } finally {
@@ -322,7 +322,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
     padding: '12px 14px',
     border: 0,
     borderRadius: 11,
-    background: disabled ? '#94a3b8' : '#16a34a',
+    background: disabled ? '#94a3b8' : '#ef233c',
     color: '#fff',
     fontWeight: 900,
     fontSize: 12,
@@ -359,14 +359,14 @@ export default function SignalsFree({ light }: { light: boolean }) {
     {open && <div className="modal-backdrop" onClick={() => setOpen(false)}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="signals-free-title" onClick={e => e.stopPropagation()} style={{ width: 'min(94vw,460px)', maxHeight: '90vh', overflowY: 'auto', borderColor: '#2c9c55', background: light ? '#fff' : '#0d2347', color: light ? '#0f172a' : '#f8fafc' }}>
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2"><span style={{ fontSize: 24 }}>🟢</span><b id="signals-free-title">Signal Unlimited</b></div>
+          <div className="flex items-center gap-2"><span style={{ fontSize: 24 }}>🔴</span><b id="signals-free-title">Signal Unlimited</b></div>
           <button type="button" onClick={() => setOpen(false)} aria-label={en ? 'Close' : 'Fechar'}>✕</button>
         </div>
 
         {step === 'start' && <>
           <div className="mt-4 rounded-xl border border-blue-400/40 bg-blue-500/10 p-4">
             <b className="text-sm">{en ? 'Automatic Deriv verification' : 'Verificação automática pela Deriv'}</b>
-            <p className="mt-2 text-xs leading-5">{en ? 'Matos will use your connected Deriv account to check automatically whether you are tagged to our partner. No MT5 ID or email is required.' : 'O Matos utilizará a sua conta Deriv ligada para verificar automaticamente se está associado ao nosso parceiro. Não precisa de ID MT5 nem de email.'}</p>
+            <p className="mt-2 text-xs leading-5">{en ? 'MozHyper will use your connected Deriv account to check automatically whether you are tagged to our partner. No MT5 ID or email is required.' : 'O MozHyper utilizará a sua conta Deriv ligada para verificar automaticamente se está associado ao nosso parceiro. Não precisa de ID MT5 nem de email.'}</p>
           </div>
           {errorBox}
           <button type="button" disabled={busy} onClick={() => void submitVerification()} style={actionButtonStyle(busy)}>{busy ? (en ? 'Checking Deriv account…' : 'A verificar a conta Deriv…') : (en ? 'Verify Deriv account' : 'Verificar conta Deriv')}</button>
@@ -379,9 +379,9 @@ export default function SignalsFree({ light }: { light: boolean }) {
           </div>
 
           {onboarding?.amyProofUploaded
-            ? <div className="mt-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
-                <b className="text-xs text-emerald-600">{en ? 'Already sent to Ask Amy' : 'Já enviou a mensagem para Ask Amy'}</b>
-                <p className="mt-1 text-xs">{en ? 'You do not need to send the message again. Matos has kept your previous screenshot and will reuse it.' : 'Não precisa de enviar a mensagem novamente. O Matos guardou o screenshot anterior e irá reutilizá-lo.'}</p>
+            ? <div className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
+                <b className="text-xs text-red-600">{en ? 'Already sent to Ask Amy' : 'Já enviou a mensagem para Ask Amy'}</b>
+                <p className="mt-1 text-xs">{en ? 'You do not need to send the message again. MozHyper has kept your previous screenshot and will reuse it.' : 'Não precisa de enviar a mensagem novamente. O MozHyper guardou o screenshot anterior e irá reutilizá-lo.'}</p>
                 <img src={previousProofUrl} alt={en ? 'Previously uploaded Ask Amy screenshot' : 'Screenshot anterior enviado ao Ask Amy'} className="mt-3 w-full rounded-lg border border-slate-300/40 object-contain" style={{ maxHeight: 280 }} />
               </div>
             : <div className="mt-3 rounded-xl border border-slate-300/40 p-3">
@@ -399,24 +399,28 @@ export default function SignalsFree({ light }: { light: boolean }) {
               </div>
           }
 
-          {notice && <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs">{notice}</div>}
+          {notice && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs">{notice}</div>}
           {errorBox}
           <button type="button" disabled={busy || !onboarding?.amyProofUploaded} onClick={() => { setError(''); setStep('payment'); }} style={actionButtonStyle(busy || !onboarding?.amyProofUploaded)}>{en ? 'Continue to payment' : 'Continuar para pagamento'}</button>
         </>}
 
         {step === 'payment' && <>
-          <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
-            <div className="text-[10px] font-black uppercase tracking-wide text-emerald-600">{en ? 'Unlimited package' : 'Pacote ilimitado'}</div>
+          <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
+            <div className="text-[10px] font-black uppercase tracking-wide text-red-600">{en ? 'Unlimited package' : 'Pacote ilimitado'}</div>
             <div className="mt-1 text-2xl font-black">{eligibleForLocalPayment ? '250 MT' : '3 USDT'}</div>
-            <p className="mt-1 text-xs">{en ? 'Unlimited Signals Free access after Payment Agent 503 confirms your payment.' : 'Acesso ilimitado ao Signals Free depois de o Payment Agent 503 confirmar o pagamento.'}</p>
+            <p className="mt-1 text-xs">{en ? 'Unlimited Signal Unlimited access after MozHyper 503 confirms your payment.' : 'Acesso ilimitado ao Signal Unlimited depois de o MozHyper 503 confirmar o pagamento.'}</p>
           </div>
 
-          {notice && <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs">{notice}</div>}
+          {notice && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs">{notice}</div>}
           {eligibleForLocalPayment ? <>
             <div className="mt-4 text-xs font-black">{en ? 'Choose payment method' : 'Escolha o método de pagamento'}</div>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setPaymentMethod('mpesa')} style={{ ...buttonStyle, borderColor: paymentMethod === 'mpesa' ? '#16a34a' : '#94a3b8', background: paymentMethod === 'mpesa' ? (light ? '#dcfce7' : '#064e3b') : 'transparent' }}>M-Pesa</button>
-              <button type="button" onClick={() => setPaymentMethod('emola')} style={{ ...buttonStyle, borderColor: paymentMethod === 'emola' ? '#16a34a' : '#94a3b8', background: paymentMethod === 'emola' ? (light ? '#dcfce7' : '#064e3b') : 'transparent' }}>e-Mola</button>
+              <button type="button" onClick={() => setPaymentMethod('mpesa')} aria-pressed={paymentMethod === 'mpesa'} style={{ ...buttonStyle, borderColor: paymentMethod === 'mpesa' ? '#ef233c' : '#94a3b8', background: paymentMethod === 'mpesa' ? (light ? '#ffe4e6' : '#7f1d1d') : 'transparent', borderWidth: 2 }}>
+                <span className="flex flex-col items-center gap-2"><span aria-hidden="true" style={{ width: 54, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#d71920', color: '#fff', fontWeight: 900, fontSize: 15, letterSpacing: -1 }}>M-PESA</span><span>M-Pesa</span></span>
+              </button>
+              <button type="button" onClick={() => setPaymentMethod('emola')} aria-pressed={paymentMethod === 'emola'} style={{ ...buttonStyle, borderColor: paymentMethod === 'emola' ? '#ef233c' : '#94a3b8', background: paymentMethod === 'emola' ? (light ? '#ffe4e6' : '#7f1d1d') : 'transparent', borderWidth: 2 }}>
+                <span className="flex flex-col items-center gap-2"><span aria-hidden="true" style={{ width: 54, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f58220', color: '#fff', fontWeight: 900, fontSize: 14 }}>e-Mola</span><span>e-Mola</span></span>
+              </button>
             </div>
             <label className="mt-3 block text-xs font-bold">{en ? 'Payer name' : 'Nome usado no pagamento'}
               <input value={payerName} onChange={e => setPayerName(e.target.value)} autoComplete="name" required className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm" />
@@ -424,7 +428,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
             <label className="mt-3 block text-xs font-bold">{en ? 'Phone number used for payment' : 'Número usado para pagamento'}
               <input value={payerNumber} onChange={e => setPayerNumber(e.target.value.replace(/\D/g, '').slice(0, 15))} inputMode="numeric" autoComplete="tel" required className="mt-2 w-full rounded-xl border border-slate-300/50 bg-transparent p-3 text-sm" />
             </label>
-            <div className="mt-3 text-xs muted">{en ? 'You are eligible for M-Pesa/e-Mola because your Matos country is Mozambique.' : 'É elegível para M-Pesa/e-Mola porque o país da sua conta Matos é Moçambique.'}</div>
+            <div className="mt-3 text-xs muted">{en ? 'You are eligible for M-Pesa/e-Mola because your MozHyper country is Mozambique.' : 'É elegível para M-Pesa/e-Mola porque o país da sua conta MozHyper é Moçambique.'}</div>
           </> : <div className="mt-4 rounded-xl border border-amber-400/50 p-3">
             <b className="text-sm">Binance — USDT TRC20</b>
             <p className="mt-1 text-xs">{en ? 'Your location is not eligible for M-Pesa/e-Mola. Pay 3 USDT using the TRC20 network.' : 'A sua localização não é elegível para M-Pesa/e-Mola. Pague 3 USDT pela rede TRC20.'}</p>
@@ -434,8 +438,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
         </>}
 
         {(step === 'payment_instructions' || step === 'waiting') && payment && <>
-          <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
-            <div className="text-[10px] font-black uppercase tracking-wide text-emerald-600">{en ? 'Signal Unlimited' : 'Signals Free ilimitado'}</div>
+          <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
+            <div className="text-[10px] font-black uppercase tracking-wide text-red-600">{en ? 'Signal Unlimited' : 'Signal Unlimited'}</div>
             <div className="mt-1 text-2xl font-black">{paymentIsCrypto ? '3 USDT' : '250 MT'}</div>
             <div className="mt-1 text-xs">{en ? 'Payment method' : 'Método de pagamento'}: <b>{paymentIsCrypto ? 'Binance — USDT TRC20' : payment.paymentMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</b></div>
           </div>
@@ -449,34 +453,34 @@ export default function SignalsFree({ light }: { light: boolean }) {
             <div className="text-xs font-black">{en ? 'Payment recipient' : 'Destinatário do pagamento'}</div>
             <div className="mt-2 text-xs muted">{en ? 'Number' : 'Número'}: <b className="text-sm" style={{ color: 'inherit' }}>{payment.paymentNumber}</b></div>
             <div className="mt-1 text-xs muted">{en ? 'Name' : 'Nome'}: <b style={{ color: 'inherit' }}>{payment.paymentName}</b></div>
-            <div className="mt-3 rounded-lg border border-emerald-500/30 p-3 text-lg font-black">250 MT</div>
+            <div className="mt-3 rounded-lg border border-red-500/30 p-3 text-lg font-black">250 MT</div>
             <p className="mt-2 text-xs muted">{en ? 'Make the payment with the selected method, then upload a screenshot of the payment.' : 'Faça o pagamento pelo método escolhido e depois envie um screenshot do pagamento.'}</p>
           </div>}
 
           <div className="mt-4 rounded-xl border border-slate-300/40 p-3">
             <b className="text-xs">{en ? 'Payment screenshot' : 'Screenshot do pagamento'}</b>
-            <p className="mt-1 text-xs muted">{en ? 'Upload the payment proof. Payment Agent 503 will check the payment before activating unlimited access.' : 'Envie o comprovativo do pagamento. O Payment Agent 503 verificará o pagamento antes de activar o acesso ilimitado.'}</p>
+            <p className="mt-1 text-xs muted">{en ? 'Upload the payment proof. MozHyper 503 will check the payment before activating unlimited access.' : 'Envie o comprovativo do pagamento. O MozHyper 503 verificará o pagamento antes de activar o acesso ilimitado.'}</p>
             <input type="file" accept="image/*" onChange={e => setPaymentProof(e.target.files?.[0] || null)} disabled={busy || step === 'waiting'} className="mt-3 block w-full text-xs" />
             {paymentProof && <div className="mt-2 break-all text-[10px] muted">✓ {paymentProof.name}</div>}
             {step === 'payment_instructions'
               ? <button type="button" disabled={busy || !paymentProof} onClick={() => void markAsPaid()} style={actionButtonStyle(busy || !paymentProof)}>{busy ? (en ? 'Sending proof…' : 'A enviar comprovativo…') : (en ? 'I ALREADY PAID' : 'JÁ PAGUEI')}</button>
-              : <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-xs font-bold">{en ? 'Payment proof submitted. Waiting for Payment Agent 503.' : 'Comprovativo enviado. A aguardar o Payment Agent 503.'}</div>}
+              : <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-xs font-bold">{en ? 'Payment proof submitted. Waiting for MozHyper 503.' : 'Comprovativo enviado. A aguardar o MozHyper 503.'}</div>}
           </div>
           <div className="mt-3 text-[10px] muted">{en ? 'Request' : 'Pedido'}: {payment.requestId}</div>
           {errorBox}
-          {notice && <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs">{notice}</div>}
+          {notice && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs">{notice}</div>}
         </>}
 
         {step === 'waiting' && !payment && <div className="mt-4 rounded-xl border p-3 text-sm">{en ? 'Waiting for payment confirmation.' : 'A aguardar confirmação do pagamento.'}</div>}
 
         {step === 'active' && <>
-          <div className="mt-4 rounded-xl border border-emerald-500/50 bg-emerald-500/10 p-4">
-            <div className="text-[10px] font-black uppercase tracking-wide text-emerald-600">{en ? 'Access active' : 'Acesso activo'}</div>
-            <div className="mt-2 text-xl font-black">{onboarding?.status === 'active' ? (en ? 'Unlimited package activated' : 'Pacote ilimitado activado') : (en ? 'Signals Free approved' : 'Signals Free aprovado')}</div>
+          <div className="mt-4 rounded-xl border border-red-500/50 bg-red-500/10 p-4">
+            <div className="text-[10px] font-black uppercase tracking-wide text-red-600">{en ? 'Access active' : 'Acesso activo'}</div>
+            <div className="mt-2 text-xl font-black">{onboarding?.status === 'active' ? (en ? 'Unlimited package activated' : 'Pacote ilimitado activado') : (en ? 'Signal Unlimited approved' : 'Signal Unlimited aprovado')}</div>
             <div className="mt-2 text-xs">{onboarding?.status === 'active'
               ? (en ? 'Your Signal Unlimited package has no expiry date.' : 'O seu pacote Signal Unlimited não tem data de expiração.')
-              : (en ? 'Your previous Signal Unlimited request was approved.' : 'O seu pedido anterior do Signals Free foi aprovado.')}</div>
-            <a href={GROUP_URL} target="_blank" rel="noopener noreferrer" className="mt-4 block rounded-xl bg-emerald-600 p-3 text-center text-sm font-black text-white no-underline">{en ? 'Join Signals Free on Telegram' : 'Entrar no Signals Free no Telegram'} ↗</a>
+              : (en ? 'Your previous Signal Unlimited request was approved.' : 'O seu pedido anterior do Signal Unlimited foi aprovado.')}</div>
+            <a href={GROUP_URL} target="_blank" rel="noopener noreferrer" className="mt-4 block rounded-xl bg-red-600 p-3 text-center text-sm font-black text-white no-underline">{en ? 'Join Signal Unlimited on Telegram' : 'Entrar no Signal Unlimited no Telegram'} ↗</a>
           </div>
         </>}
 
@@ -484,7 +488,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
           <div className="mt-4 rounded-xl border border-amber-400/50 p-3">
             <div className="text-[10px] font-black uppercase muted">{en ? 'Previous request status' : 'Estado do pedido anterior'}</div>
             <b className="mt-1 block text-sm">{en ? 'Waiting for administrator review' : 'A aguardar análise do administrador'}</b>
-            <p className="mt-2 text-xs muted">{en ? 'Your earlier Signal Unlimited request is still pending.' : 'O seu pedido anterior de Signals Free ainda está pendente.'}</p>
+            <p className="mt-2 text-xs muted">{en ? 'Your earlier Signal Unlimited request is still pending.' : 'O seu pedido anterior de Signal Unlimited ainda está pendente.'}</p>
           </div>
         </>}
 
