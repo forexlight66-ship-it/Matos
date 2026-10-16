@@ -77,11 +77,12 @@ function unwrapPayload(payload: any) {
   return payload?.data && typeof payload.data === 'object' ? payload.data : payload;
 }
 
-async function postClientTagCheck(accessToken: string, clientIds: string[]) {
+async function postClientTagCheck(accessToken: string, clientIds: string[], appId: string) {
   return fetch(DERIV_PARTNER_TAGS_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      'Deriv-App-ID': appId,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ client_ids: clientIds }),
@@ -133,7 +134,9 @@ export async function tryRegisterDerivPartnerRefreshToken(
 
   let response: Response;
   try {
-    response = await postClientTagCheck(accessToken, [externalReferenceId]);
+    const appId = process.env.DERIV_APP_ID?.trim();
+    if (!appId) return { registered: false, reason: 'DERIV_APP_ID_MISSING' };
+    response = await postClientTagCheck(accessToken, [externalReferenceId], appId);
   } catch {
     return { registered: false, reason: 'PARTNER_CHECK_UNAVAILABLE' };
   }
@@ -180,7 +183,7 @@ export async function verifyDerivPartnerClient(externalReferenceId: string): Pro
 
   let response: Response;
   try {
-    response = await postClientTagCheck(partner.accessToken, [externalReferenceId]);
+    response = await postClientTagCheck(partner.accessToken, [externalReferenceId], appId);
   } catch {
     throw apiError('O serviço de verificação da Deriv está temporariamente indisponível. Tente novamente.', 503, 'PARTNER_CHECK_UNAVAILABLE');
   }
