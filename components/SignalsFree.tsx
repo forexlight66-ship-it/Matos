@@ -181,14 +181,10 @@ export default function SignalsFree({ light }: { light: boolean }) {
       if (data?.eligibleForLocalPayment !== undefined) setEligibleForLocalPayment(Boolean(data.eligibleForLocalPayment));
       if (data?.nextStep === 'amy_verification') {
         setStep('amy');
-        setNotice(data?.alreadySentToAmy
-          ? (en ? 'You already sent the message to Ask Amy. Do not send it again; your previous screenshot is saved.' : 'Já enviou a mensagem para Ask Amy. Não volte a enviá-la; o screenshot anterior está guardado.')
-          : '');
+        setNotice('');
       } else if (data?.nextStep === 'payment') {
         setStep('payment');
-        setNotice(data?.amyProofUploaded
-          ? (en ? 'Your previously uploaded Ask Amy screenshot is saved and will be reused.' : 'O screenshot anterior do Ask Amy está guardado e será reutilizado.')
-          : '');
+        setNotice('');
       } else if (data?.nextStep === 'payment_instructions' && data?.payment) {
         setPayment(data.payment);
         setStep(data.payment.status === 'client_marked_paid' ? 'waiting' : 'payment_instructions');
@@ -374,13 +370,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
             <p className="mt-2 text-xs leading-5">{en ? 'We could not confirm that your Deriv identity is directly tagged to this partner. Open Deriv, start a chat with Ask Amy, copy the message below and send it. Then upload a screenshot showing the message you sent.' : 'Não foi possível confirmar que a sua identidade Deriv está diretamente associada a este parceiro. Abra a Deriv, inicie uma conversa com Ask Amy, copie a mensagem abaixo e envie-a. Depois carregue um screenshot que mostre a mensagem enviada.'}</p>
           </div>
 
-          {onboarding?.amyProofUploaded
-            ? <div className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
-                <b className="text-xs text-red-600">{en ? 'Already sent to Ask Amy' : 'Já enviou a mensagem para Ask Amy'}</b>
-                <p className="mt-1 text-xs">{en ? 'You do not need to send the message again. MozHyper has kept your previous screenshot and will reuse it.' : 'Não precisa de enviar a mensagem novamente. O MozHyper guardou o screenshot anterior e irá reutilizá-lo.'}</p>
-                <img src={previousProofUrl} alt={en ? 'Previously uploaded Ask Amy screenshot' : 'Screenshot anterior enviado ao Ask Amy'} className="mt-3 w-full rounded-lg border border-slate-300/40 object-contain" style={{ maxHeight: 280 }} />
-              </div>
-            : <div className="mt-3 rounded-xl border border-slate-300/40 p-3">
+          {!onboarding?.amyProofUploaded
+            ? <div className="mt-3 rounded-xl border border-slate-300/40 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <b className="text-xs">{en ? 'Copy this message to Ask Amy' : 'Copie esta mensagem para Ask Amy'}</b>
                   <button type="button" onClick={() => void copyAmyMessage()} style={buttonStyle}>{copied ? (en ? 'Copied ✓' : 'Copiado ✓') : (en ? 'Copy message' : 'Copiar MSG')}</button>
