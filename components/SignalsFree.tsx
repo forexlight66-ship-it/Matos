@@ -370,8 +370,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
             <p className="mt-2 text-xs leading-5">{en ? 'We could not confirm that your Deriv identity is directly tagged to this partner. Open Deriv, start a chat with Ask Amy, copy the message below and send it. Then upload a screenshot showing the message you sent.' : 'Não foi possível confirmar que a sua identidade Deriv está diretamente associada a este parceiro. Abra a Deriv, inicie uma conversa com Ask Amy, copie a mensagem abaixo e envie-a. Depois carregue um screenshot que mostre a mensagem enviada.'}</p>
           </div>
 
-          {!onboarding?.amyProofUploaded
-            ? <div className="mt-3 rounded-xl border border-slate-300/40 p-3">
+          {!onboarding?.amyProofUploaded && <div className="mt-3 rounded-xl border border-slate-300/40 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <b className="text-xs">{en ? 'Copy this message to Ask Amy' : 'Copie esta mensagem para Ask Amy'}</b>
                   <button type="button" onClick={() => void copyAmyMessage()} style={buttonStyle}>{copied ? (en ? 'Copied ✓' : 'Copiado ✓') : (en ? 'Copy message' : 'Copiar MSG')}</button>
