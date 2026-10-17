@@ -47,8 +47,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const { access_token, refresh_token } = await exchangeCode(clientId, PRODUCTION_CALLBACK_URL, code, verifier);
-    await consumeDerivOAuthState(state);
-    console.info('[OAuth] Deriv authorization code exchanged successfully; access token cookie will be set.', { returnTo });
+    console.info('[OAuth] Deriv authorization code exchanged successfully.', {
+      returnTo,
+      refreshTokenReturned: Boolean(refresh_token),
+      platformSessionPresent: Boolean(platformSession),
+    });
     const response = NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
     let oauthSessionId = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value || '';
     let oauthUserId = platformSession?.id;
@@ -58,28 +61,39 @@ export async function GET(request: NextRequest) {
       const createdSession = await getSession(oauthSessionId);
       oauthUserId = createdSession?.id;
     }
-    if (refresh_token && oauthUserId) {
-      await saveDerivRefreshToken(oauthUserId, refresh_token);
-
-      // When the owner connects with the actual Deriv partner account, verify
-      // partner capability through Deriv and persist the refresh token encrypted
-      // as the app-wide partner credential. Ordinary client logins are ignored.
+    if (!oauthUserId) {
+      console.error('[OAuth] Could not associate Deriv login with a Matos platform session.');
+    } else {
+      // Resolve the authenticated identity even when Deriv does not return a
+      // refresh token. This makes it possible to distinguish a wrong account,
+      // a missing refresh token, and a partner API/scope rejection in Render logs.
       try {
         const derivIdentity = await getDerivIdentity(access_token, clientId);
-        const partnerSetup = await tryRegisterDerivPartnerRefreshToken(
-          access_token,
-          refresh_token,
-          oauthUserId,
-          derivIdentity.externalReferenceId,
-        );
-        if (partnerSetup.registered) {
-          console.info('[OAuth] Verified Deriv partner credential saved securely.');
+        console.info('[OAuth] Authenticated Deriv identity resolved.', {
+          nickname: derivIdentity.nickname,
+          expectedPartnerNickname: 'client_mq19sy1v140x',
+          isExpectedPartnerNickname: derivIdentity.nickname.toLowerCase() === 'client_mq19sy1v140x',
+          refreshTokenReturned: Boolean(refresh_token),
+        });
+
+        if (refresh_token) {
+          await saveDerivRefreshToken(oauthUserId, refresh_token);
+          const partnerSetup = await tryRegisterDerivPartnerRefreshToken(
+            access_token,
+            refresh_token,
+            oauthUserId,
+            derivIdentity.externalReferenceId,
+          );
+          if (partnerSetup.registered) {
+            console.info('[OAuth] Verified Deriv partner credential saved securely.');
+          } else {
+            console.info('[OAuth] Partner credential setup result:', partnerSetup.reason || 'unknown reason');
+          }
         } else {
-          console.info('[OAuth] Partner credential setup result:', partnerSetup.reason || 'unknown reason');
+          console.error('[OAuth] Partner credential was NOT saved because Deriv returned no refresh token. Reauthorization cannot fix this unless the OAuth app/token response supports refresh tokens.');
         }
       } catch (partnerSetupError) {
-        // Partner setup is optional for a normal sign-in; do not fail OAuth when
-        // the partner verification endpoint is temporarily unavailable.
+        // Do not fail normal sign-in, but record the actual setup failure.
         console.warn('[OAuth] Partner credential setup deferred:', partnerSetupError instanceof Error ? partnerSetupError.message : 'unknown error');
       }
     }
