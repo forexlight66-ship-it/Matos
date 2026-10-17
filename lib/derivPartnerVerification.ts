@@ -91,6 +91,27 @@ async function postClientTagCheck(accessToken: string, clientIds: string[], appI
   });
 }
 
+async function fetchAuthenticatedPartnerId(accessToken: string, appId: string): Promise<string | null> {
+  const today = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const response = await fetch(`https://api.derivws.com/partners/analytics/v1/overview?start_date=${from}&end_date=${today}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Deriv-App-ID': appId, Accept: 'application/json' },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) {
+    const payload: any = await response.clone().json().catch(() => null);
+    const message = String(payload?.errors?.[0]?.message ?? payload?.message ?? '').replace(/[\\r\\n\\t]+/g, ' ').slice(0, 160);
+    console.info('[OAuth] Partner overview check rejected', { status: response.status, message: message || 'no message' });
+    return null;
+  }
+  const payload: any = await response.json().catch(() => null);
+  const data = unwrapPayload(payload);
+  const rawId = data?.partner_id ?? data?.partner?.partner_id ?? data?.partner?.id;
+  return Number.isSafeInteger(Number(rawId)) && Number(rawId) > 0 ? String(rawId) : null;
+}
+
 async function readPartnerCheck(response: Response, expectedClientId: string): Promise<PartnerCheckResult> {
   const payload: any = await response.json().catch(() => null);
   const data = unwrapPayload(payload);
@@ -132,36 +153,28 @@ export async function tryRegisterDerivPartnerRefreshToken(
     return { registered: false, reason: 'PARTNER_ALREADY_CONFIGURED' };
   }
 
-  let response: Response;
+  const appId = process.env.DERIV_APP_ID?.trim();
+  if (!appId) return { registered: false, reason: 'DERIV_APP_ID_MISSING' };
+
+  // Identify the authenticated partner account directly. The client-tags endpoint
+  // is for checking clients and must not be used to identify the partner itself.
+  let verifiedPartnerId: string | null;
   try {
-    const appId = process.env.DERIV_APP_ID?.trim();
-    if (!appId) return { registered: false, reason: 'DERIV_APP_ID_MISSING' };
-    response = await postClientTagCheck(accessToken, [externalReferenceId], appId);
-  } catch {
-    return { registered: false, reason: 'PARTNER_CHECK_UNAVAILABLE' };
+    verifiedPartnerId = await fetchAuthenticatedPartnerId(accessToken, appId);
+  } catch (error) {
+    console.info('[OAuth] Partner overview check unavailable:', error instanceof Error ? error.message : 'unknown error');
+    return { registered: false, reason: 'PARTNER_OVERVIEW_UNAVAILABLE' };
   }
+  if (!verifiedPartnerId) return { registered: false, reason: 'NOT_A_DERIV_PARTNER_OR_SCOPE_MISSING' };
 
-  if (response.status === 404) return { registered: false, reason: 'NOT_A_DERIV_PARTNER' };
-  if (response.status === 401) return { registered: false, reason: 'OAUTH_TOKEN_INVALID' };
-  if (response.status === 403) return { registered: false, reason: 'APPLICATION_READ_SCOPE_MISSING' };
-  if (!response.ok) return { registered: false, reason: `PARTNER_CHECK_HTTP_${response.status}` };
-
-  let checked: PartnerCheckResult;
-  try {
-    checked = await readPartnerCheck(response, externalReferenceId);
-  } catch {
-    return { registered: false, reason: 'PARTNER_RESPONSE_INVALID' };
-  }
-
-  // If a partner credential already exists, only the exact locked partner_id
-  // may update it; a different partner cannot replace the app-level credential.
-  if (existing && existing.partnerId !== checked.partnerId) {
+  // A configured partner ID is immutable unless the same partner reauthenticates.
+  if (existing && existing.partnerId !== verifiedPartnerId) {
     return { registered: false, reason: 'DIFFERENT_PARTNER_ALREADY_LOCKED' };
   }
 
   const saved = await saveDerivPartnerRefreshToken(
     platformUserId,
-    checked.partnerId,
+    verifiedPartnerId,
     refreshToken,
   );
   return saved
