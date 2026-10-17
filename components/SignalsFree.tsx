@@ -438,8 +438,13 @@ export default function SignalsFree({ light }: { light: boolean }) {
 
           {notice && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs">{notice}</div>}
           {errorBox}
+          {/conta Deriv de parceiro ainda não está ligada|PARTNER_CREDENTIAL_NOT_CONFIGURED|partner account.*not linked/i.test(error) && (
+            <a href="/api/auth/login?return_to=%2F" className="mt-3 block rounded-xl border border-red-500 bg-red-500/10 p-3 text-center text-sm font-bold text-red-600">
+              {en ? 'Connect the Deriv partner account' : 'Ligar conta Deriv de parceiro'}
+            </a>
+          )}
           <button type="button" disabled={busy} onClick={() => void submitVerification()} style={actionButtonStyle(busy)}>{busy ? (en ? 'Rechecking Deriv partner status…' : 'A reverificar a associação Deriv…') : (en ? 'Verify again' : 'Verificar novamente')}</button>
-          <button type="button" disabled={busy || !onboarding?.amyProofUploaded} onClick={() => { setError(''); setStep('payment'); }} style={actionButtonStyle(busy || !onboarding?.amyProofUploaded)}>{en ? 'Continue to payment' : 'Continuar para pagamento'}</button>
+          <button type="button" disabled={busy || !onboarding?.amyProofUploaded || /conta Deriv de parceiro ainda não está ligada|PARTNER_CREDENTIAL_NOT_CONFIGURED|partner account.*not linked/i.test(error)} onClick={() => { setError(''); setStep('payment'); }} style={actionButtonStyle(busy || !onboarding?.amyProofUploaded || /conta Deriv de parceiro ainda não está ligada|PARTNER_CREDENTIAL_NOT_CONFIGURED|partner account.*not linked/i.test(error))}>{en ? 'Continue to payment' : 'Continuar para pagamento'}</button>
         </>}
 
         {step === 'payment' && <>
