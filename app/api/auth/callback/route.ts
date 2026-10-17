@@ -74,8 +74,8 @@ export async function GET(request: NextRequest) {
         );
         if (partnerSetup.registered) {
           console.info('[OAuth] Verified Deriv partner credential saved securely.');
-        } else if (partnerSetup.reason !== 'PARTNER_ALREADY_CONFIGURED' && partnerSetup.reason !== 'NOT_A_DERIV_PARTNER') {
-          console.info('[OAuth] Partner credential setup not completed:', partnerSetup.reason || 'unknown reason');
+        } else {
+          console.info('[OAuth] Partner credential setup result:', partnerSetup.reason || 'unknown reason');
         }
       } catch (partnerSetupError) {
         // Partner setup is optional for a normal sign-in; do not fail OAuth when
