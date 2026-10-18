@@ -4,14 +4,12 @@ import {
   ensureSignalsFreeOnboardingSchema,
   getSignalsFreeOnboarding,
   getSignalsFreeRequest,
-  upsertSignalsFreeOnboarding,
-  activateSignalsFreeUnlimited,
   resetSignalsFreePaymentRequest,
 } from '@/lib/signalsFree';
 import { getPaymentRequest } from '@/lib/paymentAgentRequests';
-import { verifyDerivPartnerClient } from '@/lib/derivPartnerVerification';
 import { attachDerivIdentityCookies, resolveDerivIdentityForRequest } from '@/lib/derivRequestAuth';
 import type { AuthenticatedDerivIdentity } from '@/lib/derivNickname';
+import { SIGNALS_FREE_GROUP_URL } from '@/lib/signalsFree';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -104,59 +102,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  let identity: AuthenticatedDerivIdentity | null = null;
-  try {
-    const user = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
-    if (!user) return respond({ error: 'Inicie sessão para pedir acesso ao Signals Free.', code: 'AUTH_REQUIRED' }, identity, 401);
-
-    identity = await resolveDerivIdentityForRequest(request, user.id);
-    await ensureSignalsFreeOnboardingSchema();
-    const current = await currentOnboarding(identity.externalReferenceId, user.id);
-    if (current.onboarding?.status === 'active') {
-      return respond({ nextStep: 'active', onboarding: onboardingSummary(current.onboarding) }, identity);
-    }
-    if (current.onboarding?.status === 'payment_pending' && current.payment) {
-      return respond({ nextStep: 'payment_instructions', onboarding: onboardingSummary(current.onboarding), payment: current.payment }, identity);
-    }
-
-    // Only a conclusive API response with is_tagged=false should route to Ask Amy.
-    // API/auth/scope failures must surface as errors instead of masquerading as an untagged client.
-    const isTagged = await verifyDerivPartnerClient(identity.externalReferenceId);
-
-    const onboarding = await upsertSignalsFreeOnboarding({
-      userId: user.id,
-      externalReferenceId: identity.externalReferenceId,
-      derivNickname: identity.nickname,
-      mt5Id: '',
-      status: isTagged ? 'ready_for_payment' : 'verification_required',
-    });
-    const proofUploaded = Boolean(onboarding.amy_proof_uploaded);
-    if (!isTagged) {
-      return respond({
-        nextStep: 'amy_verification',
-        alreadySentToAmy: proofUploaded,
-        amyProofUploaded: proofUploaded,
-        onboarding: { deriv_nickname: identity.nickname, status: String(onboarding.status || 'verification_required') },
-      }, identity);
-    }
-
-    return respond({
-      nextStep: 'payment',
-      eligibleForLocalPayment: String(user.country || '').trim().toUpperCase() === 'MZ',
-      amyProofUploaded: proofUploaded,
-      onboarding: { deriv_nickname: identity.nickname, status: String(onboarding.status || 'ready_for_payment') },
-    }, identity);
-  } catch (error) {
-    console.error('[Signals Free] submission failed', error);
-    const status = typeof error === 'object' && error !== null && 'status' in error
-      && typeof (error as { status?: unknown }).status === 'number'
-      ? Math.min(599, Math.max(400, (error as { status: number }).status))
-      : 500;
-    const code = typeof error === 'object' && error !== null && 'code' in error
-      && typeof (error as { code?: unknown }).code === 'string'
-      ? (error as { code: string }).code
-      : 'SIGNALS_FREE_REQUEST_FAILED';
-    return respond({ error: error instanceof Error ? error.message : 'Não foi possível enviar o pedido.', code }, identity, status);
-  }
+export async function POST() {
+  return respond({
+    error: 'O Signal Unlimited agora abre diretamente no Telegram. Não é necessária verificação Deriv, Ask Amy nem aprovação.',
+    code: 'SIGNALS_DIRECT_TELEGRAM_ONLY',
+    telegramUrl: SIGNALS_FREE_GROUP_URL,
+  }, null, 410);
 }
