@@ -12,10 +12,9 @@ export async function POST(request:NextRequest){
  const clientCurrency=String(body.currency||'').trim().toUpperCase();
  const isBinance=method==='binance_usdt_trc20';
  const isMzn=clientCurrency==='MZN';
- if(method!=='mpesa'&&method!=='emola'&&!isBinance)return NextResponse.json({error:'Escolha M-Pesa, e-Mola ou Binance USDT TRC20.'},{status:400});
- if(isMzn && isBinance)return NextResponse.json({error:'Clientes em MZN devem usar M-Pesa ou e-Mola.'},{status:400});
- if(isMzn && !isBinance && String(session.country||'').trim().toUpperCase()!=='MZ')return NextResponse.json({error:'Para a sua moeda, use Binance — 3 USDT (TRC20). M-Pesa e e-Mola estão disponíveis apenas para clientes elegíveis em MZN.'},{status:403});
- if(!isMzn && !isBinance)return NextResponse.json({error:'Para moedas diferentes de MZN, o AI Analyst deve ser pago em 3 USDT pela Binance (TRC20).'},{status:400});
+ const isEligibleClient=String(session.country||'').trim().toUpperCase()==='MZ';
+ if(isEligibleClient && method!=='mpesa' && method!=='emola')return NextResponse.json({error:'Clientes elegíveis em Moçambique devem usar M-Pesa ou e-Mola para pagar o AI Analyst.'},{status:400});
+ if(!isEligibleClient && !isBinance)return NextResponse.json({error:'Cliente não elegível para pagamentos locais. Use Binance — 3 USDT (TRC20).'},{status:400});
  if(!clientCurrency)return NextResponse.json({error:'Moeda do cliente não identificada.'},{status:400});
 
  const appId=process.env.DERIV_APP_ID?.trim();
@@ -55,7 +54,7 @@ export async function POST(request:NextRequest){
  }
  const payerName=String(body.payerName||'').trim();
  const payerNumber=String(body.payerNumber||'').replace(/\D/g,'');
- if(!isMzn)return NextResponse.json({error:'Pagamento AI Analyst indisponível neste método.'},{status:400});
+ if(!isEligibleClient)return NextResponse.json({error:'Pagamento AI Analyst indisponível neste método.'},{status:400});
  if(payerName.length<2)return NextResponse.json({error:'Informe o seu nome.'},{status:400});
  if(!/^\d{9,15}$/.test(payerNumber))return NextResponse.json({error:'Informe o número usado para fazer o pagamento.'},{status:400});
  const localPaymentMethod = method as 'mpesa' | 'emola';
