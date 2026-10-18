@@ -12,14 +12,14 @@ export async function POST(request:NextRequest){
   const method=String(body.paymentMethod||'').toLowerCase();
   const currency=String(body.currency||'').trim().toUpperCase();
   const isMzn=currency==='MZN';
-  const isEligibleClient=String(session.country||'').trim().toUpperCase()==='MZ' && isMzn;
+  const isEligibleClient=String(session.country||'').trim().toUpperCase()==='MZ';
   const isBinance=method==='binance_usdt_trc20';
   if(isEligibleClient && method!=='mpesa' && method!=='emola') return NextResponse.json({error:'Clientes elegíveis em Moçambique devem usar M-Pesa ou e-Mola para pagar o curso.'},{status:400});
   if(!isEligibleClient && !isBinance) return NextResponse.json({error:'Cliente não elegível para pagamentos locais. Use Binance — 15 USDT (TRC20).'},{status:400});
   if(isEligibleClient && isBinance) return NextResponse.json({error:'Clientes elegíveis em Moçambique devem usar M-Pesa ou e-Mola.'},{status:400});
   const payerName=String(body.payerName||'').trim();
   const payerNumber=String(body.payerNumber||'').replace(/\D/g,'');
-  if(isMzn){
+  if(isEligibleClient){
     if(payerName.length<2) return NextResponse.json({error:'Informe o seu nome.'},{status:400});
     if(!/^\d{9,15}$/.test(payerNumber)) return NextResponse.json({error:'Informe o número usado para fazer o pagamento.'},{status:400});
   }
@@ -30,6 +30,6 @@ export async function POST(request:NextRequest){
   let identity;
   try{ identity=await getAuthenticatedDerivNickname({accessToken,refreshToken,appId}); }
   catch(error){ const status=Number((error as any)?.status||401); return NextResponse.json({error:status===401?'Conecte a sua conta Deriv antes de comprar o curso.':'Não foi possível identificar o nickname da sua conta Deriv.'},{status:status===401?401:502}); }
-  const row=await createCourseRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:identity.nickname,paymentMethod:isMzn?method as 'mpesa'|'emola':'binance_usdt_trc20',payerName,payerNumber});
+  const row=await createCourseRequest({userId:session.id,clientName:session.name,clientEmail:session.email,clientNickname:identity.nickname,paymentMethod:isEligibleClient?method as 'mpesa'|'emola':'binance_usdt_trc20',payerName,payerNumber});
   return NextResponse.json({requestId:row.id,status:row.status,derivNickname:identity.nickname,amountMzn:999,amountUsdt:15,paymentMethod:row.payment_method,paymentNumber:row.payment_number,paymentName:row.payment_name},{headers:{'Cache-Control':'no-store'}});
 }
