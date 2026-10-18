@@ -19,10 +19,10 @@ export default function SignalsFree({ light }: { light: boolean }) {
           width: 24,
           height: 24,
           padding: 0,
-          borderRadius: 9,
+          borderRadius: 6,
           overflow: 'hidden',
-          border: '1px solid #3f8c43',
-          background: 'linear-gradient(145deg,#087ec2,#07519b)',
+          border: 0,
+          background: '#1976D2',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -30,13 +30,15 @@ export default function SignalsFree({ light }: { light: boolean }) {
           cursor: 'pointer',
         }}
       >
-        <img
-          src="/signals-free.svg"
-          alt=""
-          width={24}
-          height={24}
-          style={{ display: 'block', width: 24, height: 24, objectFit: 'cover' }}
-        />
+        <svg width="24" height="24" viewBox="0 0 48 48" role="img" aria-label="MetaTrader 5 style logo" style={{ display: 'block', width: 24, height: 24 }}>
+          <rect width="48" height="48" rx="7" fill="#1976D2" />
+          <path d="M7 12h34M7 24h34M7 36h34M16 5v38M32 5v38" stroke="#ffffff" strokeOpacity=".08" strokeWidth="1" />
+          <circle cx="19" cy="19" r="11" fill="#75C943" stroke="#287B35" strokeWidth="1.5" />
+          <circle cx="17" cy="30" r="11" fill="#F3D83E" stroke="#B9A81B" strokeWidth="1.5" />
+          <circle cx="31" cy="29" r="11" fill="#31B6E8" stroke="#1479B5" strokeWidth="1.5" />
+          <circle cx="24" cy="24" r="8.5" fill="#ffffff" stroke="#d8e2ee" strokeWidth="1.2" />
+          <text x="24" y="29" textAnchor="middle" fontSize="14" fontWeight="800" fontFamily="Arial, sans-serif" fill="#E78335">5</text>
+        </svg>
       </button>
 
       {showIntro && (
