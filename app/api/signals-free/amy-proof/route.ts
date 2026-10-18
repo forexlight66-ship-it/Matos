@@ -10,6 +10,13 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const revalidate = 0;
 
+function response(body: unknown, identity: AuthenticatedDerivIdentity | null, status = 200) {
+  return attachDerivIdentityCookies(NextResponse.json(body, {
+    status,
+    headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },
+  }), identity);
+}
+
 function safeError(error: unknown, fallback: string) {
   const status = typeof error === 'object' && error !== null && 'status' in error
     && typeof (error as { status?: unknown }).status === 'number'
