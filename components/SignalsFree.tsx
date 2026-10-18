@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const GROUP_URL = 'https://t.me/+S4A_5SgZB6x4P_UQ';
 
 export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?: () => void }) {
+  const { language } = useLanguage();
+  const english = language === 'en';
   const [showIntro, setShowIntro] = useState(false);
 
   return (
@@ -13,8 +16,8 @@ export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?
         type="button"
         onClick={() => { onOpen?.(); setShowIntro(true); }}
         className="icon-btn signals-free-trigger"
-        aria-label="Ver sinais de forex grátis"
-        title="Sinais de Forex grátis"
+        aria-label={english ? "View free Forex signals" : "Ver sinais de Forex grátis"}
+        title={english ? "Free Forex signals" : "Sinais de Forex grátis"}
         style={{
           width: 24,
           height: 24,
@@ -30,7 +33,7 @@ export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?
           cursor: 'pointer',
         }}
       >
-        <svg width="24" height="24" viewBox="0 0 48 48" role="img" aria-label="Logótipo MetaTrader 5" style={{ display: 'block', width: 24, height: 24 }}>
+        <svg width="24" height="24" viewBox="0 0 48 48" role="img" aria-label="MetaTrader 5 logo" style={{ display: 'block', width: 24, height: 24 }}>
           <defs>
             <linearGradient id="mt5BlueTile" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#11A8E0"/><stop offset="100%" stopColor="#0756A5"/></linearGradient>
             <radialGradient id="mt5GreenBall" cx="32%" cy="22%" r="78%"><stop offset="0%" stopColor="#C9F7A5"/><stop offset="48%" stopColor="#64C94B"/><stop offset="100%" stopColor="#176B2D"/></radialGradient>
@@ -97,12 +100,12 @@ export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?
               boxShadow: '0 8px 22px rgba(217,31,53,.25)',
               fontSize: 27,
             }} aria-hidden="true">📊</div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 12px', padding: '5px 11px', borderRadius: 999, background: light ? '#fff0f1' : '#3a1c24', color: light ? '#c91f35' : '#ff8792', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }}>● Acesso gratuito</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 12px', padding: '5px 11px', borderRadius: 999, background: light ? '#fff0f1' : '#3a1c24', color: light ? '#c91f35' : '#ff8792', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }}>{english ? "● FREE ACCESS" : "● ACESSO GRATUITO"}</div>
             <h2 id="signals-intro-title" style={{ fontSize: 22, lineHeight: 1.28, fontWeight: 850, margin: '0 0 12px', letterSpacing: '-.025em' }}>
-              Tenha acesso a sinais de Forex grátis!
+              {english ? "Get access to free Forex signals!" : "Tenha acesso a sinais de Forex grátis!"}
             </h2>
             <p style={{ fontSize: 15, lineHeight: 1.65, margin: '0 0 22px', color: light ? '#5b606b' : '#c8c5cb' }}>
-              Receba sinais para <strong>XAUUSD</strong>, <strong>Boom 1000</strong>, <strong>Volatility 75</strong> e muito mais — gratuitamente no nosso grupo do Telegram.
+              {english ? <>Get signals for <strong>XAUUSD</strong>, <strong>Boom 1000</strong>, <strong>Volatility 75</strong> and more — free in our Telegram group.</> : <>Receba sinais para <strong>XAUUSD</strong>, <strong>Boom 1000</strong>, <strong>Volatility 75</strong> e muito mais — gratuitamente no nosso grupo do Telegram.</>}
             </p>
             <a
               href={GROUP_URL}
@@ -125,7 +128,7 @@ export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?
                 fontWeight: 800,
               }}
             >
-              Continuar para o Telegram
+              {english ? "Continue to Telegram" : "Continuar para o Telegram"}
             </a>
             <button
               type="button"
@@ -140,7 +143,7 @@ export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?
                 fontSize: 14,
               }}
             >
-              Agora não
+              {english ? "Not now" : "Agora não"}
             </button>
           </section>
         </div>
