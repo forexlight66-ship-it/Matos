@@ -16,8 +16,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
         aria-label="Ver sinais de forex grátis"
         title="Sinais de Forex grátis"
         style={{
-          width: 30,
-          height: 30,
+          width: 24,
+          height: 24,
           padding: 0,
           borderRadius: 9,
           overflow: 'hidden',
@@ -33,9 +33,9 @@ export default function SignalsFree({ light }: { light: boolean }) {
         <img
           src="/signals-free.svg"
           alt=""
-          width={30}
-          height={30}
-          style={{ display: 'block', width: 30, height: 30, objectFit: 'cover' }}
+          width={24}
+          height={24}
+          style={{ display: 'block', width: 24, height: 24, objectFit: 'cover' }}
         />
       </button>
 
