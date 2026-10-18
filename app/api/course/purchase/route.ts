@@ -12,10 +12,11 @@ export async function POST(request:NextRequest){
   const method=String(body.paymentMethod||'').toLowerCase();
   const currency=String(body.currency||'').trim().toUpperCase();
   const isMzn=currency==='MZN';
+  const isEligibleClient=String(session.country||'').trim().toUpperCase()==='MZ' && isMzn;
   const isBinance=method==='binance_usdt_trc20';
-  if(isMzn && method!=='mpesa' && method!=='emola') return NextResponse.json({error:'Clientes elegíveis em MZN devem usar M-Pesa ou e-Mola.'},{status:400});
-  if(!isMzn && !isBinance) return NextResponse.json({error:'Para a sua moeda, use Binance — 15 USDT (TRC20).'},{status:400});
-  if(isMzn && isBinance) return NextResponse.json({error:'Clientes elegíveis em MZN devem usar M-Pesa ou e-Mola.'},{status:400});
+  if(isEligibleClient && method!=='mpesa' && method!=='emola') return NextResponse.json({error:'Clientes elegíveis em Moçambique devem usar M-Pesa ou e-Mola para pagar o curso.'},{status:400});
+  if(!isEligibleClient && !isBinance) return NextResponse.json({error:'Cliente não elegível para pagamentos locais. Use Binance — 15 USDT (TRC20).'},{status:400});
+  if(isEligibleClient && isBinance) return NextResponse.json({error:'Clientes elegíveis em Moçambique devem usar M-Pesa ou e-Mola.'},{status:400});
   const payerName=String(body.payerName||'').trim();
   const payerNumber=String(body.payerNumber||'').replace(/\D/g,'');
   if(isMzn){
