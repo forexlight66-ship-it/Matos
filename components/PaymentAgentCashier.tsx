@@ -38,6 +38,7 @@ interface PaymentAgentCashierProps {
   action: Action | null;
   currency: string;
   agentCurrency?: string;
+  eligibleClient?: boolean;
   light: boolean;
   onClose: () => void;
   onNotice?: (message: string) => void;
@@ -68,7 +69,7 @@ function withdrawalStatusMessage(status: string | undefined, language: string, c
   return title + ': ' + statusText(status, copy) + '.';
 }
 
-export default function PaymentAgentCashier({ open, action, currency, agentCurrency, light, onClose, onNotice }: PaymentAgentCashierProps) {
+export default function PaymentAgentCashier({ open, action, currency, agentCurrency, eligibleClient = false, light, onClose, onNotice }: PaymentAgentCashierProps) {
   const { language } = useLanguage();
   const isAiAnalyst = action === 'ai_analyst';
   const isCourse = action === 'course';
@@ -162,7 +163,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   useEffect(() => {
     if (!open || !action) return;
     setStep('form');
-    setAmount(action === 'ai_analyst' ? (currency.toUpperCase() === 'MZN' ? '250' : '3') : action === 'course' ? (currency.toUpperCase() === 'MZN' ? '999' : '15') : '');
+    setAmount(action === 'ai_analyst' ? (eligibleClient ? '250' : '3') : action === 'course' ? (eligibleClient ? '999' : '15') : '');
     setCode('');
     setBusy(false);
     setMessage('');
@@ -172,7 +173,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
     setNicknameError('');
     setPayerName('');
     setPayerNumber('');
-    setPaymentMethod((action === 'ai_analyst' || action === 'course') && currency.toUpperCase() !== 'MZN' ? 'binance_usdt_trc20' : 'mpesa');
+    setPaymentMethod((action === 'ai_analyst' || action === 'course') && !eligibleClient ? 'binance_usdt_trc20' : 'mpesa');
     setPaymentNumber('');
     setPaymentName('');
     setDepositPaid(false);
@@ -180,14 +181,14 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
     setDepositStatus('');
     setAuthExpired(false);
     setSupportedCurrencies([]);
-    setPaymentCurrency((action === 'ai_analyst' || action === 'course') ? (currency.toUpperCase() === 'MZN' ? 'MZN' : 'USDT') : (agentCurrency || currency));
+    setPaymentCurrency((action === 'ai_analyst' || action === 'course') ? (eligibleClient ? 'MZN' : 'USDT') : (agentCurrency || currency));
     try {
       const raw = sessionStorage.getItem('mozhyper_payment_agent_draft');
       if (raw) {
         const draft = JSON.parse(raw);
         if (draft?.action === action && Date.now() - Number(draft.savedAt || 0) < 15 * 60 * 1000) {
           if (action === 'ai_analyst') {
-            const mznEligible = currency.toUpperCase() === 'MZN';
+            const mznEligible = eligibleClient;
             setAmount(mznEligible ? '250' : '3');
             setPaymentCurrency(mznEligible ? 'MZN' : 'USDT');
             setPaymentMethod(!mznEligible ? 'binance_usdt_trc20' : (draft.paymentMethod === 'emola' ? 'emola' : 'mpesa'));
@@ -209,7 +210,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
         sessionStorage.removeItem('mozhyper_payment_agent_draft');
       }
     } catch {}
-  }, [open, action, currency, agentCurrency]);
+  }, [open, action, currency, agentCurrency, eligibleClient]);
 
   useEffect(() => {
     if (!open || isAiAnalyst || isCourse) return;
@@ -398,8 +399,8 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   };
 
   const paymentReady = supportedCurrencies.length > 0;
-  const aiAnalystMznEligible = isAiAnalyst && currency.toUpperCase() === 'MZN';
-  const courseMznEligible = isCourse && currency.toUpperCase() === 'MZN';
+  const aiAnalystMznEligible = isAiAnalyst && eligibleClient;
+  const courseMznEligible = isCourse && eligibleClient;
 
   const retryNickname = async () => {
     setNicknameLoading(true);
