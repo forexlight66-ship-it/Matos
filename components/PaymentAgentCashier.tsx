@@ -562,7 +562,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
         ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod, payerName: payerName.trim(), payerNumber: payerNumber.replace(/\s+/g,'') }
         : action === 'withdraw'
           ? { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName }
-          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency: isCourse ? (courseMznEligible ? 'MZN' : 'USDT') : currency, payerName: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerName.trim() : undefined, payerNumber: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerNumber.replace(/\s+/g,'') : undefined };
+          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency: (isCourse || isAiAnalyst) ? ((isCourse ? courseMznEligible : aiAnalystMznEligible) ? 'MZN' : 'USDT') : currency, payerName: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerName.trim() : undefined, payerNumber: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerNumber.replace(/\s+/g,'') : undefined };
 
       const response = await fetch(endpoint, {
         method: 'POST',
