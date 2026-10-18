@@ -53,8 +53,8 @@ export default function SignalsFree({ light }: { light: boolean }) {
             alignItems: 'center',
             justifyContent: 'center',
             padding: 20,
-            background: 'rgba(0,0,0,.68)',
-            backdropFilter: 'blur(4px)',
+            background: 'rgba(25, 10, 14, .76)',
+            backdropFilter: 'blur(7px)',
           }}
         >
           <section
@@ -65,12 +65,12 @@ export default function SignalsFree({ light }: { light: boolean }) {
               width: '100%',
               maxWidth: 390,
               boxSizing: 'border-box',
-              borderRadius: 18,
-              padding: '26px 22px 22px',
-              color: light ? '#172033' : '#f5f7fb',
-              background: light ? '#ffffff' : '#111827',
-              border: '1px solid ' + (light ? '#e5e7eb' : '#374151'),
-              boxShadow: '0 24px 70px rgba(0,0,0,.35)',
+              borderRadius: 22,
+              padding: '28px 22px 22px',
+              color: light ? '#20212a' : '#f8fafc',
+              background: light ? 'linear-gradient(180deg,#fff 0%,#fff8f8 100%)' : 'linear-gradient(180deg,#21151a 0%,#15151b 100%)',
+              border: '1px solid ' + (light ? '#ffd5d9' : '#51303a'),
+              boxShadow: '0 28px 80px rgba(0,0,0,.42)',
               textAlign: 'center',
             }}
           >
@@ -82,13 +82,15 @@ export default function SignalsFree({ light }: { light: boolean }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'linear-gradient(145deg,#087ec2,#07519b)',
+              background: 'linear-gradient(145deg,#ff5964,#d91f35)',
+              boxShadow: '0 8px 22px rgba(217,31,53,.25)',
               fontSize: 27,
             }} aria-hidden="true">📊</div>
-            <h2 id="signals-intro-title" style={{ fontSize: 21, lineHeight: 1.3, fontWeight: 800, margin: '0 0 12px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 12px', padding: '5px 11px', borderRadius: 999, background: light ? '#fff0f1' : '#3a1c24', color: light ? '#c91f35' : '#ff8792', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }}>● Acesso gratuito</div>
+            <h2 id="signals-intro-title" style={{ fontSize: 22, lineHeight: 1.28, fontWeight: 850, margin: '0 0 12px', letterSpacing: '-.025em' }}>
               Tenha acesso a sinais de Forex grátis!
             </h2>
-            <p style={{ fontSize: 15, lineHeight: 1.65, margin: '0 0 22px', color: light ? '#4b5563' : '#d1d5db' }}>
+            <p style={{ fontSize: 15, lineHeight: 1.65, margin: '0 0 22px', color: light ? '#5b606b' : '#c8c5cb' }}>
               Receba sinais para <strong>XAUUSD</strong>, <strong>Boom 1000</strong>, <strong>Volatility 75</strong> e muito mais — gratuitamente no nosso grupo do Telegram.
             </p>
             <a
@@ -103,8 +105,9 @@ export default function SignalsFree({ light }: { light: boolean }) {
                 width: '100%',
                 minHeight: 48,
                 boxSizing: 'border-box',
-                borderRadius: 11,
-                background: '#1687d9',
+                borderRadius: 12,
+                background: 'linear-gradient(135deg,#ff5964 0%,#e32942 55%,#c91835 100%)',
+                boxShadow: '0 8px 18px rgba(217,31,53,.24)',
                 color: '#ffffff',
                 textDecoration: 'none',
                 fontSize: 16,
@@ -121,7 +124,7 @@ export default function SignalsFree({ light }: { light: boolean }) {
                 padding: '9px 16px',
                 border: 0,
                 background: 'transparent',
-                color: light ? '#6b7280' : '#9ca3af',
+                color: light ? '#777984' : '#b9b3bb',
                 cursor: 'pointer',
                 fontSize: 14,
               }}
