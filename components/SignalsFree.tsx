@@ -14,7 +14,7 @@ export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?
     <>
       <button
         type="button"
-        onClick={() => { onOpen?.(); setShowIntro(true); }}
+        onClick={() => setShowIntro(true)}
         className="icon-btn signals-free-trigger"
         aria-label={english ? "View free Forex signals" : "Ver sinais de Forex grátis"}
         title={english ? "Free Forex signals" : "Sinais de Forex grátis"}
