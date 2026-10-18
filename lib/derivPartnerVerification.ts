@@ -20,13 +20,30 @@ type ActivePartnerToken = {
 let partnerTokenRefreshInFlight: Promise<ActivePartnerToken> | null = null;
 
 async function getActivePartnerToken(appId: string): Promise<ActivePartnerToken> {
+  // Deriv's documented OAuth authorization-code flow returns a short-lived
+  // access_token, not a refresh_token. Partner verification therefore supports
+  // a server-side Deriv Personal Access Token (PAT) with application_read scope.
+  // Keep this token only in Render environment variables; never expose it to clients.
+  const configuredPat = process.env.DERIV_PARTNER_API_TOKEN?.trim();
+  if (configuredPat) {
+    const partnerId = await fetchAuthenticatedPartnerId(configuredPat, appId);
+    if (!partnerId) {
+      throw apiError(
+        'A credencial de parceiro configurada no servidor foi rejeitada ou não tem a permissão application_read. Verifique DERIV_PARTNER_API_TOKEN.',
+        503,
+        'PARTNER_PAT_INVALID_OR_SCOPE_MISSING',
+      );
+    }
+    return { accessToken: configuredPat, partnerId };
+  }
+
   if (partnerTokenRefreshInFlight) return partnerTokenRefreshInFlight;
 
   const operation = (async (): Promise<ActivePartnerToken> => {
     const credential = await getDerivPartnerRefreshCredential();
     if (!credential) {
       throw apiError(
-        'A conta Deriv de parceiro ainda não está ligada ao Matos. O administrador deve iniciar sessão novamente com a conta de parceiro para registar a ligação.',
+        'A ligação do parceiro ainda não está configurada no servidor. Configure DERIV_PARTNER_API_TOKEN no Render com um token Deriv que tenha a permissão application_read.',
         503,
         'PARTNER_CREDENTIAL_NOT_CONFIGURED',
       );
