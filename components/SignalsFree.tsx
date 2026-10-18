@@ -4,14 +4,14 @@ import { useState } from 'react';
 
 const GROUP_URL = 'https://t.me/+S4A_5SgZB6x4P_UQ';
 
-export default function SignalsFree({ light }: { light: boolean }) {
+export default function SignalsFree({ light, onOpen }: { light: boolean; onOpen?: () => void }) {
   const [showIntro, setShowIntro] = useState(false);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setShowIntro(true)}
+        onClick={() => { onOpen?.(); setShowIntro(true); }}
         className="icon-btn signals-free-trigger"
         aria-label="Ver sinais de forex grátis"
         title="Sinais de Forex grátis"
