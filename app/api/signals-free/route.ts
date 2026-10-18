@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import {
+  activateSignalsFreeUnlimited,
   ensureSignalsFreeOnboardingSchema,
   getSignalsFreeOnboarding,
   getSignalsFreeRequest,
