@@ -193,7 +193,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
             setPaymentCurrency(mznEligible ? 'MZN' : 'USDT');
             setPaymentMethod(!mznEligible ? 'binance_usdt_trc20' : (draft.paymentMethod === 'emola' ? 'emola' : 'mpesa'));
           } else if (action === 'course') {
-            const mznEligible = currency.toUpperCase() === 'MZN';
+            const mznEligible = eligibleClient;
             setAmount(mznEligible ? '999' : '15');
             setPaymentCurrency(mznEligible ? 'MZN' : 'USDT');
             setPaymentMethod(mznEligible ? 'mpesa' : 'binance_usdt_trc20');
