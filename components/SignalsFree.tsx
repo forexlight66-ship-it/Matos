@@ -30,14 +30,23 @@ export default function SignalsFree({ light }: { light: boolean }) {
           cursor: 'pointer',
         }}
       >
-        <svg width="24" height="24" viewBox="0 0 48 48" role="img" aria-label="MetaTrader 5 style logo" style={{ display: 'block', width: 24, height: 24 }}>
-          <rect width="48" height="48" rx="7" fill="#1976D2" />
-          <path d="M7 12h34M7 24h34M7 36h34M16 5v38M32 5v38" stroke="#ffffff" strokeOpacity=".08" strokeWidth="1" />
-          <circle cx="19" cy="19" r="11" fill="#75C943" stroke="#287B35" strokeWidth="1.5" />
-          <circle cx="17" cy="30" r="11" fill="#F3D83E" stroke="#B9A81B" strokeWidth="1.5" />
-          <circle cx="31" cy="29" r="11" fill="#31B6E8" stroke="#1479B5" strokeWidth="1.5" />
-          <circle cx="24" cy="24" r="8.5" fill="#ffffff" stroke="#d8e2ee" strokeWidth="1.2" />
-          <text x="24" y="29" textAnchor="middle" fontSize="14" fontWeight="800" fontFamily="Arial, sans-serif" fill="#E78335">5</text>
+        <svg width="24" height="24" viewBox="0 0 48 48" role="img" aria-label="Logótipo MetaTrader 5" style={{ display: 'block', width: 24, height: 24 }}>
+          <defs>
+            <linearGradient id="mt5BlueTile" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#11A8E0"/><stop offset="100%" stopColor="#0756A5"/></linearGradient>
+            <radialGradient id="mt5GreenBall" cx="32%" cy="22%" r="78%"><stop offset="0%" stopColor="#C9F7A5"/><stop offset="48%" stopColor="#64C94B"/><stop offset="100%" stopColor="#176B2D"/></radialGradient>
+            <radialGradient id="mt5YellowBall" cx="28%" cy="20%" r="80%"><stop offset="0%" stopColor="#FFF78A"/><stop offset="52%" stopColor="#E7D72D"/><stop offset="100%" stopColor="#9B9412"/></radialGradient>
+            <radialGradient id="mt5CyanBall" cx="28%" cy="20%" r="80%"><stop offset="0%" stopColor="#A7F1FF"/><stop offset="48%" stopColor="#35B8E7"/><stop offset="100%" stopColor="#075A9E"/></radialGradient>
+            <linearGradient id="mt5Number" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#FFB15A"/><stop offset="100%" stopColor="#E66A2E"/></linearGradient>
+          </defs>
+          <rect width="48" height="48" rx="7" fill="url(#mt5BlueTile)"/>
+          <path d="M0 12H48M0 24H48M0 36H48M12 0V48M24 0V48M36 0V48" stroke="#D9F5FF" strokeOpacity=".12" strokeWidth=".6"/>
+          <circle cx="24" cy="19" r="13.4" fill="#236C2C" opacity=".95"/>
+          <circle cx="24" cy="17.5" r="11.8" fill="url(#mt5GreenBall)" stroke="#28763A" strokeWidth="1.1"/>
+          <circle cx="16.3" cy="29.2" r="12.5" fill="url(#mt5YellowBall)" stroke="#A6A11B" strokeWidth="1.1"/>
+          <circle cx="31.8" cy="29.2" r="12.5" fill="url(#mt5CyanBall)" stroke="#1268A5" strokeWidth="1.1"/>
+          <circle cx="24" cy="25.2" r="8.8" fill="#F7FAFC" stroke="#D3E0E9" strokeWidth="1.1"/>
+          <text x="24" y="29.8" textAnchor="middle" fontSize="14.5" fontWeight="800" fontFamily="Arial, sans-serif" fill="url(#mt5Number)" stroke="#A64B23" strokeWidth=".25">5</text>
+          <path d="M16 10.5C18 6.5 24 5 28 7" fill="none" stroke="#FFFFFF" strokeOpacity=".48" strokeWidth="1.4" strokeLinecap="round"/>
         </svg>
       </button>
 
