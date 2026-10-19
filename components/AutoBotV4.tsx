@@ -910,7 +910,7 @@ export default function AutoBotV4(){
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
     if(hypercoverAlternationRef.current.pauseTicksRemaining>0&&(strategy==='HYPERCOVER'||smartAnalyzer||hypercoverAlternationRef.current.forceNextDirection)){setBotActivity('waitingRobotSignal');return;}
   const forceHypercover=hypercoverAlternationRef.current.forceNextDirection;
-  if(!forceHypercover&&(smartAnalyzer?(exitSpotsMode?analysisExitValues.length<28:aiAnalysisValues.length<25):botAnalysisValues.length<9)){setBotActivity(smartAnalyzer?(exitSpotsMode?'waitingExitSpots':'collectingTicks'):'collectingTicks');return;}
+  if(!forceHypercover&&(exitSpotsMode?analysisExitValues.length<28:(smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))){setBotActivity(exitSpotsMode?'waitingExitSpots':'collectingTicks');return;}
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer&&!forceHypercover){
    if(!smartAdvice||(!exitSpotsMode&&smartAdvice.noTrade)){setBotActivity('waitingAnalystSignal');return;}
@@ -920,11 +920,11 @@ export default function AutoBotV4(){
   if(!forceHypercover&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
   if(proposal||buying||activeContractId!==null||trackedContractId!==null||!isAuthorized||!isConnected){setBotActivity(!isConnected||!isAuthorized?'reconnectingDeriv':(buying?'waitingBuyConfirmation':'reconcilingBot'));return;}
   let freshSignal:any=null;
-  if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(smartAnalyzer){
-   if(exitSpotsMode){
-    const exitSignal=analystStrategy?(isRecoveryStrategy(analystStrategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current,tickPipSize):makeExitSpotSignal(analysisExitValues,analystStrategy,tickPipSize,true)):null;
-    if(exitSignal)freshSignal=exitSignal;
-   }else if(analystStrategy&&isRecoveryStrategy(analystStrategy)){
+  if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(exitSpotsMode){
+   const exitSignal=isRecoveryStrategy(strategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize):makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
+   if(exitSignal)freshSignal=exitSignal;
+  }else if(smartAnalyzer){
+   if(analystStrategy&&isRecoveryStrategy(analystStrategy)){
     const state=barrierStateRef.current||initialBarrierState(analystStrategy);
     const tickSignal=makeBarrierSignal(aiAnalysisValues,state,tickPipSize,65,25);
     const recentConfirmed=confirmBarrierRecent(aiAnalysisValues.slice(-5),state,tickPipSize);
@@ -1132,6 +1132,11 @@ export default function AutoBotV4(){
     if(hypercoverAlternationRef.current.pauseTicksRemaining>0&&(strategy==='HYPERCOVER'||smartAnalyzer||hypercoverAlternationRef.current.forceNextDirection)){clearProposal();requested.current=false;requestStartedAt.current=0;return;}
     const forceHypercover=hypercoverAlternationRef.current.forceNextDirection;
     if(forceHypercover){const forced=hypercoverAlternationRef.current;validationSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'HYPERCOVER OVER 1':'HYPERCOVER UNDER 8',strength:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}
+    else if(exitSpotsMode){
+     validationSignal=isRecoveryStrategy(strategy)
+      ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize)
+      :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
+    }
     else if(smartAnalyzer){
      advice=smartAdvice;
      const mapped=advice?ANALYZER_STRATEGY_TO_BOT[String(advice.strategy)]||String(advice.strategy):'';
@@ -1312,101 +1317,60 @@ export default function AutoBotV4(){
  setAnalyzerHistory(analyzerDecisionHistoryRef.current);
 },[smartAnalyzer,exitSpotsMode,analyze100Ticks,aiAnalysisValues,tickPipSize,strategy]);
 useEffect(()=>{
- if(!smartAnalyzer||!exitSpotsAutoEnabled){
+ // Universal Exit Spots automation for every bot in Robô normal and AI Analyst.
+ // It preserves the selected bot and changes only the signal data source.
+ if((!running&&!smartAnalyzer)||!exitSpotsAutoEnabled){
   if(!exitSpotsAutoEnabled&&exitSpotsMode)setExitSpotsMode(false);
   return;
  }
  const exitSpotCount=analysisExitValues.length;
  if(exitSpotCount<28){
-  setExitSpotsMonitorStatus('A recolher '+exitSpotCount+'/28 Exit Spots fechados; AI Analyst normal continua ativo.');
+  setExitSpotsMonitorStatus('A recolher '+exitSpotCount+'/28 Exit Spots fechados; o robô continua no modo normal.');
   if(exitSpotsMode){
    setExitSpotsMode(false);
-   setSmartAdvice(null);
+   if(smartAnalyzer)setSmartAdvice(null);
    setAnalyzerNoticeColor('#64748b');
-   setAnalyzerNotice('Modo Exit Spots: são necessários 28 Exit Spots fechados. A regressar ao AI Analyst normal.');
+   setAnalyzerNotice('São necessários 28 Exit Spots fechados. A regressar ao modo normal.');
    pendingAnalyzerStrategyRef.current=null;
   }
   return;
  }
-
- // If currently trading from Exit Spots, revalidate the actual current strategy
- // and its current barrier, not an unrelated alternative signal.
+ const activeSignal=isRecoveryStrategy(strategy)
+  ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize)
+  :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
  if(exitSpotsMode){
-  const activeSignal=isRecoveryStrategy(strategy)
-   ?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize)
-   :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
   if(!activeSignal){
    setExitSpotsMode(false);
-   setSmartAdvice(null);
+   if(smartAnalyzer)setSmartAdvice(null);
    setAnalyzerNoticeColor('#64748b');
-   setAnalyzerNotice('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos.');
-   setExitSpotsMonitorStatus('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos. AI Analyst normal ativo; a monitorar até o sinal voltar.');
+   setAnalyzerNotice('Exit Spots: o sinal deste bot já não cumpre 20% em pelo menos 3 dos 4 blocos. A regressar ao modo normal.');
+   setExitSpotsMonitorStatus('Sinal Exit Spots indisponível para '+String(strategy)+'. Modo normal ativo; a monitorar até o sinal voltar.');
    pendingAnalyzerStrategyRef.current=null;
    return;
   }
   const blocks=Number(activeSignal.agreeingExitSpotBlocks)||0;
-  setExitSpotsMonitorStatus('Exit Spots ativo: sinal válido em '+blocks+'/4 blocos; gatilho 20%.');
-  // Keep the selected direction current as the rolling 28-result window changes.
-  setSmartAdvice((previous:any)=>{
-   if(!previous||ANALYZER_STRATEGY_TO_BOT[String(previous.strategy)]!==strategy)return previous;
-   return {...previous,contract:activeSignal.contract,label:activeSignal.label,strength:Number(activeSignal.strength)||0,noTrade:false,qualityBlocked:false,exitSpotMode:true,overallExitSpotStrength:Number(activeSignal.overallExitSpotStrength)||Number(activeSignal.strength)||0,recentExitSpotStrength:Number(activeSignal.recentExitSpotStrength)||Number(activeSignal.strength)||0,agreeingExitSpotBlocks:blocks};
-  });
+  setExitSpotsMonitorStatus('Exit Spots ativo para '+String(strategy)+': sinal válido em '+blocks+'/4 blocos; gatilho 20%.');
+  if(smartAnalyzer)setSmartAdvice((previous:any)=>({...previous,strategy:previous?.strategy||strategy,contract:activeSignal.contract,label:activeSignal.label,strength:Number(activeSignal.strength)||0,noTrade:false,qualityBlocked:false,exitSpotMode:true,overallExitSpotStrength:Number(activeSignal.overallExitSpotStrength)||Number(activeSignal.strength)||0,recentExitSpotStrength:Number(activeSignal.recentExitSpotStrength)||Number(activeSignal.strength)||0,agreeingExitSpotBlocks:blocks}));
   return;
  }
-
- // In normal mode, keep watching Exit Spots in the background. Switch only
- // when one strategy has a valid 28-result signal and at least 3/4 blocks agree.
- const candidate:any=analyzeExitSpots28(analysisExitValues,tickPipSize);
- if(!candidate){
-  setExitSpotsMonitorStatus((previous:string)=>previous.startsWith('Modo Exit Spots: o sinal do contrato atual não atinge 20% em pelo menos 3 dos 4 blocos.')
-   ?previous
-   :'28 Exit Spots disponíveis; a monitorar em segundo plano por um sinal de 20% com concordância em 3/4 blocos.');
+ if(!activeSignal){
+  setExitSpotsMonitorStatus('28 Exit Spots disponíveis; a aguardar um sinal de 20% em 3/4 blocos para o bot '+String(strategy)+'.');
   return;
  }
- const candidateBot=ANALYZER_STRATEGY_TO_BOT[String(candidate.strategy)] as Strategy|undefined;
- if(!candidateBot){
-  setExitSpotsMonitorStatus('A monitorar Exit Spots; ainda não existe uma estratégia elegível.');
+ // Never switch data sources in the middle of a contract or pending purchase.
+ if(activeContractId!==null||trackedContractId!==null||proposal||buying){
+  setExitSpotsMonitorStatus('Sinal Exit Spots disponível para '+String(strategy)+'; a aguardar o fecho da operação atual para migrar.');
   return;
  }
- let selected:any=candidate;
- if(isRecoveryStrategy(candidateBot)){
-  const barrier=candidateBot===strategy&&barrierStateRef.current?barrierStateRef.current:initialBarrierState(candidateBot);
-  const barrierSignal=makeExitSpotBarrierSignal(analysisExitValues,barrier,tickPipSize);
-  if(!barrierSignal){
-   setExitSpotsMonitorStatus('A monitorar Exit Spots; o contrato de recuperação ainda não cumpre 20% em 3/4 blocos.');
-   return;
-  }
-  selected={...candidate,contract:barrierSignal.contract,label:barrierSignal.label,strength:barrierSignal.strength,overallExitSpotStrength:barrierSignal.overallExitSpotStrength,recentExitSpotStrength:barrierSignal.recentExitSpotStrength,agreeingExitSpotBlocks:barrierSignal.agreeingExitSpotBlocks};
- }
- // Do not switch the underlying strategy in the middle of a live contract/proposal.
- if(activeContractId!==null||proposal||buying){
-  setExitSpotsMonitorStatus('Sinal Exit Spots disponível; a aguardar que a operação atual termine para migrar com segurança.');
-  return;
- }
- if(candidateBot!==strategy&&isRecoveryStrategy(candidateBot)){
-  // The candidate was qualified against its initial barrier; start that strategy
-  // with the same barrier while the strategy-change effect synchronizes UI state.
-  barrierStateRef.current=initialBarrierState(candidateBot);
- }
- if(strategy!==candidateBot){
-  pendingAnalyzerStrategyRef.current=candidateBot;
-  setStrategy(candidateBot);
-  analyzerLastSwitchTickRef.current=totalTickCountRef.current;
-  setAnalyzerNoticeColor(ANALYZER_COLORS[String(candidate.strategy)]||'#3D7FFF');
-  setAnalyzerNotice('SINAL EXIT SPOTS DETETADO — a migrar para '+String(candidate.strategy)+' · gatilho 20%');
-  analyzerAlertSound();
- }else{
-  pendingAnalyzerStrategyRef.current=null;
-  setAnalyzerNoticeColor(ANALYZER_COLORS[String(candidate.strategy)]||'#3D7FFF');
-  setAnalyzerNotice('SINAL EXIT SPOTS DETETADO — '+String(candidate.strategy)+' · gatilho 20%');
- }
- setSmartAdvice({...selected,noTrade:false,qualityBlocked:false,currentScore:Number(selected.score)||0,confidenceBand:confidenceBand(Number(selected.score)||0),exitSpotMode:true});
  setExitSpotsMode(true);
- setExitSpotsMonitorStatus('Exit Spots ativo: sinal válido em '+(Number(selected.agreeingExitSpotBlocks)||0)+'/4 blocos; gatilho 20%.');
- const entry={time:new Date().toLocaleTimeString(),rankings:[{strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0)}],strategy:selected.strategy,label:selected.label,score:Math.round(Number(selected.score)||0),action:'ENTRA EM EXIT SPOTS'};
+ setAnalyzerNoticeColor(ANALYZER_COLORS[String(strategy)]||'#3D7FFF');
+ setAnalyzerNotice('28 EXIT SPOTS COMPLETOS — '+String(strategy)+' migrou automaticamente para Exit Spots Trading · gatilho 20%');
+ setExitSpotsMonitorStatus('Exit Spots ativo para '+String(strategy)+': sinal válido em '+(Number(activeSignal.agreeingExitSpotBlocks)||0)+'/4 blocos; gatilho 20%.');
+ if(smartAnalyzer)setSmartAdvice((previous:any)=>({...previous,strategy:previous?.strategy||strategy,contract:activeSignal.contract,label:activeSignal.label,strength:Number(activeSignal.strength)||0,noTrade:false,qualityBlocked:false,currentScore:Number(previous?.score)||Number(activeSignal.strength)||0,exitSpotMode:true,overallExitSpotStrength:Number(activeSignal.overallExitSpotStrength)||Number(activeSignal.strength)||0,recentExitSpotStrength:Number(activeSignal.recentExitSpotStrength)||Number(activeSignal.strength)||0,agreeingExitSpotBlocks:Number(activeSignal.agreeingExitSpotBlocks)||0}));
+ const entry={time:new Date().toLocaleTimeString(),rankings:[{strategy,label:activeSignal.label,score:Math.round(Number(activeSignal.strength)||0)}],strategy,label:activeSignal.label,score:Math.round(Number(activeSignal.strength)||0),action:'MIGRA PARA EXIT SPOTS'};
  analyzerDecisionHistoryRef.current=[entry,...analyzerDecisionHistoryRef.current].slice(0,8);
  setAnalyzerHistory(analyzerDecisionHistoryRef.current);
-},[smartAnalyzer,exitSpotsAutoEnabled,exitSpotsMode,analysisExitValues,tickPipSize,strategy,activeContractId,proposal,buying]);
+},[running,smartAnalyzer,exitSpotsAutoEnabled,exitSpotsMode,analysisExitValues,tickPipSize,strategy,activeContractId,trackedContractId,proposal,buying]);
 
   useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,smartAnalyzer,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
