@@ -635,7 +635,25 @@ export default function AutoBotV4(){
    console.warn('[Bot lifecycle] Processed a closed trade without clearing a different active contract lock',{closedContractId:id,trackedActiveId});
   }
  },[running,smartAnalyzer,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,maxMartingale,setManualStatus]);
- const{tick,balance,proposal,buy,buyDirect,buying,activeContractId,trackedContractId,getProposal,clearProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately);activeContractIdForRiskRef.current=trackedContractId;useEffect(()=>{manualPowerBalanceRef.current={balance:Number(balance?.balance)||0,currency:String(balance?.currency||'USD')};},[balance?.balance,balance?.currency]);
+ const{tick,balance,proposal,buy,buyDirect,buying,activeContractId,trackedContractId,getProposal,clearProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately);activeContractIdForRiskRef.current=trackedContractId;
+ useEffect(()=>{
+  if(contractClosedSeq===lastRequestedClose.current)return;
+  lastRequestedClose.current=contractClosedSeq;
+  if(activeContractId!==null||trackedContractId!==null||proposal||buying)return;
+  requested.current=false;
+  requestStartedAt.current=0;
+  if(!iaPower&&!sonic){
+   stakeReadyRef.current=true;
+   riskLockStartedAt.current=0;
+   pendingRiskStakeRef.current=null;
+   riskAwaitingContractRef.current=null;
+  }
+  lastActivityAt.current=Date.now();
+  if(running&&!stopped.current){
+   setBotActivity('waitingRobotSignal');
+   subscribeTicks(symbol);
+  }
+ },[contractClosedSeq,activeContractId,trackedContractId,proposal,buying,iaPower,sonic,running,subscribeTicks,symbol]);useEffect(()=>{manualPowerBalanceRef.current={balance:Number(balance?.balance)||0,currency:String(balance?.currency||'USD')};},[balance?.balance,balance?.currency]);
  const manualFeedback=(message:string)=>{setManualStatus(message);setNotice(message)};
  const submitManualTrade=(contractType:'DIGITOVER'|'DIGITUNDER',barrier:number)=>{
   if(running||smartAnalyzer){manualFeedback(language==='en'?'Stop the robot before manual trading.':language==='es'?'Detén el robot antes de operar manualmente.':'Pare o robô antes de operar manualmente.');return}
