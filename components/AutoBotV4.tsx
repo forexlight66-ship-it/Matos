@@ -641,6 +641,64 @@ export default function AutoBotV4(){
   }
  },[running,smartAnalyzer,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,maxMartingale,setManualStatus]);
  const{tick,balance,proposal,buy,buyDirect,buying,activeContractId,trackedContractId,getProposal,clearProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately);activeContractIdForRiskRef.current=trackedContractId;
+ // Dynamic symbol selector: periodically compares fresh 25-tick samples for every supported
+ // volatility index and chooses the strongest recent setup for the currently selected bot.
+ // It only changes symbols while no contract/buy is active, and requires a clear score lead
+ // to avoid rapid symbol oscillation. This is a statistical selector, not a profit guarantee.
+ const symbolSelectionLockRef=useRef(false);
+ const symbolScoreForBot=(values:number[],bot:Strategy)=>{
+  if(values.length<25)return -Infinity;
+  const all=stats(values.slice(-25)),recent=stats(values.slice(-9));
+  let full=0,short=0,baseline=50;
+  if(bot==='MATCH0'){full=all.match0;short=recent.match0;baseline=10;}
+  else if(bot==='PAR_IMPAR'||bot==='HYPERLITE'){full=Math.max(all.even,all.odd);short=Math.max(recent.even,recent.odd);baseline=50;}
+  else if(bot==='ACIMA5_BAIXO4'){full=Math.max(all.above5,all.below4);short=Math.max(recent.above5,recent.below4);baseline=40;}
+  else if(bot==='RISE_FALL'){full=Math.max(all.rise,all.fall);short=Math.max(recent.rise,recent.fall);baseline=50;}
+  else if(bot==='DIFERENTE'||bot==='HYPERSWAP'){full=all.diff;short=recent.diff;baseline=90;}
+  else if(bot==='HYPERGUARD'){full=all.diff;short=recent.diff;baseline=90;}
+  else if(bot==='HYPERSHIELD'){full=all.probs.slice(5).reduce((a,b)=>a+b,0);short=recent.probs.slice(5).reduce((a,b)=>a+b,0);baseline=50;}
+  else if(bot==='HYPERBREAK'){full=all.probs.slice(0,8).reduce((a,b)=>a+b,0);short=recent.probs.slice(0,8).reduce((a,b)=>a+b,0);baseline=80;}
+  else if(bot==='HYPERCOVER'){full=Math.max(100-all.probs[0],100-all.probs[9]);short=Math.max(100-recent.probs[0],100-recent.probs[9]);baseline=80;}
+  const edge=(full-baseline)*0.45+(short-baseline)*0.55;
+  const validSignal=makeSignal(values.slice(-25),bot,undefined,false,bot==='MATCH0'?22:65,9);
+  return 50+edge+(validSignal?8:0);
+ };
+ useEffect(()=>{
+  if((!running&&!smartAnalyzer)||stopped.current||!isConnected||!isAuthorized)return;
+  let cancelled=false;
+  const scan=async()=>{
+   if(symbolSelectionLockRef.current)return;
+   symbolSelectionLockRef.current=true;
+   try{
+    const candidates=Object.keys(SYMBOLS);
+    const ranked:{symbol:string;score:number}[]=[];
+    for(const candidate of candidates){
+     if(cancelled)break;
+     try{
+      const values=await getTicksHistory(candidate,25);
+      const score=symbolScoreForBot(values,strategy);
+      if(Number.isFinite(score))ranked.push({symbol:candidate,score});
+     }catch(err){console.debug('[Dynamic symbol selector] History unavailable',{symbol:candidate,error:String(err)});}
+     await new Promise(resolve=>window.setTimeout(resolve,120));
+    }
+    if(cancelled||ranked.length===0)return;
+    ranked.sort((a,b)=>b.score-a.score);
+    const best=ranked[0],current=ranked.find(item=>item.symbol===symbol);
+    // Switch only for a meaningful lead; if the current symbol has no fresh sample,
+    // use the best available one. Never change the underlying symbol mid-contract.
+    const clearLead=!current||best.symbol===symbol||best.score>=current.score+4;
+    if(best.symbol!==symbol&&clearLead&&activeContractId===null&&trackedContractId===null&&!buying){
+     console.info('[Dynamic symbol selector] Selected best current symbol',{bot:STRATEGY_BOT_NAMES[strategy]||strategy,previousSymbol:symbol,nextSymbol:best.symbol,bestScore:Number(best.score.toFixed(2)),currentScore:current?Number(current.score.toFixed(2)):null,samples:ranked.length});
+     setSymbol(best.symbol);
+     setNotice('Símbolo dinâmico: '+(SYMBOLS[best.symbol]||best.symbol)+' selecionado para '+(STRATEGY_BOT_NAMES[strategy]||strategy)+'.');
+    }
+   }finally{symbolSelectionLockRef.current=false;}
+  };
+  void scan();
+  const timer=window.setInterval(()=>{void scan()},45000);
+  return()=>{cancelled=true;window.clearInterval(timer)};
+ },[running,smartAnalyzer,strategy,symbol,isConnected,isAuthorized,activeContractId,trackedContractId,buying,getTicksHistory]);
+
  useEffect(()=>{
   if(contractClosedSeq===lastRequestedClose.current)return;
   lastRequestedClose.current=contractClosedSeq;
