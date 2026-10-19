@@ -11,7 +11,6 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
-  const platformSession = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
   const state = searchParams.get('state');
@@ -22,17 +21,22 @@ export async function GET(request: NextRequest) {
   if (oauthError) return errorRedirect(oauthErrorDescription || oauthError);
   if (!code || !state) return errorRedirect('missing_oauth_parameters');
 
-  const storedState = request.cookies.get('oauth_state')?.value;
-  if (!storedState || state !== storedState) return errorRedirect('invalid_oauth_state');
+  // The state, PKCE verifier, and redirect URI are stored server-side before
+  // leaving Matos. Do not require the oauth_state browser cookie here: some
+  // browser/privacy configurations may omit it on the return navigation.
+  // The high-entropy state in the callback URL is checked and consumed
+  // atomically in the database, which is the authoritative one-time check.
+  let oauthState;
+  try {
+    oauthState = await consumeDerivOAuthState(state);
+  } catch (error) {
+    console.error('[OAuth] Could not validate callback state in storage:', error);
+    return errorRedirect('oauth_state_storage_unavailable');
+  }
 
-  const oauthState = await consumeDerivOAuthState(state);
   if (!oauthState) {
-    const requestedReturnTo = request.cookies.get('oauth_return_to')?.value || '/';
-    const returnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//')
-      ? requestedReturnTo
-      : '/';
-    console.warn('[OAuth] Ignoring replayed or expired callback state.');
-    return NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
+    console.warn('[OAuth] Callback state missing, expired, or already consumed.');
+    return errorRedirect('invalid_or_expired_oauth_state');
   }
 
   const { verifier, redirect_uri: storedRedirectUri, return_to: storedReturnTo } = oauthState;
@@ -47,26 +51,28 @@ export async function GET(request: NextRequest) {
 
   try {
     const { access_token, refresh_token } = await exchangeCode(clientId, PRODUCTION_CALLBACK_URL, code, verifier);
+    const platformSession = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
     console.info('[OAuth] Deriv authorization code exchanged successfully.', {
       returnTo,
       refreshTokenReturned: Boolean(refresh_token),
       platformSessionPresent: Boolean(platformSession),
     });
-    const response = NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
-    let oauthSessionId = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value || '';
+
     let oauthUserId = platformSession?.id;
+    let oauthSessionId = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value || '';
+    const response = NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
+
     if (!platformSession) {
       oauthSessionId = await createDerivOAuthSession();
-      response.cookies.set(PLATFORM_SESSION_COOKIE, oauthSessionId, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
       const createdSession = await getSession(oauthSessionId);
       oauthUserId = createdSession?.id;
+      if (!oauthUserId) throw new Error('Matos OAuth session was created but could not be loaded');
+      response.cookies.set(PLATFORM_SESSION_COOKIE, oauthSessionId, {
+        httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30,
+      });
     }
-    if (!oauthUserId) {
-      console.error('[OAuth] Could not associate Deriv login with a Matos platform session.');
-    } else {
-      // Resolve the authenticated identity even when Deriv does not return a
-      // refresh token. This makes it possible to distinguish a wrong account,
-      // a missing refresh token, and a partner API/scope rejection in Render logs.
+
+    if (oauthUserId) {
       try {
         const derivIdentity = await getDerivIdentity(access_token, clientId);
         console.info('[OAuth] Authenticated Deriv identity resolved.', {
@@ -90,29 +96,42 @@ export async function GET(request: NextRequest) {
             console.info('[OAuth] Partner credential setup result:', partnerSetup.reason || 'unknown reason');
           }
         } else {
-          console.error('[OAuth] Partner credential was NOT saved because Deriv returned no refresh token. Reauthorization cannot fix this unless the OAuth app/token response supports refresh tokens.');
+          console.warn('[OAuth] Deriv did not return a refresh token; continuing normal sign-in.');
         }
       } catch (partnerSetupError) {
-        // Do not fail normal sign-in, but record the actual setup failure.
+        // Partner setup must not block an otherwise successful dashboard login.
         console.warn('[OAuth] Partner credential setup deferred:', partnerSetupError instanceof Error ? partnerSetupError.message : 'unknown error');
       }
+    } else {
+      throw new Error('Could not associate Deriv authorization with a Matos session');
     }
-    response.cookies.set('deriv_access_token', access_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600 });
-    if (platformSession?.country) response.cookies.set('matos_country', String(platformSession.country).toUpperCase(), { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 });
-    if (refresh_token) response.cookies.set('deriv_refresh_token', refresh_token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+
+    response.cookies.set('deriv_access_token', access_token, {
+      httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 3600,
+    });
+    if (platformSession?.country) {
+      response.cookies.set('matos_country', String(platformSession.country).toUpperCase(), {
+        httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365,
+      });
+    }
+    if (refresh_token) {
+      response.cookies.set('deriv_refresh_token', refresh_token, {
+        httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30,
+      });
+    }
     response.cookies.delete('oauth_verifier');
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_redirect_uri');
     response.cookies.delete('oauth_return_to');
     return response;
   } catch (error) {
-    console.error('[OAuth] Callback/token exchange failed:', error);
+    console.error('[OAuth] Callback/token exchange or session setup failed:', error);
     const message = error instanceof Error ? error.message : String(error);
     if (/authorization code has already been used|authorization grant.*already been used/i.test(message)) {
       console.warn('[OAuth] Duplicate callback detected; returning to requested page.');
       return NextResponse.redirect(new URL(returnTo, PRODUCTION_APP_URL), { status: 302 });
     }
     const safeReason = message.replace(/https?:\/\/[^\s]+/gi, '[url]').slice(0, 220);
-    return errorRedirect(`oauth_exchange_failed:${safeReason}`);
+    return errorRedirect(`oauth_callback_failed:${safeReason}`);
   }
 }
