@@ -235,8 +235,16 @@ export class DerivWebSocket {
   }
 
   subscribeTicks(symbol = 'R_100') {
+    // Avoid creating a new Deriv subscription every time the bot asks to resume
+    // listening. Repeated subscribe requests exhaust the account's subscription
+    // limit and can make tick delivery progressively slower.
+    const alreadySubscribed = this.tickSubscriptions.has(symbol);
     this.tickSubscriptions.add(symbol);
+    if (alreadySubscribed) return this.isConnected();
     if (this.send({ ticks: symbol, subscribe: 1 })) return true;
+    // Keep the desired symbol in the set for reconnect resubscription, but allow
+    // a later call to retry if the initial send failed.
+    this.tickSubscriptions.delete(symbol);
     return false;
   }
 
