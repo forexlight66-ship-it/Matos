@@ -227,10 +227,10 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=tru
   ].filter(candidate=>candidate.strength>=t).sort((a,b)=>b.strength-a.strength);
   return candidates.length?pick(candidates[0]):null;
  }
- // HyperFlow (MATCH 0): dedicated 11% trigger, independent of the generic 65% threshold.
- // On the normal 9-tick window this allows a signal from one zero (about 11.1%).
- // Do not require zero to be the most frequent digit, which could block all entries.
- const zeroTrigger=11;
+ // HyperFlow (MATCH 0): dedicated 22% trigger, independent of the generic 65% threshold.
+ // On the normal 9-tick window, two zeros give about 22.2% and can satisfy the trigger.
+ // Do not require zero to be the most frequent digit, which could block entries.
+ const zeroTrigger=22;
  const zeroIsDominant=x.match0>=zeroTrigger;
  return zeroIsDominant?pick({contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}):null;
 }
