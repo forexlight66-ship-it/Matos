@@ -483,11 +483,14 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       if(activeId!==null){
        const age=now-(activeContractStartedAtRef.current||now);
        const silence=now-(lastActiveContractUpdateAtRef.current||activeContractStartedAtRef.current||now);
-       if((age>=10000||silence>=8000)&&now-lastContractReconcileAtRef.current>=8000){
+       // One-tick contracts should not leave the UI waiting 8–10 seconds before
+       // reconciliation. Query the contract status quickly without replacing its
+       // live subscription on every check.
+       if((age>=2500||silence>=2500)&&now-lastContractReconcileAtRef.current>=2500){
         lastContractReconcileAtRef.current=now;
-        console.warn('[Deriv contract watchdog] No timely contract update; requesting contract status, portfolio and closed history',{contract_id:activeId,ageMs:age,silenceMs:silence,portfolioAbsenceChecks:portfolioAbsenceCountRef.current});
-        currentWs.reconcileContract(activeId);currentWs.requestContractStatus(activeId);
-        if(now-lastPortfolioRequestAtRef.current>=8000){lastPortfolioRequestAtRef.current=now;portfolioRequestIdRef.current=currentWs.requestPortfolio();}
+        console.warn('[Deriv contract watchdog] One-tick contract has no recent update; querying contract status and portfolio',{contract_id:activeId,ageMs:age,silenceMs:silence,portfolioAbsenceChecks:portfolioAbsenceCountRef.current});
+        currentWs.requestContractStatus(activeId);
+        if(now-lastPortfolioRequestAtRef.current>=3000){lastPortfolioRequestAtRef.current=now;portfolioRequestIdRef.current=currentWs.requestPortfolio();}
         refresh(true);
        }
       }
