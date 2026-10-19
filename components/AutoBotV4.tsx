@@ -912,8 +912,8 @@ export default function AutoBotV4(){
   const forceHypercover=hypercoverAlternationRef.current.forceNextDirection;
   if(!forceHypercover&&(exitSpotsMode?analysisExitValues.length<28:(smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))){setBotActivity(exitSpotsMode?'waitingExitSpots':'collectingTicks');return;}
   let analystStrategy:Strategy|null=null;
-  if(smartAnalyzer&&!forceHypercover){
-   if(!smartAdvice||(!exitSpotsMode&&smartAdvice.noTrade)){setBotActivity('waitingAnalystSignal');return;}
+  if(smartAnalyzer&&!forceHypercover&&!exitSpotsMode){
+   if(!smartAdvice||smartAdvice.noTrade){setBotActivity('waitingAnalystSignal');return;}
    analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]||null;
    if(!analystStrategy||strategy!==analystStrategy){setBotActivity('waitingAnalystSignal');return;}
   }
