@@ -270,6 +270,8 @@ function analyzeExitSpots28(values:number[],pipSize?:number){
   {strategy:'HyperStrike',bot:'ACIMA5_BAIXO4'},
   {strategy:'HyperForce',bot:'RISE_FALL'},
   {strategy:'HyperNova',bot:'DIFERENTE'},
+  // HyperFlow participates in Exit Spots mode using the same dedicated MATCH 0 trigger.
+  {strategy:'HyperFlow',bot:'MATCH0'},
   {strategy:'Hyperlite',bot:'HYPERLITE'},
   {strategy:'HyperGuard',bot:'HYPERGUARD'},
   {strategy:'HyperShield',bot:'HYPERSHIELD'},
@@ -281,6 +283,7 @@ function analyzeExitSpots28(values:number[],pipSize?:number){
   const signal=makeExitSpotSignal(values,item.bot,pipSize,true);
   if(!signal)continue;
   const baseline=item.bot==='ACIMA5_BAIXO4'?40:
+   item.bot==='MATCH0'?10:
    item.bot==='DIFERENTE'||item.bot==='HYPERSWAP'||item.bot==='HYPERGUARD'?90:
    item.bot==='HYPERBREAK'?80:
    item.bot==='HYPERSHIELD'?50:
@@ -440,7 +443,7 @@ function estimateBotSuccessScores(values:number[],pipSize?:number):BotSuccessEst
  estimates.HYPERCOVER=Math.round(Math.max(over1,under8));
  return estimates;
 }
-const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7',Hypercover:'#0EA5E9'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP',Hypercover:'HYPERCOVER'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap',HYPERCOVER:'Hypercover'};const BOT_PICKER_OPTIONS:{id:Strategy;name:string;color:string}[]=[
+const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',HyperFlow:'#22D3EE',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7',Hypercover:'#0EA5E9'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',HyperFlow:'MATCH0',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP',Hypercover:'HYPERCOVER'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap',HYPERCOVER:'Hypercover'};const BOT_PICKER_OPTIONS:{id:Strategy;name:string;color:string}[]=[
  {id:'PAR_IMPAR',name:'HyperDrive',color:'#4F8BFF'},
  {id:'ACIMA5_BAIXO4',name:'HyperStrike',color:'#FB923C'},
  {id:'RISE_FALL',name:'HyperForce',color:'#34D399'},
