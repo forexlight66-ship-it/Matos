@@ -227,9 +227,11 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=tru
   ].filter(candidate=>candidate.strength>=t).sort((a,b)=>b.strength-a.strength);
   return candidates.length?pick(candidates[0]):null;
  }
- // HyperFlow (MATCH 0) must not inherit the generic 65% threshold: on a 9-tick window it would require at least 6 zeros, which makes entries exceptionally rare. Use a dedicated minimum of 2 zeros in the window and require zero to be the most frequent digit. The same function is used by entry and last-moment validation, so both checks stay consistent.
- const zeroTrigger=Math.max(20,100/Math.max(1,v.length));
- const zeroIsDominant=x.match0>=zeroTrigger&&x.match0>Math.max(...x.probs.slice(1));
+ // HyperFlow (MATCH 0): dedicated 11% trigger, independent of the generic 65% threshold.
+ // On the normal 9-tick window this allows a signal from one zero (about 11.1%).
+ // Do not require zero to be the most frequent digit, which could block all entries.
+ const zeroTrigger=11;
+ const zeroIsDominant=x.match0>=zeroTrigger;
  return zeroIsDominant?pick({contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}):null;
 }
 const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(values:number[],strategy:string,label:string,pipSize?:number){if(values.length<5)return false;const raw=values.slice(-5);const recent=raw.map(v=>digit(v,pipSize)).filter((n):n is number=>n!==null);if(recent.length<5)return false;if(strategy==='HyperDrive')return label==='ÍMPAR'?recent.filter(n=>n%2!==0).length>=4:recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<raw.length;i++){if(raw[i]>raw[i-1])up++;else if(raw[i]<raw[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;if(strategy==='HyperSwap')return recent.filter(n=>n!==0).length>=4;return false}
