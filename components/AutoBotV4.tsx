@@ -667,26 +667,30 @@ export default function AutoBotV4(){
    const hyperFlowWon=statusOutcome??(result>0);
    const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
    if(isHyperFlowTrade&&(hyperFlowWon||hyperFlowLost)){
-    if(hyperFlowWon){
+    const wasOverZeroMode=hyperFlowOverZeroModeRef.current;
+    if(wasOverZeroMode){
+     // ACIMA 0 is a one-shot fallback. Either outcome returns HyperFlow to normal NR analysis.
+     hyperFlowOverZeroModeRef.current=false;
+     hyperFlowNextDigitRef.current=null;
+     hyperFlowTargetDigitRef.current=0;
+     hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
      hyperFlowLossStreakRef.current=0;
-     if(hyperFlowOverZeroModeRef.current){
-      hyperFlowOverZeroModeRef.current=false;
-      hyperFlowNextDigitRef.current=null;
-      hyperFlowTargetDigitRef.current=0;
-      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
-      setHyperFlowFallbackRevision(v=>v+1);
-      setNotice('HYPERFLOW: vitória no ACIMA 0. A regressar à análise normal do NR.');
-     }
-    }else{
+     setHyperFlowFallbackRevision(v=>v+1);
+     setNotice(hyperFlowWon
+      ?'HYPERFLOW: vitória no ACIMA 0. Contagem reiniciada; análise normal do NR retomada.'
+      :'HYPERFLOW: ACIMA 0 perdeu. A regressar imediatamente à análise normal do NR.');
+    }else if(hyperFlowWon){
+     hyperFlowLossStreakRef.current=0;
+    }else if(hyperFlowLost){
      hyperFlowLossStreakRef.current+=1;
-     if(hyperFlowLossStreakRef.current>=10&&!hyperFlowOverZeroModeRef.current){
+     if(hyperFlowLossStreakRef.current>=10){
       hyperFlowOverZeroModeRef.current=true;
       hyperFlowNextDigitRef.current=null;
       hyperFlowTargetDigitRef.current=0;
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       setHyperFlowFallbackRevision(v=>v+1);
-      setNotice('HYPERFLOW: 10 perdas consecutivas. Análise do NR alternativo suspensa; a próxima aposta será ACIMA 0 (ganha se o último dígito for 1–9).');
-      console.warn('[HyperFlow fallback activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,contractType:'DIGITOVER',barrier:0});
+      setNotice('HYPERFLOW: 10 perdas consecutivas. A próxima aposta será ACIMA 0; depois dela, a análise normal do NR será retomada.');
+      console.warn('[HyperFlow one-shot Over 0 activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,contractType:'DIGITOVER',barrier:0});
      }
     }
    }
