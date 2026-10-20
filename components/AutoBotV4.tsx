@@ -621,6 +621,9 @@ export default function AutoBotV4(){
  const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number;provisionalEarlyRise?:boolean;lastProgressNoticeAt?:number}>({active:false,symbol:'',snapshots:[]});
  const hyperFlowTargetDigitRef=useRef<number>(0);
  const hyperFlowNextDigitRef=useRef<HyperFlowRankResult|null>(null);
+ const hyperFlowLossStreakRef=useRef(0);
+ const hyperFlowOverZeroModeRef=useRef(false);
+ const [hyperFlowFallbackRevision,setHyperFlowFallbackRevision]=useState(0);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
@@ -660,7 +663,34 @@ export default function AutoBotV4(){
     setNotice('BLOQUEIO DE SEGURANÇA: o estado oficial da Deriv contradiz o lucro/prejuízo do contrato. O robô foi pausado para proteger o saldo.');
    }
    const closedBotName=String(closed?.bot||'').trim().toLowerCase();
-   if(closedBotName==='hyperflow'&&closedType==='DIGITMATCH'){
+   const isHyperFlowTrade=closedBotName==='hyperflow';
+   const hyperFlowWon=statusOutcome??(result>0);
+   const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
+   if(isHyperFlowTrade&&(hyperFlowWon||hyperFlowLost)){
+    if(hyperFlowWon){
+     hyperFlowLossStreakRef.current=0;
+     if(hyperFlowOverZeroModeRef.current){
+      hyperFlowOverZeroModeRef.current=false;
+      hyperFlowNextDigitRef.current=null;
+      hyperFlowTargetDigitRef.current=0;
+      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+      setHyperFlowFallbackRevision(v=>v+1);
+      setNotice('HYPERFLOW: vitória no ACIMA 0. A regressar à análise normal do NR.');
+     }
+    }else{
+     hyperFlowLossStreakRef.current+=1;
+     if(hyperFlowLossStreakRef.current>=10&&!hyperFlowOverZeroModeRef.current){
+      hyperFlowOverZeroModeRef.current=true;
+      hyperFlowNextDigitRef.current=null;
+      hyperFlowTargetDigitRef.current=0;
+      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+      setHyperFlowFallbackRevision(v=>v+1);
+      setNotice('HYPERFLOW: 10 perdas consecutivas. Análise do NR alternativo suspensa; a próxima aposta será ACIMA 0 (ganha se o último dígito for 1–9).');
+      console.warn('[HyperFlow fallback activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,contractType:'DIGITOVER',barrier:0});
+     }
+    }
+   }
+   if(closedBotName==='hyperflow'&&closedType==='DIGITMATCH'&&!hyperFlowOverZeroModeRef.current){
     const rawMatchBarrier=closed?.barrier!=null?Number(closed.barrier):hyperFlowTargetDigitRef.current;
     const matchDigit=Number.isInteger(rawMatchBarrier)&&rawMatchBarrier>=0&&rawMatchBarrier<=9?rawMatchBarrier:hyperFlowTargetDigitRef.current;
     const matchWon=statusOutcome??(result>0);
@@ -806,6 +836,11 @@ export default function AutoBotV4(){
   // HyperFlow MATCH 0 needs a symbol with emerging zero activity, not a 65% signal.
   // Score it directly from both 25-tick frequency and the latest 9 ticks, allowing
   // a modest increase in zero frequency to change the preferred symbol early.
+  if(bot==='MATCH0'&&hyperFlowOverZeroModeRef.current){
+   const fullAboveZero=100-all.match0;
+   const recentAboveZero=100-recent.match0;
+   return 50+(fullAboveZero-90)*0.35+(recentAboveZero-90)*0.65;
+  }
   if(bot==='MATCH0'){
    const fullZero=all.match0;
    const recentZero=recent.match0;
@@ -1059,7 +1094,7 @@ export default function AutoBotV4(){
  },[strategy,symbol]);
  useEffect(()=>{if(!tick?.epoch||tick.epoch===lastEpoch.current)return;lastEpoch.current=tick.epoch;totalTickCountRef.current+=1;lastActivityAt.current=Date.now();const q=Number(tick.quote);if(!Number.isFinite(q))return;const tickSymbol=String((tick as any).symbol||symbol);const rawPipSize=normalizeTickPipSize((tick as any).pip_size);if(rawPipSize!==undefined){pipSizeBySymbolRef.current.set(tickSymbol,rawPipSize);if(tickSymbol===symbol)setTickPipSize(rawPipSize)}const pipSize=rawPipSize!==undefined?rawPipSize:(pipSizeBySymbolRef.current.get(tickSymbol)||(tickSymbol===symbol?tickPipSize:undefined));if(hypercoverAlternationRef.current.pauseTicksRemaining>0){hypercoverAlternationRef.current.pauseTicksRemaining=Math.max(0,hypercoverAlternationRef.current.pauseTicksRemaining-1);if(hypercoverAlternationRef.current.pauseTicksRemaining===0)setNotice('HYPERCOVER: pausa de 30 ticks concluída. A alternância OVER 1 / UNDER 8 foi retomada.')}const hyperFlowHistory=[...hyperFlowObservationTicksRef.current,q].slice(-200);
  hyperFlowObservationTicksRef.current=hyperFlowHistory;
- if(strategy==='MATCH0'&&(running||smartAnalyzer)&&tickSymbol===symbol&&hyperFlowNextDigitRef.current===null){
+ if(strategy==='MATCH0'&&(running||smartAnalyzer)&&tickSymbol===symbol&&hyperFlowNextDigitRef.current===null&&!hyperFlowOverZeroModeRef.current){
   const windowDigits=hyperFlowHistory.slice(-9).map(value=>digit(value,pipSize)).filter((value):value is number=>value!==null);
   if(windowDigits.length===9){
    const zeroPercent=windowDigits.filter(value=>value===0).length/9*100;
@@ -1088,7 +1123,7 @@ export default function AutoBotV4(){
    }
   }
  }
- setLastDigitSeen(digit(q,pipSize));setTicks(prev=>[...prev,q].slice(-statsWindow))},[tick,tickPipSize,strategy,running,smartAnalyzer,symbol]);
+ setLastDigitSeen(digit(q,pipSize));setTicks(prev=>[...prev,q].slice(-statsWindow))},[tick,tickPipSize,strategy,running,smartAnalyzer,symbol,hyperFlowFallbackRevision]);
  useEffect(()=>{if(!iaPower&&!sonic&&!smartAnalyzer)setSorosStake(stake)},[stake,iaPower,sonic,smartAnalyzer,setSorosStake]);
  useEffect(()=>{setSorosEnabled(false);setSorosStake(stake)},[iaPower,sonic,smartAnalyzer,stake,setSorosEnabled,setSorosStake]);
  useEffect(()=>{if(!running){gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setStakeManagerVersion(v=>v+1)}},[stake,maxMartingale,running]);
@@ -1112,8 +1147,8 @@ export default function AutoBotV4(){
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
     if(hypercoverAlternationRef.current.pauseTicksRemaining>0&&(strategy==='HYPERCOVER'||smartAnalyzer||hypercoverAlternationRef.current.forceNextDirection)){setBotActivity('waitingRobotSignal');return;}
   const forceHypercover=hypercoverAlternationRef.current.forceNextDirection;
-  if(!forceHypercover&&(exitSpotsMode?analysisExitValues.length<28:(smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))){setBotActivity(exitSpotsMode?'waitingExitSpots':'collectingTicks');return;}
-  const hyperFlowFallbackActive=strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null;
+  const hyperFlowFallbackActive=strategy==='MATCH0'&&(hyperFlowOverZeroModeRef.current||hyperFlowNextDigitRef.current!==null);
+  if(!forceHypercover&&!hyperFlowFallbackActive&&(exitSpotsMode?analysisExitValues.length<28:(smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))){setBotActivity(exitSpotsMode?'waitingExitSpots':'collectingTicks');return;}
   let analystStrategy:Strategy|null=null;
   if(smartAnalyzer&&!forceHypercover&&!exitSpotsMode&&!hyperFlowFallbackActive){
    if(!smartAdvice||smartAdvice.noTrade){setBotActivity('waitingAnalystSignal');return;}
@@ -1124,8 +1159,12 @@ export default function AutoBotV4(){
   if(proposal||buying||activeContractId!==null||trackedContractId!==null||!isAuthorized||!isConnected){setBotActivity(!isConnected||!isAuthorized?'reconnectingDeriv':(buying?'waitingBuyConfirmation':'reconcilingBot'));return;}
   let freshSignal:any=null;
   if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(hyperFlowFallbackActive){
-   const fallback=hyperFlowNextDigitRef.current;
-   if(fallback&&ticks.length>=9)freshSignal={contract:'MATCH0' as Contract,label:'MATCH '+fallback.digit,strength:fallback.score,adaptiveMatchDigit:fallback.digit,probabilityScore:fallback.score};
+   if(hyperFlowOverZeroModeRef.current){
+    freshSignal={contract:'OVER' as Contract,label:'ACIMA 0',strength:90,score:90,barrier:0,contractType:'DIGITOVER',hyperFlowOverZero:true};
+   }else{
+    const fallback=hyperFlowNextDigitRef.current;
+    if(fallback&&ticks.length>=9)freshSignal={contract:'MATCH0' as Contract,label:'MATCH '+fallback.digit,strength:fallback.score,adaptiveMatchDigit:fallback.digit,probabilityScore:fallback.score};
+   }
   }else if(exitSpotsMode){
    const exitSignal=isRecoveryStrategy(strategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize):makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
    if(exitSignal)freshSignal=exitSignal;
@@ -1164,7 +1203,8 @@ export default function AutoBotV4(){
    barrier=barrierStateRef.current.barrier;
   } else {
    const c:Contract=freshSignal.contract as Contract;
-   barrier=strategyName==='MATCH0'&&Number.isInteger(freshSignal?.adaptiveMatchDigit)?Number(freshSignal.adaptiveMatchDigit):
+   barrier=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current?0:
+    strategyName==='MATCH0'&&Number.isInteger(freshSignal?.adaptiveMatchDigit)?Number(freshSignal.adaptiveMatchDigit):
     isRecoveryStrategy(strategy)?(barrierStateRef.current?.barrier??4):
     strategyName==='HYPERGUARD'?0:strategyName==='HYPERSHIELD'?4:strategyName==='HYPERBREAK'?8:strategyName==='HYPERCOVER'?(c==='OVER'?1:8):
     c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;
@@ -1268,7 +1308,7 @@ export default function AutoBotV4(){
    requestedHypercoverContractRef.current=null;
   }
   setBotActivity('waitingBuyConfirmation');
- },[running,smartAnalyzer,exitSpotsMode,smartAdvice,analysisExitValues,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,trackedContractId,isAuthorized,isConnected,getProposal,buyDirect,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy,hypercoverRevision]); useEffect(()=>{
+ },[running,smartAnalyzer,exitSpotsMode,smartAdvice,analysisExitValues,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,trackedContractId,isAuthorized,isConnected,getProposal,buyDirect,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy,hypercoverRevision,hyperFlowFallbackRevision]); useEffect(()=>{
   if(!iaPower||!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected||!iaRecoveryQuotePendingRef.current)return;
   const state=gestorRef.current.getEstado();
   const deficit=Number(state.deficitRecuperacao||0);
@@ -1307,7 +1347,7 @@ export default function AutoBotV4(){
  },[iaPower,running,smartAnalyzer,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,symbol]); useEffect(()=>{
    if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
    if(iaPower&&iaRecoveryQuotePendingRef.current)return;
-   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy&&!(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null))return;
+   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy&&!(strategy==='MATCH0'&&(hyperFlowOverZeroModeRef.current||hyperFlowNextDigitRef.current!==null)))return;
 
    const cancelUnqualifiedEntry=(message:string)=>{
     pendingAutoEntryRef.current=null;
@@ -1388,7 +1428,9 @@ export default function AutoBotV4(){
       validationSignal=makeNormalMomentumSignal9(ticks.slice(-9),strategy,tickPipSize,65,9);
      }
     }
-    if(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null&&ticks.length>=9){
+    if(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current){
+     validationSignal={contract:'OVER' as Contract,label:'ACIMA 0',strength:90,barrier:0,contractType:'DIGITOVER',hyperFlowOverZero:true};
+    }else if(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null&&ticks.length>=9){
      const fallback=hyperFlowNextDigitRef.current;
      validationSignal={contract:'MATCH0' as Contract,label:'MATCH '+fallback.digit,strength:fallback.score,adaptiveMatchDigit:fallback.digit,probabilityScore:fallback.score};
     }
@@ -1460,7 +1502,7 @@ export default function AutoBotV4(){
   setAnalyzerNotice(null);analyzerDecisionHistoryRef.current=[];return;
  }
  if(exitSpotsMode)return;
- if(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null)return;
+ if(strategy==='MATCH0'&&(hyperFlowOverZeroModeRef.current||hyperFlowNextDigitRef.current!==null))return;
  if(aiAnalysisValues.length<25){
   setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 resultados ao vivo...');
   pendingAnalyzerStrategyRef.current=null;return;
