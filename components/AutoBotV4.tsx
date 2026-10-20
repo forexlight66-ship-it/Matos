@@ -60,26 +60,38 @@ function digit(v:number|string|null|undefined,pipSize?:number){
  }
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
 type HyperFlowWindow = { key:string; digits:number[]; zeroPercent:number };
-function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number){
+type HyperFlowDigitRank = { digit:number; score:number; frequency:number; recentFrequency:number; trend:number; acceleration:number; momentumScore:number; selectionScore:number; earlyRise:boolean };
+type HyperFlowRankResult = HyperFlowDigitRank & { ranking:HyperFlowDigitRank[] };
+function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number,momentumValues:number[]=currentValues):HyperFlowRankResult|null{
  const currentDigits=currentValues.slice(-9).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
  const windows=snapshots.map(item=>item.digits).filter(items=>items.length>0).map(items=>items.slice());
  if(currentDigits.length&&(!windows.length||windows[windows.length-1].join(',')!==currentDigits.join(',')))windows.push(currentDigits);
  if(!windows.length)return null;
- const weightedScores=Array(10).fill(0) as number[];
+ const weighted=Array(10).fill(0) as number[];
  let totalWeight=0;
  windows.forEach((items,index)=>{
   const weight=0.65+0.35*((index+1)/windows.length);
   totalWeight+=weight;
-  for(let d=1;d<=9;d++)weightedScores[d]+=items.filter(value=>value===d).length/Math.max(1,items.length)*100*weight;
+  for(let d=1;d<=9;d++)weighted[d]+=items.filter(value=>value===d).length/Math.max(1,items.length)*100*weight;
  });
- const latest=windows[windows.length-1];
- const ranked=Array.from({length:9},(_,index)=>index+1).map(d=>({
-  digit:d,
-  score:Number((weightedScores[d]/Math.max(0.0001,totalWeight)).toFixed(2)),
-  latestCount:latest.filter(value=>value===d).length
- })).sort((a,b)=>b.score-a.score||b.latestCount-a.latestCount||a.digit-b.digit);
- if(!ranked.length)return null;
- return {digit:ranked[0].digit,score:ranked[0].score,ranking:ranked.slice(0,3).map(({digit,score})=>({digit,score}))};
+ const recent=momentumValues.slice(-25).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
+ const blocks=recent.length>=25?Array.from({length:5},(_,i)=>recent.slice(i*5,(i+1)*5)):[];
+ const rate=(items:number[],d:number)=>items.length?items.filter(value=>value===d).length/items.length*100:0;
+ const clamp=(n:number)=>Math.max(0,Math.min(100,n));
+ const ranked:HyperFlowDigitRank[]=Array.from({length:9},(_,i)=>i+1).map(d=>{
+  const frequency=Number((weighted[d]/Math.max(0.0001,totalWeight)).toFixed(2));
+  const recentFrequency=Number(rate(recent,d).toFixed(2));
+  const blockRates=blocks.map(block=>rate(block,d));
+  const last=blockRates[4]??recentFrequency, previous=blockRates[3]??last;
+  const older=blockRates.length===5?blockRates.slice(0,4).reduce((sum,v)=>sum+v,0)/4:last;
+  const trend=blocks.length===5?Number((last-older).toFixed(2)):0;
+  const acceleration=blocks.length===5?Number((last-previous).toFixed(2)):0;
+  const momentumScore=blocks.length===5?Number(clamp(50+trend*1.2+acceleration*0.8).toFixed(2)):50;
+  const selectionScore=Number((frequency*0.25+recentFrequency*0.25+momentumScore*0.5).toFixed(2));
+  const earlyRise=blocks.length===5&&trend>=5&&acceleration>=5&&last>=older+5;
+  return {digit:d,score:frequency,frequency,recentFrequency,trend,acceleration,momentumScore,selectionScore,earlyRise};
+ }).sort((a,b)=>b.selectionScore-a.selectionScore||b.momentumScore-a.momentumScore||b.frequency-a.frequency||a.digit-b.digit);
+ return ranked.length?{...ranked[0],ranking:ranked}:null;
 }
 function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null);
@@ -388,7 +400,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const acceleration=Math.max(-100,Math.min(100,(recent-previousRecent)*220));
   const phaseScore=(strength+confidence+stability)/3;
   const phase=phaseOf(phaseScore,recent*100,olderMean*100,trend,acceleration,consistency);
-  const earlyMomentum=trend>=68&&acceleration>=6&&recent>=45&&recent>olderMean*100+6&&consistency>=40;
+  const earlyMomentum=trend>=68&&acceleration>=6&&recent>=0.45&&recent>olderMean+0.06&&consistency>=40;
 
   // HyperStrike ABAIXO 4 recebe proteção dinâmica quando o sinal recente perde força.
   // A direção não é removida: ela só perde prioridade enquanto os últimos blocos mostram
@@ -536,9 +548,9 @@ export default function AutoBotV4(){
  };
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE,payout:IA_PAYOUT,maxLevel:maxMartingale}));
  const hyperFlowObservationTicksRef=useRef<number[]>([]);
- const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number}>({active:false,symbol:'',snapshots:[]});
+ const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number;provisionalEarlyRise?:boolean;lastProgressNoticeAt?:number}>({active:false,symbol:'',snapshots:[]});
  const hyperFlowTargetDigitRef=useRef<number>(0);
- const hyperFlowNextDigitRef=useRef<{digit:number;score:number;ranking:{digit:number;score:number}[]}|null>(null);
+ const hyperFlowNextDigitRef=useRef<HyperFlowRankResult|null>(null);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
@@ -589,14 +601,16 @@ export default function AutoBotV4(){
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
      }else{
       const observationWindows=hyperFlowWatchRef.current.snapshots.length;
-      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,ticks.slice(-9),tradePipSize);
+      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,hyperFlowObservationTicksRef.current.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current);
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       if(selected){
        hyperFlowNextDigitRef.current=selected;
        hyperFlowTargetDigitRef.current=selected.digit;
-       const rankingText=selected.ranking.map(item=>item.digit+' ('+item.score.toFixed(1)+'%)').join(', ');
-       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+'; maior frequência observada '+selected.score.toFixed(1)+'%. Análise dos dígitos 1–9: '+rankingText+'. Depois desse trade, volta a procurar MATCH 0.');
-       console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedFrequency:selected.score,ranking:selected.ranking,observationWindows});
+       const rankingText=selected.ranking.slice(0,5).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (hist '+item.frequency.toFixed(1)+'%, 25t '+item.recentFrequency.toFixed(1)+'%, força '+item.momentumScore.toFixed(0)+'/100)').join(' · ');
+       const trendText=(selected.trend>=0?'+':'')+selected.trend.toFixed(0)+' pp';
+       const accelText=(selected.acceleration>=0?'+':'')+selected.acceleration.toFixed(0)+' pp';
+       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+(selected.earlyRise?' — SUBIDA ANTECIPADA ↑':'')+'; frequência histórica '+selected.frequency.toFixed(1)+'%, últimos 25 ticks '+selected.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+rankingText+'.');
+       console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedHistoricalFrequency:selected.frequency,recent25Frequency:selected.recentFrequency,trend:selected.trend,acceleration:selected.acceleration,momentumScore:selected.momentumScore,selectionScore:selected.selectionScore,earlyRise:selected.earlyRise,ranking:selected.ranking,observationWindows});
       }else{
        hyperFlowNextDigitRef.current=null;
        hyperFlowTargetDigitRef.current=0;
@@ -979,10 +993,16 @@ export default function AutoBotV4(){
    if(watch.active){
     watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
     if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
-    const provisional=rankHyperFlowMatchDigit(watch.snapshots,windowDigits,pipSize);
-    if(provisional&&watch.provisionalDigit!==provisional.digit){
+    const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory);
+    if(provisional&&(watch.provisionalDigit!==provisional.digit||watch.provisionalEarlyRise!==provisional.earlyRise||Date.now()-(watch.lastProgressNoticeAt||0)>=5000)){
      watch.provisionalDigit=provisional.digit;
-     setNotice('HYPERFLOW: 0 em '+zeroPercent.toFixed(1)+'%. Candidato provisório MATCH '+provisional.digit+' ('+provisional.score.toFixed(1)+'% de frequência observada). Se MATCH 0 perder, este ranking será reavaliado antes da próxima entrada.');
+     watch.lastProgressNoticeAt=Date.now();
+     watch.provisionalEarlyRise=provisional.earlyRise;
+     const trendText=(provisional.trend>=0?'+':'')+provisional.trend.toFixed(0)+' pp';
+     const accelText=(provisional.acceleration>=0?'+':'')+provisional.acceleration.toFixed(0)+' pp';
+     const riseLabel=provisional.earlyRise?'SUBIDA ANTECIPADA ↑':'sem subida confirmada';
+     const top=provisional.ranking.slice(0,3).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (freq '+item.frequency.toFixed(0)+'%, força '+item.momentumScore.toFixed(0)+')').join(' · ');
+     setNotice('HYPERFLOW: 0 em '+zeroPercent.toFixed(1)+'%. Candidato MATCH '+provisional.digit+' — '+riseLabel+'; frequência histórica '+provisional.frequency.toFixed(1)+'%, últimos 25 ticks '+provisional.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+top+'.');
     }
    }
   }
