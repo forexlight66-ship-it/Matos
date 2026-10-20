@@ -636,11 +636,14 @@ export default function AutoBotV4(){
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   // Release the recovery-only mutex on the authoritative HyperFlow close event,
   // even if the user stopped the bot before the close callback was processed.
-  const rawClosedBotName=String(closed?.bot||'').trim().toLowerCase();
+  const rawClosedBotLabel=String(closed?.bot||'').trim();
+  const rawClosedBotName=rawClosedBotLabel.toLowerCase();
   const closedContractType=String(closed?.contract_type||'').trim().toUpperCase();
-  const looksLikeHyperFlowContract=(Number(closed?.barrier)===0&&(closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH'));
-  const looksLikeHyperFlowRecovery=closedContractType==='DIGITOVER'&&Number(closed?.barrier)===0;
-  if(rawClosedBotName==='hyperflow'||(!rawClosedBotName&&looksLikeHyperFlowContract&&strategy==='MATCH0'))hyperFlowRecoveryBuyPendingRef.current=false;
+  const closedBarrier=Number(closed?.barrier);
+  const unknownClosedBot=!rawClosedBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawClosedBotLabel);
+  const looksLikeHyperFlowContract=closedBarrier===0&&(closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH');
+  const identifiedClosedBotName=rawClosedBotName==='hyperflow'||(unknownClosedBot&&looksLikeHyperFlowContract)?'hyperflow':rawClosedBotName;
+  if(identifiedClosedBotName==='hyperflow')hyperFlowRecoveryBuyPendingRef.current=false;
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
    const id=Number(closed.contract_id);
@@ -678,7 +681,7 @@ export default function AutoBotV4(){
     pendingAnalyzerStrategyRef.current=null;setRunning(false);setSmartAnalyzer(false);setExitSpotsMode(false);setSignalNow(null);
     setNotice('BLOQUEIO DE SEGURANÇA: o estado oficial da Deriv contradiz o lucro/prejuízo do contrato. O robô foi pausado para proteger o saldo.');
    }
-   const closedBotName=String(closed?.bot||((Number(closed?.barrier)===0&&(closedType==='DIGITOVER'||closedType==='DIGITMATCH'))?'HyperFlow':'')).trim().toLowerCase();
+   const closedBotName=identifiedClosedBotName||String(closed?.bot||'').trim().toLowerCase();
    const isHyperFlowTrade=closedBotName==='hyperflow';
    const hyperFlowWon=statusOutcome??(result>0);
    const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
@@ -693,6 +696,7 @@ export default function AutoBotV4(){
       hyperFlowRecoveryDeficitRef.current=0;
       hyperFlowRecoveryActiveRef.current=false;
       hyperFlowOverZeroModeRef.current=false;
+      hyperFlowNormalSignalDisarmedRef.current=false;
       hyperFlowLossStreakRef.current=0;
       hyperFlowNextDigitRef.current=null;
       hyperFlowTargetDigitRef.current=0;
@@ -719,6 +723,7 @@ export default function AutoBotV4(){
     }else if(hyperFlowLost){
      hyperFlowLossStreakRef.current+=1;
      if(hyperFlowLossStreakRef.current>=5){
+      hyperFlowNormalSignalDisarmedRef.current=false;
       hyperFlowRecoveryActiveRef.current=true;
       hyperFlowOverZeroModeRef.current=true;
       hyperFlowNextDigitRef.current=null;
