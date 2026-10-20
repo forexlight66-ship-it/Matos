@@ -1448,67 +1448,6 @@ export default function AutoBotV4(){
    if(iaPower&&iaRecoveryQuotePendingRef.current)return;
    if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy&&!(strategy==='MATCH0'&&(hyperFlowOverZeroModeRef.current||hyperFlowNextDigitRef.current!==null)))return;
 
-   if(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryQuoteStageRef.current!==null){
-    const quoteType=String((proposal as any).requested_contract_type||(proposal as any).contract_type||'').toUpperCase();
-    const quoteBarrier=Number((proposal as any).requested_barrier??(proposal as any).barrier);
-    const quoteDuration=Number((proposal as any).duration);
-    const quoteStake=Number(proposal.ask_price);
-    const quotePayout=Number(proposal.payout);
-    const deficit=Math.max(0,Number(hyperFlowRecoveryDeficitRef.current)||0);
-    const ratio=quoteStake>0&&Number.isFinite(quotePayout)&&quotePayout>quoteStake?(quotePayout-quoteStake)/quoteStake:0;
-    const failRecoveryQuote=(message:string)=>{
-     hyperFlowRecoveryQuoteStageRef.current=null;
-     hyperFlowRecoveryQuoteAttemptsRef.current=0;
-     hyperFlowRecoveryQuoteReadyRef.current=false;
-     hyperFlowRecoveryQuoteTargetRef.current=null;
-     clearProposal();
-     requested.current=false;requestStartedAt.current=0;
-     stakeReadyRef.current=true;riskLockStartedAt.current=0;
-     setBotActivity('waitingRobotSignal');setNotice(message);lastActivityAt.current=Date.now();
-    };
-    if(quoteType!=='DIGITOVER'||quoteBarrier!==0||quoteDuration!==5){
-     failRecoveryQuote('HyperFlow: a cotação recebida não corresponde a OVER 0 de 5 ticks. Nenhuma recuperação foi enviada.');
-     return;
-    }
-    if(!(ratio>0)||deficit<=0.01){
-     failRecoveryQuote('HyperFlow: cotação inválida ou défice já liquidado. Nenhuma recuperação foi enviada.');
-     return;
-    }
-    const requiredStake=Math.max(0.35,Math.ceil((deficit/ratio)*100-1e-9)/100);
-    const availableBalance=Number(balance?.balance);
-    if(!Number.isFinite(availableBalance)||requiredStake>Math.floor(availableBalance*100)/100+0.005){
-     recoveryBalancePauseRef.current=requiredStake;
-     failRecoveryQuote('HyperFlow: saldo insuficiente para cobrir o défice total numa única operação OVER 0 de 5 ticks. A recuperação foi pausada; a stake não será reduzida.');
-     return;
-    }
-    const quotedNetProfit=quotePayout-quoteStake;
-    if(quotedNetProfit+0.005<deficit){
-     if(hyperFlowRecoveryQuoteAttemptsRef.current>=3){
-      failRecoveryQuote('HyperFlow: a Deriv não forneceu uma cotação capaz de cobrir o défice total. Nenhuma operação parcial foi enviada.');
-      return;
-     }
-     hyperFlowRecoveryQuoteAttemptsRef.current+=1;
-     hyperFlowRecoveryQuoteStageRef.current='stake';
-     hyperFlowRecoveryQuoteTargetRef.current=requiredStake;
-     clearProposal();
-     requested.current=true;requestStartedAt.current=Date.now();
-     const requoteSent=getProposal(symbol,'DIGITOVER',requiredStake,5,0,false);
-     if(!requoteSent){
-      failRecoveryQuote('HyperFlow: não foi possível pedir a cotação da stake integral. Nenhuma recuperação parcial foi enviada.');
-      return;
-     }
-     setBotActivity('requestingProposal');
-     console.info('[HyperFlow recovery requote for full deficit]',{symbol,deficit,quoteStake,ratio,requiredStake,attempt:hyperFlowRecoveryQuoteAttemptsRef.current,duration:5,barrier:0});
-     return;
-    }
-    hyperFlowRecoveryQuoteReadyRef.current=true;
-    hyperFlowRecoveryQuoteTargetRef.current=quoteStake;
-    hyperFlowRecoveryQuoteStageRef.current=null;
-    hyperFlowRecoveryQuoteAttemptsRef.current=0;
-    payoutRatiosByContractRef.current[payoutContractKey('DIGITOVER',0)]=ratio;
-    console.info('[HyperFlow 5-tick recovery quote validated]',{symbol,deficit,stake:quoteStake,expectedNetProfit:quotedNetProfit,netPayoutRatio:ratio,duration:5,barrier:0});
-   }
-
    const cancelUnqualifiedEntry=(message:string)=>{
     pendingAutoEntryRef.current=null;
     setNotice(message);
@@ -1796,8 +1735,8 @@ useEffect(()=>{
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
- const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
- const stop=()=>{saveStakeState();pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
+ const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowNormalSignalDisarmedRef.current=false;recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
+ const stop=()=>{saveStakeState();hyperFlowNormalSignalDisarmedRef.current=false;pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
  const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setSorosEnabled(false);setExitSpotsMode(false);if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(!running)stop()}},[aiAnalystActive,clientCountryReady,language,running,isConnected,isAuthorized,start,stop,setSorosEnabled,iaPower,sonic]);
  const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
