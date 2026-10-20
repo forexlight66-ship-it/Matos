@@ -642,7 +642,7 @@ export default function AutoBotV4(){
   const closedBarrier=Number(closed?.barrier);
   const unknownClosedBot=!rawClosedBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawClosedBotLabel);
   const looksLikeHyperFlowContract=closedBarrier===0&&(closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH');
-  const identifiedClosedBotName=(rawClosedBotName==='hyperflow'||/^hyperflow(?:\\s+|$)/i.test(rawClosedBotLabel)||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
+  const identifiedClosedBotName=(rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel)||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
   if(identifiedClosedBotName==='hyperflow'){hyperFlowRecoveryBuyPendingRef.current=false;if(strategy==='MATCH0'&&!hyperFlowOverZeroModeRef.current)hyperFlowNormalSignalDisarmedRef.current=false;}
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
