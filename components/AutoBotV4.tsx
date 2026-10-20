@@ -803,8 +803,19 @@ export default function AutoBotV4(){
   else if(bot==='HYPERSHIELD'){full=all.probs.slice(5).reduce((a,b)=>a+b,0);short=recent.probs.slice(5).reduce((a,b)=>a+b,0);baseline=50;}
   else if(bot==='HYPERBREAK'){full=all.probs.slice(0,8).reduce((a,b)=>a+b,0);short=recent.probs.slice(0,8).reduce((a,b)=>a+b,0);baseline=80;}
   else if(bot==='HYPERCOVER'){full=Math.max(100-all.probs[0],100-all.probs[9]);short=Math.max(100-recent.probs[0],100-recent.probs[9]);baseline=80;}
+  // HyperFlow MATCH 0 needs a symbol with emerging zero activity, not a 65% signal.
+  // Score it directly from both 25-tick frequency and the latest 9 ticks, allowing
+  // a modest increase in zero frequency to change the preferred symbol early.
+  if(bot==='MATCH0'){
+   const fullZero=all.match0;
+   const recentZero=recent.match0;
+   const priorZero=stats(values.slice(-18,-9)).match0;
+   const acceleration=recentZero-priorZero;
+   const hasTrigger=recentZero>=22;
+   return 50+fullZero*0.35+recentZero*0.65+acceleration*0.25+(hasTrigger?8:0);
+  }
   const edge=(full-baseline)*0.45+(short-baseline)*0.55;
-  const validSignal=makeSignal(values.slice(-25),bot,undefined,false,bot==='MATCH0'?22:65,9);
+  const validSignal=makeSignal(values.slice(-25),bot,undefined,false,65,9);
   return 50+edge+(validSignal?8:0);
  };
  useEffect(()=>{
