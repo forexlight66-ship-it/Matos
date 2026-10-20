@@ -62,7 +62,7 @@ function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).fi
 type HyperFlowWindow = { key:string; digits:number[]; zeroPercent:number };
 type HyperFlowDigitRank = { digit:number; score:number; frequency:number; recentFrequency:number; trend:number; acceleration:number; momentumScore:number; selectionScore:number; earlyRise:boolean };
 type HyperFlowRankResult = HyperFlowDigitRank & { ranking:HyperFlowDigitRank[] };
-function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number,momentumValues:number[]=currentValues):HyperFlowRankResult|null{
+function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number,momentumValues:number[]=currentValues,momentumTickWindow=25):HyperFlowRankResult|null{
  const currentDigits=currentValues.slice(-9).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
  const windows=snapshots.map(item=>item.digits).filter(items=>items.length>0).map(items=>items.slice());
  if(currentDigits.length&&(!windows.length||windows[windows.length-1].join(',')!==currentDigits.join(',')))windows.push(currentDigits);
@@ -74,21 +74,27 @@ function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:numbe
   totalWeight+=weight;
   for(let d=1;d<=9;d++)weighted[d]+=items.filter(value=>value===d).length/Math.max(1,items.length)*100*weight;
  });
- const recent=momentumValues.slice(-25).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
- const blocks=recent.length>=25?Array.from({length:5},(_,i)=>recent.slice(i*5,(i+1)*5)):[];
+ // Normal bot = 9 ticks (3 blocks x 3); AI Analyst = 25 ticks (5 blocks x 5).
+ const windowSize=momentumTickWindow===9?9:momentumTickWindow===28?28:25;
+ const blockSize=windowSize===9?3:windowSize===28?7:5;
+ const blockCount=windowSize/blockSize;
+ const recent=momentumValues.slice(-windowSize).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
+ const blocks=recent.length>=windowSize?Array.from({length:blockCount},(_,i)=>recent.slice(i*blockSize,(i+1)*blockSize)):[];
  const rate=(items:number[],d:number)=>items.length?items.filter(value=>value===d).length/items.length*100:0;
  const clamp=(n:number)=>Math.max(0,Math.min(100,n));
  const ranked:HyperFlowDigitRank[]=Array.from({length:9},(_,i)=>i+1).map(d=>{
   const frequency=Number((weighted[d]/Math.max(0.0001,totalWeight)).toFixed(2));
   const recentFrequency=Number(rate(recent,d).toFixed(2));
   const blockRates=blocks.map(block=>rate(block,d));
-  const last=blockRates[4]??recentFrequency, previous=blockRates[3]??last;
-  const older=blockRates.length===5?blockRates.slice(0,4).reduce((sum,v)=>sum+v,0)/4:last;
-  const trend=blocks.length===5?Number((last-older).toFixed(2)):0;
-  const acceleration=blocks.length===5?Number((last-previous).toFixed(2)):0;
-  const momentumScore=blocks.length===5?Number(clamp(50+trend*1.2+acceleration*0.8).toFixed(2)):50;
+  const last=blockRates[blockCount-1]??recentFrequency, previous=blockRates[blockCount-2]??last;
+  const olderValues=blockRates.slice(0,Math.max(0,blockCount-1));
+  const older=olderValues.length?olderValues.reduce((sum,v)=>sum+v,0)/olderValues.length:last;
+  const trend=blocks.length===blockCount?Number((last-older).toFixed(2)):0;
+  const acceleration=blocks.length===blockCount?Number((last-previous).toFixed(2)):0;
+  const momentumScore=blocks.length===blockCount?Number(clamp(50+trend*1.2+acceleration*0.8).toFixed(2)):50;
   const selectionScore=Number((frequency*0.25+recentFrequency*0.25+momentumScore*0.5).toFixed(2));
-  const earlyRise=blocks.length===5&&trend>=5&&acceleration>=5&&last>=older+5;
+  const minimumRise=windowSize===9?16.67:5;
+  const earlyRise=blocks.length===blockCount&&trend>=minimumRise&&acceleration>=minimumRise&&last>=older+minimumRise;
   return {digit:d,score:frequency,frequency,recentFrequency,trend,acceleration,momentumScore,selectionScore,earlyRise};
  }).sort((a,b)=>b.selectionScore-a.selectionScore||b.momentumScore-a.momentumScore||b.frequency-a.frequency||a.digit-b.digit);
  return ranked.length?{...ranked[0],ranking:ranked}:null;
@@ -268,6 +274,57 @@ function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFilter=tru
  const zeroTrigger=threshold>=65?22:threshold;
  const zeroIsDominant=x.match0>=zeroTrigger;
  return zeroIsDominant?pick({contract:'MATCH0' as Contract,label:'MATCH 0',strength:x.match0}):null;
+}
+
+function strategyMomentumCandidates(values:number[],s:Strategy,pipSize?:number):{contract:Contract;label:string;strength:number}[]{
+ const x=stats(values,pipSize);
+ const digits=values.map(value=>digit(value,pipSize)).filter((value):value is number=>value!==null);
+ const candidates:( {contract:Contract;label:string;strength:number} )[]=[];
+ const add=(contract:Contract,label:string,strength:number)=>candidates.push({contract,label,strength:Number.isFinite(strength)?strength:0});
+ const name=String(s);
+ if(name==='HYPERLITE')add('EVEN','PAR',x.even);
+ else if(name==='PAR_IMPAR'){add('EVEN','PAR',x.even);add('ODD','ÍMPAR',x.odd)}
+ else if(name==='ACIMA5_BAIXO4'){add('OVER','ACIMA 5',x.above5);add('UNDER','ABAIXO 4',x.below4)}
+ else if(name==='RISE_FALL'){add('RISE','SUBIR',x.rise);add('FALL','DESCER',x.fall)}
+ else if(name==='DIFERENTE'||name==='HYPERSWAP')add('DIFFER','DIFERENTE DE 0',x.diff);
+ else if(name==='HYPERGUARD')add('OVER','ACIMA 0',x.diff);
+ else if(name==='HYPERSHIELD')add('OVER','ACIMA 4',x.probs.slice(5).reduce((sum,value)=>sum+value,0));
+ else if(name==='HYPERBREAK')add('UNDER','ABAIXO 8',x.probs.slice(0,8).reduce((sum,value)=>sum+value,0));
+ else if(name==='HYPERCOVER'){
+  const denominator=Math.max(1,digits.length);
+  add('OVER','ACIMA 0',digits.filter(value=>value>0).length/denominator*100);
+  add('UNDER','ABAIXO 9',digits.filter(value=>value<9).length/denominator*100);
+ }
+ return candidates;
+}
+// Start Robô Normal conserva a janela oficial de 9 ticks e o gatilho normal de 65%.
+// Só quando o gatilho normal ainda não existe aceita uma tendência antecipada,
+// confirmada pela evolução do MESMO contrato em três blocos cronológicos de 3 ticks.
+function makeNormalMomentumSignal9(values:number[],s:Strategy,pipSize?:number,threshold=65,minSamples=9){
+ const standard=makeSignal(values,s,pipSize,false,threshold,minSamples);
+ if(standard)return standard;
+ if(values.length<9||String(s)==='MATCH0'||isRecoveryStrategy(s))return null;
+ const sample=values.slice(-9);
+ const blocks=Array.from({length:3},(_,index)=>sample.slice(index*3,(index+1)*3));
+ if(blocks.some(block=>block.length!==3))return null;
+ const fullCandidates=strategyMomentumCandidates(sample,s,pipSize);
+ const blockCandidates=blocks.map(block=>strategyMomentumCandidates(block,s,pipSize));
+ const emerging=fullCandidates.map(candidate=>{
+  const strengths=blockCandidates.map(block=>block.find(item=>item.contract===candidate.contract)?.strength??0);
+  const recent=strengths[2]??0;
+  const previous=strengths[1]??0;
+  const olderMean=((strengths[0]??0)+previous)/2;
+  const trend=recent-olderMean;
+  const acceleration=recent-previous;
+  // Require an active recent majority, a rising trajectory, and supporting evidence
+  // across the full 9-tick window; the normal 65% rule always takes precedence.
+  if(candidate.strength<40||recent<66.6667||trend<20||acceleration<20)return null;
+  return {...candidate,earlyMomentum:true,momentumWindow:9,recentStrength:recent,trend,acceleration,olderStrength:olderMean};
+ }).filter((candidate):candidate is NonNullable<typeof candidate>=>candidate!==null);
+ if(!emerging.length)return null;
+ emerging.sort((a,b)=>(b.trend+b.acceleration*0.75)-(a.trend+a.acceleration*0.75)||b.recentStrength-a.recentStrength||b.strength-a.strength);
+ const best=emerging[0];
+ return {...best,strength:best.strength};
 }
 const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(values:number[],strategy:string,label:string,pipSize?:number){if(values.length<5)return false;const raw=values.slice(-5);const recent=raw.map(v=>digit(v,pipSize)).filter((n):n is number=>n!==null);if(recent.length<5)return false;if(strategy==='HyperDrive')return label==='ÍMPAR'?recent.filter(n=>n%2!==0).length>=4:recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<raw.length;i++){if(raw[i]>raw[i-1])up++;else if(raw[i]<raw[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;if(strategy==='HyperSwap')return recent.filter(n=>n!==0).length>=4;return false}
 function makeBarrierSignal(values:number[],state:BarrierState|null|undefined,pipSize?:number,threshold=65,minSamples=9){
@@ -601,15 +658,15 @@ export default function AutoBotV4(){
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
      }else{
       const observationWindows=hyperFlowWatchRef.current.snapshots.length;
-      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,hyperFlowObservationTicksRef.current.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current);
+      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,hyperFlowObservationTicksRef.current.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current,exitSpotsMode?28:smartAnalyzer?25:9);
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       if(selected){
        hyperFlowNextDigitRef.current=selected;
        hyperFlowTargetDigitRef.current=selected.digit;
-       const rankingText=selected.ranking.slice(0,5).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (hist '+item.frequency.toFixed(1)+'%, 25t '+item.recentFrequency.toFixed(1)+'%, força '+item.momentumScore.toFixed(0)+'/100)').join(' · ');
+       const rankingText=selected.ranking.slice(0,5).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (hist '+item.frequency.toFixed(1)+'%, '+(exitSpotsMode?28:smartAnalyzer?25:9)+'t '+item.recentFrequency.toFixed(1)+'%, força '+item.momentumScore.toFixed(0)+'/100)').join(' · ');
        const trendText=(selected.trend>=0?'+':'')+selected.trend.toFixed(0)+' pp';
        const accelText=(selected.acceleration>=0?'+':'')+selected.acceleration.toFixed(0)+' pp';
-       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+(selected.earlyRise?' — SUBIDA ANTECIPADA ↑':'')+'; frequência histórica '+selected.frequency.toFixed(1)+'%, últimos 25 ticks '+selected.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+rankingText+'.');
+       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+(selected.earlyRise?' — SUBIDA ANTECIPADA ↑':'')+'; frequência histórica '+selected.frequency.toFixed(1)+'%, últimos '+(exitSpotsMode?28:smartAnalyzer?25:9)+' ticks '+selected.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+rankingText+'.');
        console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedHistoricalFrequency:selected.frequency,recent25Frequency:selected.recentFrequency,trend:selected.trend,acceleration:selected.acceleration,momentumScore:selected.momentumScore,selectionScore:selected.selectionScore,earlyRise:selected.earlyRise,ranking:selected.ranking,observationWindows});
       }else{
        hyperFlowNextDigitRef.current=null;
@@ -993,7 +1050,7 @@ export default function AutoBotV4(){
    if(watch.active){
     watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
     if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
-    const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory);
+    const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory,exitSpotsMode?28:smartAnalyzer?25:9);
     if(provisional&&(watch.provisionalDigit!==provisional.digit||watch.provisionalEarlyRise!==provisional.earlyRise||Date.now()-(watch.lastProgressNoticeAt||0)>=5000)){
      watch.provisionalDigit=provisional.digit;
      watch.lastProgressNoticeAt=Date.now();
@@ -1064,7 +1121,7 @@ export default function AutoBotV4(){
   }else if(isRecoveryStrategy(strategy)){
    freshSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,65,9);
   }else{
-   freshSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
+   freshSignal=makeNormalMomentumSignal9(ticks.slice(-9),strategy,tickPipSize,65,9);
   }
   if(!freshSignal){setBotActivity('waitingRobotSignal');return;}
   if(requested.current){setBotActivity('requestingProposal');return;}
@@ -1304,7 +1361,7 @@ export default function AutoBotV4(){
      }else if(isRecoveryStrategy(strategy)){
       validationSignal=makeBarrierSignal(ticks.slice(-9),barrierStateRef.current,tickPipSize,65,9);
      }else{
-      validationSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
+      validationSignal=makeNormalMomentumSignal9(ticks.slice(-9),strategy,tickPipSize,65,9);
      }
     }
     if(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null&&ticks.length>=9){
@@ -1312,7 +1369,7 @@ export default function AutoBotV4(){
      validationSignal={contract:'MATCH0' as Contract,label:'MATCH '+fallback.digit,strength:fallback.score,adaptiveMatchDigit:fallback.digit,probabilityScore:fallback.score};
     }
     if(!validationSignal){
-     cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: falta o gatilho de 65% nos últimos 9 ticks.');
+     cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: sem gatilho de 65% ou tendência antecipada confirmada nos últimos 9 ticks.');
      return;
     }
     const expectedContract=validationSignal.contract as Contract|null;
