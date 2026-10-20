@@ -1318,7 +1318,9 @@ export default function AutoBotV4(){
   setBotActivity('sendingDirectBuy');
   let sent=false;
   try{
-   const isHyperFlowRecoveryTrade=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current;\n   const contractDuration=isHyperFlowRecoveryTrade?5:1;\n   sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:contractDuration,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
+   const isHyperFlowRecoveryTrade=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current;
+   const contractDuration=isHyperFlowRecoveryTrade?5:1;
+   sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:contractDuration,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
   }catch(buyError){
    console.error('[Bot direct buy exception]',buyError,{account,strategy,symbol,contractTypeStr,barrier,amount});
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
