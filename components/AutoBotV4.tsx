@@ -622,6 +622,8 @@ export default function AutoBotV4(){
  const hyperFlowTargetDigitRef=useRef<number>(0);
  const hyperFlowNextDigitRef=useRef<HyperFlowRankResult|null>(null);
  const hyperFlowLossStreakRef=useRef(0);
+ const hyperFlowRecoveryDeficitRef=useRef(0);
+ const hyperFlowRecoveryActiveRef=useRef(false);
  const hyperFlowOverZeroModeRef=useRef(false);
  const [hyperFlowFallbackRevision,setHyperFlowFallbackRevision]=useState(0);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
@@ -668,29 +670,58 @@ export default function AutoBotV4(){
    const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
    if(isHyperFlowTrade&&(hyperFlowWon||hyperFlowLost)){
     const wasOverZeroMode=hyperFlowOverZeroModeRef.current;
-    if(wasOverZeroMode){
-     // ACIMA 0 is a one-shot fallback. Either outcome returns HyperFlow to normal NR analysis.
+    const wasRecoveryActive=hyperFlowRecoveryActiveRef.current;
+    // Track the actual net financial deficit, not just the loss counter.
+    // A winning result reduces the deficit by its realized profit; a loss increases it.
+    hyperFlowRecoveryDeficitRef.current=Math.max(0,Number((hyperFlowRecoveryDeficitRef.current-result).toFixed(2)));
+    const deficitRemaining=hyperFlowRecoveryDeficitRef.current;
+    if(deficitRemaining<=0.005){
+     hyperFlowRecoveryDeficitRef.current=0;
+     hyperFlowRecoveryActiveRef.current=false;
      hyperFlowOverZeroModeRef.current=false;
+     hyperFlowLossStreakRef.current=0;
      hyperFlowNextDigitRef.current=null;
      hyperFlowTargetDigitRef.current=0;
      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
-     hyperFlowLossStreakRef.current=0;
      setHyperFlowFallbackRevision(v=>v+1);
-     setNotice(hyperFlowWon
-      ?'HYPERFLOW: vitória no ACIMA 0. Contagem reiniciada; análise normal do NR retomada.'
-      :'HYPERFLOW: ACIMA 0 perdeu. A regressar imediatamente à análise normal do NR.');
-    }else if(hyperFlowWon){
-     hyperFlowLossStreakRef.current=0;
-    }else if(hyperFlowLost){
-     hyperFlowLossStreakRef.current+=1;
-     if(hyperFlowLossStreakRef.current>=10){
+     if(wasRecoveryActive||wasOverZeroMode){
+      setNotice('HYPERFLOW: défice financeiro recuperado. Recuperação terminada; análise normal e NR alternativo retomados.');
+      console.info('[HyperFlow recovery completed]',{symbol:tradeSymbol,closedProfitLoss:result,deficitRemaining:0});
+     }
+    }else if(wasRecoveryActive){
+     // Recovery continues until the cumulative financial deficit reaches zero.
+     // OVER 0 loss returns to normal HyperFlow; a normal-mode loss switches back to OVER 0.
+     if(wasOverZeroMode){
+      hyperFlowOverZeroModeRef.current=false;
+      hyperFlowNextDigitRef.current=null;
+      hyperFlowTargetDigitRef.current=0;
+      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+      setHyperFlowFallbackRevision(v=>v+1);
+      setNotice('HYPERFLOW: OVER 0 concluído, mas ainda falta '+deficitRemaining.toFixed(2)+' para cobrir o défice. A regressar à análise normal.');
+     }else if(hyperFlowLost){
       hyperFlowOverZeroModeRef.current=true;
       hyperFlowNextDigitRef.current=null;
       hyperFlowTargetDigitRef.current=0;
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       setHyperFlowFallbackRevision(v=>v+1);
-      setNotice('HYPERFLOW: 10 perdas consecutivas. A próxima aposta será ACIMA 0; depois dela, a análise normal do NR será retomada.');
-      console.warn('[HyperFlow one-shot Over 0 activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,contractType:'DIGITOVER',barrier:0});
+      setNotice('HYPERFLOW: perda na análise normal durante a recuperação. Próxima operação: OVER 0 para tentar cobrir '+deficitRemaining.toFixed(2)+'.');
+     }else{
+      hyperFlowLossStreakRef.current=0;
+      setNotice('HYPERFLOW: vitória parcial; ainda falta '+deficitRemaining.toFixed(2)+' para cobrir o défice. A recuperação continua.');
+     }
+    }else if(hyperFlowWon){
+     hyperFlowLossStreakRef.current=0;
+    }else if(hyperFlowLost){
+     hyperFlowLossStreakRef.current+=1;
+     if(hyperFlowLossStreakRef.current>=10){
+      hyperFlowRecoveryActiveRef.current=true;
+      hyperFlowOverZeroModeRef.current=true;
+      hyperFlowNextDigitRef.current=null;
+      hyperFlowTargetDigitRef.current=0;
+      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+      setHyperFlowFallbackRevision(v=>v+1);
+      setNotice('HYPERFLOW: 10 perdas consecutivas. Recuperação ativada; próxima operação OVER 0 com stake calculado para cobrir o défice total de '+deficitRemaining.toFixed(2)+'.');
+      console.warn('[HyperFlow deficit recovery activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,deficit:deficitRemaining,contractType:'DIGITOVER',barrier:0});
      }
     }
    }
@@ -1262,6 +1293,25 @@ export default function AutoBotV4(){
     return;
    }
    amount=recoveryStake;
+  }
+  // HyperFlow OVER 0 recovery: size the next single attempt to cover the entire
+  // tracked deficit using the observed/estimated net payout for DIGITOVER barrier 0.
+  // Enforce the previously specified 50% balance ceiling; never silently cap the stake.
+  if(strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryDeficitRef.current>0.01){
+   const deficit=hyperFlowRecoveryDeficitRef.current;
+   const overZeroRatio=Math.max(0.001,payoutRatioForContract('DIGITOVER',0));
+   const recoveryStake=Math.max(0.35,Math.ceil((deficit/overZeroRatio)*100-1e-9)/100);
+   const maxRecoveryStake=Math.floor(availableBalance*0.5*100)/100;
+   if(recoveryStake>maxRecoveryStake+0.005){
+    recoveryBalancePauseRef.current=Number((recoveryStake*2).toFixed(2));
+    console.warn('[HyperFlow OVER 0 recovery blocked: stake exceeds 50% balance]',{account,balance:availableBalance,deficit,netPayoutRatio:overZeroRatio,recoveryStake,maxRecoveryStake});
+    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
+    setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
+    setNotice('HYPERFLOW pausado: para cobrir o défice de '+deficit.toFixed(2)+' numa única vitória, o stake estimado seria '+recoveryStake.toFixed(2)+', acima do limite de 50% do saldo. Nenhuma aposta foi enviada.');
+    return;
+   }
+   amount=recoveryStake;
+   console.info('[HyperFlow OVER 0 recovery stake]',{symbol,deficit,netPayoutRatio:overZeroRatio,stake:amount,maxRecoveryStake});
   }
 
   iaRecoveryQuotePendingRef.current=false;
