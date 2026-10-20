@@ -1369,7 +1369,7 @@ export default function AutoBotV4(){
      validationSignal={contract:'MATCH0' as Contract,label:'MATCH '+fallback.digit,strength:fallback.score,adaptiveMatchDigit:fallback.digit,probabilityScore:fallback.score};
     }
     if(!validationSignal){
-     cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: falta o gatilho de 65% nos últimos 9 ticks.');
+     cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: sem gatilho de 65% ou tendência antecipada confirmada nos últimos 9 ticks.');
      return;
     }
     const expectedContract=validationSignal.contract as Contract|null;
