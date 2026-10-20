@@ -469,10 +469,12 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
        purchase_time:purchaseTime,sell_time:sellTime??(closed?Math.floor(Date.now()/1000):null),contract_type:c.contract_type||'',
        longcode:c.longcode,profit:c.profit==null?undefined:Number(c.profit),profit_loss:profitLoss,status:status||undefined,
        exit_tick:c.exit_tick??null,exit_spot:c.exit_spot??null,
-       bot:contractBotRef.current.get(contractId)||undefined,
-       barrier:c.barrier!=null&&Number.isFinite(Number(c.barrier))?Number(c.barrier):(contractBarrierRef.current.get(contractId)??null),
+       bot:contractBotRef.current.get(contractId)||(activeContractRef.current===contractId?pendingBuyBotRef.current:undefined)||undefined,
+       barrier:c.barrier!=null&&Number.isFinite(Number(c.barrier))?Number(c.barrier):(contractBarrierRef.current.get(contractId)??(activeContractRef.current===contractId?pendingBuyBarrierRef.current:null)),
        symbol:String(c.underlying??c.underlying_symbol??c.symbol??contractSymbolRef.current.get(contractId)??'')||undefined
       };
+      if(closedTx.bot)contractBotRef.current.set(contractId,String(closedTx.bot));
+      if(closedTx.barrier!=null)contractBarrierRef.current.set(contractId,Number(closedTx.barrier));
       // Persist/emit result first, then settle even if this message omitted sell_time.
       mergeProfitTransactions([closedTx]);
       const settled=settleActiveContract(contractId,'proposal_open_contract');
@@ -492,10 +494,12 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
         if(acknowledgedBot){
          contractBotRef.current.set(contractId,acknowledgedBot);
          const previouslyClosed=closedContractsRef.current.get(contractId);
-         if(previouslyClosed&&!previouslyClosed.bot){
+         const previousBotLabel=String(previouslyClosed?.bot||'').trim();
+         const previousBotIsPlaceholder=!previousBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(previousBotLabel);
+         if(previouslyClosed&&previousBotIsPlaceholder){
           closedContractsRef.current.set(contractId,{...previouslyClosed,bot:acknowledgedBot});
-          setProfitTransactions(items=>items.map(item=>Number(item.contract_id)===contractId?{...item,bot:item.bot||acknowledgedBot}:item));
-          setLastClosedTransaction(item=>item&&Number(item.contract_id)===contractId?{...item,bot:item.bot||acknowledgedBot}:item);
+          setProfitTransactions(items=>items.map(item=>Number(item.contract_id)===contractId?{...item,bot:(!String(item.bot||'').trim()||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(String(item.bot||'').trim()))?acknowledgedBot:item.bot}:item));
+          setLastClosedTransaction(item=>item&&Number(item.contract_id)===contractId?{...item,bot:(!String(item.bot||'').trim()||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(String(item.bot||'').trim()))?acknowledgedBot:item.bot}:item);
          }
         }
         pendingBuyBotRef.current=null;
