@@ -1443,6 +1443,67 @@ export default function AutoBotV4(){
    if(iaPower&&iaRecoveryQuotePendingRef.current)return;
    if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy&&!(strategy==='MATCH0'&&(hyperFlowOverZeroModeRef.current||hyperFlowNextDigitRef.current!==null)))return;
 
+   if(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryQuoteStageRef.current!==null){
+    const quoteType=String((proposal as any).requested_contract_type||(proposal as any).contract_type||'').toUpperCase();
+    const quoteBarrier=Number((proposal as any).requested_barrier??(proposal as any).barrier);
+    const quoteDuration=Number((proposal as any).duration);
+    const quoteStake=Number(proposal.ask_price);
+    const quotePayout=Number(proposal.payout);
+    const deficit=Math.max(0,Number(hyperFlowRecoveryDeficitRef.current)||0);
+    const ratio=quoteStake>0&&Number.isFinite(quotePayout)&&quotePayout>quoteStake?(quotePayout-quoteStake)/quoteStake:0;
+    const failRecoveryQuote=(message:string)=>{
+     hyperFlowRecoveryQuoteStageRef.current=null;
+     hyperFlowRecoveryQuoteAttemptsRef.current=0;
+     hyperFlowRecoveryQuoteReadyRef.current=false;
+     hyperFlowRecoveryQuoteTargetRef.current=null;
+     clearProposal();
+     requested.current=false;requestStartedAt.current=0;
+     stakeReadyRef.current=true;riskLockStartedAt.current=0;
+     setBotActivity('waitingRobotSignal');setNotice(message);lastActivityAt.current=Date.now();
+    };
+    if(quoteType!=='DIGITOVER'||quoteBarrier!==0||quoteDuration!==5){
+     failRecoveryQuote('HyperFlow: a cotação recebida não corresponde a OVER 0 de 5 ticks. Nenhuma recuperação foi enviada.');
+     return;
+    }
+    if(!(ratio>0)||deficit<=0.01){
+     failRecoveryQuote('HyperFlow: cotação inválida ou défice já liquidado. Nenhuma recuperação foi enviada.');
+     return;
+    }
+    const requiredStake=Math.max(0.35,Math.ceil((deficit/ratio)*100-1e-9)/100);
+    const availableBalance=Number(balance?.balance);
+    if(!Number.isFinite(availableBalance)||requiredStake>Math.floor(availableBalance*100)/100+0.005){
+     recoveryBalancePauseRef.current=requiredStake;
+     failRecoveryQuote('HyperFlow: saldo insuficiente para cobrir o défice total numa única operação OVER 0 de 5 ticks. A recuperação foi pausada; a stake não será reduzida.');
+     return;
+    }
+    const quotedNetProfit=quotePayout-quoteStake;
+    if(quotedNetProfit+0.005<deficit){
+     if(hyperFlowRecoveryQuoteAttemptsRef.current>=3){
+      failRecoveryQuote('HyperFlow: a Deriv não forneceu uma cotação capaz de cobrir o défice total. Nenhuma operação parcial foi enviada.');
+      return;
+     }
+     hyperFlowRecoveryQuoteAttemptsRef.current+=1;
+     hyperFlowRecoveryQuoteStageRef.current='stake';
+     hyperFlowRecoveryQuoteTargetRef.current=requiredStake;
+     clearProposal();
+     requested.current=true;requestStartedAt.current=Date.now();
+     const requoteSent=getProposal(symbol,'DIGITOVER',requiredStake,5,0,false);
+     if(!requoteSent){
+      failRecoveryQuote('HyperFlow: não foi possível pedir a cotação da stake integral. Nenhuma recuperação parcial foi enviada.');
+      return;
+     }
+     setBotActivity('requestingProposal');
+     console.info('[HyperFlow recovery requote for full deficit]',{symbol,deficit,quoteStake,ratio,requiredStake,attempt:hyperFlowRecoveryQuoteAttemptsRef.current,duration:5,barrier:0});
+     return;
+    }
+    hyperFlowRecoveryQuoteReadyRef.current=true;
+    hyperFlowRecoveryQuoteTargetRef.current=quoteStake;
+    hyperFlowRecoveryQuoteStageRef.current=null;
+    hyperFlowRecoveryQuoteAttemptsRef.current=0;
+    payoutRatiosByContractRef.current[payoutContractKey('DIGITOVER',0)]=ratio;
+    console.info('[HyperFlow 5-tick recovery quote validated]',{symbol,deficit,stake:quoteStake,expectedNetProfit:quotedNetProfit,netPayoutRatio:ratio,duration:5,barrier:0});
+   }
+
    const cancelUnqualifiedEntry=(message:string)=>{
     pendingAutoEntryRef.current=null;
     setNotice(message);
@@ -1560,10 +1621,14 @@ export default function AutoBotV4(){
     }
     hypercoverBarrierToRecord=expectedBarrier;
    }
+    const isHyperFlowRecoveryProposalTrade=strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryQuoteReadyRef.current;
+    if(isHyperFlowRecoveryProposalTrade)hyperFlowRecoveryBuyPendingRef.current=true;
     const bought=buy(proposal.id,Number(proposal.ask_price),botName,botName==='Hypercover'?hypercoverBarrierToRecord:(proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):(Number.isFinite(Number((proposal as any).requested_barrier))?Number((proposal as any).requested_barrier):undefined)));
-    if(bought){pendingAutoEntryRef.current=null;if(botName==='Hypercover')requestedHypercoverContractRef.current=null;}
+    if(bought){pendingAutoEntryRef.current=null;if(botName==='Hypercover')requestedHypercoverContractRef.current=null;if(isHyperFlowRecoveryProposalTrade)hyperFlowRecoveryQuoteReadyRef.current=false;}
     const boughtDirection=String((proposal as any).contract_type||(proposal as any).requested_contract_type||'').toUpperCase();if(bought&&botName==='Hypercover'&&(boughtDirection==='DIGITOVER'||boughtDirection==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=boughtDirection as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
-    if(!bought){pendingAutoEntryRef.current=null;
+    if(!bought){
+    pendingAutoEntryRef.current=null;
+    if(isHyperFlowRecoveryProposalTrade){hyperFlowRecoveryBuyPendingRef.current=false;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteTargetRef.current=null;}
     clearProposal();
     setNotice('Falha ao enviar a operação para a Deriv.');
     requested.current=false;
