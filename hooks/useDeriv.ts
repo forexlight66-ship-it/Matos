@@ -180,7 +180,10 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    const samePendingStake=!Number.isFinite(rawBuyPrice)||!pendingRequest?.amount||Math.abs(rawBuyPrice-Number(pendingRequest.amount))<=0.03;
    const matchesPendingBuy=Boolean(pendingBuyStartedAtRef.current>0&&pendingBuyBotRef.current&&purchaseTime>=pendingAtSeconds-15&&purchaseTime<=Math.floor(Date.now()/1000)+10&&samePendingSymbol&&samePendingType&&samePendingStake);
    if(matchesPendingBuy){
-    raw.bot=raw.bot||pendingBuyBotRef.current||undefined;
+    const rawBotLabel=String(raw.bot||'').trim();
+    const rawBotIsPlaceholder=!rawBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawBotLabel);
+    if(rawBotIsPlaceholder&&pendingBuyBotRef.current)raw.bot=pendingBuyBotRef.current;
+    else raw.bot=raw.bot||pendingBuyBotRef.current||undefined;
     raw.barrier=raw.barrier??pendingBuyBarrierRef.current;
     raw.symbol=raw.symbol||pendingRequest?.symbol;
     sessionContractIdsRef.current.add(id);
@@ -200,7 +203,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
     profit_loss:calculateProfitLoss(raw),
     exit_tick:raw.exit_tick??null,
     exit_spot:raw.exit_spot??null,
-    bot:raw.bot?String(raw.bot):(contractBotRef.current.get(id)||undefined),
+    bot:(String(raw.bot||'').trim()&&!/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(String(raw.bot||'').trim()))?String(raw.bot).trim():(contractBotRef.current.get(id)||pendingBuyBotRef.current||undefined),
     status:raw.status?String(raw.status).toLowerCase():undefined,
     barrier:raw.barrier!=null&&Number.isFinite(Number(raw.barrier))?Number(raw.barrier):(contractBarrierRef.current.get(id)??previous?.barrier??null),
     symbol:String(raw.symbol??raw.underlying_symbol??contractSymbolRef.current.get(id)??previous?.symbol??'')||undefined
