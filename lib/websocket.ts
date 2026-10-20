@@ -9,6 +9,7 @@ export class DerivWebSocket {
   private isReady = false;
   private balanceSubscribed = false;
   private tickSubscriptions = new Set<string>();
+  private tickSubscriptionIds = new Map<string, string>();
   private contractSubscriptions = new Set<number>();
   private contractSubscriptionIds = new Map<number, string>();
   private proposalRequestId = 1000;
@@ -80,6 +81,17 @@ export class DerivWebSocket {
 
         if (data.msg_type === 'tick' && data.tick) {
           this.lastTickAt = Date.now();
+          const tickSymbol = String(data.tick.symbol || '');
+          const subscriptionId = String(data.subscription?.id || '');
+          if (tickSymbol && subscriptionId) {
+            if (this.tickSubscriptions.has(tickSymbol)) {
+              this.tickSubscriptionIds.set(tickSymbol, subscriptionId);
+            } else {
+              // A late message from a symbol that is no longer selected can arrive
+              // while its subscription is being retired. Forget it immediately.
+              this.send({ forget: subscriptionId });
+            }
+          }
         }
 
         if (
@@ -114,6 +126,7 @@ export class DerivWebSocket {
       this.isReady = false;
       this.ws = null;
       this.balanceSubscribed = false;
+      this.tickSubscriptionIds.clear();
       this.contractSubscriptionIds.clear();
       if (this.reconnectEnabled) this.scheduleReconnect();
     };
@@ -209,6 +222,7 @@ export class DerivWebSocket {
     this.ws = null;
     this.isReady = false;
     this.balanceSubscribed = false;
+    this.tickSubscriptionIds.clear();
     this.contractSubscriptionIds.clear();
 
     window.setTimeout(() => { void this.connect(); }, 50);
@@ -235,15 +249,19 @@ export class DerivWebSocket {
   }
 
   subscribeTicks(symbol = 'R_100') {
-    // Avoid creating a new Deriv subscription every time the bot asks to resume
-    // listening. Repeated subscribe requests exhaust the account's subscription
-    // limit and can make tick delivery progressively slower.
-    const alreadySubscribed = this.tickSubscriptions.has(symbol);
+    // This dashboard has one selected trading symbol. Keep exactly one live tick
+    // subscription so symbol switching cannot mix quotes or exhaust subscriptions.
+    for (const previousSymbol of this.tickSubscriptions) {
+      if (previousSymbol === symbol) continue;
+      const subscriptionId = this.tickSubscriptionIds.get(previousSymbol);
+      if (subscriptionId && this.isConnected()) this.send({ forget: subscriptionId });
+      this.tickSubscriptionIds.delete(previousSymbol);
+      this.tickSubscriptions.delete(previousSymbol);
+    }
+    if (this.tickSubscriptions.has(symbol)) return this.isConnected();
     this.tickSubscriptions.add(symbol);
-    if (alreadySubscribed) return this.isConnected();
     if (this.send({ ticks: symbol, subscribe: 1 })) return true;
-    // Keep the desired symbol in the set for reconnect resubscription, but allow
-    // a later call to retry if the initial send failed.
+    // Keep reconnect state accurate when the first send failed.
     this.tickSubscriptions.delete(symbol);
     return false;
   }
@@ -292,9 +310,11 @@ export class DerivWebSocket {
   getTicksHistory(symbol: string, count = 5): Promise<number[]> {
     return new Promise((resolve, reject) => {
       const reqId = ++this.proposalRequestId;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
       const handler = (data: any) => {
         const responseReqId = Number(data?.req_id ?? data?.echo_req?.req_id);
         if (responseReqId !== reqId) return;
+        if (timeout) clearTimeout(timeout);
         this.unsubscribe('history', handler);
         if (data?.error) {
           reject(new Error(String(data.error.message || 'Failed to load tick history')));
@@ -306,7 +326,12 @@ export class DerivWebSocket {
         resolve(prices.slice(-Math.max(1, count)));
       };
       this.subscribe('history', handler);
+      timeout = setTimeout(() => {
+        this.unsubscribe('history', handler);
+        reject(new Error(`Timed out loading tick history for ${symbol}`));
+      }, 7000);
       if (!this.send({ ticks_history: symbol, count: Math.max(1, count), end: 'latest', style: 'ticks', req_id: reqId })) {
+        if (timeout) clearTimeout(timeout);
         this.unsubscribe('history', handler);
         reject(new Error('WebSocket not connected'));
       }
@@ -410,6 +435,7 @@ export class DerivWebSocket {
     this.isReady = false;
     this.balanceSubscribed = false;
     this.tickSubscriptions.clear();
+    this.tickSubscriptionIds.clear();
     this.contractSubscriptions.clear();
     this.contractSubscriptionIds.clear();
   }
