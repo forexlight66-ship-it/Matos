@@ -75,8 +75,8 @@ function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:numbe
   for(let d=1;d<=9;d++)weighted[d]+=items.filter(value=>value===d).length/Math.max(1,items.length)*100*weight;
  });
  // Normal bot = 9 ticks (3 blocks x 3); AI Analyst = 25 ticks (5 blocks x 5).
- const windowSize=momentumTickWindow===9?9:25;
- const blockSize=windowSize===9?3:5;
+ const windowSize=momentumTickWindow===9?9:momentumTickWindow===28?28:25;
+ const blockSize=windowSize===9?3:windowSize===28?7:5;
  const blockCount=windowSize/blockSize;
  const recent=momentumValues.slice(-windowSize).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
  const blocks=recent.length>=windowSize?Array.from({length:blockCount},(_,i)=>recent.slice(i*blockSize,(i+1)*blockSize)):[];
@@ -658,15 +658,15 @@ export default function AutoBotV4(){
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
      }else{
       const observationWindows=hyperFlowWatchRef.current.snapshots.length;
-      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,hyperFlowObservationTicksRef.current.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current,smartAnalyzer?25:9);
+      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,hyperFlowObservationTicksRef.current.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current,exitSpotsMode?28:smartAnalyzer?25:9);
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       if(selected){
        hyperFlowNextDigitRef.current=selected;
        hyperFlowTargetDigitRef.current=selected.digit;
-       const rankingText=selected.ranking.slice(0,5).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (hist '+item.frequency.toFixed(1)+'%, '+(smartAnalyzer?25:9)+'t '+item.recentFrequency.toFixed(1)+'%, força '+item.momentumScore.toFixed(0)+'/100)').join(' · ');
+       const rankingText=selected.ranking.slice(0,5).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (hist '+item.frequency.toFixed(1)+'%, '+(exitSpotsMode?28:smartAnalyzer?25:9)+'t '+item.recentFrequency.toFixed(1)+'%, força '+item.momentumScore.toFixed(0)+'/100)').join(' · ');
        const trendText=(selected.trend>=0?'+':'')+selected.trend.toFixed(0)+' pp';
        const accelText=(selected.acceleration>=0?'+':'')+selected.acceleration.toFixed(0)+' pp';
-       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+(selected.earlyRise?' — SUBIDA ANTECIPADA ↑':'')+'; frequência histórica '+selected.frequency.toFixed(1)+'%, últimos 25 ticks '+selected.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+rankingText+'.');
+       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+(selected.earlyRise?' — SUBIDA ANTECIPADA ↑':'')+'; frequência histórica '+selected.frequency.toFixed(1)+'%, últimos '+(exitSpotsMode?28:smartAnalyzer?25:9)+' ticks '+selected.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+rankingText+'.');
        console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedHistoricalFrequency:selected.frequency,recent25Frequency:selected.recentFrequency,trend:selected.trend,acceleration:selected.acceleration,momentumScore:selected.momentumScore,selectionScore:selected.selectionScore,earlyRise:selected.earlyRise,ranking:selected.ranking,observationWindows});
       }else{
        hyperFlowNextDigitRef.current=null;
@@ -1050,7 +1050,7 @@ export default function AutoBotV4(){
    if(watch.active){
     watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
     if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
-    const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory,smartAnalyzer?25:9);
+    const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory,exitSpotsMode?28:smartAnalyzer?25:9);
     if(provisional&&(watch.provisionalDigit!==provisional.digit||watch.provisionalEarlyRise!==provisional.earlyRise||Date.now()-(watch.lastProgressNoticeAt||0)>=5000)){
      watch.provisionalDigit=provisional.digit;
      watch.lastProgressNoticeAt=Date.now();
