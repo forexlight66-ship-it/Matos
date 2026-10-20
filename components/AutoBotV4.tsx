@@ -388,7 +388,7 @@ function analyzeStrategies100(v:number[],pipSize?:number){
   const acceleration=Math.max(-100,Math.min(100,(recent-previousRecent)*220));
   const phaseScore=(strength+confidence+stability)/3;
   const phase=phaseOf(phaseScore,recent*100,olderMean*100,trend,acceleration,consistency);
-  const earlyMomentum=trend>=68&&acceleration>=6&&recent>=45&&recent>olderMean*100+6&&consistency>=40;
+  const earlyMomentum=trend>=68&&acceleration>=6&&recent>=0.45&&recent>olderMean+0.06&&consistency>=40;
 
   // HyperStrike ABAIXO 4 recebe proteção dinâmica quando o sinal recente perde força.
   // A direção não é removida: ela só perde prioridade enquanto os últimos blocos mostram
@@ -536,9 +536,9 @@ export default function AutoBotV4(){
  };
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE,payout:IA_PAYOUT,maxLevel:maxMartingale}));
  const hyperFlowObservationTicksRef=useRef<number[]>([]);
- const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number}>({active:false,symbol:'',snapshots:[]});
+ const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number;provisionalEarlyRise?:boolean}>({active:false,symbol:'',snapshots:[]});
  const hyperFlowTargetDigitRef=useRef<number>(0);
- const hyperFlowNextDigitRef=useRef<{digit:number;score:number;ranking:{digit:number;score:number}[]}|null>(null);
+ const hyperFlowNextDigitRef=useRef<HyperFlowRankResult|null>(null);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
@@ -589,7 +589,7 @@ export default function AutoBotV4(){
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
      }else{
       const observationWindows=hyperFlowWatchRef.current.snapshots.length;
-      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,ticks.slice(-9),tradePipSize);
+      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,ticks.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current);
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       if(selected){
        hyperFlowNextDigitRef.current=selected;
@@ -979,7 +979,7 @@ export default function AutoBotV4(){
    if(watch.active){
     watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
     if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
-    const provisional=rankHyperFlowMatchDigit(watch.snapshots,windowDigits,pipSize);
+    const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory);
     if(provisional&&watch.provisionalDigit!==provisional.digit){
      watch.provisionalDigit=provisional.digit;
      setNotice('HYPERFLOW: 0 em '+zeroPercent.toFixed(1)+'%. Candidato provisório MATCH '+provisional.digit+' ('+provisional.score.toFixed(1)+'% de frequência observada). Se MATCH 0 perder, este ranking será reavaliado antes da próxima entrada.');
