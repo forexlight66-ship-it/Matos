@@ -704,15 +704,15 @@ export default function AutoBotV4(){
      if(deficitRemaining<=0.005)hyperFlowRecoveryDeficitRef.current=0;
     }else if(hyperFlowLost){
      hyperFlowLossStreakRef.current+=1;
-     if(hyperFlowLossStreakRef.current>=10){
+     if(hyperFlowLossStreakRef.current>=5){
       hyperFlowRecoveryActiveRef.current=true;
       hyperFlowOverZeroModeRef.current=true;
       hyperFlowNextDigitRef.current=null;
       hyperFlowTargetDigitRef.current=0;
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       setHyperFlowFallbackRevision(v=>v+1);
-      setNotice('HYPERFLOW: 10 perdas consecutivas. Recuperação total ativada; próxima operação OVER 0 com stake calculado para cobrir o défice completo de '+deficitRemaining.toFixed(2)+'.');
-      console.warn('[HyperFlow full-deficit recovery activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,deficit:deficitRemaining,contractType:'DIGITOVER',barrier:0});
+      setNotice('HYPERFLOW: 5 perdas consecutivas. Recuperação total ativada; próxima operação ACIMA 0 durante 5 ticks, com stake calculado para cobrir todo o défice numa única operação vencedora: '+deficitRemaining.toFixed(2)+'.');
+      console.warn('[HyperFlow full-deficit recovery activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,trigger:5,deficit:deficitRemaining,contractType:'DIGITOVER',barrier:0,duration:5,durationUnit:'t'});
      }
     }
    }
@@ -1318,7 +1318,7 @@ export default function AutoBotV4(){
   setBotActivity('sendingDirectBuy');
   let sent=false;
   try{
-   sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:1,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
+   const isHyperFlowRecoveryTrade=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current;\n   const contractDuration=isHyperFlowRecoveryTrade?5:1;\n   sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:contractDuration,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
   }catch(buyError){
    console.error('[Bot direct buy exception]',buyError,{account,strategy,symbol,contractTypeStr,barrier,amount});
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
