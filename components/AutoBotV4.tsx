@@ -642,7 +642,7 @@ export default function AutoBotV4(){
   const closedBarrier=Number(closed?.barrier);
   const unknownClosedBot=!rawClosedBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawClosedBotLabel);
   const looksLikeHyperFlowContract=closedBarrier===0&&(closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH');
-  const identifiedClosedBotName=rawClosedBotName==='hyperflow'||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH')))?'hyperflow':rawClosedBotName;
+  const identifiedClosedBotName=(rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel)||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
   if(identifiedClosedBotName==='hyperflow'){hyperFlowRecoveryBuyPendingRef.current=false;if(strategy==='MATCH0'&&!hyperFlowOverZeroModeRef.current)hyperFlowNormalSignalDisarmedRef.current=false;}
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
@@ -1316,22 +1316,21 @@ export default function AutoBotV4(){
    }
    amount=recoveryStake;
   }
-  // HyperFlow recovery uses the same direct buy: 1 + parameters path as normal bots.
-  // Stake is estimated from the latest observed or fallback OVER 0 net-payout ratio.
-  // Direct buy avoids waiting on a proposal, but the realized payout can differ.
-  // Preserve the established 50% balance cap and pause rather than oversize.
+  // HyperFlow recovery sizes one OVER 0 / five-tick attempt against the full remaining deficit.
+  // The former 50% balance restriction is removed; only the actual available balance
+  // remains a hard limit, so Deriv is not sent an unaffordable stake.
   if(strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryDeficitRef.current>0.01){
    const deficit=Math.max(0,Number(hyperFlowRecoveryDeficitRef.current)||0);
    const overZeroRatio=Math.max(0.001,payoutRatioForContract('DIGITOVER',0));
    const recoveryStake=Math.max(0.35,Math.ceil((deficit/overZeroRatio)*100-1e-9)/100);
-   const maxRecoveryStake=Math.floor(Math.max(0,availableBalance*0.5)*100)/100;
+   const maxRecoveryStake=Math.floor(Math.max(0,availableBalance)*100)/100;
    if(!Number.isFinite(availableBalance)||recoveryStake>maxRecoveryStake+0.005){
-    recoveryBalancePauseRef.current=Number((recoveryStake*2).toFixed(2));
+    recoveryBalancePauseRef.current=recoveryStake;
     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
     hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;
     setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
-    setNotice('HyperFlow: recuperação direta pausada. A stake estimada para cobrir o défice total é '+recoveryStake.toFixed(2)+', acima do limite de 50% do saldo. Nenhuma compra foi enviada.');
-    console.warn('[HyperFlow direct recovery blocked by 50% balance cap]',{symbol,deficit,overZeroRatio,recoveryStake,availableBalance,maxRecoveryStake});
+    setNotice('HyperFlow: recuperação pausada. A stake estimada para tentar cobrir o défice total é '+recoveryStake.toFixed(2)+', mas ultrapassa o saldo disponível de '+Math.max(0,availableBalance).toFixed(2)+'. Nenhuma compra foi enviada.');
+    console.warn('[HyperFlow direct recovery blocked: insufficient total balance]',{symbol,deficit,overZeroRatio,recoveryStake,availableBalance,maxRecoveryStake});
     return;
    }
    amount=recoveryStake;
