@@ -60,26 +60,38 @@ function digit(v:number|string|null|undefined,pipSize?:number){
  }
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
 type HyperFlowWindow = { key:string; digits:number[]; zeroPercent:number };
-function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number){
+type HyperFlowDigitRank = { digit:number; score:number; frequency:number; recentFrequency:number; trend:number; acceleration:number; momentumScore:number; selectionScore:number; earlyRise:boolean };
+type HyperFlowRankResult = HyperFlowDigitRank & { ranking:HyperFlowDigitRank[] };
+function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number,momentumValues:number[]=currentValues):HyperFlowRankResult|null{
  const currentDigits=currentValues.slice(-9).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
  const windows=snapshots.map(item=>item.digits).filter(items=>items.length>0).map(items=>items.slice());
  if(currentDigits.length&&(!windows.length||windows[windows.length-1].join(',')!==currentDigits.join(',')))windows.push(currentDigits);
  if(!windows.length)return null;
- const weightedScores=Array(10).fill(0) as number[];
+ const weighted=Array(10).fill(0) as number[];
  let totalWeight=0;
  windows.forEach((items,index)=>{
   const weight=0.65+0.35*((index+1)/windows.length);
   totalWeight+=weight;
-  for(let d=1;d<=9;d++)weightedScores[d]+=items.filter(value=>value===d).length/Math.max(1,items.length)*100*weight;
+  for(let d=1;d<=9;d++)weighted[d]+=items.filter(value=>value===d).length/Math.max(1,items.length)*100*weight;
  });
- const latest=windows[windows.length-1];
- const ranked=Array.from({length:9},(_,index)=>index+1).map(d=>({
-  digit:d,
-  score:Number((weightedScores[d]/Math.max(0.0001,totalWeight)).toFixed(2)),
-  latestCount:latest.filter(value=>value===d).length
- })).sort((a,b)=>b.score-a.score||b.latestCount-a.latestCount||a.digit-b.digit);
- if(!ranked.length)return null;
- return {digit:ranked[0].digit,score:ranked[0].score,ranking:ranked.slice(0,3).map(({digit,score})=>({digit,score}))};
+ const recent=momentumValues.slice(-25).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
+ const blocks=recent.length>=25?Array.from({length:5},(_,i)=>recent.slice(i*5,(i+1)*5)):[];
+ const rate=(items:number[],d:number)=>items.length?items.filter(value=>value===d).length/items.length*100:0;
+ const clamp=(n:number)=>Math.max(0,Math.min(100,n));
+ const ranked:HyperFlowDigitRank[]=Array.from({length:9},(_,i)=>i+1).map(d=>{
+  const frequency=Number((weighted[d]/Math.max(0.0001,totalWeight)).toFixed(2));
+  const recentFrequency=Number(rate(recent,d).toFixed(2));
+  const blockRates=blocks.map(block=>rate(block,d));
+  const last=blockRates[4]??recentFrequency, previous=blockRates[3]??last;
+  const older=blockRates.length===5?blockRates.slice(0,4).reduce((sum,v)=>sum+v,0)/4:last;
+  const trend=blocks.length===5?Number((last-older).toFixed(2)):0;
+  const acceleration=blocks.length===5?Number((last-previous).toFixed(2)):0;
+  const momentumScore=blocks.length===5?Number(clamp(50+trend*1.2+acceleration*0.8).toFixed(2)):50;
+  const selectionScore=Number((frequency*0.25+recentFrequency*0.25+momentumScore*0.5).toFixed(2));
+  const earlyRise=blocks.length===5&&trend>=5&&acceleration>=5&&last>=older+5;
+  return {digit:d,score:frequency,frequency,recentFrequency,trend,acceleration,momentumScore,selectionScore,earlyRise};
+ }).sort((a,b)=>b.selectionScore-a.selectionScore||b.momentumScore-a.momentumScore||b.frequency-a.frequency||a.digit-b.digit);
+ return ranked.length?{...ranked[0],ranking:ranked}:null;
 }
 function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null);
