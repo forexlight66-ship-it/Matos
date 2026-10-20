@@ -313,31 +313,31 @@ function strategyMomentumCandidates(values:number[],s:Strategy,pipSize?:number):
 // Start Robô Normal conserva a janela oficial de 9 ticks e o gatilho normal de 65%.
 // Só quando o gatilho normal ainda não existe aceita uma tendência antecipada,
 // confirmada pela evolução do MESMO contrato em três blocos cronológicos de 3 ticks.
-function makeNormalMomentumSignal9(values:number[],s:Strategy,pipSize?:number,threshold=65,minSamples=9){
+function makeNormalMomentumSignal9(values:number[],s:Strategy,pipSize?:number,threshold=65,minSamples=10){
  const standard=makeSignal(values,s,pipSize,false,threshold,minSamples);
  if(standard)return standard;
- if(values.length<9||String(s)==='MATCH0'||isRecoveryStrategy(s))return null;
- const sample=values.slice(-9);
- const blocks=Array.from({length:3},(_,index)=>sample.slice(index*3,(index+1)*3));
- if(blocks.some(block=>block.length!==3))return null;
+ if(values.length<minSamples||String(s)==='MATCH0'||isRecoveryStrategy(s))return null;
+ const sample=values.slice(-minSamples);
+ const blockSize=Math.ceil(minSamples/2);
+ const blocks=[sample.slice(0,blockSize),sample.slice(blockSize)];
+ if(blocks.some(block=>block.length===0))return null;
  const fullCandidates=strategyMomentumCandidates(sample,s,pipSize);
  const blockCandidates=blocks.map(block=>strategyMomentumCandidates(block,s,pipSize));
+ const recent=blockCandidates[1];
+ const previous=blockCandidates[0];
  const emerging=fullCandidates.map(candidate=>{
-  const strengths=blockCandidates.map(block=>block.find(item=>item.contract===candidate.contract)?.strength??0);
-  const recent=strengths[2]??0;
-  const previous=strengths[1]??0;
-  const olderMean=((strengths[0]??0)+previous)/2;
-  const trend=recent-olderMean;
-  const acceleration=recent-previous;
-  // Require an active recent majority, a rising trajectory, and supporting evidence
-  // across the full 9-tick window; the normal 65% rule always takes precedence.
-  if(candidate.strength<40||recent<66.6667||trend<20||acceleration<20)return null;
-  return {...candidate,earlyMomentum:true,momentumWindow:9,recentStrength:recent,trend,acceleration,olderStrength:olderMean};
+  const older=previous.find(item=>item.contract===candidate.contract)?.strength??0;
+  const latest=recent.find(item=>item.contract===candidate.contract)?.strength??0;
+  const trend=latest-older;
+  // Normal analysis now uses the latest 10 ticks (two blocks of five).
+  // Keep the normal 65% rule first; early momentum only qualifies with a strong
+  // recent block and a positive increase compared with the previous block.
+  if(candidate.strength<40||latest<60||trend<20)return null;
+  return {...candidate,earlyMomentum:true,momentumWindow:minSamples,recentStrength:latest,trend,acceleration:trend,olderStrength:older};
  }).filter((candidate):candidate is NonNullable<typeof candidate>=>candidate!==null);
  if(!emerging.length)return null;
  emerging.sort((a,b)=>(b.trend+b.acceleration*0.75)-(a.trend+a.acceleration*0.75)||b.recentStrength-a.recentStrength||b.strength-a.strength);
- const best=emerging[0];
- return {...best,strength:best.strength};
+ return {...emerging[0],strength:emerging[0].strength};
 }
 const money=(u:number,currency:Currency)=>{const v=u*(CURRENCY_RATES[currency]||1);return `${v>=0?'+':''}${v.toFixed(2)} ${CURRENCY_LABELS[currency]||currency}`};function confirmAnalyzerRecent(values:number[],strategy:string,label:string,pipSize?:number){if(values.length<5)return false;const raw=values.slice(-5);const recent=raw.map(v=>digit(v,pipSize)).filter((n):n is number=>n!==null);if(recent.length<5)return false;if(strategy==='HyperDrive')return label==='ÍMPAR'?recent.filter(n=>n%2!==0).length>=4:recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperStrike')return label==='ACIMA 5'?recent.filter(n=>n>5).length>=4:recent.filter(n=>n<4).length>=4;if(strategy==='HyperForce'){let up=0,down=0;for(let i=1;i<raw.length;i++){if(raw[i]>raw[i-1])up++;else if(raw[i]<raw[i-1])down++}return label==='SUBIR'?up===4:down===4}if(strategy==='HyperNova')return recent.filter(n=>n!==0).length>=4;if(strategy==='Hyperlite')return recent.filter(n=>n%2===0).length>=4;if(strategy==='HyperGuard')return recent.filter(n=>n>0).length>=4;if(strategy==='HyperShield')return recent.filter(n=>n>4).length>=4;if(strategy==='HyperBreak')return recent.filter(n=>n<8).length>=4;if(strategy==='HyperSwap')return recent.filter(n=>n!==0).length>=4;return false}
 function makeBarrierSignal(values:number[],state:BarrierState|null|undefined,pipSize?:number,threshold=65,minSamples=9){
