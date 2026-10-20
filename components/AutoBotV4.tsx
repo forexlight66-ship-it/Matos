@@ -601,7 +601,7 @@ export default function AutoBotV4(){
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
      }else{
       const observationWindows=hyperFlowWatchRef.current.snapshots.length;
-      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,ticks.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current);
+      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,hyperFlowObservationTicksRef.current.slice(-9),tradePipSize,hyperFlowObservationTicksRef.current);
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       if(selected){
        hyperFlowNextDigitRef.current=selected;
