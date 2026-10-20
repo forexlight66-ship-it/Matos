@@ -91,10 +91,23 @@ function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:numbe
   const older=olderValues.length?olderValues.reduce((sum,v)=>sum+v,0)/olderValues.length:last;
   const trend=blocks.length===blockCount?Number((last-older).toFixed(2)):0;
   const acceleration=blocks.length===blockCount?Number((last-previous).toFixed(2)):0;
-  const momentumScore=blocks.length===blockCount?Number(clamp(50+trend*1.2+acceleration*0.8).toFixed(2)):50;
-  const selectionScore=Number((frequency*0.25+recentFrequency*0.25+momentumScore*0.5).toFixed(2));
-  const minimumRise=windowSize===9?16.67:5;
-  const earlyRise=blocks.length===blockCount&&trend>=minimumRise&&acceleration>=minimumRise&&last>=older+minimumRise;
+  // HyperFlow must detect a digit gaining momentum before its total frequency becomes high.
+  // Score the direction and acceleration of the last blocks much more than accumulated frequency.
+  // This lets an emerging digit compete even while its overall frequency is still 0–9%.
+  const momentumScore=blocks.length===blockCount
+   ?Number(clamp(50+trend*0.75+acceleration*1.25).toFixed(2))
+   :50;
+  const recentRise=blocks.length===blockCount&&last>previous;
+  const risingAcrossBlocks=blocks.length===blockCount&&last>older&&acceleration>=0;
+  const earlyRise=Boolean(recentRise&&risingAcrossBlocks);
+  const selectionScore=Number((
+    momentumScore*0.55+
+    clamp(50+Math.max(-50,Math.min(50,trend))*0.5)*0.25+
+    clamp(50+Math.max(-50,Math.min(50,acceleration))*0.5)*0.15+
+    Math.min(100,frequency)*0.03+
+    Math.min(100,recentFrequency)*0.02+
+    (earlyRise?8:0)
+  ).toFixed(2));
   return {digit:d,score:frequency,frequency,recentFrequency,trend,acceleration,momentumScore,selectionScore,earlyRise};
  }).sort((a,b)=>b.selectionScore-a.selectionScore||b.momentumScore-a.momentumScore||b.frequency-a.frequency||a.digit-b.digit);
  return ranked.length?{...ranked[0],ranking:ranked}:null;
