@@ -1358,6 +1358,7 @@ export default function AutoBotV4(){
   setAnalyzerNotice(null);analyzerDecisionHistoryRef.current=[];return;
  }
  if(exitSpotsMode)return;
+ if(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null)return;
  if(aiAnalysisValues.length<25){
   setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 resultados ao vivo...');
   pendingAnalyzerStrategyRef.current=null;return;
