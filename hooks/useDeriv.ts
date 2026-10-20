@@ -504,7 +504,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
         if(alreadyClosed?.sell_time&&Number(alreadyClosed.sell_time)>0){
          console.warn('[Deriv buy acknowledgement] Contract was already closed before acknowledgement arrived',{contract_id:contractId,bot:acknowledgedBot,profit_loss:alreadyClosed.profit_loss});
          activeContractRef.current=null;activeContractStateRef.current=null;activeContractStartedAtRef.current=0;lastActiveContractUpdateAtRef.current=0;
-         latestProposalReqRef.current=null;setProposal(null);setActiveContractId(null);setContractStage('fechado');ws.unsubscribeContract(contractId);
+         latestProposalReqRef.current=null;setProposal(null);setActiveContractId(null);setContractStage('fechado');setContractClosedSeq(v=>v+1);setLoadingProfit(false);ws.unsubscribeContract(contractId);
          return;
         }
         activeContractRef.current=contractId;activeContractStateRef.current=contractId;
