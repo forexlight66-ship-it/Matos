@@ -200,7 +200,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
     profit_loss:calculateProfitLoss(raw),
     exit_tick:raw.exit_tick??null,
     exit_spot:raw.exit_spot??null,
-    bot:raw.bot?String(raw.bot):undefined,
+    bot:raw.bot?String(raw.bot):(contractBotRef.current.get(id)||undefined),
     status:raw.status?String(raw.status).toLowerCase():undefined,
     barrier:raw.barrier!=null&&Number.isFinite(Number(raw.barrier))?Number(raw.barrier):(contractBarrierRef.current.get(id)??previous?.barrier??null),
     symbol:String(raw.symbol??raw.underlying_symbol??contractSymbolRef.current.get(id)??previous?.symbol??'')||undefined
@@ -477,7 +477,40 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
       setLoadingProfit(false);
      });
       ws.subscribe('proposal',data=>{if(!data.proposal||activeContractRef.current!==null)return;const responseReqId=Number(data.req_id??data.echo_req?.req_id);if(latestProposalReqRef.current===null||responseReqId!==latestProposalReqRef.current)return;const requested=proposalRequestRef.current;setProposal({id:String(data.proposal.id||''),ask_price:Number(data.proposal.ask_price),payout:Number(data.proposal.payout),stake:Number(data.proposal.stake),contract_type:String(data.proposal.contract_type||''),symbol:data.proposal.symbol||data.proposal.underlying_symbol||requested?.symbol||'',duration:Number(data.proposal.duration),duration_unit:data.proposal.duration_unit,barrier:data.proposal.barrier,requested_contract_type:requested?.contractType,requested_barrier:requested?.barrier});setError(null)});
-     ws.subscribe('buy',data=>{if(!data.buy)return;buyDispatchLockRef.current=false;staleBuyRetryRef.current=false;setError(null);setBuying(false);const contractId=Number(data.buy.contract_id);if(Number.isFinite(contractId)&&contractId>0){pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;activeContractStartedAtRef.current=Date.now();lastActiveContractUpdateAtRef.current=Date.now();lastContractReconcileAtRef.current=0;portfolioAbsenceCountRef.current=0;sessionContractIdsRef.current.add(contractId);if(pendingBuyBotRef.current)contractBotRef.current.set(contractId,pendingBuyBotRef.current);pendingBuyBotRef.current=null;if(pendingBuyBarrierRef.current!==null)contractBarrierRef.current.set(contractId,pendingBuyBarrierRef.current);pendingBuyBarrierRef.current=null;const requestedSymbol=proposalRequestRef.current?.symbol;if(requestedSymbol)contractSymbolRef.current.set(contractId,requestedSymbol);activeContractRef.current=contractId;setActiveContractId(contractId);setContractStage('aberto');latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId)}});ws.connect();
+     ws.subscribe('buy',data=>{
+       if(!data.buy)return;
+       buyDispatchLockRef.current=false;staleBuyRetryRef.current=false;setError(null);setBuying(false);
+       const contractId=Number(data.buy.contract_id);
+       if(Number.isFinite(contractId)&&contractId>0){
+        pendingBuyStartedAtRef.current=0;pendingBuyLastRecoveryAtRef.current=0;pendingBuyAbsenceCountRef.current=0;
+        activeContractStartedAtRef.current=Date.now();lastActiveContractUpdateAtRef.current=Date.now();lastContractReconcileAtRef.current=0;portfolioAbsenceCountRef.current=0;
+        sessionContractIdsRef.current.add(contractId);
+        const acknowledgedBot=pendingBuyBotRef.current;
+        if(acknowledgedBot){
+         contractBotRef.current.set(contractId,acknowledgedBot);
+         const previouslyClosed=closedContractsRef.current.get(contractId);
+         if(previouslyClosed&&!previouslyClosed.bot){
+          closedContractsRef.current.set(contractId,{...previouslyClosed,bot:acknowledgedBot});
+          setProfitTransactions(items=>items.map(item=>Number(item.contract_id)===contractId?{...item,bot:item.bot||acknowledgedBot}:item));
+          setLastClosedTransaction(item=>item&&Number(item.contract_id)===contractId?{...item,bot:item.bot||acknowledgedBot}:item);
+         }
+        }
+        pendingBuyBotRef.current=null;
+        if(pendingBuyBarrierRef.current!==null)contractBarrierRef.current.set(contractId,pendingBuyBarrierRef.current);
+        pendingBuyBarrierRef.current=null;
+        const requestedSymbol=proposalRequestRef.current?.symbol;
+        if(requestedSymbol)contractSymbolRef.current.set(contractId,requestedSymbol);
+        const alreadyClosed=closedContractsRef.current.get(contractId);
+        if(alreadyClosed?.sell_time&&Number(alreadyClosed.sell_time)>0){
+         console.warn('[Deriv buy acknowledgement] Contract was already closed before acknowledgement arrived',{contract_id:contractId,bot:acknowledgedBot,profit_loss:alreadyClosed.profit_loss});
+         activeContractRef.current=null;activeContractStateRef.current=null;activeContractStartedAtRef.current=0;lastActiveContractUpdateAtRef.current=0;
+         latestProposalReqRef.current=null;setProposal(null);setActiveContractId(null);setContractStage('fechado');setContractClosedSeq(v=>v+1);setLoadingProfit(false);ws.unsubscribeContract(contractId);
+         return;
+        }
+        activeContractRef.current=contractId;activeContractStateRef.current=contractId;
+        setActiveContractId(contractId);setContractStage('aberto');latestProposalReqRef.current=null;setProposal(null);ws.subscribeContract(contractId);
+       }
+      });ws.connect();
      connectionCheck=setInterval(()=>{if(cancelled)return;const connected=ws.isConnected();if(!connected)connectionWasUpRef.current=false;if(connected&&!connectionWasUpRef.current){connectionWasUpRef.current=true;const activeId=activeContractRef.current??activeContractStateRef.current;console.info('[DerivWS] Connection became available; reconciling pending trading state',{activeContractId:activeId,pendingBuyAgeMs:pendingBuyStartedAtRef.current?Date.now()-pendingBuyStartedAtRef.current:0});if(activeId!==null){lastContractReconcileAtRef.current=Date.now();ws.reconcileContract(activeId);lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}if(pendingBuyStartedAtRef.current>0){lastPortfolioRequestAtRef.current=Date.now();portfolioRequestIdRef.current=ws.requestPortfolio();refresh(true);}}setIsConnected(connected);if(connected){
        // A WebSocket can remain OPEN while market-data delivery is silently dead.
        // Reconnect proactively so the trading loop cannot remain frozen waiting

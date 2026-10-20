@@ -626,11 +626,20 @@ export default function AutoBotV4(){
  const hyperFlowRecoveryActiveRef=useRef(false);
  const hyperFlowOverZeroModeRef=useRef(false);
  const hyperFlowRecoveryBuyPendingRef=useRef(false);
+ const hyperFlowRecoveryQuoteStageRef=useRef<'base'|'stake'|null>(null);
+ const hyperFlowRecoveryQuoteAttemptsRef=useRef(0);
+ const hyperFlowRecoveryQuoteReadyRef=useRef(false);
+ const hyperFlowRecoveryQuoteTargetRef=useRef<number|null>(null);
+ const hyperFlowLastEntryTickRef=useRef<{symbol:string;epoch:number}|null>(null);
  const [hyperFlowFallbackRevision,setHyperFlowFallbackRevision]=useState(0);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   // Release the recovery-only mutex on the authoritative HyperFlow close event,
   // even if the user stopped the bot before the close callback was processed.
-  if(String(closed?.bot||'').trim().toLowerCase()==='hyperflow')hyperFlowRecoveryBuyPendingRef.current=false;
+  const rawClosedBotName=String(closed?.bot||'').trim().toLowerCase();
+  const closedContractType=String(closed?.contract_type||'').trim().toUpperCase();
+  const looksLikeHyperFlowContract=(Number(closed?.barrier)===0&&(closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH'));
+  const looksLikeHyperFlowRecovery=closedContractType==='DIGITOVER'&&Number(closed?.barrier)===0;
+  if(rawClosedBotName==='hyperflow'||(!rawClosedBotName&&looksLikeHyperFlowContract&&strategy==='MATCH0'))hyperFlowRecoveryBuyPendingRef.current=false;
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
    const id=Number(closed.contract_id);
@@ -668,7 +677,7 @@ export default function AutoBotV4(){
     pendingAnalyzerStrategyRef.current=null;setRunning(false);setSmartAnalyzer(false);setExitSpotsMode(false);setSignalNow(null);
     setNotice('BLOQUEIO DE SEGURANÇA: o estado oficial da Deriv contradiz o lucro/prejuízo do contrato. O robô foi pausado para proteger o saldo.');
    }
-   const closedBotName=String(closed?.bot||'').trim().toLowerCase();
+   const closedBotName=String(closed?.bot||((Number(closed?.barrier)===0&&(closedType==='DIGITOVER'||closedType==='DIGITMATCH'))?'HyperFlow':'')).trim().toLowerCase();
    const isHyperFlowTrade=closedBotName==='hyperflow';
    const hyperFlowWon=statusOutcome??(result>0);
    const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
@@ -1159,7 +1168,7 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!running){gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setStakeManagerVersion(v=>v+1)}},[stake,maxMartingale,running]);
  useEffect(()=>{setSignalNow(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[tickWindow,strategy]); useEffect(()=>{setTicks([]);setSignalNow(null);setTickPipSize(undefined);setLastDigitSeen(null);requested.current=false;requestStartedAt.current=0;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerLastSwitchTickRef.current=-1000;analyzerDecisionHistoryRef.current=[];analyzerLastSwitchAtRef.current=0;analyzerConfirmedRef.current=false;analyzerConfirmedStrategyRef.current=null;barrierStateRef.current=isRecoveryStrategy(strategy)?initialBarrierState(strategy):null},[symbol]);
  useEffect(()=>{if((!running&&!smartAnalyzer)||!isConnected)return;const id=window.setInterval(()=>fetchProfitTable({limit:500,offset:0,sort:'DESC'}),5000);return()=>clearInterval(id)},[running,smartAnalyzer,isConnected,fetchProfitTable]);
- useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&!proposal&&!buying&&activeContractId===null&&trackedContractId===null&&(requestStartedAt.current<=0||Date.now()-requestStartedAt.current>5000)){console.warn('[Bot watchdog] Solicitação sem proposta, compra ou contrato ativo durante 5s; a libertar bloqueios.',{riskAwaitingContractId:riskAwaitingContractRef.current,iaPower,sonic});requested.current=false;requestStartedAt.current=0;clearProposal();if(riskAwaitingContractRef.current!==null)riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;pendingAutoEntryRef.current=null;setBotActivity('reconcilingBot');lastActivityAt.current=Date.now()}if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current)&&riskLockStartedAt.current>0&&activeContractId===null&&trackedContractId===null&&!proposal&&!buying&&!requested.current&&Date.now()-riskLockStartedAt.current>20000){console.error('[Bot watchdog] Stale risk lock with no active contract for 20s; releasing it.',{riskAwaitingContractId:riskAwaitingContractRef.current,stakeReady:stakeReadyRef.current,ageMs:Date.now()-riskLockStartedAt.current});riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;setBotActivity('waitingRobotSignal');setNotice('Bloqueio de risco desatualizado detectado sem contrato ativo. O ciclo foi libertado e a análise será retomada.');lastActivityAt.current=Date.now()}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,trackedContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic,clearProposal]);
+ useEffect(()=>{if(!running&&!smartAnalyzer)return;const id=window.setInterval(()=>{if(requested.current&&!proposal&&!buying&&activeContractId===null&&trackedContractId===null&&(requestStartedAt.current<=0||Date.now()-requestStartedAt.current>5000)){console.warn('[Bot watchdog] Solicitação sem proposta, compra ou contrato ativo durante 5s; a libertar bloqueios.',{riskAwaitingContractId:riskAwaitingContractRef.current,iaPower,sonic});requested.current=false;requestStartedAt.current=0;clearProposal();if(riskAwaitingContractRef.current!==null)riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;pendingAutoEntryRef.current=null;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();setBotActivity('reconcilingBot');lastActivityAt.current=Date.now()}if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current)&&riskLockStartedAt.current>0&&activeContractId===null&&trackedContractId===null&&!proposal&&!buying&&!requested.current&&Date.now()-riskLockStartedAt.current>20000){console.error('[Bot watchdog] Stale risk lock with no active contract for 20s; releasing it.',{riskAwaitingContractId:riskAwaitingContractRef.current,stakeReady:stakeReadyRef.current,ageMs:Date.now()-riskLockStartedAt.current});riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;iaRecoveryQuotePendingRef.current=false;setBotActivity('waitingRobotSignal');setNotice('Bloqueio de risco desatualizado detectado sem contrato ativo. O ciclo foi libertado e a análise será retomada.');lastActivityAt.current=Date.now()}if(signalNow&&!proposal&&!buying&&activeContractId===null&&riskAwaitingContractRef.current===null&&Date.now()-lastActivityAt.current>5500){requested.current=false;requestStartedAt.current=0;if(!(iaPower||sonic))stakeReadyRef.current=true;subscribeTicks(symbol);lastActivityAt.current=Date.now()-4500}},1000);return()=>clearInterval(id)},[running,smartAnalyzer,proposal,buying,activeContractId,trackedContractId,signalNow,symbol,subscribeTicks,latest,iaPower,sonic,clearProposal]);
  useEffect(()=>{
   if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current)return;
   // A recuperação integral não deve ser reavaliada nem gerar avisos a cada tick
@@ -1217,12 +1226,21 @@ export default function AutoBotV4(){
    freshSignal=makeNormalMomentumSignal9(ticks.slice(-9),strategy,tickPipSize,65,9);
   }
   if(!freshSignal){setBotActivity('waitingRobotSignal');return;}
+  const hyperFlowTickEpoch=Number(tick?.epoch);
+  if(strategy==='MATCH0'&&Number.isFinite(hyperFlowTickEpoch)){
+   const lastEntry=hyperFlowLastEntryTickRef.current;
+   if(lastEntry&&lastEntry.symbol===symbol&&lastEntry.epoch===hyperFlowTickEpoch){
+    setBotActivity('waitingRobotSignal');
+    return;
+   }
+  }
   if(requested.current){setBotActivity('requestingProposal');return;}
   if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current)){setBotActivity('reconcilingBot');return;}
   // Until a validated buy is actually sent, keep the state recoverable.
   // Do not display SENDINGDIRECTBUY while computing the stake or exiting a guard.
   setBotActivity('reconcilingBot');
   stakeReadyRef.current=false;riskLockStartedAt.current=Date.now();
+  if(strategy==='MATCH0'&&Number.isFinite(hyperFlowTickEpoch))hyperFlowLastEntryTickRef.current={symbol,epoch:hyperFlowTickEpoch};
   requested.current=true;
   requestStartedAt.current=Date.now();
   lastActivityAt.current=Date.now();
@@ -1293,11 +1311,9 @@ export default function AutoBotV4(){
   // financial deficit. Do not cap the stake by balance or impose a balance-protection
   // rule here; submit the calculated amount and let the broker accept/reject it.
   if(strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryDeficitRef.current>0.01){
-   const deficit=hyperFlowRecoveryDeficitRef.current;
-   const overZeroRatio=Math.max(0.001,payoutRatioForContract('DIGITOVER',0));
-   const recoveryStake=Math.max(0.35,Math.ceil((deficit/overZeroRatio)*100-1e-9)/100);
-   amount=recoveryStake;
-   console.info('[HyperFlow full-deficit OVER 0 recovery stake]',{symbol,deficit,netPayoutRatio:overZeroRatio,stake:amount});
+   // A full-deficit stake is set after validating a fresh 5-tick quote below.
+   // Do not use a remembered ratio from a different contract duration here.
+   amount=Math.max(0.35,Number(amount)||0.35);
   }
 
   iaRecoveryQuotePendingRef.current=false;
@@ -1332,6 +1348,25 @@ export default function AutoBotV4(){
    }
    console.warn('[HyperFlow recovery stale lock cleared]',{symbol,deficit:hyperFlowRecoveryDeficitRef.current,reason:'no pending buy or active contract remains'});
    hyperFlowRecoveryBuyPendingRef.current=false;
+  }
+  if(isHyperFlowRecoveryTrade&&!hyperFlowRecoveryQuoteReadyRef.current){
+   // Recovery must be quoted at the actual OVER 0 / 5-tick duration before staking.
+   if(hyperFlowRecoveryQuoteStageRef.current===null){
+    hyperFlowRecoveryQuoteStageRef.current='base';
+    hyperFlowRecoveryQuoteAttemptsRef.current=0;
+    hyperFlowRecoveryQuoteTargetRef.current=null;
+    clearProposal();
+    const quoteSent=getProposal(symbol,'DIGITOVER',0.35,5,0,false);
+    if(!quoteSent){
+     hyperFlowRecoveryQuoteStageRef.current=null;
+     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+     setBotActivity('reconcilingBot');
+     setNotice('HyperFlow: não foi possível obter uma cotação OVER 0 de 5 ticks. Nenhuma recuperação foi enviada.');
+     return;
+    }
+    setBotActivity('requestingProposal');
+   }else setBotActivity('requestingProposal');
+   return;
   }
   pendingAutoEntryRef.current=null;
   // SENDINGDIRECTBUY now only covers the actual buy invocation.
@@ -1368,7 +1403,7 @@ export default function AutoBotV4(){
    requestedHypercoverContractRef.current=null;
   }
   setBotActivity('waitingBuyConfirmation');
- },[running,smartAnalyzer,exitSpotsMode,smartAdvice,analysisExitValues,botAnalysisValues,aiAnalysisValues,ticks,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,trackedContractId,isAuthorized,isConnected,getProposal,buyDirect,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy,hypercoverRevision,hyperFlowFallbackRevision]); useEffect(()=>{
+ },[running,smartAnalyzer,exitSpotsMode,smartAdvice,analysisExitValues,botAnalysisValues,aiAnalysisValues,ticks,tick,exitSpotReady,tickWindow,tickPipSize,proposal,buying,activeContractId,trackedContractId,isAuthorized,isConnected,getProposal,clearProposal,buyDirect,symbol,soros.stake,stake,iaPower,sonic,stakeManagerVersion,balance?.balance,strategy,hypercoverRevision,hyperFlowFallbackRevision]); useEffect(()=>{
   if(!iaPower||!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected||!iaRecoveryQuotePendingRef.current)return;
   const state=gestorRef.current.getEstado();
   const deficit=Number(state.deficitRecuperacao||0);
@@ -1409,6 +1444,67 @@ export default function AutoBotV4(){
    if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
    if(iaPower&&iaRecoveryQuotePendingRef.current)return;
    if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy&&!(strategy==='MATCH0'&&(hyperFlowOverZeroModeRef.current||hyperFlowNextDigitRef.current!==null)))return;
+
+   if(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryQuoteStageRef.current!==null){
+    const quoteType=String((proposal as any).requested_contract_type||(proposal as any).contract_type||'').toUpperCase();
+    const quoteBarrier=Number((proposal as any).requested_barrier??(proposal as any).barrier);
+    const quoteDuration=Number((proposal as any).duration);
+    const quoteStake=Number(proposal.ask_price);
+    const quotePayout=Number(proposal.payout);
+    const deficit=Math.max(0,Number(hyperFlowRecoveryDeficitRef.current)||0);
+    const ratio=quoteStake>0&&Number.isFinite(quotePayout)&&quotePayout>quoteStake?(quotePayout-quoteStake)/quoteStake:0;
+    const failRecoveryQuote=(message:string)=>{
+     hyperFlowRecoveryQuoteStageRef.current=null;
+     hyperFlowRecoveryQuoteAttemptsRef.current=0;
+     hyperFlowRecoveryQuoteReadyRef.current=false;
+     hyperFlowRecoveryQuoteTargetRef.current=null;
+     clearProposal();
+     requested.current=false;requestStartedAt.current=0;
+     stakeReadyRef.current=true;riskLockStartedAt.current=0;
+     setBotActivity('waitingRobotSignal');setNotice(message);lastActivityAt.current=Date.now();
+    };
+    if(quoteType!=='DIGITOVER'||quoteBarrier!==0||quoteDuration!==5){
+     failRecoveryQuote('HyperFlow: a cotação recebida não corresponde a OVER 0 de 5 ticks. Nenhuma recuperação foi enviada.');
+     return;
+    }
+    if(!(ratio>0)||deficit<=0.01){
+     failRecoveryQuote('HyperFlow: cotação inválida ou défice já liquidado. Nenhuma recuperação foi enviada.');
+     return;
+    }
+    const requiredStake=Math.max(0.35,Math.ceil((deficit/ratio)*100-1e-9)/100);
+    const availableBalance=Number(balance?.balance);
+    if(!Number.isFinite(availableBalance)||requiredStake>Math.floor(availableBalance*100)/100+0.005){
+     recoveryBalancePauseRef.current=requiredStake;
+     failRecoveryQuote('HyperFlow: saldo insuficiente para cobrir o défice total numa única operação OVER 0 de 5 ticks. A recuperação foi pausada; a stake não será reduzida.');
+     return;
+    }
+    const quotedNetProfit=quotePayout-quoteStake;
+    if(quotedNetProfit+0.005<deficit){
+     if(hyperFlowRecoveryQuoteAttemptsRef.current>=3){
+      failRecoveryQuote('HyperFlow: a Deriv não forneceu uma cotação capaz de cobrir o défice total. Nenhuma operação parcial foi enviada.');
+      return;
+     }
+     hyperFlowRecoveryQuoteAttemptsRef.current+=1;
+     hyperFlowRecoveryQuoteStageRef.current='stake';
+     hyperFlowRecoveryQuoteTargetRef.current=requiredStake;
+     clearProposal();
+     requested.current=true;requestStartedAt.current=Date.now();
+     const requoteSent=getProposal(symbol,'DIGITOVER',requiredStake,5,0,false);
+     if(!requoteSent){
+      failRecoveryQuote('HyperFlow: não foi possível pedir a cotação da stake integral. Nenhuma recuperação parcial foi enviada.');
+      return;
+     }
+     setBotActivity('requestingProposal');
+     console.info('[HyperFlow recovery requote for full deficit]',{symbol,deficit,quoteStake,ratio,requiredStake,attempt:hyperFlowRecoveryQuoteAttemptsRef.current,duration:5,barrier:0});
+     return;
+    }
+    hyperFlowRecoveryQuoteReadyRef.current=true;
+    hyperFlowRecoveryQuoteTargetRef.current=quoteStake;
+    hyperFlowRecoveryQuoteStageRef.current=null;
+    hyperFlowRecoveryQuoteAttemptsRef.current=0;
+    payoutRatiosByContractRef.current[payoutContractKey('DIGITOVER',0)]=ratio;
+    console.info('[HyperFlow 5-tick recovery quote validated]',{symbol,deficit,stake:quoteStake,expectedNetProfit:quotedNetProfit,netPayoutRatio:ratio,duration:5,barrier:0});
+   }
 
    const cancelUnqualifiedEntry=(message:string)=>{
     pendingAutoEntryRef.current=null;
@@ -1527,10 +1623,14 @@ export default function AutoBotV4(){
     }
     hypercoverBarrierToRecord=expectedBarrier;
    }
+    const isHyperFlowRecoveryProposalTrade=strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryQuoteReadyRef.current;
+    if(isHyperFlowRecoveryProposalTrade)hyperFlowRecoveryBuyPendingRef.current=true;
     const bought=buy(proposal.id,Number(proposal.ask_price),botName,botName==='Hypercover'?hypercoverBarrierToRecord:(proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):(Number.isFinite(Number((proposal as any).requested_barrier))?Number((proposal as any).requested_barrier):undefined)));
-    if(bought){pendingAutoEntryRef.current=null;if(botName==='Hypercover')requestedHypercoverContractRef.current=null;}
+    if(bought){pendingAutoEntryRef.current=null;if(botName==='Hypercover')requestedHypercoverContractRef.current=null;if(isHyperFlowRecoveryProposalTrade)hyperFlowRecoveryQuoteReadyRef.current=false;}
     const boughtDirection=String((proposal as any).contract_type||(proposal as any).requested_contract_type||'').toUpperCase();if(bought&&botName==='Hypercover'&&(boughtDirection==='DIGITOVER'||boughtDirection==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=boughtDirection as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
-    if(!bought){pendingAutoEntryRef.current=null;
+    if(!bought){
+    pendingAutoEntryRef.current=null;
+    if(isHyperFlowRecoveryProposalTrade){hyperFlowRecoveryBuyPendingRef.current=false;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteTargetRef.current=null;}
     clearProposal();
     setNotice('Falha ao enviar a operação para a Deriv.');
     requested.current=false;
@@ -1694,7 +1794,7 @@ useEffect(()=>{
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
- const stop=()=>{saveStakeState();pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
+ const stop=()=>{saveStakeState();pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
  const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setSorosEnabled(false);setExitSpotsMode(false);if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(!running)stop()}},[aiAnalystActive,clientCountryReady,language,running,isConnected,isAuthorized,start,stop,setSorosEnabled,iaPower,sonic]);
  const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
@@ -1743,7 +1843,7 @@ useEffect(()=>{
 
 </div>}</div>
 
- <div ref={historyRef} className="card relative mt-1 p-1.5" style={{borderColor:'#facc15'}}><div className="flex items-center justify-between gap-2"><b className="text-[10px] uppercase muted">{t('recentHistory')}</b><div className="flex items-center gap-2"><span className={`mr-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${exitSpotsTradingActive?'bg-red-500':(smartAnalyzer||running)?(exitSpotsMode?'bg-blue-500':smartAnalyzer?'bg-emerald-500':'bg-slate-400'):'bg-slate-400'}`} title={exitSpotsTradingActive?'Exit Spots Trading ativo · 28 resultados fechados':exitSpotsMode?'Modo Exit Spots ativo':smartAnalyzer?(exitSpotsAutoEnabled?'AI Analyst normal · a monitorar Exit Spots':'AI Analyst normal'):running?'Robô normal · Exit Spots em monitorização':'Robô/AI Analyst desligado'} aria-label={exitSpotsTradingActive?'Exit Spots Trading ativo com 28 resultados fechados':exitSpotsMode?'Modo Exit Spots ativo':smartAnalyzer?(exitSpotsAutoEnabled?'AI Analyst normal a monitorar Exit Spots':'AI Analyst normal'):running?'Robô normal a monitorar Exit Spots':'Robô e AI Analyst desligados'}/>{exitSpotsAutoEnabled&&(running||smartAnalyzer)&&<span className="max-w-[84px] truncate text-[8px] font-bold muted" title={exitSpotsMonitorStatus}>{exitSpotsTradingActive?'EXIT SPOTS':analysisExitValues.length<28?('EXIT '+analysisExitValues.length+'/28'):(language==='en'?'EXIT SIGNAL?':'EXIT A ANALISAR')}</span>}<button type="button" onClick={()=>setSoundEnabled(v=>{const next=!v;try{localStorage.setItem('mozhyper-sound-enabled',String(next))}catch{};return next})} className="flex h-5 w-5 items-center justify-center rounded-lg border border-slate-300/50 text-slate-500" title={soundEnabled?'Desligar som':'Ligar som'} aria-label={soundEnabled?'Desligar som':'Ligar som'}>{soundEnabled?'🔊':'🔇'}</button><button type="button" onClick={clearHistoryAndStartNewCycle} disabled={running} className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-500/70 text-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Limpar histórico e começar novo ciclo" aria-label="Limpar histórico e começar novo ciclo"><TrashIcon size={14} /></button><button type="button" onClick={()=>setHistoryOpen(v=>!v)} className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-300/50 text-slate-500" aria-label={t('dailyHistory')} title={t('dailyHistory')}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true" className={historyOpen?'rotate-180':''}><path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button></div></div>{historyOpen&&<div className="absolute right-3 top-14 z-[120] w-[min(92vw,360px)] max-h-[78vh] overflow-y-auto rounded-2xl border border-slate-300/40 bg-white p-4 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white"><div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-wide">{t('dailyHistory')}</b><button type="button" onClick={()=>setHistoryOpen(false)} className="text-base muted" aria-label={t('close')}>✕</button></div><div className="mt-3"><label className="block text-[10px] font-bold uppercase muted">{t('selectDate')}</label><div className="mt-2 flex items-center gap-2"><input type="date" value={historyDate} onChange={e=>setHistoryDate(e.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-300/60 bg-transparent px-3 py-2 text-xs font-bold" /><button type="button" onClick={()=>setHistoryDate(localDateValue())} className="shrink-0 rounded-xl border border-blue-500/40 px-3 py-2 text-[10px] font-black text-blue-500">{t('today')}</button></div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl border border-slate-300/40 p-3"><div className="text-[9px] font-bold uppercase muted">{t('totalProfitLoss')}</div><div className={dailyPnl>=0?'mt-1 text-base font-black text-emerald-500':'mt-1 text-base font-black text-red-500'}>{money(dailyPnl,currency)}</div></div><div className="rounded-xl border border-slate-300/40 p-3"><div className="text-[9px] font-bold uppercase muted">{t('closedOperations')}</div><div className="mt-1 text-base font-black">{dailyTransactions.length}</div><div className="mt-1 text-[9px] font-bold"><span className="text-emerald-500">{t('win')} {dailyWins}</span><span className="mx-1 muted">/</span><span className="text-red-500">{t('loss')} {dailyLosses}</span></div></div></div><div className="mt-4"><div className="mb-2 text-[10px] font-bold uppercase muted">{t('resultsByBot')}</div>{dailyByBot.length?dailyByBot.map(([bot,g])=><div key={bot} className="mb-2 rounded-xl border border-slate-300/40 p-3"><div className="flex items-center justify-between gap-2"><b className="text-xs">{bot}</b><b className={g.pnl>=0?'text-xs text-emerald-500':'text-xs text-red-500'}>{money(g.pnl,currency)}</b></div><div className="mt-1 text-[9px] muted">{g.count} · <span className="text-emerald-500">{t('win')} {g.wins}</span> · <span className="text-red-500">{t('loss')} {g.losses}</span></div></div>):<div className="rounded-xl border border-dashed border-slate-300/40 p-3 text-[10px] muted">{t('noTransactions')}</div>}</div><button type="button" onClick={()=>setHistoryOpen(false)} className="mt-3 w-full rounded-xl border border-slate-300/40 p-2.5 text-[10px] font-bold">{t('close')}</button></div>}<div className="hist mt-1">{profitTransactions.slice(0,12).map(x=>{const p=Number(x.profit_loss||0);return <div className="trade" key={x.contract_id}><div className={`mx-auto mb-0.5 h-4 w-2 rounded-sm ${p>=0?'bg-blue-500':'bg-red-500'}`}></div><b className={p>=0?'text-emerald-500':'text-red-500'}>{p>=0?t('win'):t('loss')}</b><div className="mt-0.5 max-w-full truncate text-[8px] font-semibold leading-tight muted">{(()=>{const botNames:Record<string,string>={ACIMA5_BAIXO4:'HyperStrike',PAR_IMPAR:'HyperDrive',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap',HYPERCOVER:'Hypercover',Hypercover:'Hypercover'};const storedBot=String(x.bot||'Estratégia');const storedType=String(x.contract_type||'').toUpperCase();const shownBot=storedBot==='HyperDrive'&&(storedType==='DIGITOVER'||storedType==='DIGITUNDER')?'Histórico legado · bot a confirmar':(botNames[storedBot]||storedBot);if(storedBot.toLowerCase()==='hyperflow'&&x.barrier!=null&&Number.isInteger(Number(x.barrier))&&((storedType==='DIGITMATCH'&&Number(x.barrier)>=1&&Number(x.barrier)<=9)||(storedType==='DIGITOVER'&&Number(x.barrier)===0)))return 'HyperFlow B'+Number(x.barrier);return shownBot})()}</div>{(()=>{const rawType=String(x.contract_type||'').toUpperCase(),isManual=String(x.bot||'').startsWith('Manual');const isOver=rawType==='DIGITOVER',isUnder=rawType==='DIGITUNDER';if(!isManual||(!isOver&&!isUnder))return null;const barrier=Number(x.barrier),hasBarrier=x.barrier!=null&&Number.isFinite(barrier),direction=isOver?(language==='en'?'Above':language==='es'?'Por encima de':'Acima de'):(language==='en'?'Below':language==='es'?'Por debajo de':'Abaixo de'),shownBarrier=hasBarrier?barrier:'—',finalPrice=x.exit_spot??x.exit_tick,historyPipSize=x.symbol?(pipSizeBySymbolRef.current.get(String(x.symbol))??(x.symbol===symbol?tickPipSize:undefined)):undefined,finalDigit=finalPrice!=null&&Number.isFinite(Number(historyPipSize))&&Number(historyPipSize)>0?digit(finalPrice,historyPipSize):null;return <div className="mt-0.5 max-w-full whitespace-normal break-words text-[8px] font-bold leading-[1.15] text-red-500">{direction} {shownBarrier} · {language==='en'?'last digit':language==='es'?'último dígito':'último dígito'}: {finalDigit??'—'}</div>})()}<div className="font-mono text-[11px] leading-tight">{money(p,currency)}</div></div>})}{!profitTransactions.length&&<div className="p-3 text-xs muted">{t('noTransactions')}</div>}</div></div>
+ <div ref={historyRef} className="card relative mt-1 p-1.5" style={{borderColor:'#facc15'}}><div className="flex items-center justify-between gap-2"><b className="text-[10px] uppercase muted">{t('recentHistory')}</b><div className="flex items-center gap-2"><span className={`mr-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${exitSpotsTradingActive?'bg-red-500':(smartAnalyzer||running)?(exitSpotsMode?'bg-blue-500':smartAnalyzer?'bg-emerald-500':'bg-slate-400'):'bg-slate-400'}`} title={exitSpotsTradingActive?'Exit Spots Trading ativo · 28 resultados fechados':exitSpotsMode?'Modo Exit Spots ativo':smartAnalyzer?(exitSpotsAutoEnabled?'AI Analyst normal · a monitorar Exit Spots':'AI Analyst normal'):running?'Robô normal · Exit Spots em monitorização':'Robô/AI Analyst desligado'} aria-label={exitSpotsTradingActive?'Exit Spots Trading ativo com 28 resultados fechados':exitSpotsMode?'Modo Exit Spots ativo':smartAnalyzer?(exitSpotsAutoEnabled?'AI Analyst normal a monitorar Exit Spots':'AI Analyst normal'):running?'Robô normal a monitorar Exit Spots':'Robô e AI Analyst desligados'}/>{exitSpotsAutoEnabled&&(running||smartAnalyzer)&&<span className="max-w-[84px] truncate text-[8px] font-bold muted" title={exitSpotsMonitorStatus}>{exitSpotsTradingActive?'EXIT SPOTS':analysisExitValues.length<28?('EXIT '+analysisExitValues.length+'/28'):(language==='en'?'EXIT SIGNAL?':'EXIT A ANALISAR')}</span>}<button type="button" onClick={()=>setSoundEnabled(v=>{const next=!v;try{localStorage.setItem('mozhyper-sound-enabled',String(next))}catch{};return next})} className="flex h-5 w-5 items-center justify-center rounded-lg border border-slate-300/50 text-slate-500" title={soundEnabled?'Desligar som':'Ligar som'} aria-label={soundEnabled?'Desligar som':'Ligar som'}>{soundEnabled?'🔊':'🔇'}</button><button type="button" onClick={clearHistoryAndStartNewCycle} disabled={running} className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-500/70 text-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Limpar histórico e começar novo ciclo" aria-label="Limpar histórico e começar novo ciclo"><TrashIcon size={14} /></button><button type="button" onClick={()=>setHistoryOpen(v=>!v)} className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-300/50 text-slate-500" aria-label={t('dailyHistory')} title={t('dailyHistory')}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true" className={historyOpen?'rotate-180':''}><path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button></div></div>{historyOpen&&<div className="absolute right-3 top-14 z-[120] w-[min(92vw,360px)] max-h-[78vh] overflow-y-auto rounded-2xl border border-slate-300/40 bg-white p-4 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white"><div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-wide">{t('dailyHistory')}</b><button type="button" onClick={()=>setHistoryOpen(false)} className="text-base muted" aria-label={t('close')}>✕</button></div><div className="mt-3"><label className="block text-[10px] font-bold uppercase muted">{t('selectDate')}</label><div className="mt-2 flex items-center gap-2"><input type="date" value={historyDate} onChange={e=>setHistoryDate(e.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-300/60 bg-transparent px-3 py-2 text-xs font-bold" /><button type="button" onClick={()=>setHistoryDate(localDateValue())} className="shrink-0 rounded-xl border border-blue-500/40 px-3 py-2 text-[10px] font-black text-blue-500">{t('today')}</button></div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl border border-slate-300/40 p-3"><div className="text-[9px] font-bold uppercase muted">{t('totalProfitLoss')}</div><div className={dailyPnl>=0?'mt-1 text-base font-black text-emerald-500':'mt-1 text-base font-black text-red-500'}>{money(dailyPnl,currency)}</div></div><div className="rounded-xl border border-slate-300/40 p-3"><div className="text-[9px] font-bold uppercase muted">{t('closedOperations')}</div><div className="mt-1 text-base font-black">{dailyTransactions.length}</div><div className="mt-1 text-[9px] font-bold"><span className="text-emerald-500">{t('win')} {dailyWins}</span><span className="mx-1 muted">/</span><span className="text-red-500">{t('loss')} {dailyLosses}</span></div></div></div><div className="mt-4"><div className="mb-2 text-[10px] font-bold uppercase muted">{t('resultsByBot')}</div>{dailyByBot.length?dailyByBot.map(([bot,g])=><div key={bot} className="mb-2 rounded-xl border border-slate-300/40 p-3"><div className="flex items-center justify-between gap-2"><b className="text-xs">{bot}</b><b className={g.pnl>=0?'text-xs text-emerald-500':'text-xs text-red-500'}>{money(g.pnl,currency)}</b></div><div className="mt-1 text-[9px] muted">{g.count} · <span className="text-emerald-500">{t('win')} {g.wins}</span> · <span className="text-red-500">{t('loss')} {g.losses}</span></div></div>):<div className="rounded-xl border border-dashed border-slate-300/40 p-3 text-[10px] muted">{t('noTransactions')}</div>}</div><button type="button" onClick={()=>setHistoryOpen(false)} className="mt-3 w-full rounded-xl border border-slate-300/40 p-2.5 text-[10px] font-bold">{t('close')}</button></div>}<div className="hist mt-1">{profitTransactions.slice(0,12).map(x=>{const p=Number(x.profit_loss||0);return <div className="trade" key={x.contract_id}><div className={`mx-auto mb-0.5 h-4 w-2 rounded-sm ${p>=0?'bg-blue-500':'bg-red-500'}`}></div><b className={p>=0?'text-emerald-500':'text-red-500'}>{p>=0?t('win'):t('loss')}</b><div className="mt-0.5 max-w-full truncate text-[8px] font-semibold leading-tight muted">{(()=>{const botNames:Record<string,string>={ACIMA5_BAIXO4:'HyperStrike',PAR_IMPAR:'HyperDrive',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap',HYPERCOVER:'Hypercover',Hypercover:'Hypercover'};const storedBot=String(x.bot||'').trim();const storedType=String(x.contract_type||'').toUpperCase();const storedBarrier=Number(x.barrier);if(!storedBot&&x.barrier!=null&&Number.isFinite(storedBarrier)&&storedBarrier===0&&(storedType==='DIGITOVER'||storedType==='DIGITMATCH'))return 'HyperFlow B0';const displayBot=storedBot||'Estratégia';const shownBot=displayBot==='HyperDrive'&&(storedType==='DIGITOVER'||storedType==='DIGITUNDER')?'Histórico legado · bot a confirmar':(botNames[displayBot]||displayBot);if(displayBot.toLowerCase()==='hyperflow'&&x.barrier!=null&&Number.isInteger(storedBarrier)&&((storedType==='DIGITMATCH'&&storedBarrier>=1&&storedBarrier<=9)||(storedType==='DIGITOVER'&&storedBarrier===0)))return 'HyperFlow B'+storedBarrier;return shownBot})()}</div>{(()=>{const rawType=String(x.contract_type||'').toUpperCase(),isManual=String(x.bot||'').startsWith('Manual');const isOver=rawType==='DIGITOVER',isUnder=rawType==='DIGITUNDER';if(!isManual||(!isOver&&!isUnder))return null;const barrier=Number(x.barrier),hasBarrier=x.barrier!=null&&Number.isFinite(barrier),direction=isOver?(language==='en'?'Above':language==='es'?'Por encima de':'Acima de'):(language==='en'?'Below':language==='es'?'Por debajo de':'Abaixo de'),shownBarrier=hasBarrier?barrier:'—',finalPrice=x.exit_spot??x.exit_tick,historyPipSize=x.symbol?(pipSizeBySymbolRef.current.get(String(x.symbol))??(x.symbol===symbol?tickPipSize:undefined)):undefined,finalDigit=finalPrice!=null&&Number.isFinite(Number(historyPipSize))&&Number(historyPipSize)>0?digit(finalPrice,historyPipSize):null;return <div className="mt-0.5 max-w-full whitespace-normal break-words text-[8px] font-bold leading-[1.15] text-red-500">{direction} {shownBarrier} · {language==='en'?'last digit':language==='es'?'último dígito':'último dígito'}: {finalDigit??'—'}</div>})()}<div className="font-mono text-[11px] leading-tight">{money(p,currency)}</div></div>})}{!profitTransactions.length&&<div className="p-3 text-xs muted">{t('noTransactions')}</div>}</div></div>
  <button className={`mt-3 w-full rounded-xl p-4 font-bold text-white ${running?'bg-red-600':'bg-blue-600'}`} disabled={!isConnected||!isAuthorized} onClick={running?stop:start}>{running?`■ ${t('stop')}`:`▶ ${t('start')}`}</button>
  <div className="card mt-3 p-4" style={{borderColor:'#facc15'}}><div className="text-[10px] uppercase muted">{t('riskManagement')}</div><div className="mt-3 flex items-center justify-between"><button className={`h-9 w-9 rounded-lg ${light?"bg-slate-300 text-slate-700":"bg-slate-950 text-white"}`} disabled={running||smartAnalyzer} onClick={()=>setStake(x=>Math.max(IA_MIN_STAKE,Number((x-.1).toFixed(2))))}>−</button><b className="font-mono text-xl">${stake.toFixed(2)}</b><button className={`h-9 w-9 rounded-lg ${light?"bg-slate-300 text-slate-700":"bg-slate-950 text-white"}`} disabled={running||smartAnalyzer} onClick={()=>setStake(x=>Number((x+.1).toFixed(2)))}>+</button></div></div>
  <div className="mt-2">
