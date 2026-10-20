@@ -625,8 +625,12 @@ export default function AutoBotV4(){
  const hyperFlowRecoveryDeficitRef=useRef(0);
  const hyperFlowRecoveryActiveRef=useRef(false);
  const hyperFlowOverZeroModeRef=useRef(false);
+ const hyperFlowRecoveryBuyPendingRef=useRef(false);
  const [hyperFlowFallbackRevision,setHyperFlowFallbackRevision]=useState(0);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
+  // Release the recovery-only mutex on the authoritative HyperFlow close event,
+  // even if the user stopped the bot before the close callback was processed.
+  if(String(closed?.bot||'').trim().toLowerCase()==='hyperflow')hyperFlowRecoveryBuyPendingRef.current=false;
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
    const id=Number(closed.contract_id);
@@ -1313,15 +1317,22 @@ export default function AutoBotV4(){
    }
    requestedHypercoverContractRef.current={contractType:expectedType as 'DIGITOVER'|'DIGITUNDER',barrier:expectedBarrier};
   }else requestedHypercoverContractRef.current=null;
+  const isHyperFlowRecoveryTrade=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current;
+  if(isHyperFlowRecoveryTrade&&hyperFlowRecoveryBuyPendingRef.current){
+   console.warn('[HyperFlow recovery duplicate blocked]',{symbol,deficit:hyperFlowRecoveryDeficitRef.current,reason:'a recovery contract is already pending or open'});
+   setBotActivity('waitingBuyConfirmation');
+   return;
+  }
   pendingAutoEntryRef.current=null;
   // SENDINGDIRECTBUY now only covers the actual buy invocation.
   setBotActivity('sendingDirectBuy');
   let sent=false;
   try{
-   const isHyperFlowRecoveryTrade=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current;
    const contractDuration=isHyperFlowRecoveryTrade?5:1;
-   sent=buyDirect({symbol,contractType:contractTypeStr,amount,duration:contractDuration,barrier,currency:String(balance?.currency||'USD')},amount,botName,barrier);
+   if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=true;
+   sent=buyDirect({symbol,contractType:isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr,amount,duration:contractDuration,barrier:isHyperFlowRecoveryTrade?0:barrier,currency:String(balance?.currency||'USD')},amount,botName,isHyperFlowRecoveryTrade?0:barrier);
   }catch(buyError){
+   if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=false;
    console.error('[Bot direct buy exception]',buyError,{account,strategy,symbol,contractTypeStr,barrier,amount});
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
@@ -1330,7 +1341,8 @@ export default function AutoBotV4(){
    return;
   }
   if(!sent){
-   console.warn('[Bot direct buy returned false]',{account,strategy,symbol,contractType:contractTypeStr,barrier,amount,availableBalance,buying,activeContractId,botName,at:new Date().toISOString()});
+   if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=false;
+   console.warn('[Bot direct buy returned false]',{account,strategy,symbol,contractType:isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr,barrier:isHyperFlowRecoveryTrade?0:barrier,amount,availableBalance,buying,activeContractId,botName,at:new Date().toISOString()});
    setBotActivity('reconcilingBot');
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
    // The hook logs whether this was a duplicate/in-flight request or a socket refusal.
