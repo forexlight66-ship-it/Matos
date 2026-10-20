@@ -790,8 +790,8 @@ export default function AutoBotV4(){
  // It only changes symbols while no contract/buy is active, and requires a clear score lead
  // to avoid rapid symbol oscillation. This is a statistical selector, not a profit guarantee.
  const symbolSelectionLockRef=useRef(false);
- const symbolSelectionStateRef=useRef({activeContractId,trackedContractId,buying});
- symbolSelectionStateRef.current={activeContractId,trackedContractId,buying};
+ const symbolSelectionStateRef=useRef({activeContractId,trackedContractId,buying,hasProposal:Boolean(proposal)});
+ symbolSelectionStateRef.current={activeContractId,trackedContractId,buying,hasProposal:Boolean(proposal)};
  const inferHistoryPipSize=(values:number[])=>{
   const places=values.reduce((max,value)=>{const match=String(value).match(/\.(\d+)/);return Math.max(max,match?.[1]?.length||0)},0);
   return places>0?Math.pow(10,-Math.min(10,places)):undefined;
@@ -850,13 +850,13 @@ export default function AutoBotV4(){
     // use the best available one. Never change the underlying symbol mid-contract.
     const clearLead=!current||best.symbol===symbol||best.score>=current.score+4;
     const selectorState=symbolSelectionStateRef.current;
-    const hyperFlowCyclePending=strategy==='MATCH0'&&(hyperFlowNextDigitRef.current!==null||hyperFlowWatchRef.current.active);
-    if(best.symbol!==symbol&&clearLead&&selectorState.activeContractId===null&&selectorState.trackedContractId===null&&!selectorState.buying&&!hyperFlowCyclePending){
+    const hyperFlowCyclePending=strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null;
+    if(best.symbol!==symbol&&clearLead&&selectorState.activeContractId===null&&selectorState.trackedContractId===null&&!selectorState.buying&&!selectorState.hasProposal&&!hyperFlowCyclePending){
      console.info('[Dynamic symbol selector] Selected best current symbol',{bot:STRATEGY_BOT_NAMES[strategy]||strategy,previousSymbol:symbol,nextSymbol:best.symbol,bestScore:Number(best.score.toFixed(2)),currentScore:current?Number(current.score.toFixed(2)):null,samples:ranked.length});
      setSymbol(best.symbol);
      setNotice('Símbolo dinâmico: '+(SYMBOLS[best.symbol]||best.symbol)+' selecionado para '+(STRATEGY_BOT_NAMES[strategy]||strategy)+'.');
     }else if(best.symbol!==symbol&&hyperFlowCyclePending){
-     console.info('[Dynamic symbol selector] Deferring symbol change to preserve HyperFlow MATCH 0/alternative-digit cycle',{currentSymbol:symbol,candidateSymbol:best.symbol,pendingAlternativeDigit:hyperFlowNextDigitRef.current?.digit??null,watchActive:hyperFlowWatchRef.current.active});
+     console.info('[Dynamic symbol selector] Deferring symbol change to preserve HyperFlow MATCH 0/alternative-digit cycle',{currentSymbol:symbol,candidateSymbol:best.symbol,pendingAlternativeDigit:hyperFlowNextDigitRef.current?.digit??null});
     }
    }finally{symbolSelectionLockRef.current=false;}
   };
