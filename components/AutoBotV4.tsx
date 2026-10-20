@@ -791,7 +791,7 @@ export default function AutoBotV4(){
  // to avoid rapid symbol oscillation. This is a statistical selector, not a profit guarantee.
  const symbolSelectionLockRef=useRef(false);
  const inferHistoryPipSize=(values:number[])=>{
-  const places=values.reduce((max,value)=>{const match=String(value).match(/\.(\\d+)/);return Math.max(max,match?.[1]?.length||0)},0);
+  const places=values.reduce((max,value)=>{const match=String(value).match(/\.(\d+)/);return Math.max(max,match?.[1]?.length||0)},0);
   return places>0?Math.pow(10,-Math.min(10,places)):undefined;
  };
  const symbolScoreForBot=(values:number[],bot:Strategy,pipSize?:number)=>{
