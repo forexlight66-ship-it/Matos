@@ -535,7 +535,7 @@ export default function AutoBotV4(){
  };
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE,payout:IA_PAYOUT,maxLevel:maxMartingale}));
  const hyperFlowObservationTicksRef=useRef<number[]>([]);
- const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[]}>({active:false,symbol:'',snapshots:[]});
+ const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number}>({active:false,symbol:'',snapshots:[]});
  const hyperFlowTargetDigitRef=useRef<number>(0);
  const hyperFlowNextDigitRef=useRef<{digit:number;score:number;ranking:{digit:number;score:number}[]}|null>(null);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
@@ -587,6 +587,7 @@ export default function AutoBotV4(){
       hyperFlowTargetDigitRef.current=0;
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
      }else{
+      const observationWindows=hyperFlowWatchRef.current.snapshots.length;
       const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,ticks.slice(-9),tradePipSize);
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       if(selected){
@@ -594,7 +595,7 @@ export default function AutoBotV4(){
        hyperFlowTargetDigitRef.current=selected.digit;
        const rankingText=selected.ranking.map(item=>item.digit+' ('+item.score.toFixed(1)+'%)').join(', ');
        setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+'; maior frequência observada '+selected.score.toFixed(1)+'%. Análise dos dígitos 1–9: '+rankingText+'. Depois desse trade, volta a procurar MATCH 0.');
-       console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedFrequency:selected.score,ranking:selected.ranking,observationWindows:hyperFlowWatchRef.current.snapshots.length});
+       console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedFrequency:selected.score,ranking:selected.ranking,observationWindows});
       }else{
        hyperFlowNextDigitRef.current=null;
        hyperFlowTargetDigitRef.current=0;
@@ -971,11 +972,17 @@ export default function AutoBotV4(){
    if(!watch.active&&zeroPercent>=10){
     watch.active=true;
     watch.snapshots=[];
+    watch.provisionalDigit=undefined;
     setNotice('HYPERFLOW: o 0 atingiu '+zeroPercent.toFixed(1)+'% nos últimos 9 ticks. A analisar os dígitos 1–9 antes/depois do gatilho de 22%.');
    }
    if(watch.active){
     watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
     if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
+    const provisional=rankHyperFlowMatchDigit(watch.snapshots,windowDigits,pipSize);
+    if(provisional&&watch.provisionalDigit!==provisional.digit){
+     watch.provisionalDigit=provisional.digit;
+     setNotice('HYPERFLOW: 0 em '+zeroPercent.toFixed(1)+'%. Candidato provisório MATCH '+provisional.digit+' ('+provisional.score.toFixed(1)+'% de frequência observada). Se MATCH 0 perder, este ranking será reavaliado antes da próxima entrada.');
+    }
    }
   }
  }
