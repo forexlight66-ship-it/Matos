@@ -606,9 +606,11 @@ export default function AutoBotV4(){
       if(selected){
        hyperFlowNextDigitRef.current=selected;
        hyperFlowTargetDigitRef.current=selected.digit;
-       const rankingText=selected.ranking.map(item=>item.digit+' ('+item.score.toFixed(1)+'%)').join(', ');
-       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+'; maior frequência observada '+selected.score.toFixed(1)+'%. Análise dos dígitos 1–9: '+rankingText+'. Depois desse trade, volta a procurar MATCH 0.');
-       console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedFrequency:selected.score,ranking:selected.ranking,observationWindows});
+       const rankingText=selected.ranking.slice(0,5).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (hist '+item.frequency.toFixed(1)+'%, 25t '+item.recentFrequency.toFixed(1)+'%, força '+item.momentumScore.toFixed(0)+'/100)').join(' · ');
+       const trendText=(selected.trend>=0?'+':'')+selected.trend.toFixed(0)+' pp';
+       const accelText=(selected.acceleration>=0?'+':'')+selected.acceleration.toFixed(0)+' pp';
+       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+(selected.earlyRise?' — SUBIDA ANTECIPADA ↑':'')+'; frequência histórica '+selected.frequency.toFixed(1)+'%, últimos 25 ticks '+selected.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+rankingText+'.');
+       console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedHistoricalFrequency:selected.frequency,recent25Frequency:selected.recentFrequency,trend:selected.trend,acceleration:selected.acceleration,momentumScore:selected.momentumScore,selectionScore:selected.selectionScore,earlyRise:selected.earlyRise,ranking:selected.ranking,observationWindows});
       }else{
        hyperFlowNextDigitRef.current=null;
        hyperFlowTargetDigitRef.current=0;
@@ -992,9 +994,14 @@ export default function AutoBotV4(){
     watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
     if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
     const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory);
-    if(provisional&&watch.provisionalDigit!==provisional.digit){
+    if(provisional&&(watch.provisionalDigit!==provisional.digit||watch.provisionalEarlyRise!==provisional.earlyRise||watch.snapshots.length%5===0)){
      watch.provisionalDigit=provisional.digit;
-     setNotice('HYPERFLOW: 0 em '+zeroPercent.toFixed(1)+'%. Candidato provisório MATCH '+provisional.digit+' ('+provisional.score.toFixed(1)+'% de frequência observada). Se MATCH 0 perder, este ranking será reavaliado antes da próxima entrada.');
+     watch.provisionalEarlyRise=provisional.earlyRise;
+     const trendText=(provisional.trend>=0?'+':'')+provisional.trend.toFixed(0)+' pp';
+     const accelText=(provisional.acceleration>=0?'+':'')+provisional.acceleration.toFixed(0)+' pp';
+     const riseLabel=provisional.earlyRise?'SUBIDA ANTECIPADA ↑':'sem subida confirmada';
+     const top=provisional.ranking.slice(0,3).map(item=>item.digit+(item.earlyRise?' ↑':' →')+' (freq '+item.frequency.toFixed(0)+'%, força '+item.momentumScore.toFixed(0)+')').join(' · ');
+     setNotice('HYPERFLOW: 0 em '+zeroPercent.toFixed(1)+'%. Candidato MATCH '+provisional.digit+' — '+riseLabel+'; frequência histórica '+provisional.frequency.toFixed(1)+'%, últimos 25 ticks '+provisional.recentFrequency.toFixed(1)+'%, tendência '+trendText+', aceleração '+accelText+'. Ranking: '+top+'.');
     }
    }
   }
