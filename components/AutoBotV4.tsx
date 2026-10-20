@@ -59,6 +59,28 @@ function digit(v:number|string|null|undefined,pipSize?:number){
  return digits?.length?Number(digits[digits.length-1]):null;
  }
 function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
+type HyperFlowWindow = { key:string; digits:number[]; zeroPercent:number };
+function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number){
+ const currentDigits=currentValues.slice(-9).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
+ const windows=snapshots.map(item=>item.digits).filter(items=>items.length>0).map(items=>items.slice());
+ if(currentDigits.length&&(!windows.length||windows[windows.length-1].join(',')!==currentDigits.join(',')))windows.push(currentDigits);
+ if(!windows.length)return null;
+ const weightedScores=Array(10).fill(0) as number[];
+ let totalWeight=0;
+ windows.forEach((items,index)=>{
+  const weight=0.65+0.35*((index+1)/windows.length);
+  totalWeight+=weight;
+  for(let d=1;d<=9;d++)weightedScores[d]+=items.filter(value=>value===d).length/Math.max(1,items.length)*100*weight;
+ });
+ const latest=windows[windows.length-1];
+ const ranked=Array.from({length:9},(_,index)=>index+1).map(d=>({
+  digit:d,
+  score:Number((weightedScores[d]/Math.max(0.0001,totalWeight)).toFixed(2)),
+  latestCount:latest.filter(value=>value===d).length
+ })).sort((a,b)=>b.score-a.score||b.latestCount-a.latestCount||a.digit-b.digit);
+ if(!ranked.length)return null;
+ return {digit:ranked[0].digit,score:ranked[0].score,ranking:ranked.slice(0,3).map(({digit,score})=>({digit,score}))};
+}
 function signalQuality(v:number[],s:string,label?:string,pipSize?:number){
   const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null);
   const r=d.slice(-5);
@@ -512,6 +534,10 @@ export default function AutoBotV4(){
   return estimateNetPayoutRatio(contractType,barrier)??(Number(lastPayoutRatioRef.current)>0?Number(lastPayoutRatioRef.current):IA_PAYOUT);
  };
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE,payout:IA_PAYOUT,maxLevel:maxMartingale}));
+ const hyperFlowObservationTicksRef=useRef<number[]>([]);
+ const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number}>({active:false,symbol:'',snapshots:[]});
+ const hyperFlowTargetDigitRef=useRef<number>(0);
+ const hyperFlowNextDigitRef=useRef<{digit:number;score:number;ranking:{digit:number;score:number}[]}|null>(null);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
@@ -549,6 +575,39 @@ export default function AutoBotV4(){
     stopped.current=true;botArmedRef.current=false;requested.current=false;requestStartedAt.current=0;
     pendingAnalyzerStrategyRef.current=null;setRunning(false);setSmartAnalyzer(false);setExitSpotsMode(false);setSignalNow(null);
     setNotice('BLOQUEIO DE SEGURANÇA: o estado oficial da Deriv contradiz o lucro/prejuízo do contrato. O robô foi pausado para proteger o saldo.');
+   }
+   const closedBotName=String(closed?.bot||'').trim().toLowerCase();
+   if(closedBotName==='hyperflow'&&closedType==='DIGITMATCH'){
+    const rawMatchBarrier=closed?.barrier!=null?Number(closed.barrier):hyperFlowTargetDigitRef.current;
+    const matchDigit=Number.isInteger(rawMatchBarrier)&&rawMatchBarrier>=0&&rawMatchBarrier<=9?rawMatchBarrier:hyperFlowTargetDigitRef.current;
+    const matchWon=statusOutcome??(result>0);
+    if(matchDigit===0){
+     if(matchWon){
+      hyperFlowNextDigitRef.current=null;
+      hyperFlowTargetDigitRef.current=0;
+      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+     }else{
+      const observationWindows=hyperFlowWatchRef.current.snapshots.length;
+      const selected=rankHyperFlowMatchDigit(hyperFlowWatchRef.current.snapshots,ticks.slice(-9),tradePipSize);
+      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+      if(selected){
+       hyperFlowNextDigitRef.current=selected;
+       hyperFlowTargetDigitRef.current=selected.digit;
+       const rankingText=selected.ranking.map(item=>item.digit+' ('+item.score.toFixed(1)+'%)').join(', ');
+       setNotice('HYPERFLOW: MATCH 0 perdeu. Próxima operação será MATCH '+selected.digit+'; maior frequência observada '+selected.score.toFixed(1)+'%. Análise dos dígitos 1–9: '+rankingText+'. Depois desse trade, volta a procurar MATCH 0.');
+       console.info('[HyperFlow adaptive match selection]',{symbol:tradeSymbol,selectedDigit:selected.digit,estimatedFrequency:selected.score,ranking:selected.ranking,observationWindows});
+      }else{
+       hyperFlowNextDigitRef.current=null;
+       hyperFlowTargetDigitRef.current=0;
+       setNotice('HYPERFLOW: MATCH 0 perdeu, mas não há amostras suficientes para escolher outro dígito com base na análise. A aguardar novo ciclo de 9 ticks.');
+      }
+     }
+    }else{
+     hyperFlowNextDigitRef.current=null;
+     hyperFlowTargetDigitRef.current=0;
+     hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+     setNotice('HYPERFLOW: operação MATCH '+matchDigit+' concluída. A regressar à procura de MATCH 0 quando o gatilho de 22% voltar a existir.');
+    }
    }
    if(isHypercoverTrade&&!hypercoverWon){
     const actualDirection=closedType==='DIGITOVER'?'DIGITOVER':closedType==='DIGITUNDER'?'DIGITUNDER':hypercoverAlternationRef.current.lastDirection||'DIGITUNDER';
@@ -886,7 +945,48 @@ export default function AutoBotV4(){
  useEffect(()=>{if(!menu)return;const onPointerDown=(e:PointerEvent)=>{const el=e.target as HTMLElement;if(!el.closest('.menu-trigger')&&!el.closest('.menu-popover'))setMenu(false)};document.addEventListener('pointerdown',onPointerDown);return()=>document.removeEventListener('pointerdown',onPointerDown)},[menu]);
  useEffect(()=>{if(!historyOpen)return;const onPointerDown=(e:PointerEvent)=>{const target=e.target as Node|null;if(historyRef.current&&!historyRef.current.contains(target))setHistoryOpen(false)};document.addEventListener('pointerdown',onPointerDown);return()=>document.removeEventListener('pointerdown',onPointerDown)},[historyOpen]);
  useEffect(()=>{if(isConnected)subscribeTicks(symbol)},[isConnected,symbol,subscribeTicks]);
- useEffect(()=>{if(!tick?.epoch||tick.epoch===lastEpoch.current)return;lastEpoch.current=tick.epoch;totalTickCountRef.current+=1;lastActivityAt.current=Date.now();const q=Number(tick.quote);if(!Number.isFinite(q))return;const tickSymbol=String((tick as any).symbol||symbol);const rawPipSize=normalizeTickPipSize((tick as any).pip_size);if(rawPipSize!==undefined){pipSizeBySymbolRef.current.set(tickSymbol,rawPipSize);if(tickSymbol===symbol)setTickPipSize(rawPipSize)}const pipSize=rawPipSize!==undefined?rawPipSize:(pipSizeBySymbolRef.current.get(tickSymbol)||(tickSymbol===symbol?tickPipSize:undefined));if(hypercoverAlternationRef.current.pauseTicksRemaining>0){hypercoverAlternationRef.current.pauseTicksRemaining=Math.max(0,hypercoverAlternationRef.current.pauseTicksRemaining-1);if(hypercoverAlternationRef.current.pauseTicksRemaining===0)setNotice('HYPERCOVER: pausa de 30 ticks concluída. A alternância OVER 1 / UNDER 8 foi retomada.')}setLastDigitSeen(digit(q,pipSize));setTicks(prev=>[...prev,q].slice(-statsWindow))},[tick,tickPipSize]);
+ useEffect(()=>{
+  hyperFlowObservationTicksRef.current=[];
+  hyperFlowWatchRef.current={active:false,symbol,snapshots:[]};
+  hyperFlowTargetDigitRef.current=0;
+  hyperFlowNextDigitRef.current=null;
+ },[symbol]);
+ useEffect(()=>{
+  if(running||smartAnalyzer)return;
+  hyperFlowWatchRef.current={active:false,symbol,snapshots:[]};
+  hyperFlowTargetDigitRef.current=0;
+  hyperFlowNextDigitRef.current=null;
+ },[running,smartAnalyzer,symbol]);
+ useEffect(()=>{
+  if(strategy==='MATCH0')return;
+  hyperFlowWatchRef.current={active:false,symbol,snapshots:[]};
+ },[strategy,symbol]);
+ useEffect(()=>{if(!tick?.epoch||tick.epoch===lastEpoch.current)return;lastEpoch.current=tick.epoch;totalTickCountRef.current+=1;lastActivityAt.current=Date.now();const q=Number(tick.quote);if(!Number.isFinite(q))return;const tickSymbol=String((tick as any).symbol||symbol);const rawPipSize=normalizeTickPipSize((tick as any).pip_size);if(rawPipSize!==undefined){pipSizeBySymbolRef.current.set(tickSymbol,rawPipSize);if(tickSymbol===symbol)setTickPipSize(rawPipSize)}const pipSize=rawPipSize!==undefined?rawPipSize:(pipSizeBySymbolRef.current.get(tickSymbol)||(tickSymbol===symbol?tickPipSize:undefined));if(hypercoverAlternationRef.current.pauseTicksRemaining>0){hypercoverAlternationRef.current.pauseTicksRemaining=Math.max(0,hypercoverAlternationRef.current.pauseTicksRemaining-1);if(hypercoverAlternationRef.current.pauseTicksRemaining===0)setNotice('HYPERCOVER: pausa de 30 ticks concluída. A alternância OVER 1 / UNDER 8 foi retomada.')}const hyperFlowHistory=[...hyperFlowObservationTicksRef.current,q].slice(-200);
+ hyperFlowObservationTicksRef.current=hyperFlowHistory;
+ if(strategy==='MATCH0'&&(running||smartAnalyzer)&&tickSymbol===symbol&&hyperFlowNextDigitRef.current===null){
+  const windowDigits=hyperFlowHistory.slice(-9).map(value=>digit(value,pipSize)).filter((value):value is number=>value!==null);
+  if(windowDigits.length===9){
+   const zeroPercent=windowDigits.filter(value=>value===0).length/9*100;
+   const watch=hyperFlowWatchRef.current;
+   if(watch.symbol!==tickSymbol){watch.active=false;watch.symbol=tickSymbol;watch.snapshots=[];}
+   if(!watch.active&&zeroPercent>=10){
+    watch.active=true;
+    watch.snapshots=[];
+    watch.provisionalDigit=undefined;
+    setNotice('HYPERFLOW: o 0 atingiu '+zeroPercent.toFixed(1)+'% nos últimos 9 ticks. A analisar os dígitos 1–9 antes/depois do gatilho de 22%.');
+   }
+   if(watch.active){
+    watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
+    if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
+    const provisional=rankHyperFlowMatchDigit(watch.snapshots,windowDigits,pipSize);
+    if(provisional&&watch.provisionalDigit!==provisional.digit){
+     watch.provisionalDigit=provisional.digit;
+     setNotice('HYPERFLOW: 0 em '+zeroPercent.toFixed(1)+'%. Candidato provisório MATCH '+provisional.digit+' ('+provisional.score.toFixed(1)+'% de frequência observada). Se MATCH 0 perder, este ranking será reavaliado antes da próxima entrada.');
+    }
+   }
+  }
+ }
+ setLastDigitSeen(digit(q,pipSize));setTicks(prev=>[...prev,q].slice(-statsWindow))},[tick,tickPipSize,strategy,running,smartAnalyzer,symbol]);
  useEffect(()=>{if(!iaPower&&!sonic&&!smartAnalyzer)setSorosStake(stake)},[stake,iaPower,sonic,smartAnalyzer,setSorosStake]);
  useEffect(()=>{setSorosEnabled(false);setSorosStake(stake)},[iaPower,sonic,smartAnalyzer,stake,setSorosEnabled,setSorosStake]);
  useEffect(()=>{if(!running){gestorRef.current=criarGestorStake({stakeBase:stake,payout:IA_PAYOUT,maxNiveisMartingale:maxMartingale});sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setStakeManagerVersion(v=>v+1)}},[stake,maxMartingale,running]);
@@ -911,16 +1011,20 @@ export default function AutoBotV4(){
     if(hypercoverAlternationRef.current.pauseTicksRemaining>0&&(strategy==='HYPERCOVER'||smartAnalyzer||hypercoverAlternationRef.current.forceNextDirection)){setBotActivity('waitingRobotSignal');return;}
   const forceHypercover=hypercoverAlternationRef.current.forceNextDirection;
   if(!forceHypercover&&(exitSpotsMode?analysisExitValues.length<28:(smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))){setBotActivity(exitSpotsMode?'waitingExitSpots':'collectingTicks');return;}
+  const hyperFlowFallbackActive=strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null;
   let analystStrategy:Strategy|null=null;
-  if(smartAnalyzer&&!forceHypercover&&!exitSpotsMode){
+  if(smartAnalyzer&&!forceHypercover&&!exitSpotsMode&&!hyperFlowFallbackActive){
    if(!smartAdvice||smartAdvice.noTrade){setBotActivity('waitingAnalystSignal');return;}
    analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]||null;
    if(!analystStrategy||strategy!==analystStrategy){setBotActivity('waitingAnalystSignal');return;}
   }
-  if(!forceHypercover&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
+  if(!forceHypercover&&!hyperFlowFallbackActive&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
   if(proposal||buying||activeContractId!==null||trackedContractId!==null||!isAuthorized||!isConnected){setBotActivity(!isConnected||!isAuthorized?'reconnectingDeriv':(buying?'waitingBuyConfirmation':'reconcilingBot'));return;}
   let freshSignal:any=null;
-  if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(exitSpotsMode){
+  if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(hyperFlowFallbackActive){
+   const fallback=hyperFlowNextDigitRef.current;
+   if(fallback&&ticks.length>=9)freshSignal={contract:'MATCH0' as Contract,label:'MATCH '+fallback.digit,strength:fallback.score,adaptiveMatchDigit:fallback.digit,probabilityScore:fallback.score};
+  }else if(exitSpotsMode){
    const exitSignal=isRecoveryStrategy(strategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize):makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
    if(exitSignal)freshSignal=exitSignal;
   }else if(smartAnalyzer){
@@ -958,11 +1062,13 @@ export default function AutoBotV4(){
    barrier=barrierStateRef.current.barrier;
   } else {
    const c:Contract=freshSignal.contract as Contract;
-   barrier=isRecoveryStrategy(strategy)?(barrierStateRef.current?.barrier??4):
+   barrier=strategyName==='MATCH0'&&Number.isInteger(freshSignal?.adaptiveMatchDigit)?Number(freshSignal.adaptiveMatchDigit):
+    isRecoveryStrategy(strategy)?(barrierStateRef.current?.barrier??4):
     strategyName==='HYPERGUARD'?0:strategyName==='HYPERSHIELD'?4:strategyName==='HYPERBREAK'?8:strategyName==='HYPERCOVER'?(c==='OVER'?1:8):
     c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;
    contractTypeStr=TYPES[c];
   }
+  if(strategyName==='MATCH0')hyperFlowTargetDigitRef.current=barrier;
   // Sonic é a fonte de verdade da stake quando está ativo.
   // O Soros interno do Sonic controla a repetição da mesma stake vencedora.
   const rawAmount=iaPower?gestorRef.current.proximoStake():(sonic?sonicRef.current.getStake():stake);
@@ -1099,7 +1205,7 @@ export default function AutoBotV4(){
  },[iaPower,running,smartAnalyzer,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,symbol]); useEffect(()=>{
    if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
    if(iaPower&&iaRecoveryQuotePendingRef.current)return;
-   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
+   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy&&!(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null))return;
 
    const cancelUnqualifiedEntry=(message:string)=>{
     pendingAutoEntryRef.current=null;
@@ -1180,6 +1286,10 @@ export default function AutoBotV4(){
       validationSignal=makeSignal(ticks.slice(-9),strategy,tickPipSize,false,65,9);
      }
     }
+    if(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null&&ticks.length>=9){
+     const fallback=hyperFlowNextDigitRef.current;
+     validationSignal={contract:'MATCH0' as Contract,label:'MATCH '+fallback.digit,strength:fallback.score,adaptiveMatchDigit:fallback.digit,probabilityScore:fallback.score};
+    }
     if(!validationSignal){
      cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: falta o gatilho de 65% nos últimos 9 ticks.');
      return;
@@ -1248,6 +1358,7 @@ export default function AutoBotV4(){
   setAnalyzerNotice(null);analyzerDecisionHistoryRef.current=[];return;
  }
  if(exitSpotsMode)return;
+ if(strategy==='MATCH0'&&hyperFlowNextDigitRef.current!==null)return;
  if(aiAnalysisValues.length<25){
   setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 resultados ao vivo...');
   pendingAnalyzerStrategyRef.current=null;return;
