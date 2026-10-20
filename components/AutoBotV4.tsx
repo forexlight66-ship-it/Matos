@@ -1303,7 +1303,7 @@ export default function AutoBotV4(){
    const recoveryStake=Math.max(0.35,Math.ceil((deficit/overZeroRatio)*100-1e-9)/100);
    const maxRecoveryStake=Math.floor(availableBalance*0.5*100)/100;
    if(recoveryStake>maxRecoveryStake+0.005){
-    recoveryBalancePauseRef.current=recoveryStake;
+    recoveryBalancePauseRef.current=Number((recoveryStake*2).toFixed(2));
     console.warn('[HyperFlow OVER 0 recovery blocked: stake exceeds 50% balance]',{account,balance:availableBalance,deficit,netPayoutRatio:overZeroRatio,recoveryStake,maxRecoveryStake});
     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
     setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
