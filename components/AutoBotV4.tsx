@@ -548,7 +548,7 @@ export default function AutoBotV4(){
  };
  const sonicRef=useRef(createSonicStakeManager({baseStake:IA_RISK_STAKE,payout:IA_PAYOUT,maxLevel:maxMartingale}));
  const hyperFlowObservationTicksRef=useRef<number[]>([]);
- const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number;provisionalEarlyRise?:boolean}>({active:false,symbol:'',snapshots:[]});
+ const hyperFlowWatchRef=useRef<{active:boolean;symbol:string;snapshots:HyperFlowWindow[];provisionalDigit?:number;provisionalEarlyRise?:boolean;lastProgressNoticeAt?:number}>({active:false,symbol:'',snapshots:[]});
  const hyperFlowTargetDigitRef=useRef<number>(0);
  const hyperFlowNextDigitRef=useRef<HyperFlowRankResult|null>(null);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
@@ -994,8 +994,9 @@ export default function AutoBotV4(){
     watch.snapshots.push({key:String(tick.epoch),digits:windowDigits,zeroPercent});
     if(watch.snapshots.length>200)watch.snapshots.splice(0,watch.snapshots.length-200);
     const provisional=rankHyperFlowMatchDigit(watch.snapshots,hyperFlowHistory.slice(-9),pipSize,hyperFlowHistory);
-    if(provisional&&(watch.provisionalDigit!==provisional.digit||watch.provisionalEarlyRise!==provisional.earlyRise||watch.snapshots.length%5===0)){
+    if(provisional&&(watch.provisionalDigit!==provisional.digit||watch.provisionalEarlyRise!==provisional.earlyRise||Date.now()-(watch.lastProgressNoticeAt||0)>=5000)){
      watch.provisionalDigit=provisional.digit;
+     watch.lastProgressNoticeAt=Date.now();
      watch.provisionalEarlyRise=provisional.earlyRise;
      const trendText=(provisional.trend>=0?'+':'')+provisional.trend.toFixed(0)+' pp';
      const accelText=(provisional.acceleration>=0?'+':'')+provisional.acceleration.toFixed(0)+' pp';
