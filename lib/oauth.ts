@@ -27,7 +27,8 @@ export function getAuthorizeUrl(
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'trade payment account_manage application_read',
+    // Request only scopes still used by the platform. Partner reporting no longer uses application_read.
+    scope: 'trade payment account_manage',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
