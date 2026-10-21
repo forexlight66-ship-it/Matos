@@ -902,7 +902,9 @@ export default function AutoBotV4(){
   return 50+edge+(validSignal?8:0);
  };
  useEffect(()=>{
-  if((!running&&!smartAnalyzer)||stopped.current||!isConnected||!isAuthorized)return;
+  // Fixar o símbolo durante qualquer sessão ativa do robô. A seleção dinâmica
+  // só pode ocorrer antes de Start; nunca durante negociação/análise ativa.
+  if(running||smartAnalyzer||stopped.current||!isConnected||!isAuthorized)return;
   let cancelled=false;
   const scan=async()=>{
    if(symbolSelectionLockRef.current)return;
@@ -1075,7 +1077,15 @@ export default function AutoBotV4(){
   }
  },[proposal]);
  useEffect(()=>{if((!running&&!smartAnalyzer)||!lastClosedTransaction?.contract_id)return;processClosedTradeImmediately(lastClosedTransaction)},[running,smartAnalyzer,lastClosedTransaction,processClosedTradeImmediately]);
- const statsWindow=200;const analysisExitValues=useMemo(()=>profitTransactions.filter(tx=>tx.symbol===symbol&&Boolean(tx.sell_time)&&tx.exit_spot!=null&&String(tx.exit_spot).trim()!==''&&Number.isFinite(Number(tx.exit_spot))).slice(0,600).reverse().map(tx=>Number(tx.exit_spot)),[profitTransactions,symbol]);const exitSpotReady=analysisExitValues.length>=28;const botAnalysisValues=useMemo(()=>ticks,[ticks]);const aiAnalysisValues=useMemo(()=>ticks.slice(-25),[ticks]);const chartUsesExitSpots=analysisExitValues.length>=28;const chartSourceValues=useMemo(()=>chartUsesExitSpots?analysisExitValues:ticks,[chartUsesExitSpots,analysisExitValues,ticks]);const analyze100Ticks=useMemo(()=>analyzeStrategies100(aiAnalysisValues,tickPipSize),[aiAnalysisValues,tickPipSize]);const selectedTickValues=useMemo(()=>chartSourceValues.slice(-tickWindow),[chartSourceValues,tickWindow]);const selectedTickDigits=useMemo(()=>selectedTickValues.map(v=>digit(v,tickPipSize)).filter((d):d is number=>d!==null),[selectedTickValues,tickPipSize]);const st=useMemo(()=>stats(selectedTickValues,tickPipSize),[selectedTickValues,tickPipSize]);const tickDataReady=selectedTickValues.length>=(chartUsesExitSpots?Math.min(9,tickWindow):tickWindow)&&selectedTickDigits.length>=(chartUsesExitSpots?Math.min(9,tickWindow):tickWindow)&&(chartUsesExitSpots||(Boolean(tick?.epoch)&&Date.now()/1000-Number(tick?.epoch)<4));const latest=profitTransactions[0];const chartExitDigit=useMemo(()=>{if(!latest?.sell_time||latest.exit_spot==null)return null;const latestPip=latest.symbol?pipSizeBySymbolRef.current.get(latest.symbol)??(latest.symbol===symbol?tickPipSize:undefined):undefined;return Number.isFinite(Number(latestPip))&&Number(latestPip)>0?digit(latest.exit_spot,latestPip):null},[latest,tickPipSize,symbol]);const displayedExitDigit=chartUsesExitSpots?chartExitDigit:lastDigitSeen;const pnl=useMemo(()=>profitTransactions.reduce((a,x)=>a+Number(x.profit_loss||0),0),[profitTransactions]),closedOperations=profitTransactions.length,iaState=useMemo(()=>gestorRef.current.getEstado(),[stakeManagerVersion]),sonicState=useMemo(()=>sonicRef.current.getState(),[stakeManagerVersion]);
+ const statsWindow=200;
+ // Usa exit_spot prioritariamente e exit_tick como fallback. Considera apenas
+ // operações fechadas do símbolo fixado na sessão; nunca mistura símbolos.
+ const analysisExitValues=useMemo(()=>profitTransactions
+  .filter(tx=>tx.symbol===symbol&&Boolean(tx.sell_time))
+  .map(tx=>({time:Number(tx.sell_time),value:tx.exit_spot??tx.exit_tick}))
+  .filter(item=>item.value!=null&&String(item.value).trim()!==''&&Number.isFinite(Number(item.value))&&Number(item.time)>0)
+  .sort((a,b)=>b.time-a.time)
+  .slice(0,600).reverse().map(item=>Number(item.value)),[profitTransactions,symbol]);const exitSpotReady=analysisExitValues.length>=28;const botAnalysisValues=useMemo(()=>ticks,[ticks]);const aiAnalysisValues=useMemo(()=>ticks.slice(-25),[ticks]);const chartUsesExitSpots=analysisExitValues.length>=28;const chartSourceValues=useMemo(()=>chartUsesExitSpots?analysisExitValues:ticks,[chartUsesExitSpots,analysisExitValues,ticks]);const analyze100Ticks=useMemo(()=>analyzeStrategies100(aiAnalysisValues,tickPipSize),[aiAnalysisValues,tickPipSize]);const selectedTickValues=useMemo(()=>chartSourceValues.slice(-tickWindow),[chartSourceValues,tickWindow]);const selectedTickDigits=useMemo(()=>selectedTickValues.map(v=>digit(v,tickPipSize)).filter((d):d is number=>d!==null),[selectedTickValues,tickPipSize]);const st=useMemo(()=>stats(selectedTickValues,tickPipSize),[selectedTickValues,tickPipSize]);const tickDataReady=selectedTickValues.length>=(chartUsesExitSpots?Math.min(9,tickWindow):tickWindow)&&selectedTickDigits.length>=(chartUsesExitSpots?Math.min(9,tickWindow):tickWindow)&&(chartUsesExitSpots||(Boolean(tick?.epoch)&&Date.now()/1000-Number(tick?.epoch)<4));const latest=profitTransactions[0];const chartExitDigit=useMemo(()=>{if(!latest?.sell_time||latest.exit_spot==null)return null;const latestPip=latest.symbol?pipSizeBySymbolRef.current.get(latest.symbol)??(latest.symbol===symbol?tickPipSize:undefined):undefined;return Number.isFinite(Number(latestPip))&&Number(latestPip)>0?digit(latest.exit_spot,latestPip):null},[latest,tickPipSize,symbol]);const displayedExitDigit=chartUsesExitSpots?chartExitDigit:lastDigitSeen;const pnl=useMemo(()=>profitTransactions.reduce((a,x)=>a+Number(x.profit_loss||0),0),[profitTransactions]),closedOperations=profitTransactions.length,iaState=useMemo(()=>gestorRef.current.getEstado(),[stakeManagerVersion]),sonicState=useMemo(()=>sonicRef.current.getState(),[stakeManagerVersion]);
  const dailyTransactions=useMemo(()=>{const parts=historyDate.split('-').map(Number);if(parts.length!==3||parts.some(n=>!Number.isFinite(n)))return [];const [year,month,day]=parts;return dailyHistoryArchive.filter(x=>{const raw=Number(x.sell_time??x.purchase_time);if(!Number.isFinite(raw)||raw<=0)return false;const d=new Date(raw*1000);return d.getFullYear()===year&&d.getMonth()+1===month&&d.getDate()===day})},[dailyHistoryArchive,historyDate]);const dailyPnl=useMemo(()=>dailyTransactions.reduce((a,x)=>a+Number(x.profit_loss||0),0),[dailyTransactions]);const dailyWins=useMemo(()=>dailyTransactions.filter(x=>Number(x.profit_loss||0)>0).length,[dailyTransactions]);const dailyLosses=useMemo(()=>dailyTransactions.filter(x=>Number(x.profit_loss||0)<0).length,[dailyTransactions]);const dailyByBot=useMemo(()=>{const groups=new Map<string,{count:number;wins:number;losses:number;pnl:number}>();for(const x of dailyTransactions){const bot=String((x as any).bot||'Bot não identificado');const prev=groups.get(bot)||{count:0,wins:0,losses:0,pnl:0};const p=Number(x.profit_loss||0);prev.count+=1;if(p>0)prev.wins+=1;else if(p<0)prev.losses+=1;prev.pnl+=p;groups.set(bot,prev)}return Array.from(groups.entries()).sort((a,b)=>b[1].pnl-a[1].pnl)},[dailyTransactions]);useEffect(()=>{try{const key=`mozhyper-daily-history-v1:${account}`;const raw=localStorage.getItem(key);const stored=raw?JSON.parse(raw):[];if(Array.isArray(stored))setDailyHistoryArchive(stored)}catch{}},[account]); useEffect(()=>{let lastDate=localDateValue();const timer=window.setInterval(()=>{const today=localDateValue();if(today!==lastDate){lastDate=today;setHistoryDate(today);}},30000);return()=>window.clearInterval(timer)},[]);useEffect(()=>{if(!profitTransactions.length)return;const key=`mozhyper-daily-history-v1:${account}`;setDailyHistoryArchive(prev=>{const byId=new Map<number,any>();for(const x of prev){const id=Number(x.contract_id);if(Number.isFinite(id)&&id>0)byId.set(id,x)}for(const x of profitTransactions){const id=Number(x.contract_id);if(!Number.isFinite(id)||id<=0)continue;byId.set(id,{...byId.get(id),...x})}const next=Array.from(byId.values()).sort((a,b)=>Number(b.sell_time??b.purchase_time)-Number(a.sell_time??a.purchase_time)).slice(0,2000);try{localStorage.setItem(key,JSON.stringify(next))}catch{}return next})},[profitTransactions,account]);const greeting=useMemo(()=>{const h=new Date().getHours();if(language==='pt')return h>=0&&h<6?'Boa madrugada':h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';if(language==='es')return h>=0&&h<6?'Buenas madrugadas':h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';return h>=0&&h<6?'Good early morning':h<12?'Good morning':h<18?'Good afternoon':'Good evening'},[language]); useEffect(()=>{document.body.classList.toggle('light',theme==='light');return()=>{document.body.classList.remove('light')}},[theme]); useEffect(()=>{fetch('/api/auth/me',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{const name=String(data?.user?.name||'').trim();if(name)setUserName(name)}).catch(()=>{})},[]); useEffect(()=>{let alive=true;const heartbeat=()=>{fetch('/api/online',{method:'POST',cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{if(alive)setOnlineUsers(Number(data?.online)||0)}).catch(()=>{})};heartbeat();const id=window.setInterval(heartbeat,20000);return()=>{alive=false;clearInterval(id)}},[]);
  useEffect(()=>{try{const saved=localStorage.getItem('mozhyper-sound-enabled');if(saved!==null)setSoundEnabled(saved!=='false')}catch{}},[]);
  useEffect(()=>{
@@ -1689,6 +1699,12 @@ useEffect(()=>{
  }
  const exitSpotCount=analysisExitValues.length;
  if(exitSpotCount<28){
+  // Não alterar a fonte de análise até terminar uma operação/compra pendente.
+  const modeChangeBlocked=activeContractId!==null||trackedContractId!==null||proposal!==null||buying;
+  if(exitSpotsMode&&modeChangeBlocked){
+   setExitSpotsMonitorStatus('A aguardar fecho da operação antes de alterar o modo Exit Spots.');
+   return;
+  }
   setExitSpotsMonitorStatus('A recolher '+exitSpotCount+'/28 Exit Spots fechados; o robô continua no modo normal.');
   if(exitSpotsMode){
    setExitSpotsMode(false);
@@ -1704,6 +1720,10 @@ useEffect(()=>{
   :makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
  if(exitSpotsMode){
   if(!activeSignal){
+   if(activeContractId!==null||trackedContractId!==null||proposal!==null||buying){
+    setExitSpotsMonitorStatus('Sinal Exit Spots temporariamente indisponível; a manter o modo até fechar a operação em curso.');
+    return;
+   }
    setExitSpotsMode(false);
    if(smartAnalyzer)setSmartAdvice(null);
    setAnalyzerNoticeColor('#64748b');
