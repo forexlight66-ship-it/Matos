@@ -687,53 +687,31 @@ export default function AutoBotV4(){
    const hyperFlowWon=statusOutcome??(result>0);
    const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
    if(isHyperFlowTrade&&(hyperFlowWon||hyperFlowLost)){
-    const wasRecoveryActive=hyperFlowRecoveryActiveRef.current;
-    // The deficit is the net financial amount still to recover. Recovery is not
-    // considered complete until one closed trade's realized profit clears it.
-    hyperFlowRecoveryDeficitRef.current=Math.max(0,Number((hyperFlowRecoveryDeficitRef.current-result).toFixed(2)));
-    const deficitRemaining=hyperFlowRecoveryDeficitRef.current;
-    if(wasRecoveryActive){
-     if(hyperFlowWon&&deficitRemaining<=0.005){
-      hyperFlowRecoveryDeficitRef.current=0;
-      hyperFlowRecoveryActiveRef.current=false;
-      hyperFlowOverZeroModeRef.current=false;
-      hyperFlowNormalSignalDisarmedRef.current=false;
-      hyperFlowLossStreakRef.current=0;
-      hyperFlowNextDigitRef.current=null;
-      hyperFlowTargetDigitRef.current=0;
-      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
-      setHyperFlowFallbackRevision(v=>v+1);
-      setNotice('HYPERFLOW: recuperação total concluída numa única operação vencedora. Défice coberto; HyperFlow normal retomado.');
-      console.info('[HyperFlow full-deficit recovery completed]',{symbol:tradeSymbol,closedProfitLoss:result,deficitRemaining:0});
-     }else{
-      // No partial-recovery path: keep recovery active and size the next OVER 1
-      // trade against the entire remaining deficit, including any new loss.
-      hyperFlowOverZeroModeRef.current=true;
-      hyperFlowNextDigitRef.current=null;
-      hyperFlowTargetDigitRef.current=1;
-      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
-      setHyperFlowFallbackRevision(v=>v+1);
-      setNotice('HYPERFLOW: recuperação total ainda não concluída. Défice restante '+deficitRemaining.toFixed(2)+'. Próxima operação ACIMA 1 será calculada para tentar cobrir o défice completo.');
-      console.warn('[HyperFlow full-deficit recovery continues]',{symbol:tradeSymbol,closedProfitLoss:result,deficitRemaining,won:hyperFlowWon});
-     }
+    // HyperFlow never accumulates or recovers a financial deficit. After a loss,
+    // alternate between normal MATCH 0 and fixed ACIMA 1 (5 ticks), using the
+    // configured base stake. A win leaves the current mode unchanged.
+    hyperFlowRecoveryDeficitRef.current=0;
+    hyperFlowLossStreakRef.current=hyperFlowLost?hyperFlowLossStreakRef.current+1:0;
+    if(hyperFlowLost){
+     const wasAboveOne=hyperFlowOverZeroModeRef.current;
+     hyperFlowRecoveryActiveRef.current=!wasAboveOne;
+     hyperFlowOverZeroModeRef.current=!wasAboveOne;
+     hyperFlowNormalSignalDisarmedRef.current=false;
+     hyperFlowNextDigitRef.current=null;
+     hyperFlowTargetDigitRef.current=hyperFlowOverZeroModeRef.current?1:0;
+     hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
+     hyperFlowRecoveryQuoteStageRef.current=null;
+     hyperFlowRecoveryQuoteAttemptsRef.current=0;
+     hyperFlowRecoveryQuoteReadyRef.current=false;
+     hyperFlowRecoveryQuoteTargetRef.current=null;
+     setHyperFlowFallbackRevision(v=>v+1);
+     setNotice(hyperFlowOverZeroModeRef.current
+      ?'HYPERFLOW: perda no modo normal. Próxima operação ACIMA 1 durante 5 ticks, com stake normal; sem recuperação nem acumulação de défice.'
+      :'HYPERFLOW B1: perda em ACIMA 1. Próxima operação no HyperFlow normal (MATCH 0), com stake normal; sem recuperação nem acumulação de défice.');
+     console.info('[HyperFlow alternating mode after loss]',{symbol:tradeSymbol,closedProfitLoss:result,nextMode:hyperFlowOverZeroModeRef.current?'ABOVE_1':'NORMAL_MATCH_0',duration:hyperFlowOverZeroModeRef.current?5:1,deficitRecovery:false});
     }else if(hyperFlowWon){
      hyperFlowLossStreakRef.current=0;
-     // A normal-mode win reduces the running net deficit, but it does not
-     // count as a recovery attempt or trigger a partial-recovery state.
-     if(deficitRemaining<=0.005)hyperFlowRecoveryDeficitRef.current=0;
-    }else if(hyperFlowLost){
-     hyperFlowLossStreakRef.current+=1;
-     if(hyperFlowLossStreakRef.current>=1){
-      hyperFlowNormalSignalDisarmedRef.current=false;
-      hyperFlowRecoveryActiveRef.current=true;
-      hyperFlowOverZeroModeRef.current=true;
-      hyperFlowNextDigitRef.current=null;
-      hyperFlowTargetDigitRef.current=1;
-      hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
-      setHyperFlowFallbackRevision(v=>v+1);
-      setNotice('HYPERFLOW: 1 perda consecutiva. Recuperação total ativada; próxima operação ACIMA 1 durante 5 ticks, com stake calculado para cobrir todo o défice numa única operação vencedora: '+deficitRemaining.toFixed(2)+'.');
-      console.warn('[HyperFlow full-deficit recovery activated]',{symbol:tradeSymbol,consecutiveLosses:hyperFlowLossStreakRef.current,trigger:1,deficit:deficitRemaining,contractType:'DIGITOVER',barrier:1,duration:5,durationUnit:'t'});
-     }
+     hyperFlowRecoveryDeficitRef.current=0;
     }
    }
    if(isHypercoverTrade&&!hypercoverWon){
@@ -1258,28 +1236,7 @@ export default function AutoBotV4(){
    }
    amount=recoveryStake;
   }
-  // HyperFlow recovery sizes one OVER 1 / five-tick attempt against the full remaining deficit.
-  // The former 50% balance restriction is removed; only the actual available balance
-  // remains a hard limit, so Deriv is not sent an unaffordable stake.
-  if(strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryDeficitRef.current>0.01){
-   const deficit=Math.max(0,Number(hyperFlowRecoveryDeficitRef.current)||0);
-   const overZeroRatio=Math.max(0.001,payoutRatioForContract('DIGITOVER',1));
-   const recoveryStake=Math.max(0.35,Math.ceil((deficit/overZeroRatio)*100-1e-9)/100);
-   const maxRecoveryStake=Math.floor(Math.max(0,availableBalance)*100)/100;
-   if(!Number.isFinite(availableBalance)||recoveryStake>maxRecoveryStake+0.005){
-    recoveryBalancePauseRef.current=recoveryStake;
-    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
-    hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;
-    setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
-    setNotice('HyperFlow: recuperação pausada. A stake estimada para tentar cobrir o défice total é '+recoveryStake.toFixed(2)+', mas ultrapassa o saldo disponível de '+Math.max(0,availableBalance).toFixed(2)+'. Nenhuma compra foi enviada.');
-    console.warn('[HyperFlow direct recovery blocked: insufficient total balance]',{symbol,deficit,overZeroRatio,recoveryStake,availableBalance,maxRecoveryStake});
-    return;
-   }
-   amount=recoveryStake;
-   hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;
-   clearProposal();
-   console.info('[HyperFlow direct full-deficit recovery]',{symbol,deficit,overZeroRatio,stake:amount,duration:5,contractType:'DIGITOVER',barrier:1,estimatedNetProfit:Number((amount*overZeroRatio).toFixed(2)),buyMethod:'buy:1 + parameters'});
-  }
+  // HyperFlow B1 uses the configured normal stake; no deficit-based stake sizing.
 
   iaRecoveryQuotePendingRef.current=false;
 
