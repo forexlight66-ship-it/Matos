@@ -553,7 +553,7 @@ const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d
  {id:'ACIMA5_BAIXO4',name:'HyperStrike',color:'#FB923C'},
  {id:'RISE_FALL',name:'HyperForce',color:'#34D399'},
  {id:'DIFERENTE',name:'HyperNova',color:'#A78BFA'},
- {id:'MATCH0',name:'HyperFlow',color:'#22D3EE'},
+ {id:'MATCH0',name:'HyperBeen',color:'#22D3EE'},
  {id:'HYPERLITE',name:'Hyperlite',color:'#A3E635'},
  {id:'HYPERGUARD',name:'HyperGuard',color:'#2DD4BF'},
  {id:'HYPERSHIELD',name:'HyperShield',color:'#14B8A6'},
