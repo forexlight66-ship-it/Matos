@@ -845,7 +845,7 @@ export default function AutoBotV4(){
      if(wasAlternate)setNotice('HyperFlows: MATCH '+String(Number.isFinite(closeBarrier)?closeBarrier:'alternativo')+' ganhou. A regressar à estratégia normal MATCH 9.');
      else setNotice('HyperFlows: MATCH 9 ganhou. A estratégia normal continua ativa.');
     }
-    console.info('[HyperFlows recovery state]',{mode:wasUnder9?'UNDER9':wasAlternate?'ALTERNATE':'MATCH9',outcome:hyperFlowWon?'won':'lost',consecutiveLosses:hyperFlowsConsecutiveLossesRef.current,deficit:hyperFlowsDeficitRef.current,recoveryActive:hyperFlowsRecoveryModeRef.current,nextDigit:hyperFlowsNextDigitRef.current});
+    console.info('[HyperFlows recovery state]',{mode:wasEvenRecovery?'EVEN':wasUnder9?'UNDER9':wasAlternate?'ALTERNATE':'MATCH9',outcome:hyperFlowWon?'won':'lost',consecutiveLosses:hyperFlowsConsecutiveLossesRef.current,deficit:hyperFlowsDeficitRef.current,recoveryActive:hyperFlowsRecoveryModeRef.current,nextDigit:hyperFlowsNextDigitRef.current});
    }
    if(isHypercoverTrade&&!hypercoverWon){
     const actualDirection=closedType==='DIGITOVER'?'DIGITOVER':closedType==='DIGITUNDER'?'DIGITUNDER':hypercoverAlternationRef.current.lastDirection||'DIGITUNDER';
