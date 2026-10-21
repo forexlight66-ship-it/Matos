@@ -713,14 +713,21 @@ export default function AutoBotV4(){
     (digitContract&&exitOutcome!==null&&statusOutcome!==exitOutcome)||
     (evenOddContract&&evenOddOutcome!==null&&statusOutcome!==evenOddOutcome)
    ));
+   const evenOddOutcomeMismatch=Boolean(evenOddContract&&statusOutcome!==null&&evenOddOutcome!==null&&statusOutcome!==evenOddOutcome);
    const financialStatusMismatch=Boolean(statusOutcome!==null&&((statusOutcome&&result< -0.001)||(!statusOutcome&&result>0.001)));
    if(isHypercoverTrade||digitContract||evenOddContract)console.info(isHypercoverTrade?'[Hypercover close audit]':'[Deriv Digit close audit]',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_tick:closed.exit_tick??null,exit_spot:closed.exit_spot??null,exit_digit_source:exitDigitSource,pip_size:tradePipSize??null,exit_digit:exitDigit,expected_even_odd_outcome:evenOddOutcome,official_status_outcome:statusOutcome,reported_status:closeStatus||null,exit_outcome:exitOutcome,profit_loss:result,digit_outcome_mismatch:digitOutcomeMismatch,financial_status_mismatch:financialStatusMismatch,alternation_outcome:hypercoverWon?'won':'lost'});
    if(processedClosedTradeIdsRef.current.has(id))return;processedClosedTradeIdsRef.current.add(id);
+   if(evenOddOutcomeMismatch&&(running||smartAnalyzer)&&!isManualTrade){
+    // An Even/Odd contract cannot legitimately lose on an even digit (including 0).
+    // Do not start another recovery cycle until this contract's exact exit quote is checked.
+    console.error('[Trading safety stop] Even/Odd settlement contradicts the exact exit digit.',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,exit_spot:closed.exit_spot??null,exit_tick:closed.exit_tick??null,exit_digit:exitDigit,pip_size:tradePipSize??null,expected_even_odd_outcome:evenOddOutcome,status:closeStatus||null,profit_loss:result});
+    stopped.current=true;botArmedRef.current=false;requested.current=false;requestStartedAt.current=0;
+    pendingAnalyzerStrategyRef.current=null;setRunning(false);setSmartAnalyzer(false);setExitSpotsMode(false);setSignalNow(null);
+    setNotice('BLOQUEIO DE SEGURANÇA: a Deriv marcou '+closedType+' como '+(statusOutcome?'ganho':'perda')+', mas o dígito final calculado foi '+String(exitDigit)+'. O robô foi pausado e não vai avançar a recuperação. Verifique o contrato '+id+' e o exit spot.');
+    return;
+   }
    if(digitOutcomeMismatch&&(running||smartAnalyzer)&&!isManualTrade){
-    // A diferença no último dígito calculado localmente não prova que a Deriv
-    // reportou um resultado financeiro errado. O resultado oficial da Deriv
-    // continua a ser a autoridade; registamos a auditoria sem parar o robô.
-    console.warn('[Trading audit] Local exit-digit check differs from Deriv contract status; keeping Deriv result authoritative.',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_spot:closed.exit_spot??null,exit_tick:closed.exit_tick??null,exit_digit:exitDigit,status:closeStatus||null,profit_loss:result});
+    console.warn('[Trading audit] Local exit-digit check differs from Deriv contract status; keeping Deriv result authoritative.',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_spot:closed.exit_spot??null,exit_tick:closed.exit_tick??null,exit_digit:exitDigit,expected_even_odd_outcome:evenOddOutcome,status:closeStatus||null,profit_loss:result});
    }
    if(financialStatusMismatch&&(running||smartAnalyzer)&&!isManualTrade){
     console.error('[Trading safety stop] Official contract status conflicts with financial P/L',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,status:closeStatus||null,profit_loss:result});
