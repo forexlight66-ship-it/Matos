@@ -710,7 +710,7 @@ export default function AutoBotV4(){
       // trade against the entire remaining deficit, including any new loss.
       hyperFlowOverZeroModeRef.current=true;
       hyperFlowNextDigitRef.current=null;
-      hyperFlowTargetDigitRef.current=0;
+      hyperFlowTargetDigitRef.current=1;
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       setHyperFlowFallbackRevision(v=>v+1);
       setNotice('HYPERFLOW: recuperação total ainda não concluída. Défice restante '+deficitRemaining.toFixed(2)+'. Próxima operação ACIMA 1 será calculada para tentar cobrir o défice completo.');
@@ -728,7 +728,7 @@ export default function AutoBotV4(){
       hyperFlowRecoveryActiveRef.current=true;
       hyperFlowOverZeroModeRef.current=true;
       hyperFlowNextDigitRef.current=null;
-      hyperFlowTargetDigitRef.current=0;
+      hyperFlowTargetDigitRef.current=1;
       hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
       setHyperFlowFallbackRevision(v=>v+1);
       setNotice('HYPERFLOW: 1 perda consecutiva. Recuperação total ativada; próxima operação ACIMA 1 durante 5 ticks, com stake calculado para cobrir todo o défice numa única operação vencedora: '+deficitRemaining.toFixed(2)+'.');
@@ -1204,7 +1204,6 @@ export default function AutoBotV4(){
   } else {
    const c:Contract=freshSignal.contract as Contract;
    barrier=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current?1:
-    strategyName==='MATCH0'&&Number.isInteger(freshSignal?.adaptiveMatchDigit)?Number(freshSignal.adaptiveMatchDigit):
     isRecoveryStrategy(strategy)?(barrierStateRef.current?.barrier??4):
     strategyName==='HYPERGUARD'?0:strategyName==='HYPERSHIELD'?4:strategyName==='HYPERBREAK'?8:strategyName==='HYPERCOVER'?(c==='OVER'?1:8):
     c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;
