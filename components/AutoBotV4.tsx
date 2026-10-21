@@ -665,7 +665,20 @@ export default function AutoBotV4(){
   const unknownClosedBot=!rawClosedBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawClosedBotLabel);
   const looksLikeHyperFlowContract=(closedBarrier===0&&closedContractType==='DIGITMATCH')||(closedBarrier===0&&closedContractType==='DIGITOVER'&&strategy==='MATCH0');
   const looksLikeHyperFlowsContract=strategy==='HYPERFLOWS'&&((closedContractType==='DIGITMATCH'&&closedBarrier>=0&&closedBarrier<=9)||(closedContractType==='DIGITUNDER'&&closedBarrier===9));
-  const identifiedClosedBotName=(rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel)||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':(rawClosedBotName==='hyperflows'||/^hyperflows(?:\s+|$)/i.test(rawClosedBotLabel)||(unknownClosedBot&&looksLikeHyperFlowsContract))?'hyperflows':rawClosedBotName;
+  const knownHyperFlowLabel=rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel);
+  const knownHyperFlowsLabel=rawClosedBotName==='hyperflows'||/^hyperflows(?:\s+|$)/i.test(rawClosedBotLabel);
+  // Match the current HyperFlows entry mode against the actual closed contract.
+  // History labels such as "HyperFlow B9" can otherwise be mistaken for the older HyperFlow bot.
+  const trackedHyperFlowsMode=hyperFlowsLastTradeModeRef.current;
+  const trackedHyperFlowsContractMatches=trackedHyperFlowsMode==='UNDER9'
+   ?closedContractType==='DIGITUNDER'&&(!Number.isFinite(closedBarrier)||closedBarrier===9)
+   :trackedHyperFlowsMode==='MATCH9'
+    ?closedContractType==='DIGITMATCH'&&(!Number.isFinite(closedBarrier)||closedBarrier===9)
+    :trackedHyperFlowsMode==='ALTERNATE'
+     ?closedContractType==='DIGITMATCH'&&(!Number.isFinite(closedBarrier)||(closedBarrier>=0&&closedBarrier<=8))
+     :false;
+  const looksLikeTrackedHyperFlowsClose=strategy==='HYPERFLOWS'&&trackedHyperFlowsMode!==null&&trackedHyperFlowsContractMatches&&(knownHyperFlowLabel||knownHyperFlowsLabel||unknownClosedBot);
+  const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperFlowLabel||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
   if(identifiedClosedBotName==='hyperflow'){hyperFlowRecoveryBuyPendingRef.current=false;if(strategy==='MATCH0'&&!hyperFlowOverZeroModeRef.current)hyperFlowNormalSignalDisarmedRef.current=false;}
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
@@ -750,9 +763,11 @@ export default function AutoBotV4(){
    const isHyperFlowsTrade=closedBotName==='hyperflows';
    if(isHyperFlowsTrade&&(hyperFlowWon||hyperFlowLost)){
     const savedMode=hyperFlowsLastTradeModeRef.current;
-    const wasUnder9=savedMode==='UNDER9'||(closedType==='DIGITUNDER'&&Number.isFinite(closeBarrier)&&closeBarrier===9);
-    const wasMainMatch9=savedMode==='MATCH9'||(closedType==='DIGITMATCH'&&Number.isFinite(closeBarrier)&&closeBarrier===9);
-    const wasAlternate=savedMode==='ALTERNATE'||(closedType==='DIGITMATCH'&&Number.isFinite(closeBarrier)&&closeBarrier>=0&&closeBarrier<=8);
+    const hasReliableHyperFlowsContract=(closedType==='DIGITUNDER'||closedType==='DIGITMATCH')&&Number.isFinite(closeBarrier);
+    // The Deriv contract type/barrier is authoritative; only fall back to the saved mode if metadata is missing.
+    const wasUnder9=hasReliableHyperFlowsContract?(closedType==='DIGITUNDER'&&closeBarrier===9):savedMode==='UNDER9';
+    const wasMainMatch9=hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier===9):savedMode==='MATCH9';
+    const wasAlternate=hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier>=0&&closeBarrier<=8):savedMode==='ALTERNATE';
     hyperFlowsLastTradeModeRef.current=null;
     if(wasUnder9){
      if(hyperFlowLost){
@@ -778,7 +793,8 @@ export default function AutoBotV4(){
      }
     }else if(hyperFlowLost){
      hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
-     hyperFlowsConsecutiveLossesRef.current+=1;
+     // The consecutive-loss counter is capped at 5; the fifth loss switches to recovery.
+     hyperFlowsConsecutiveLossesRef.current=Math.min(5,Math.max(0,hyperFlowsConsecutiveLossesRef.current)+1);
      if(hyperFlowsConsecutiveLossesRef.current>=5){
       hyperFlowsRecoveryModeRef.current=true;
       hyperFlowsNextDigitRef.current=null;
