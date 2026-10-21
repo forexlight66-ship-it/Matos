@@ -779,7 +779,9 @@ export default function AutoBotV4(){
       hyperFlowsConsecutiveLossesRef.current=0;
       hyperFlowsRecoveryModeRef.current=false;
       hyperFlowsNextDigitRef.current=null;
-      setNotice('HyperFlow B9 / UNDER 9 perdeu. Recuperação encerrada; défice de recuperação limpo e próxima operação com stake normal.');
+      // Resume normal MATCH 9 immediately; the configured risk manager calculates the next stake.
+      hyperFlowsAnalysisActiveRef.current=true;
+      setNotice('HyperFlows B9 / UNDER 9 perdeu. Recuperação encerrada; a retomar HyperFlows normal MATCH 9 com stake da gestão de risco configurada.');
      }else{
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey('DIGITUNDER',9)]=Math.max(0.001,result/paidIn);
