@@ -672,9 +672,9 @@ export default function AutoBotV4(){
   // available fields do not contradict it.
   const trackedHyperFlowsMode=hyperFlowsLastTradeModeRef.current;
   const trackedHyperFlowsContractMatches=trackedHyperFlowsMode==='UNDER9'
-   ?(!closedContractType||closedContractType==='DIGITUNDER')&&(!Number.isFinite(closedBarrier)||closeBarrier===9)
+   ?(!closedContractType||closedContractType==='DIGITUNDER')&&(!Number.isFinite(closedBarrier)||closedBarrier===9)
    :trackedHyperFlowsMode==='MATCH9'
-    ?(!closedContractType||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||closeBarrier===9)
+    ?(!closedContractType||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||closedBarrier===9)
     :trackedHyperFlowsMode==='ALTERNATE'
      ?(!closedContractType||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||(closedBarrier>=0&&closedBarrier<=8))
      :false;
