@@ -701,12 +701,20 @@ export default function AutoBotV4(){
    const exitOutcome=exitDigit!==null&&Number.isInteger(exitDigit)&&exitDigit>=0&&exitDigit<=9&&Number.isFinite(closeBarrier)
     ?(closedType==='DIGITOVER'?exitDigit>closeBarrier:closedType==='DIGITUNDER'?exitDigit<closeBarrier:null)
     :null;
-   // Deriv's explicit contract status and financial P/L remain authoritative.
+   const evenOddContract=closedType==='DIGITEVEN'||closedType==='DIGITODD';
+   const evenOddOutcome=exitDigit!==null&&Number.isInteger(exitDigit)&&exitDigit>=0&&exitDigit<=9&&evenOddContract
+    ?(closedType==='DIGITEVEN'?exitDigit%2===0:exitDigit%2===1)
+    :null;
+   // Deriv's official contract status and financial P/L remain authoritative.
+   // Independently audit the exact exit quote for Even/Odd too: 0 is an even digit.
    const hypercoverWon=isHypercoverTrade?(statusOutcome??exitOutcome??(result>0)):(result>0);
    const digitContract=closedType==='DIGITOVER'||closedType==='DIGITUNDER';
-   const digitOutcomeMismatch=Boolean(digitContract&&statusOutcome!==null&&exitOutcome!==null&&statusOutcome!==exitOutcome);
+   const digitOutcomeMismatch=Boolean(statusOutcome!==null&&(
+    (digitContract&&exitOutcome!==null&&statusOutcome!==exitOutcome)||
+    (evenOddContract&&evenOddOutcome!==null&&statusOutcome!==evenOddOutcome)
+   ));
    const financialStatusMismatch=Boolean(statusOutcome!==null&&((statusOutcome&&result< -0.001)||(!statusOutcome&&result>0.001)));
-   if(isHypercoverTrade||digitContract)console.info(isHypercoverTrade?'[Hypercover close audit]':'[Deriv Digit close audit]',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_tick:closed.exit_tick??null,exit_spot:closed.exit_spot??null,exit_digit_source:exitDigitSource,pip_size:tradePipSize??null,exit_digit:exitDigit,status:closeStatus||null,exit_outcome:exitOutcome,profit_loss:result,digit_outcome_mismatch:digitOutcomeMismatch,financial_status_mismatch:financialStatusMismatch,alternation_outcome:hypercoverWon?'won':'lost'});
+   if(isHypercoverTrade||digitContract||evenOddContract)console.info(isHypercoverTrade?'[Hypercover close audit]':'[Deriv Digit close audit]',{contract_id:id,symbol:tradeSymbol,contract_type:closedType,barrier:Number.isFinite(closeBarrier)?closeBarrier:null,exit_tick:closed.exit_tick??null,exit_spot:closed.exit_spot??null,exit_digit_source:exitDigitSource,pip_size:tradePipSize??null,exit_digit:exitDigit,expected_even_odd_outcome:evenOddOutcome,official_status_outcome:statusOutcome,reported_status:closeStatus||null,exit_outcome:exitOutcome,profit_loss:result,digit_outcome_mismatch:digitOutcomeMismatch,financial_status_mismatch:financialStatusMismatch,alternation_outcome:hypercoverWon?'won':'lost'});
    if(processedClosedTradeIdsRef.current.has(id))return;processedClosedTradeIdsRef.current.add(id);
    if(digitOutcomeMismatch&&(running||smartAnalyzer)&&!isManualTrade){
     // A diferença no último dígito calculado localmente não prova que a Deriv
@@ -1469,9 +1477,13 @@ export default function AutoBotV4(){
   let sent=false;
   try{
    const contractDuration=1;
+   const directContractType=isHyperFlowsRecoveryTrade?'DIGITEVEN':isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr;
+   // EVEN has no barrier. Never attach a synthetic barrier 0 to its order/history metadata.
+   const directBarrier=isHyperFlowsRecoveryTrade?undefined:isHyperFlowRecoveryTrade?0:barrier;
    if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=true;
    if(hyperFlowsTradeMode)hyperFlowsLastTradeModeRef.current=hyperFlowsTradeMode;
-   sent=buyDirect({symbol,contractType:isHyperFlowsRecoveryTrade?'DIGITEVEN':isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr,amount,duration:contractDuration,barrier:isHyperFlowsRecoveryTrade?0:isHyperFlowRecoveryTrade?0:barrier,currency:String(balance?.currency||'USD')},amount,botName,isHyperFlowsRecoveryTrade?0:isHyperFlowRecoveryTrade?0:barrier);
+   if(isHyperFlowsRecoveryTrade)console.info('[HyperFlows EVEN recovery buy request]',{symbol,contract_type:directContractType,barrier:null,amount,duration:contractDuration,expectedWinningDigits:[0,2,4,6,8]});
+   sent=buyDirect({symbol,contractType:directContractType,amount,duration:contractDuration,...(directBarrier!==undefined?{barrier:directBarrier}:{}),currency:String(balance?.currency||'USD')},amount,botName,directBarrier);
   }catch(buyError){
    if(hyperFlowsTradeMode&&hyperFlowsLastTradeModeRef.current===hyperFlowsTradeMode)hyperFlowsLastTradeModeRef.current=null;
    if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=false;
