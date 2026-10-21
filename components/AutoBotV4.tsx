@@ -641,7 +641,7 @@ export default function AutoBotV4(){
   const closedContractType=String(closed?.contract_type||'').trim().toUpperCase();
   const closedBarrier=Number(closed?.barrier);
   const unknownClosedBot=!rawClosedBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawClosedBotLabel);
-  const looksLikeHyperFlowContract=(closedBarrier===0&&closedContractType==='DIGITMATCH')||(closedBarrier===1&&closedContractType==='DIGITOVER'&&strategy==='MATCH0');
+  const looksLikeHyperFlowContract=(closedBarrier===0&&closedContractType==='DIGITMATCH')||(closedBarrier===0&&closedContractType==='DIGITOVER'&&strategy==='MATCH0');
   const identifiedClosedBotName=(rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel)||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
   if(identifiedClosedBotName==='hyperflow'){hyperFlowRecoveryBuyPendingRef.current=false;if(strategy==='MATCH0'&&!hyperFlowOverZeroModeRef.current)hyperFlowNormalSignalDisarmedRef.current=false;}
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
@@ -687,12 +687,12 @@ export default function AutoBotV4(){
    const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
    if(isHyperFlowTrade&&(hyperFlowWon||hyperFlowLost)){
     // HyperFlow: uma primeira perda no MATCH 0 gera mais uma tentativa normal.
-    // Só duas perdas consecutivas no modo normal ativam ACIMA 1 durante 5 ticks.
-    // Qualquer resultado de ACIMA 1 devolve o bot ao MATCH 0. Sem recuperação de défice.
-    const wasAboveOne=hyperFlowOverZeroModeRef.current;
+    // A recuperação usa ACIMA 0 com stake fixa de $15 e duração de 1 tick.
+    // Qualquer resultado de ACIMA 0 devolve o bot ao MATCH 0. Sem recuperação de défice.
+    const wasAboveZero=hyperFlowOverZeroModeRef.current;
     hyperFlowRecoveryActiveRef.current=false;
-    if(wasAboveOne){
-     // B1 terminou (ganho ou perda): voltar imediatamente ao HyperFlow normal.
+    if(wasAboveZero){
+     // ACIMA 0 terminou (ganho ou perda): voltar imediatamente ao HyperFlow normal.
      hyperFlowOverZeroModeRef.current=false;
      hyperFlowRetryNormalAfterLossRef.current=false;
     }else if(hyperFlowLost){
@@ -705,7 +705,7 @@ export default function AutoBotV4(){
     }
     hyperFlowNormalSignalDisarmedRef.current=false;
     hyperFlowNextDigitRef.current=null;
-    hyperFlowTargetDigitRef.current=hyperFlowOverZeroModeRef.current?1:0;
+    hyperFlowTargetDigitRef.current=0;
     hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
     hyperFlowRecoveryQuoteStageRef.current=null;
     hyperFlowRecoveryQuoteAttemptsRef.current=0;
@@ -713,16 +713,16 @@ export default function AutoBotV4(){
     hyperFlowRecoveryQuoteTargetRef.current=null;
     hyperFlowRecoveryBuyPendingRef.current=false;
     setHyperFlowFallbackRevision(v=>v+1);
-    const nextMode=hyperFlowOverZeroModeRef.current?'B1_ABOVE_1':'NORMAL_MATCH_0';
+    const nextMode=hyperFlowOverZeroModeRef.current?'ABOVE_0':'NORMAL_MATCH_0';
     const nextNotice=wasAboveOne
-     ?'HYPERFLOW ACIMA 1 concluído (5 ticks). Próxima operação: HyperFlow normal — MATCH 0.'
+     ?'HYPERFLOW ACIMA 0 concluído (1 tick). Próxima operação: HyperFlow normal — MATCH 0.'
      :hyperFlowOverZeroModeRef.current
-      ?'HYPERFLOW normal perdeu duas vezes consecutivas. Próxima operação: ACIMA 1 durante 5 ticks, stake fixa $2.11.'
+      ?'HYPERFLOW normal perdeu. Próxima operação: ACIMA 0 durante 1 tick, stake fixa $15.'
       :hyperFlowLost
        ?'HYPERFLOW normal perdeu uma vez. Vai tentar novamente com HyperFlow normal — MATCH 0.'
        :'HYPERFLOW normal ganhou. Mantém HyperFlow normal — MATCH 0.';
     setNotice(nextNotice);
-    console.info('[HyperFlow retry then B1 fallback]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',previousMode:wasAboveOne?'B1_ABOVE_1':'NORMAL_MATCH_0',nextMode,duration:hyperFlowOverZeroModeRef.current?5:1,retryNormalArmed:hyperFlowRetryNormalAfterLossRef.current,b1Stake:2.11,deficitRecovery:false});
+    console.info('[HyperFlow retry then Above 0 fallback]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',previousMode:wasAboveZero?'ABOVE_0':'NORMAL_MATCH_0',nextMode,duration:hyperFlowOverZeroModeRef.current?1:1,retryNormalArmed:hyperFlowRetryNormalAfterLossRef.current,above0Stake:15,deficitRecovery:false});
    }
    if(isHypercoverTrade&&!hypercoverWon){
     const actualDirection=closedType==='DIGITOVER'?'DIGITOVER':closedType==='DIGITUNDER'?'DIGITUNDER':hypercoverAlternationRef.current.lastDirection||'DIGITUNDER';
@@ -1147,7 +1147,7 @@ export default function AutoBotV4(){
   let freshSignal:any=null;
   if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(hyperFlowFallbackActive){
    if(hyperFlowOverZeroModeRef.current){
-    freshSignal={contract:'OVER' as Contract,label:'ACIMA 1',strength:90,score:90,barrier:1,contractType:'DIGITOVER',hyperFlowOverZero:true};
+    freshSignal={contract:'OVER' as Contract,label:'ACIMA 0',strength:90,score:90,barrier:0,contractType:'DIGITOVER',hyperFlowOverZero:true};
    }
   }else if(exitSpotsMode){
    const exitSignal=isRecoveryStrategy(strategy)?makeExitSpotBarrierSignal(analysisExitValues,barrierStateRef.current||initialBarrierState(strategy),tickPipSize):makeExitSpotSignal(analysisExitValues,strategy,tickPipSize,true);
@@ -1197,7 +1197,7 @@ export default function AutoBotV4(){
    barrier=barrierStateRef.current.barrier;
   } else {
    const c:Contract=freshSignal.contract as Contract;
-   barrier=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current?1:
+   barrier=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current?0:
     isRecoveryStrategy(strategy)?(barrierStateRef.current?.barrier??4):
     strategyName==='HYPERGUARD'?0:strategyName==='HYPERSHIELD'?4:strategyName==='HYPERBREAK'?8:strategyName==='HYPERCOVER'?(c==='OVER'?1:8):
     c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;
@@ -1253,16 +1253,16 @@ export default function AutoBotV4(){
    }
    amount=recoveryStake;
   }
-  // HyperFlow B1 has a fixed $2.11 stake and five-tick duration; it never sizes
+  // HyperFlow ACIMA 0 has a fixed $15 stake and one-tick duration; it never sizes
   // the stake from accumulated losses. Do not place the trade if balance is insufficient.
   if(strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current){
-   if(maxStakeByBalance<2.11){
+   if(maxStakeByBalance<15){
     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
     setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
-    setNotice('HyperFlow B1 aguardado: é necessário saldo disponível de pelo menos $2.11. Não será acumulado nem recuperado qualquer défice.');
+    setNotice('HyperFlow ACIMA 0 aguardado: é necessário saldo disponível de pelo menos $15. Não será acumulado nem recuperado qualquer défice.');
     return;
    }
-   amount=2.11;
+   amount=15;
   }
 
   iaRecoveryQuotePendingRef.current=false;
@@ -1296,7 +1296,7 @@ export default function AutoBotV4(){
     lastActivityAt.current=Date.now();
     return;
    }
-   console.warn('[HyperFlow B1 stale entry lock cleared]',{symbol,reason:'no pending buy or active contract remains'});
+   console.warn('[HyperFlow ACIMA 0 stale entry lock cleared]',{symbol,reason:'no pending buy or active contract remains'});
    hyperFlowRecoveryBuyPendingRef.current=false;
   }
   pendingAutoEntryRef.current=null;
@@ -1304,9 +1304,9 @@ export default function AutoBotV4(){
   setBotActivity('sendingDirectBuy');
   let sent=false;
   try{
-   const contractDuration=isHyperFlowRecoveryTrade?5:1;
+   const contractDuration=isHyperFlowRecoveryTrade?1:1;
    if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=true;
-   sent=buyDirect({symbol,contractType:isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr,amount,duration:contractDuration,barrier:isHyperFlowRecoveryTrade?1:barrier,currency:String(balance?.currency||'USD')},amount,botName,isHyperFlowRecoveryTrade?1:barrier);
+   sent=buyDirect({symbol,contractType:isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr,amount,duration:contractDuration,barrier:isHyperFlowRecoveryTrade?0:barrier,currency:String(balance?.currency||'USD')},amount,botName,isHyperFlowRecoveryTrade?0:barrier);
   }catch(buyError){
    if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=false;
    if(strategyName==='MATCH0'&&!isHyperFlowRecoveryTrade)hyperFlowNormalSignalDisarmedRef.current=false;
@@ -1458,7 +1458,7 @@ export default function AutoBotV4(){
      }
     }
     if(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current){
-     validationSignal={contract:'OVER' as Contract,label:'ACIMA 1',strength:90,barrier:1,contractType:'DIGITOVER',hyperFlowOverZero:true};
+     validationSignal={contract:'OVER' as Contract,label:'ACIMA 0',strength:90,barrier:0,contractType:'DIGITOVER',hyperFlowOverZero:true};
     }
     if(!validationSignal){
      cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: sem gatilho de 65% ou tendência antecipada confirmada nos últimos 9 ticks.');
