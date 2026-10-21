@@ -735,7 +735,7 @@ export default function AutoBotV4(){
    payoutRatiosByContractRef.current[payoutContractKey(closedType,closedBarrier)]=payoutRatio;
   }
 
-  if(iaPower&&!processedStakeContractsRef.current.has(id)){
+  if(iaPower&&!isHyperFlowTrade&&!processedStakeContractsRef.current.has(id)){
    processedStakeContractsRef.current.add(id);
    lastProcessedStakeResult.current=id;
    gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);
@@ -764,7 +764,7 @@ export default function AutoBotV4(){
    if(result>0&&soundEnabled)sound('win');
   }
 
-  if(sonic&&!processedSonicContractsRef.current.has(id)){
+  if(sonic&&!isHyperFlowTrade&&!processedSonicContractsRef.current.has(id)){
    processedSonicContractsRef.current.add(id);
    lastProcessedSonicResult.current=id;
    sonicRef.current.atualizarPayout(lastPayoutRatioRef.current);
@@ -1160,7 +1160,7 @@ export default function AutoBotV4(){
    }
   }
   if(requested.current){setBotActivity(proposal?'requestingProposal':'reconcilingBot');return;}
-  if((iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current)){setBotActivity('reconcilingBot');return;}
+  if(strategy!=='MATCH0'&&(iaPower||sonic)&&(riskAwaitingContractRef.current!==null||!stakeReadyRef.current)){setBotActivity('reconcilingBot');return;}
   // Until a validated buy is actually sent, keep the state recoverable.
   // Do not display SENDINGDIRECTBUY while computing the stake or exiting a guard.
   setBotActivity('reconcilingBot');
@@ -1185,7 +1185,8 @@ export default function AutoBotV4(){
   if(strategyName==='MATCH0')hyperFlowTargetDigitRef.current=barrier;
   // Sonic é a fonte de verdade da stake quando está ativo.
   // O Soros interno do Sonic controla a repetição da mesma stake vencedora.
-  const rawAmount=iaPower?gestorRef.current.proximoStake():(sonic?sonicRef.current.getStake():stake);
+  // HyperFlow uses the configured normal stake and bypasses IA Power/Sonic recovery sizing.
+  const rawAmount=strategy==='MATCH0'?stake:(iaPower?gestorRef.current.proximoStake():(sonic?sonicRef.current.getStake():stake));
   const availableBalance=Number(balance?.balance);
   const maxStakeByBalance=Math.floor(availableBalance*100)/100;
   if(!Number.isFinite(availableBalance)||availableBalance<=0||maxStakeByBalance<0.35){
@@ -1196,8 +1197,8 @@ export default function AutoBotV4(){
    return;
   }
   const iaState=iaPower?gestorRef.current.getEstado():null;
-  const iaRecovery=iaPower?Boolean(iaState?.emMartingale||Number(iaState?.deficitRecuperacao||0)>0.01):false;
-  const sonicRecovery=sonic?Boolean(sonicRef.current.getState().inMartingale||Number(sonicRef.current.getState().recoveryDeficit||0)>0.01):false;
+  const iaRecovery=strategy!=='MATCH0'&&iaPower?Boolean(iaState?.emMartingale||Number(iaState?.deficitRecuperacao||0)>0.01):false;
+  const sonicRecovery=strategy!=='MATCH0'&&sonic?Boolean(sonicRef.current.getState().inMartingale||Number(sonicRef.current.getState().recoveryDeficit||0)>0.01):false;
   const recoveryActive=iaRecovery||sonicRecovery;
 
   // Em IA POWER, o payout de recuperação deve ser o payout REAL
@@ -1245,7 +1246,7 @@ export default function AutoBotV4(){
 
   iaRecoveryQuotePendingRef.current=false;
 
-  if(iaPower||sonic)pendingRiskStakeRef.current=Number(amount.toFixed(2));
+  if(strategy!=='MATCH0'&&(iaPower||sonic))pendingRiskStakeRef.current=Number(amount.toFixed(2)); else if(strategy==='MATCH0')pendingRiskStakeRef.current=null;
   if(strategyName==='HYPERCOVER'||hypercoverAlternationRef.current.forceNextDirection){requestedHypercoverContractRef.current={contractType:contractTypeStr as 'DIGITOVER'|'DIGITUNDER',barrier};}else requestedHypercoverContractRef.current=null;
   const botName=hypercoverAlternationRef.current.forceNextDirection?'Hypercover':STRATEGY_BOT_NAMES[strategy];
   if(botName==='Hypercover'){
@@ -1646,11 +1647,11 @@ useEffect(()=>{
  setAnalyzerHistory(analyzerDecisionHistoryRef.current);
 },[running,smartAnalyzer,exitSpotsAutoEnabled,exitSpotsMode,analysisExitValues,tickPipSize,strategy,activeContractId,trackedContractId,proposal,buying]);
 
-  useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,smartAnalyzer,t]);
+  useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(strategy!=='MATCH0'&&pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,smartAnalyzer,strategy,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
- const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowNormalSignalDisarmedRef.current=false;recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
+ const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowNormalSignalDisarmedRef.current=false;if(strategy==='MATCH0'){hyperFlowOverZeroModeRef.current=false;hyperFlowRecoveryDeficitRef.current=0;hyperFlowLossStreakRef.current=0;hyperFlowRecoveryActiveRef.current=false;hyperFlowRecoveryBuyPendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;hyperFlowTargetDigitRef.current=0;hyperFlowNextDigitRef.current=null;hyperFlowWatchRef.current={active:false,symbol,snapshots:[]};}recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
  const stop=()=>{saveStakeState();hyperFlowNormalSignalDisarmedRef.current=false;pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
  const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setSorosEnabled(false);setExitSpotsMode(false);if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(!running)stop()}},[aiAnalystActive,clientCountryReady,language,running,isConnected,isAuthorized,start,stop,setSorosEnabled,iaPower,sonic]);
