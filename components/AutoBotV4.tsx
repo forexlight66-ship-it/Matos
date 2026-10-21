@@ -714,7 +714,7 @@ export default function AutoBotV4(){
     hyperFlowRecoveryBuyPendingRef.current=false;
     setHyperFlowFallbackRevision(v=>v+1);
     const nextMode=hyperFlowOverZeroModeRef.current?'ABOVE_0':'NORMAL_MATCH_0';
-    const nextNotice=wasAboveOne
+    const nextNotice=wasAboveZero
      ?'HYPERFLOW ACIMA 0 concluído (1 tick). Próxima operação: HyperFlow normal — MATCH 0.'
      :hyperFlowOverZeroModeRef.current
       ?'HYPERFLOW normal perdeu. Próxima operação: ACIMA 0 durante 1 tick, stake fixa $15.'
