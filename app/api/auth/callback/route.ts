@@ -16,10 +16,17 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state');
   const oauthError = searchParams.get('error');
   const oauthErrorDescription = searchParams.get('error_description');
+  console.info('[OAuth] Callback received.', { hasCode: Boolean(code), hasState: Boolean(state), providerError: Boolean(oauthError), host: request.nextUrl.host });
   const errorRedirect = (reason: string) => NextResponse.redirect(`${PRODUCTION_APP_URL}/?auth_error=${encodeURIComponent(reason)}`, { status: 302 });
 
-  if (oauthError) return errorRedirect(oauthErrorDescription || oauthError);
-  if (!code || !state) return errorRedirect('missing_oauth_parameters');
+  if (oauthError) {
+    console.warn('[OAuth] Provider returned an authorization error.', { error: oauthError, description: oauthErrorDescription?.slice(0, 160) || '' });
+    return errorRedirect(oauthErrorDescription || oauthError);
+  }
+  if (!code || !state) {
+    console.warn('[OAuth] Callback missing required parameters.', { hasCode: Boolean(code), hasState: Boolean(state) });
+    return errorRedirect('missing_oauth_parameters');
+  }
 
   // The state, PKCE verifier, and redirect URI are stored server-side before
   // leaving Matos. Do not require the oauth_state browser cookie here: some
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!oauthState) {
-    console.warn('[OAuth] Callback state missing, expired, or already consumed.');
+    console.warn('[OAuth] Callback state missing, expired, or already consumed. Check database availability and whether the callback URL was opened more than once.');
     return errorRedirect('invalid_or_expired_oauth_state');
   }
 
