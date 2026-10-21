@@ -667,15 +667,16 @@ export default function AutoBotV4(){
   const looksLikeHyperFlowsContract=strategy==='HYPERFLOWS'&&((closedContractType==='DIGITMATCH'&&closedBarrier>=0&&closedBarrier<=9)||(closedContractType==='DIGITUNDER'&&closedBarrier===9));
   const knownHyperFlowLabel=rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel);
   const knownHyperFlowsLabel=rawClosedBotName==='hyperflows'||/^hyperflows(?:\s+|$)/i.test(rawClosedBotLabel);
-  // Match the current HyperFlows entry mode against the actual closed contract.
-  // History labels such as "HyperFlow B9" can otherwise be mistaken for the older HyperFlow bot.
+  // Match the current HyperFlows entry mode against the close event. Early close
+  // notifications may omit contract_type/barrier, so use the tracked mode if the
+  // available fields do not contradict it.
   const trackedHyperFlowsMode=hyperFlowsLastTradeModeRef.current;
   const trackedHyperFlowsContractMatches=trackedHyperFlowsMode==='UNDER9'
-   ?closedContractType==='DIGITUNDER'&&(!Number.isFinite(closedBarrier)||closedBarrier===9)
+   ?(!closedContractType||closedContractType==='DIGITUNDER')&&(!Number.isFinite(closedBarrier)||closeBarrier===9)
    :trackedHyperFlowsMode==='MATCH9'
-    ?closedContractType==='DIGITMATCH'&&(!Number.isFinite(closedBarrier)||closedBarrier===9)
+    ?(!closedContractType||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||closeBarrier===9)
     :trackedHyperFlowsMode==='ALTERNATE'
-     ?closedContractType==='DIGITMATCH'&&(!Number.isFinite(closedBarrier)||(closedBarrier>=0&&closedBarrier<=8))
+     ?(!closedContractType||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||(closedBarrier>=0&&closedBarrier<=8))
      :false;
   const looksLikeTrackedHyperFlowsClose=strategy==='HYPERFLOWS'&&trackedHyperFlowsMode!==null&&trackedHyperFlowsContractMatches&&(knownHyperFlowLabel||knownHyperFlowsLabel||unknownClosedBot);
   const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperFlowLabel||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
@@ -835,7 +836,7 @@ export default function AutoBotV4(){
    }else if(isHypercoverTrade&&hypercoverWon){
     hypercoverAlternationRef.current.lossStreak=0;
    }
-   const fallbackStake=iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():stake;
+   const fallbackStake=(strategy==='MATCH0'||strategy==='HYPERFLOWS')?stake:(iaPower?gestorRef.current.proximoStake():sonic?sonicRef.current.getStake():stake);
   const executedStake=Math.max(0.35,Number(closed.buy_price)>0?Number(closed.buy_price):Number(pendingRiskStakeRef.current)||Number(fallbackStake)||0.35);
   const closedPayout=Number(closed.payout);
   const payoutRatio=executedStake>0&&Number.isFinite(closedPayout)&&closedPayout>executedStake
@@ -849,7 +850,7 @@ export default function AutoBotV4(){
    payoutRatiosByContractRef.current[payoutContractKey(closedType,closedBarrier)]=payoutRatio;
   }
 
-  if(iaPower&&!isHyperFlowTrade&&!processedStakeContractsRef.current.has(id)){
+  if(iaPower&&!isHyperFlowTrade&&!isHyperFlowsTrade&&!processedStakeContractsRef.current.has(id)){
    processedStakeContractsRef.current.add(id);
    lastProcessedStakeResult.current=id;
    gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);
@@ -878,7 +879,7 @@ export default function AutoBotV4(){
    if(result>0&&soundEnabled)sound('win');
   }
 
-  if(sonic&&!isHyperFlowTrade&&!processedSonicContractsRef.current.has(id)){
+  if(sonic&&!isHyperFlowTrade&&!isHyperFlowsTrade&&!processedSonicContractsRef.current.has(id)){
    processedSonicContractsRef.current.add(id);
    lastProcessedSonicResult.current=id;
    sonicRef.current.atualizarPayout(lastPayoutRatioRef.current);
@@ -1327,7 +1328,7 @@ export default function AutoBotV4(){
   // Sonic é a fonte de verdade da stake quando está ativo.
   // O Soros interno do Sonic controla a repetição da mesma stake vencedora.
   // HyperFlow uses the configured normal stake and bypasses IA Power/Sonic recovery sizing.
-  const rawAmount=strategy==='MATCH0'?stake:(iaPower?gestorRef.current.proximoStake():(sonic?sonicRef.current.getStake():stake));
+  const rawAmount=(strategy==='MATCH0'||strategy==='HYPERFLOWS')?stake:(iaPower?gestorRef.current.proximoStake():(sonic?sonicRef.current.getStake():stake));
   const availableBalance=Number(balance?.balance);
   const maxStakeByBalance=Math.floor(availableBalance*100)/100;
   if(!Number.isFinite(availableBalance)||availableBalance<=0||maxStakeByBalance<0.35){
