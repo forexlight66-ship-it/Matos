@@ -764,18 +764,22 @@ export default function AutoBotV4(){
    if(isHyperFlowsTrade&&(hyperFlowWon||hyperFlowLost)){
     const savedMode=hyperFlowsLastTradeModeRef.current;
     const hasReliableHyperFlowsContract=(closedType==='DIGITUNDER'||closedType==='DIGITMATCH')&&Number.isFinite(closeBarrier);
-    // The Deriv contract type/barrier is authoritative; only fall back to the saved mode if metadata is missing.
-    const wasUnder9=hasReliableHyperFlowsContract?(closedType==='DIGITUNDER'&&closeBarrier===9):savedMode==='UNDER9';
-    const wasMainMatch9=hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier===9):savedMode==='MATCH9';
-    const wasAlternate=hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier>=0&&closeBarrier<=8):savedMode==='ALTERNATE';
+    const closedBotLabelLower=String(closed?.bot||'').trim().toLowerCase();
+    const explicitlyLabeledB9=/\b(?:hyperflow\s*b9|under\s*9|under9)\b/i.test(closedBotLabelLower);
+    // Deriv contract metadata and the explicit B9/UNDER 9 label take priority over stale mode refs.
+    const wasUnder9=explicitlyLabeledB9||(hasReliableHyperFlowsContract?(closedType==='DIGITUNDER'&&closeBarrier===9):savedMode==='UNDER9');
+    const wasMainMatch9=!wasUnder9&&(hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier===9):savedMode==='MATCH9');
+    const wasAlternate=!wasUnder9&&!wasMainMatch9&&(hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier>=0&&closeBarrier<=8):savedMode==='ALTERNATE');
     hyperFlowsLastTradeModeRef.current=null;
     if(wasUnder9){
      if(hyperFlowLost){
-      // HyperFlow B9 losses are excluded from the accumulated deficit and never trigger another recovery.
+      // A B9/UNDER 9 loss is never added to deficit and must terminate recovery immediately.
+      // Clear the stale deficit as well so it cannot size a later stake from this recovery cycle.
+      hyperFlowsDeficitRef.current=0;
       hyperFlowsConsecutiveLossesRef.current=0;
       hyperFlowsRecoveryModeRef.current=false;
       hyperFlowsNextDigitRef.current=null;
-      setNotice('HyperFlows B9 perdeu. A perda não foi adicionada ao défice; sem nova recuperação e próxima operação com stake normal.');
+      setNotice('HyperFlow B9 / UNDER 9 perdeu. Recuperação encerrada; défice de recuperação limpo e próxima operação com stake normal.');
      }else{
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey('DIGITUNDER',9)]=Math.max(0.001,result/paidIn);
