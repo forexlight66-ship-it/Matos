@@ -768,7 +768,7 @@ export default function AutoBotV4(){
     const savedMode=hyperFlowsLastTradeModeRef.current;
     const hasReliableHyperFlowsContract=closedType==='DIGITEVEN'||((closedType==='DIGITUNDER'||closedType==='DIGITMATCH')&&Number.isFinite(closeBarrier));
     const closedBotLabelLower=String(closed?.bot||'').trim().toLowerCase();
-    const explicitlyLabeledB9=/\\b(?:hyperflow\\s*b9|under\\s*9|under9)\\b/i.test(closedBotLabelLower);
+    const explicitlyLabeledB9=/\b(?:hyperflow\s*b9|under\s*9|under9)\b/i.test(closedBotLabelLower);
     // Deriv metadata takes priority; EVEN has no barrier, so its contract type is sufficient.
     const wasEvenRecovery=closedType==='DIGITEVEN'||(!closedType&&savedMode==='EVEN');
     const wasUnder9=!wasEvenRecovery&&(explicitlyLabeledB9||(hasReliableHyperFlowsContract?(closedType==='DIGITUNDER'&&closeBarrier===9):savedMode==='UNDER9'));
@@ -795,7 +795,7 @@ export default function AutoBotV4(){
        ?'HyperFlows: recuperação em NÚMEROS PARES ganhou, mas ainda resta défice de '+hyperFlowsDeficitRef.current.toFixed(2)+'. A retomar MATCH 9; a próxima recuperação após 5 novas perdas calculará o défice restante.'
        :'HyperFlows: recuperação em NÚMEROS PARES cobriu todo o défice. A estratégia normal MATCH 9 continua.');
      }
-    }    if(wasUnder9){
+    }else if(wasUnder9){
      if(hyperFlowLost){
       // A B9/UNDER 9 loss is never added to deficit and must terminate recovery immediately.
       // Clear the stale deficit as well so it cannot size a later stake from this recovery cycle.
