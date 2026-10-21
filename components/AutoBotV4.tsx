@@ -1612,7 +1612,8 @@ export default function AutoBotV4(){
      const latest10=hyperFlowObservationTicksRef.current.slice(-10).map(value=>digit(value,tickPipSize)).filter((value):value is number=>value!==null);
      if(latest10.length===10&&!hyperFlowsAnalysisActiveRef.current&&latest10.filter(value=>value===0).length>=1)hyperFlowsAnalysisActiveRef.current=true;
      if(hyperFlowsRecoveryModeRef.current){
-      validationSignal={contract:'EVEN' as Contract,label:'NÚMEROS PARES — RECUPERAÇÃO',strength:100,barrier:0,contractType:'DIGITEVEN',hyperFlowsRecovery:true};
+      const recoveryType=hyperFlowsRecoveryContractRef.current;
+      validationSignal={contract:recoveryType as Contract,label:(recoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+' — RECUPERAÇÃO',strength:100,barrier:0,contractType:recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD',hyperFlowsRecovery:true};
      }else if(hyperFlowsNextDigitRef.current!==null){
       validationSignal={contract:'MATCH9' as Contract,label:'MATCH '+hyperFlowsNextDigitRef.current+' — ALTERNATIVO',strength:90,barrier:hyperFlowsNextDigitRef.current,contractType:'DIGITMATCH',hyperFlowsAlternate:true};
      }else if(hyperFlowsAnalysisActiveRef.current&&latest10.length===10&&latest10.slice(-9).filter(value=>value===0).length/9*100>=22){
