@@ -650,9 +650,10 @@ export default function AutoBotV4(){
  const hyperFlowsAnalysisActiveRef=useRef(false);
  const hyperFlowsNextDigitRef=useRef<number|null>(null);
  const hyperFlowsRecoveryModeRef=useRef(false);
+ const hyperFlowsRecoveryContractRef=useRef<'EVEN'|'ODD'>('EVEN');
  const hyperFlowsConsecutiveLossesRef=useRef(0);
  const hyperFlowsDeficitRef=useRef(0);
- const hyperFlowsLastTradeModeRef=useRef<'MATCH9'|'ALTERNATE'|'UNDER9'|'EVEN'|null>(null);
+ const hyperFlowsLastTradeModeRef=useRef<'MATCH9'|'ALTERNATE'|'UNDER9'|'EVEN'|'ODD'|null>(null);
  const hyperFlowsLastEntryTickRef=useRef<{symbol:string;epoch:number}|null>(null);
  const [hyperFlowFallbackRevision,setHyperFlowFallbackRevision]=useState(0);
  const processClosedTradeImmediately=useCallback((closed:any)=>{
@@ -679,6 +680,8 @@ export default function AutoBotV4(){
      ?(!closedContractType||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||(closedBarrier>=0&&closedBarrier<=8))
      :trackedHyperFlowsMode==='EVEN'
       ?(!closedContractType||closedContractType==='DIGITEVEN')
+   :trackedHyperFlowsMode==='ODD'
+      ?(!closedContractType||closedContractType==='DIGITODD')
       :false;
   const looksLikeTrackedHyperFlowsClose=strategy==='HYPERFLOWS'&&trackedHyperFlowsMode!==null&&trackedHyperFlowsContractMatches&&(knownHyperFlowLabel||knownHyperFlowsLabel||unknownClosedBot);
   const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperFlowLabel||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
@@ -786,29 +789,36 @@ export default function AutoBotV4(){
     const explicitlyLabeledB9=/\b(?:hyperflow\s*b9|under\s*9|under9)\b/i.test(closedBotLabelLower);
     // Deriv metadata takes priority; EVEN has no barrier, so its contract type is sufficient.
     const wasEvenRecovery=closedType==='DIGITEVEN'||(!closedType&&savedMode==='EVEN');
-    const wasUnder9=!wasEvenRecovery&&(explicitlyLabeledB9||(hasReliableHyperFlowsContract?(closedType==='DIGITUNDER'&&closeBarrier===9):savedMode==='UNDER9'));
-    const wasMainMatch9=!wasEvenRecovery&&!wasUnder9&&(hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier===9):savedMode==='MATCH9');
-    const wasAlternate=!wasEvenRecovery&&!wasUnder9&&!wasMainMatch9&&(hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier>=0&&closeBarrier<=8):savedMode==='ALTERNATE');
+    const wasOddRecovery=closedType==='DIGITODD'||(!closedType&&savedMode==='ODD');
+    const wasParityRecovery=wasEvenRecovery||wasOddRecovery;
+    const wasUnder9=!wasParityRecovery&&(explicitlyLabeledB9||(hasReliableHyperFlowsContract?(closedType==='DIGITUNDER'&&closeBarrier===9):savedMode==='UNDER9'));
+    const wasMainMatch9=!wasParityRecovery&&!wasUnder9&&(hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier===9):savedMode==='MATCH9');
+    const wasAlternate=!wasParityRecovery&&!wasUnder9&&!wasMainMatch9&&(hasReliableHyperFlowsContract?(closedType==='DIGITMATCH'&&closeBarrier>=0&&closeBarrier<=8):savedMode==='ALTERNATE');
     hyperFlowsLastTradeModeRef.current=null;
-    if(wasEvenRecovery){
+    if(wasParityRecovery){
+     const recoveryType=wasEvenRecovery?'EVEN':'ODD';
+     const recoveryLabel=recoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES';
+     const nextRecoveryType=recoveryType==='EVEN'?'ODD':'EVEN';
+     const nextRecoveryLabel=nextRecoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES';
      if(hyperFlowLost){
       hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
+      hyperFlowsRecoveryContractRef.current=nextRecoveryType;
       hyperFlowsConsecutiveLossesRef.current=0;
       hyperFlowsRecoveryModeRef.current=false;
       hyperFlowsNextDigitRef.current=null;
       hyperFlowsAnalysisActiveRef.current=true;
-      setNotice('HyperFlows: recuperação em NÚMEROS PARES perdeu. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'. A retomar MATCH 9; após 5 novas perdas, a próxima recuperação tentará cobrir todo o défice acumulado.');
+      setNotice('HyperFlows: recuperação em '+recoveryLabel+' perdeu. A próxima recuperação será em '+nextRecoveryLabel+'. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'. A retomar MATCH 9; após 5 novas perdas, tentará recuperar o défice acumulado.');
      }else{
       const paidIn=Number(closed?.buy_price);
-      if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey('DIGITEVEN')]=Math.max(0.001,result/paidIn);
+      if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
       hyperFlowsDeficitRef.current=Number(Math.max(0,hyperFlowsDeficitRef.current-Math.max(0,result)).toFixed(2));
       hyperFlowsConsecutiveLossesRef.current=0;
       hyperFlowsRecoveryModeRef.current=false;
       hyperFlowsNextDigitRef.current=null;
       hyperFlowsAnalysisActiveRef.current=true;
       setNotice(hyperFlowsDeficitRef.current>0.01
-       ?'HyperFlows: recuperação em NÚMEROS PARES ganhou, mas ainda resta défice de '+hyperFlowsDeficitRef.current.toFixed(2)+'. A retomar MATCH 9; a próxima recuperação após 5 novas perdas calculará o défice restante.'
-       :'HyperFlows: recuperação em NÚMEROS PARES cobriu todo o défice. A estratégia normal MATCH 9 continua.');
+       ?'HyperFlows: recuperação em '+recoveryLabel+' ganhou, mas ainda resta défice de '+hyperFlowsDeficitRef.current.toFixed(2)+'. A retomar MATCH 9; a próxima recuperação após 5 novas perdas calculará o défice restante.'
+       :'HyperFlows: recuperação em '+recoveryLabel+' cobriu todo o défice. A estratégia normal MATCH 9 continua.');
      }
     }else if(wasUnder9){
      if(hyperFlowLost){
@@ -843,7 +853,7 @@ export default function AutoBotV4(){
      if(hyperFlowsConsecutiveLossesRef.current>=5){
       hyperFlowsRecoveryModeRef.current=true;
       hyperFlowsNextDigitRef.current=null;
-      setNotice('HyperFlows: 5 perdas consecutivas. A ativar recuperação em NÚMEROS PARES para cobrir o défice acumulado de '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
+      setNotice('HyperFlows: 5 perdas consecutivas. A ativar recuperação em '+(hyperFlowsRecoveryContractRef.current==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+' para cobrir o défice acumulado de '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
      }else if(wasMainMatch9){
       const alternative=rankHyperFlowsAlternativeDigit(hyperFlowObservationTicksRef.current.slice(-10),tradePipSize);
       hyperFlowsNextDigitRef.current=alternative??0;
@@ -1295,7 +1305,8 @@ export default function AutoBotV4(){
     setNotice('HyperFlows: dígito 0 atingiu 10% nos últimos 10 ticks. Análise de força dos dígitos 0–8 ativada.');
    }
    if(hyperFlowsRecoveryModeRef.current){
-    freshSignal={contract:'EVEN' as Contract,label:'NÚMEROS PARES — RECUPERAÇÃO',strength:100,score:100,barrier:0,contractType:'DIGITEVEN',hyperFlowsRecovery:true};
+    const recoveryType=hyperFlowsRecoveryContractRef.current;
+    freshSignal={contract:recoveryType as Contract,label:(recoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+' — RECUPERAÇÃO',strength:100,score:100,barrier:0,contractType:recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD',hyperFlowsRecovery:true};
    }else if(hyperFlowsNextDigitRef.current!==null){
     freshSignal={contract:'MATCH9' as Contract,label:'MATCH '+hyperFlowsNextDigitRef.current+' — ALTERNATIVO',strength:90,score:90,barrier:hyperFlowsNextDigitRef.current,contractType:'DIGITMATCH',hyperFlowsAlternate:true};
    }else if(hyperFlowsAnalysisActiveRef.current&&latest10.length===10){
@@ -1426,20 +1437,21 @@ export default function AutoBotV4(){
 
   if(strategyName==='HYPERFLOWS'&&hyperFlowsRecoveryModeRef.current){
    const deficit=Math.max(0,Number(hyperFlowsDeficitRef.current)||0);
-   const observedRatio=payoutRatiosByContractRef.current[payoutContractKey('DIGITEVEN')];
-   // EVEN wins on even final digits. Size the single recovery attempt to target the entire accumulated deficit.
-   const recoveryRatio=Number.isFinite(observedRatio)&&observedRatio>0?observedRatio:(estimateNetPayoutRatio('DIGITEVEN')??0.9);
+   const recoveryContractType=hyperFlowsRecoveryContractRef.current==='EVEN'?'DIGITEVEN':'DIGITODD';
+   const observedRatio=payoutRatiosByContractRef.current[payoutContractKey(recoveryContractType)];
+   // Size the selected Even/Odd recovery contract to target the accumulated deficit.
+   const recoveryRatio=Number.isFinite(observedRatio)&&observedRatio>0?observedRatio:(estimateNetPayoutRatio(recoveryContractType)??0.9);
    const recoveryStake=Math.max(0.35,Math.ceil((deficit/recoveryRatio)*100-1e-9)/100);
    if(!Number.isFinite(availableBalance)||recoveryStake>maxStakeByBalance+0.005){
     recoveryBalancePauseRef.current=recoveryStake;
     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
     setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
-    setNotice('HyperFlows: recuperação em NÚMEROS PARES pausada. Stake estimada '+recoveryStake.toFixed(2)+' para tentar cobrir o défice de '+deficit.toFixed(2)+', mas o saldo disponível é '+Math.max(0,availableBalance).toFixed(2)+'. Nenhuma compra foi enviada.');
-    console.warn('[HyperFlows EVEN recovery blocked: insufficient total balance]',{symbol,deficit,recoveryRatio,recoveryStake,availableBalance});
+    setNotice('HyperFlows: recuperação em '+(hyperFlowsRecoveryContractRef.current==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+' pausada. Stake estimada '+recoveryStake.toFixed(2)+' para tentar cobrir o défice de '+deficit.toFixed(2)+', mas o saldo disponível é '+Math.max(0,availableBalance).toFixed(2)+'. Nenhuma compra foi enviada.');
+    console.warn('[HyperFlows parity recovery blocked: insufficient total balance]',{symbol,recoveryContractType,deficit,recoveryRatio,recoveryStake,availableBalance});
     return;
    }
    amount=recoveryStake;
-   console.info('[HyperFlows EVEN recovery stake]',{symbol,deficit,recoveryRatio,recoveryStake,availableBalance,durationTicks:1});
+   console.info('[HyperFlows parity recovery stake]',{symbol,recoveryContractType,deficit,recoveryRatio,recoveryStake,availableBalance,durationTicks:1});
   }
 
   iaRecoveryQuotePendingRef.current=false;
@@ -1461,7 +1473,7 @@ export default function AutoBotV4(){
   }else requestedHypercoverContractRef.current=null;
   const isHyperFlowRecoveryTrade=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current;
   const isHyperFlowsRecoveryTrade=strategyName==='HYPERFLOWS'&&hyperFlowsRecoveryModeRef.current&&Boolean(freshSignal?.hyperFlowsRecovery);
-  const hyperFlowsTradeMode:'MATCH9'|'ALTERNATE'|'UNDER9'|'EVEN'|null=strategyName!=='HYPERFLOWS'?null:(isHyperFlowsRecoveryTrade?'EVEN':freshSignal?.hyperFlowsAlternate?'ALTERNATE':'MATCH9');
+  const hyperFlowsTradeMode:'MATCH9'|'ALTERNATE'|'UNDER9'|'EVEN'|'ODD'|null=strategyName!=='HYPERFLOWS'?null:(isHyperFlowsRecoveryTrade?hyperFlowsRecoveryContractRef.current:freshSignal?.hyperFlowsAlternate?'ALTERNATE':'MATCH9');
   if(strategyName==='MATCH0'&&!isHyperFlowRecoveryTrade)hyperFlowNormalSignalDisarmedRef.current=true;
   if(isHyperFlowRecoveryTrade&&hyperFlowRecoveryBuyPendingRef.current){
    // The hook's synchronous buy lock and active-contract refs are authoritative.
@@ -1484,12 +1496,12 @@ export default function AutoBotV4(){
   let sent=false;
   try{
    const contractDuration=1;
-   const directContractType=isHyperFlowsRecoveryTrade?'DIGITEVEN':isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr;
+   const directContractType=isHyperFlowsRecoveryTrade?(hyperFlowsRecoveryContractRef.current==='EVEN'?'DIGITEVEN':'DIGITODD'):isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr;
    // EVEN has no barrier. Never attach a synthetic barrier 0 to its order/history metadata.
    const directBarrier=isHyperFlowsRecoveryTrade?undefined:isHyperFlowRecoveryTrade?0:barrier;
    if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=true;
    if(hyperFlowsTradeMode)hyperFlowsLastTradeModeRef.current=hyperFlowsTradeMode;
-   if(isHyperFlowsRecoveryTrade)console.info('[HyperFlows EVEN recovery buy request]',{symbol,contract_type:directContractType,barrier:null,amount,duration:contractDuration,expectedWinningDigits:[0,2,4,6,8]});
+   if(isHyperFlowsRecoveryTrade)console.info('[HyperFlows parity recovery buy request]',{symbol,contract_type:directContractType,barrier:null,amount,duration:contractDuration,expectedWinningDigits:hyperFlowsRecoveryContractRef.current==='EVEN'?[0,2,4,6,8]:[1,3,5,7,9]});
    sent=buyDirect({symbol,contractType:directContractType,amount,duration:contractDuration,...(directBarrier!==undefined?{barrier:directBarrier}:{}),currency:String(balance?.currency||'USD')},amount,botName,directBarrier);
   }catch(buyError){
    if(hyperFlowsTradeMode&&hyperFlowsLastTradeModeRef.current===hyperFlowsTradeMode)hyperFlowsLastTradeModeRef.current=null;
