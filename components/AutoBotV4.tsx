@@ -735,7 +735,7 @@ export default function AutoBotV4(){
    payoutRatiosByContractRef.current[payoutContractKey(closedType,closedBarrier)]=payoutRatio;
   }
 
-  if(iaPower&&!processedStakeContractsRef.current.has(id)){
+  if(iaPower&&!isHyperFlowTrade&&!processedStakeContractsRef.current.has(id)){
    processedStakeContractsRef.current.add(id);
    lastProcessedStakeResult.current=id;
    gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);
@@ -764,7 +764,7 @@ export default function AutoBotV4(){
    if(result>0&&soundEnabled)sound('win');
   }
 
-  if(sonic&&!processedSonicContractsRef.current.has(id)){
+  if(sonic&&!isHyperFlowTrade&&!processedSonicContractsRef.current.has(id)){
    processedSonicContractsRef.current.add(id);
    lastProcessedSonicResult.current=id;
    sonicRef.current.atualizarPayout(lastPayoutRatioRef.current);
@@ -1647,7 +1647,7 @@ useEffect(()=>{
  setAnalyzerHistory(analyzerDecisionHistoryRef.current);
 },[running,smartAnalyzer,exitSpotsAutoEnabled,exitSpotsMode,analysisExitValues,tickPipSize,strategy,activeContractId,trackedContractId,proposal,buying]);
 
-  useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(strategy!=='MATCH0'&&pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,smartAnalyzer,t]);
+  useEffect(()=>{if(!running||stopped.current)return;const accountCurrency=normalizeCurrency(balance?.currency,currency);const targetInAccountCurrency=Number(target)*CURRENCY_RATES[accountCurrency];const lossLimitInAccountCurrency=Number(lossLimit)*CURRENCY_RATES[accountCurrency];if(pnl>=targetInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🎯 ${t('goalReached')}: ${money(pnl,accountCurrency)}`);sound('target')}else if(strategy!=='MATCH0'&&pnl<=-lossLimitInAccountCurrency){stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setNotice(`🛑 ${t('lossGoal')}: ${money(pnl,accountCurrency)}`);sound('loss')}},[pnl,target,lossLimit,currency,balance?.currency,running,smartAnalyzer,strategy,t]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
