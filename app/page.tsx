@@ -7,6 +7,16 @@ import LoadingScreen from '@/components/LoadingScreen';
 
 export default function Home() {
   const [status, setStatus] = useState<{ authenticated: boolean; platformAuthenticated: boolean; user: { name?: string } | null } | null>(null);
+  const [authError, setAuthError] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get('auth_error');
+    if (reason) {
+      setAuthError(reason.slice(0, 220));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
@@ -32,6 +42,7 @@ export default function Home() {
     <LoginPage
       initialPlatformReady={status.platformAuthenticated}
       initialUserName={status.user?.name || ''}
+      initialAuthError={authError}
     />
   );
 }
