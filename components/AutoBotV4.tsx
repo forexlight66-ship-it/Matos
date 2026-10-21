@@ -756,11 +756,11 @@ export default function AutoBotV4(){
     hyperFlowsLastTradeModeRef.current=null;
     if(wasUnder9){
      if(hyperFlowLost){
-      hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
-      hyperFlowsConsecutiveLossesRef.current+=1;
-      hyperFlowsRecoveryModeRef.current=true;
+      // HyperFlow B9 losses are excluded from the accumulated deficit and never trigger another recovery.
+      hyperFlowsConsecutiveLossesRef.current=0;
+      hyperFlowsRecoveryModeRef.current=false;
       hyperFlowsNextDigitRef.current=null;
-      setNotice('HyperFlows: UNDER 9 perdeu. O défice aumentou para '+hyperFlowsDeficitRef.current.toFixed(2)+'; a recuperação continua em UNDER 9 por 10 ticks.');
+      setNotice('HyperFlows B9 perdeu. A perda não foi adicionada ao défice; sem nova recuperação e próxima operação com stake normal.');
      }else{
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey('DIGITUNDER',9)]=Math.max(0.001,result/paidIn);
