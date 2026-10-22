@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import Dashboard from '@/components/Dashboard';
 import LoginPage from '@/components/LoginPage';
 import LoadingScreen from '@/components/LoadingScreen';
+import LandingPage from '@/components/LandingPage';
 
 export default function Home() {
   const [status, setStatus] = useState<{ authenticated: boolean; platformAuthenticated: boolean; user: { name?: string } | null } | null>(null);
   const [authError, setAuthError] = useState('');
+  const [authMode, setAuthMode] = useState<'register' | 'login' | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
