@@ -810,7 +810,7 @@ export default function AutoBotV4(){
       hyperFlowsRecoveryModeRef.current=false;
       hyperFlowsNextDigitRef.current=null;
       hyperFlowsAnalysisActiveRef.current=true;
-      if(recoveryAttempt>=3){
+      if(recoveryAttempt>=1){
        const discardedDeficit=hyperFlowsDeficitRef.current;
        hyperFlowsDeficitRef.current=0;
        hyperFlowsRecoveryAttemptsRef.current=0;
@@ -830,7 +830,7 @@ export default function AutoBotV4(){
        hyperFlowsDeficitRef.current=0;
        hyperFlowsRecoveryAttemptsRef.current=0;
        setNotice('HyperFlows: recuperação '+recoveryAttempt+'/3 em '+recoveryLabel+' cobriu todo o défice. Novo ciclo normal MATCH 9 iniciado.');
-      }else if(recoveryAttempt>=3){
+      }else if(recoveryAttempt>=1){
        const discardedDeficit=hyperFlowsDeficitRef.current;
        hyperFlowsDeficitRef.current=0;
        hyperFlowsRecoveryAttemptsRef.current=0;
