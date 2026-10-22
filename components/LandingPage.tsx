@@ -34,20 +34,20 @@ export default function LandingPage({ onChoose }: Props) {
           <p className="mh-lead">O MozHyper reúne robôs de negociação, análise de dígitos e ferramentas para acompanhar as operações num único painel, com ligação à sua conta Deriv.</p>
 
           <div className="mh-dashboard-preview" aria-label="Pré-visualização ilustrativa do painel MozHyper">
-            <div className="mh-dashboard-title">MozHyper — Painel de análise</div>
+            <div className="mh-dashboard-title">Demonstração do painel MozHyper</div>
             <div className="mh-dashboard-ui">
               <aside className="mh-dashboard-sidebar">
                 <div className="mh-dashboard-mini-brand"><img src="/icon.svg?v=2" alt="" /> <b>MozHyper</b></div>
                 <span className="active">▦ &nbsp; Dashboard</span><span>▤ &nbsp; Ferramentas</span><span>↗ &nbsp; Operações</span><span>◷ &nbsp; Análise</span><span>⚙ &nbsp; Definições</span>
               </aside>
               <div className="mh-dashboard-main">
-                <div className="mh-dashboard-top"><b>Dashboard</b><span>Conta Deriv <i>Ligada</i></span></div>
+                <div className="mh-dashboard-top"><b>Saldo e operações</b><span>Conta <i>Real</i></span></div>
                 <div className="mh-dashboard-widgets">
-                  <div className="mh-dash-widget mh-chart-widget"><b>Gráfico de atividade</b><div className="mh-fake-chart"><svg viewBox="0 0 240 85" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,70 20,58 36,64 52,37 69,50 86,29 102,42 120,20 139,33 155,12 173,28 190,8 208,20 224,4 240,10" fill="none" stroke="#ff4450" strokeWidth="3" /></svg></div><small>Atividade recente</small></div>
+                  <div className="mh-dash-widget mh-chart-widget"><b>Dígitos — últimos ticks</b><div className="mh-fake-chart"><svg viewBox="0 0 240 85" preserveAspectRatio="none" aria-hidden="true"><rect x="8" y="51" width="22" height="28" rx="3" fill="#cbd4df"/><rect x="43" y="67" width="22" height="12" rx="3" fill="#ff444f"/><rect x="78" y="61" width="22" height="18" rx="3" fill="#ff444f"/><rect x="113" y="18" width="22" height="61" rx="3" fill="#13b887"/><rect x="148" y="70" width="22" height="9" rx="3" fill="#cbd4df"/><rect x="183" y="57" width="22" height="22" rx="3" fill="#ff444f"/><rect x="218" y="65" width="14" height="14" rx="3" fill="#cbd4df"/></svg></div><small>Distribuição ilustrativa</small></div>
                   <div className="mh-dash-widget"><b>Robôs ativos</b><div className="mh-bot-row">HyperDrive <i>Disponível</i></div><div className="mh-bot-row">HyperFlow <i>Disponível</i></div><small>Estratégias da plataforma</small></div>
                   <div className="mh-dash-widget mh-deriv-widget"><b>Conta de negociação</b><div className="mh-deriv-word">DERIV</div><span>Ligação à conta</span><i>Ver estado</i></div>
                 </div>
-                <div className="mh-dashboard-bottom"><b>Resumo das operações</b><div><span>Saldo <strong>—</strong></span><span>Lucro / perda <strong>—</strong></span><span>Histórico <strong>Disponível no painel</strong></span></div></div>
+                <div className="mh-dashboard-bottom"><b>Histórico recente</b><div><span className="mh-demo-loss">PERDA <strong>−0.35 $</strong></span><span className="mh-demo-win">GANHO <strong>+2.11 $</strong></span><span className="mh-demo-loss">PERDA <strong>−0.35 $</strong></span></div></div>
               </div>
             </div>
           </div>
@@ -58,7 +58,10 @@ export default function LandingPage({ onChoose }: Props) {
             <button className="mh-service-card" onClick={() => onChoose('login')}>
               <span className="mh-service-copy">
                 <strong>Depósitos e Levantamentos Fáceis (e-Mola / M-Pesa)</strong>
-                <span className="mh-payment-icons"><i aria-label="e-Mola">M</i><i aria-label="M-Pesa">P</i></span>
+                <span className="mh-payment-icons">
+                  <i className="mh-mpesa-logo" aria-label="M-Pesa"><svg viewBox="0 0 120 110" role="img" aria-hidden="true"><rect x="35" y="8" width="48" height="75" rx="9" fill="none" stroke="white" strokeWidth="7"/><path d="M43 68h32M49 90h8m7 0h8" stroke="white" strokeWidth="6" strokeLinecap="round"/><path d="M18 47c22 3 40-5 58-27l22 13C80 61 50 64 18 47Z" fill="#62a844"/><circle cx="94" cy="20" r="13" fill="white"/><path d="m87 20 5 5 9-12" fill="none" stroke="#ed1c2e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/></svg><b>m-pesa</b></i>
+                  <i className="mh-emola-logo" aria-label="e-Mola"><svg viewBox="0 0 120 110" role="img" aria-hidden="true"><rect x="30" y="25" width="47" height="62" rx="9" fill="none" stroke="white" strokeWidth="7"/><path d="M38 72h30M48 17c9-13 23-9 24 2" fill="none" stroke="white" strokeWidth="6" strokeLinecap="round"/><path d="m70 32 26 25-16 17-26-26Z" fill="white"/><path d="m61 45 22 22" stroke="#f47b20" strokeWidth="5"/></svg><b>e-Mola</b></i>
+                </span>
               </span>
               <span className="mh-service-arrow" aria-hidden="true">↗</span>
             </button>
@@ -166,6 +169,30 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-nav-actions .mh-login:hover{border-color:#cbd3df;background:#f9fafc;color:#172033;transform:translateY(-1px)}
         .mh-nav-actions .mh-small{background:linear-gradient(145deg,#64748b,#374151);border-color:#64748b;box-shadow:0 8px 20px rgba(55,65,81,.18)}
         .mh-nav-actions .mh-small:hover{background:#374151;border-color:#374151}
+
+        .mh-landing{--mh-red:#ff3f4b;--mh-red-dark:#d92330;--mh-red-soft:#fff0f1}
+        .mh-nav-actions .mh-small{background:var(--mh-red);border-color:var(--mh-red);box-shadow:0 8px 20px rgba(255,63,75,.22)}
+        .mh-nav-actions .mh-small:hover{background:var(--mh-red-dark);border-color:var(--mh-red-dark)}
+        .mh-badge{background:linear-gradient(100deg,#b30e1b,#ed1c2e);border:1px solid #f5a0a7;color:#fff}
+        .mh-dashboard-preview{background:#f5f7fb;border-color:#dbe2ea}
+        .mh-dashboard-title{color:#e63240}
+        .mh-dashboard-ui{border-color:#dbe2ea}
+        .mh-dashboard-sidebar>span.active{background:#fff0f1;color:#ed1c2e}
+        .mh-dashboard-top i{color:#ed1c2e;background:#fff0f1}
+        .mh-bot-row{border-color:#f4d8db;background:#fff8f8}
+        .mh-bot-row i{color:#ed1c2e}
+        .mh-deriv-widget>i{color:#ed1c2e;border-color:#f3c5c9}
+        .mh-main-cta{background:linear-gradient(100deg,#ff444f,#d92330);border-color:#ed1c2e;box-shadow:0 9px 20px rgba(255,63,75,.25)}
+        .mh-main-cta:hover{background:#c91827;border-color:#c91827}
+        .mh-payment-icons{display:flex;gap:10px;margin-top:13px;width:100%}
+        .mh-payment-icons i{display:flex;flex:1;min-width:0;min-height:112px;align-items:center;justify-content:center;flex-direction:column;gap:7px;border-radius:15px;border:2px solid rgba(255,255,255,.65);box-shadow:0 4px 12px rgba(23,32,51,.08);font-style:normal;padding:9px}
+        .mh-payment-icons svg{display:block;width:min(100%,80px);height:66px}
+        .mh-payment-icons b{font-size:13px;line-height:1;color:#fff;text-transform:none}
+        .mh-mpesa-logo{background:#ed1c2e!important;color:#fff!important}
+        .mh-emola-logo{background:#f47b20!important;color:#fff!important}
+        .mh-dashboard-bottom .mh-demo-loss strong{color:#ff444f}
+        .mh-dashboard-bottom .mh-demo-win strong{color:#13a982}
+        @media(max-width:760px){.mh-payment-icons i{min-height:92px;border-radius:12px;padding:7px}.mh-payment-icons svg{height:52px}.mh-payment-icons b{font-size:11px}}
         .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding:42px clamp(20px,5vw,70px) 36px}
         .mh-hero-simple .mh-hero-copy{max-width:850px;width:100%}
         .mh-badge{display:inline-flex;background:linear-gradient(100deg,#9f111b,#d51f2b);color:#fff;border-radius:999px;padding:8px 15px;letter-spacing:.4px}
