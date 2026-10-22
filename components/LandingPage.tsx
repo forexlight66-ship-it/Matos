@@ -22,24 +22,37 @@ export default function LandingPage({ onChoose }: Props) {
           <span className="mh-brand-copy"><strong>Moz<span>Hyper</span></strong><small>NEGOCIA MAIS RÁPIDO</small></span>
         </a>
         <div className="mh-nav-actions">
-          <button className="mh-primary mh-login" onClick={() => onChoose('login')}>Iniciar sessão</button>
+          <button className="mh-login" onClick={() => onChoose('login')}>Iniciar sessão</button>
           <button className="mh-primary mh-small" onClick={() => onChoose('register')}>Criar conta <span aria-hidden="true">↗</span></button>
         </div>
       </header>
 
       <section className="mh-hero mh-hero-simple" id="inicio">
         <div className="mh-hero-copy">
-          <div className="mh-eyebrow"><i /> PLATAFORMA DE NEGOCIAÇÃO E ANÁLISE</div>
-          <h1>Conheça os seus sinais.<br /><span>Controle as suas operações.</span></h1>
-          <p className="mh-lead">O MozHyper reúne robôs de negociação, análise de dígitos e ferramentas para acompanhar as operações num único painel, com ligação à sua conta Deriv.</p>
-          <div className="mh-hero-actions">
-            <button className="mh-primary" onClick={() => onChoose('register')}>Criar conta MozHyper <span aria-hidden="true">↗</span></button>
-            <button className="mh-primary mh-secondary" onClick={() => onChoose('login')}>Faz depósito ou levantamento na Deriv por e-Mola ou M-Pesa <span aria-hidden="true">↗</span></button>
+          <div className="mh-eyebrow"><i /> AUTOMAÇÃO E ANÁLISE PARA TRADERS</div>
+          <h1>Automatize a análise.<br /><span>Acompanhe as suas operações.</span></h1>
+          <p className="mh-lead">Centralize robôs de negociação, análise de dígitos e ferramentas de acompanhamento num único painel integrado com a sua conta Deriv.</p>
+          <button className="mh-primary mh-main-cta" onClick={() => onChoose('register')}>Criar conta gratuita <span aria-hidden="true">↗</span></button>
+
+          <div className="mh-service-cards">
+            <button className="mh-service-card" onClick={() => onChoose('login')}>
+              <span className="mh-service-icon" aria-hidden="true">↔</span>
+              <span className="mh-service-copy">
+                <strong>Depósitos e levantamentos fáceis</strong>
+                <small>Faça depósito ou levantamento na Deriv por e-Mola ou M-Pesa.</small>
+              </span>
+              <span className="mh-service-arrow" aria-hidden="true">↗</span>
+            </button>
+            <a className="mh-service-card" href="https://t.me/" target="_blank" rel="noreferrer">
+              <span className="mh-service-icon" aria-hidden="true">↗</span>
+              <span className="mh-service-copy">
+                <strong>Sinais gratuitos de trading</strong>
+                <small>Recebe sinais de Boom1000/XAUUSD grátis e conteúdos de Forex.</small>
+              </span>
+              <span className="mh-service-arrow" aria-hidden="true">↗</span>
+            </a>
           </div>
-          <a className="mh-signals-link mh-primary" href="https://t.me/" target="_blank" rel="noreferrer">
-            <span className="mh-signals-icon" aria-hidden="true">↗</span>
-            <span><strong>Recebe sinais de Boom1000/XAUUSD grátis</strong><small>Sinais de forex gratuitos</small></span>
-          </a>
+          <p className="mh-risk-note">A negociação envolve risco de perda. Os sinais e robôs não garantem lucros.</p>
         </div>
       </section>
 
@@ -128,6 +141,24 @@ export default function LandingPage({ onChoose }: Props) {
         @media(max-width:760px){.mh-nav{height:72px;padding:0 14px;gap:8px}.mh-brand{gap:7px}.mh-brand>img{width:36px;height:36px;border-radius:10px}.mh-brand-copy strong{font-size:18px}.mh-brand-copy small{font-size:7px;letter-spacing:.3px}.mh-nav-links{display:none}.mh-nav-actions{gap:2px}.mh-login{font-size:10px;padding:10px 7px;white-space:nowrap}.mh-small{font-size:10px;padding:10px 9px;gap:5px}.mh-hero{grid-template-columns:1fr;padding:42px 19px 38px;gap:28px}.mh-hero h1{font-size:clamp(33px,9.1vw,45px);letter-spacing:-1.6px;margin:18px 0 15px}.mh-eyebrow{font-size:8px;letter-spacing:.75px}.mh-lead{font-size:12px;line-height:1.8}.mh-hero-actions{display:grid;grid-template-columns:1fr;gap:9px;margin-top:22px}.mh-primary,.mh-secondary{width:100%;min-height:45px}.mh-hero-note{margin-top:21px}.mh-preview-card{padding:13px;border-radius:15px}.mh-preview-stats{gap:7px}.mh-preview-stats>div{padding:10px}.mh-preview-stats strong{font-size:21px}.mh-preview-controls{gap:7px;grid-template-columns:.78fr 1.22fr}.mh-preview-controls>div{padding:10px}.mh-preview-controls strong{font-size:9px}.mh-digit-head strong{font-size:10px}.mh-digit-head span{font-size:7px}.mh-digits{gap:4px}.mh-digit>span{font-size:7px}.mh-digit-bar{width:15px}.mh-preview-action>span:first-child{font-size:8px}.mh-preview-button{padding:9px;font-size:8px}.mh-preview-caption{font-size:8px}.mh-intro-band{grid-template-columns:1fr;gap:16px;padding:44px 21px}.mh-intro-band h2,.mh-section-intro h2,.mh-steps-intro h2{font-size:28px}.mh-intro-band>p{font-size:11px}.mh-feature-section{padding:54px 19px 60px}.mh-section-intro{margin-bottom:25px}.mh-section-intro>p{font-size:11px}.mh-features{grid-template-columns:1fr;gap:10px}.mh-feature{padding:19px}.mh-feature-icon{margin-bottom:15px}.mh-feature h3{font-size:15px}.mh-feature p{font-size:10px}.mh-steps-section{grid-template-columns:1fr;gap:24px;padding:53px 20px}.mh-steps-intro>p{font-size:11px}.mh-steps article{padding:13px}.mh-risk-section{grid-template-columns:38px 1fr;gap:12px;padding:28px 19px}.mh-risk-icon{width:36px;height:36px}.mh-risk-copy h2{font-size:16px;line-height:1.35}.mh-risk-copy p{font-size:9px}.mh-outline{grid-column:1/-1;white-space:normal;width:100%}.mh-footer{flex-wrap:wrap;padding:19px;gap:13px}.mh-footer>span{order:3;width:100%;line-height:1.6}.mh-footer-actions{margin-left:auto;gap:7px}.mh-footer-actions button{font-size:8px;padding:5px 0}}
         @media(prefers-reduced-motion:reduce){.mh-landing *{scroll-behavior:auto!important;transition:none!important}}
 
+
+        .mh-login{border:0;background:transparent;color:#394457;padding:12px 14px;font-size:12px;font-weight:700;box-shadow:none}
+        .mh-login:hover{color:var(--mh-red);background:transparent;transform:none;box-shadow:none}
+        .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding-top:clamp(54px,9vh,100px);padding-bottom:58px}
+        .mh-hero-simple .mh-hero-copy{max-width:820px;width:100%}
+        .mh-hero-simple .mh-hero-actions{display:none}
+        .mh-main-cta{margin-top:26px;min-width:260px;min-height:52px}
+        .mh-service-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:25px;max-width:820px}
+        .mh-service-card{display:flex;align-items:center;gap:13px;min-width:0;text-align:left;padding:19px;border:1px solid #dbe2ea;border-radius:15px;background:#fff;color:#172033;text-decoration:none;box-shadow:0 8px 24px rgba(23,32,51,.045);font-family:inherit;cursor:pointer;transition:border-color .18s,transform .18s,box-shadow .18s}
+        .mh-service-card:hover{border-color:#ff9aa1;transform:translateY(-1px);box-shadow:0 12px 28px rgba(23,32,51,.08)}
+        .mh-service-icon{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:12px;background:#fff0f1;color:var(--mh-red);font-size:19px;font-weight:800}
+        .mh-service-copy{display:block;min-width:0;flex:1}
+        .mh-service-copy strong,.mh-service-copy small{display:block}
+        .mh-service-copy strong{font-size:13px;line-height:1.4;color:#202a3b}
+        .mh-service-copy small{margin-top:6px;font-size:10px;line-height:1.6;color:#788497}
+        .mh-service-arrow{color:var(--mh-red);font-size:17px;font-weight:800;flex:none}
+        .mh-risk-note{margin:20px 0 0;color:#8a94a4;font-size:10px;line-height:1.6}
+        @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:42px 19px 46px}.mh-hero-simple .mh-hero-copy{max-width:none}.mh-hero-simple .mh-hero-actions{display:none}.mh-main-cta{width:100%;margin-top:23px}.mh-service-cards{grid-template-columns:1fr;gap:11px;margin-top:18px}.mh-service-card{padding:15px}.mh-service-copy strong{font-size:12px}.mh-service-copy small{font-size:10px}.mh-risk-note{font-size:9px}}
         .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding-top:clamp(60px,10vh,115px);padding-bottom:70px}
         .mh-hero-simple .mh-hero-copy{max-width:850px;width:100%}
         .mh-hero-simple .mh-hero-actions{display:grid;grid-template-columns:1fr;max-width:620px}
