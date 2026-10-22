@@ -57,7 +57,7 @@ export default function LandingPage({ onChoose }: Props) {
           <div className="mh-service-cards">
             <button className="mh-service-card" onClick={() => onChoose('login')}>
               <span className="mh-service-copy">
-                <strong>Depósitos e Levantamentos Fáceis (e-Mola / M-Pesa)</strong>
+                <strong>Depósitos e levantamentos na Deriv por e-Mola ou M-Pesa</strong>
                 <span className="mh-payment-icons">
                   <i className="mh-mpesa-logo" aria-label="M-Pesa"><svg viewBox="0 0 120 110" role="img" aria-hidden="true"><rect x="35" y="8" width="48" height="75" rx="9" fill="none" stroke="white" strokeWidth="7"/><path d="M43 68h32M49 90h8m7 0h8" stroke="white" strokeWidth="6" strokeLinecap="round"/><path d="M18 47c22 3 40-5 58-27l22 13C80 61 50 64 18 47Z" fill="#62a844"/><circle cx="94" cy="20" r="13" fill="white"/><path d="m87 20 5 5 9-12" fill="none" stroke="#ed1c2e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/></svg><b>m-pesa</b></i>
                   <i className="mh-emola-logo" aria-label="e-Mola"><svg viewBox="0 0 120 110" role="img" aria-hidden="true"><rect x="30" y="25" width="47" height="62" rx="9" fill="none" stroke="white" strokeWidth="7"/><path d="M38 72h30M48 17c9-13 23-9 24 2" fill="none" stroke="white" strokeWidth="6" strokeLinecap="round"/><path d="m70 32 26 25-16 17-26-26Z" fill="white"/><path d="m61 45 22 22" stroke="#f47b20" strokeWidth="5"/></svg><b>e-Mola</b></i>
@@ -65,7 +65,7 @@ export default function LandingPage({ onChoose }: Props) {
               </span>
               <span className="mh-service-arrow" aria-hidden="true">↗</span>
             </button>
-            <a className="mh-service-card" href="https://t.me/" target="_blank" rel="noreferrer">
+            <a className="mh-service-card mh-signals-card" href="#" onClick={(event) => { event.preventDefault(); onChoose('register'); }}>
               <span className="mh-service-copy">
                 <strong>Sinais Gratuitos de Boom1000/XAUUSD &amp; Forex</strong>
                 <span className="mh-signal-action"><i aria-hidden="true">↗</i><b>Aceder Agora</b></span>
@@ -172,6 +172,13 @@ export default function LandingPage({ onChoose }: Props) {
 
 
         .mh-landing{--mh-red:#ff444f;--mh-red-dark:#e63240;--mh-red-soft:#fff0f1}
+        .mh-signals-card{border-color:#ff444f;background:#ff444f;color:#fff;box-shadow:0 7px 18px rgba(255,68,79,.18)}
+        .mh-signals-card .mh-service-copy strong{color:#fff}
+        .mh-signals-card .mh-signal-action i{background:rgba(255,255,255,.18);color:#fff}
+        .mh-signals-card .mh-signal-action b{border-color:rgba(255,255,255,.65);background:rgba(255,255,255,.08);color:#fff}
+        .mh-signals-card .mh-service-arrow{color:#fff}
+        .mh-signals-card:hover{border-color:#e63240;background:#e63240;color:#fff}
+
         .mh-badge{background:#ff444f!important;border-color:#ff444f!important;color:#fff!important;box-shadow:none!important}
         .mh-badge i{background:#fff!important}
         .mh-main-cta{background:#ff444f!important;border-color:#ff444f!important;color:#fff!important;box-shadow:0 8px 20px rgba(255,68,79,.2)!important}
