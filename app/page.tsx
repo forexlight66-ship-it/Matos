@@ -5,14 +5,18 @@ import Dashboard from '@/components/Dashboard';
 import LoginPage from '@/components/LoginPage';
 import LoadingScreen from '@/components/LoadingScreen';
 import LandingPage from '@/components/LandingPage';
+import LandingPage from '@/components/LandingPage';
 
 export default function Home() {
   const [status, setStatus] = useState<{ authenticated: boolean; platformAuthenticated: boolean; user: { name?: string } | null } | null>(null);
   const [authError, setAuthError] = useState('');
   const [authMode, setAuthMode] = useState<'register' | 'login' | null>(null);
+  const [authMode, setAuthMode] = useState<'register' | 'login' | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get('authview');
+    if (requestedMode === 'login' || requestedMode === 'register') setAuthMode(requestedMode);
     const reason = params.get('auth_error');
     if (reason) {
       setAuthError(reason.slice(0, 220));
@@ -40,7 +44,9 @@ export default function Home() {
 
   if (status === null) return <LoadingScreen />;
 
-  return status.authenticated ? <Dashboard /> : (
+  if (status.authenticated) return <Dashboard />;
+  if (authMode === null) return <LandingPage onChoose={(mode) => { setAuthMode(mode); window.history.replaceState({}, document.title, window.location.pathname + '?authview=' + mode); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />;
+  return (
     <LoginPage
       initialPlatformReady={status.platformAuthenticated}
       initialUserName={status.user?.name || ''}
