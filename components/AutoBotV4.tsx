@@ -1436,12 +1436,12 @@ export default function AutoBotV4(){
   }
 
   if(strategyName==='HYPERFLOWS'&&hyperFlowsRecoveryModeRef.current){
-   const deficit=Math.max(0,Number(hyperFlowsDeficitRef.current)||0);
+   const deficit=Number(Math.max(0,Number(hyperFlowsDeficitRef.current)||0).toFixed(2));
    const recoveryContractType=hyperFlowsRecoveryContractRef.current==='EVEN'?'DIGITEVEN':'DIGITODD';
-   const observedRatio=payoutRatiosByContractRef.current[payoutContractKey(recoveryContractType)];
-   // Size the selected Even/Odd recovery contract to target the accumulated deficit.
-   const recoveryRatio=Number.isFinite(observedRatio)&&observedRatio>0?observedRatio:(estimateNetPayoutRatio(recoveryContractType)??0.9);
-   const recoveryStake=Math.max(0.35,Math.ceil((deficit/recoveryRatio)*100-1e-9)/100);
+   // HyperFlows recovery stake is the accumulated cash deficit itself.
+   // Do not divide by a remembered payout ratio: a stale/mismatched ratio
+   // previously inflated a $60.87 deficit into a $131.16 stake.
+   const recoveryStake=Math.max(0.35,deficit);
    if(!Number.isFinite(availableBalance)||recoveryStake>maxStakeByBalance+0.005){
     recoveryBalancePauseRef.current=recoveryStake;
     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
@@ -1451,7 +1451,7 @@ export default function AutoBotV4(){
     return;
    }
    amount=recoveryStake;
-   console.info('[HyperFlows parity recovery stake]',{symbol,recoveryContractType,deficit,recoveryRatio,recoveryStake,availableBalance,durationTicks:1});
+   console.info('[HyperFlows parity recovery stake]',{symbol,recoveryContractType,deficit,recoveryStake,availableBalance,durationTicks:1,stakeRule:'stake equals accumulated deficit'});
   }
 
   iaRecoveryQuotePendingRef.current=false;
