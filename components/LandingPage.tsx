@@ -172,7 +172,14 @@ export default function LandingPage({ onChoose }: Props) {
 
 
         .mh-landing{--mh-red:#ff444f;--mh-red-dark:#e63240;--mh-red-soft:#fff0f1}
-        .mh-signals-card{border-color:#ff444f;background:#ff444f;color:#fff;box-shadow:0 7px 18px rgba(255,68,79,.18)}
+        .mh-signals-card{display:flex!important;visibility:visible!important;opacity:1!important;min-height:145px!important;align-items:center!important;justify-content:space-between!important;border:1px solid #ff444f!important;background:#ff444f!important;background-color:#ff444f!important;color:#fff!important;box-shadow:0 7px 18px rgba(255,68,79,.18)!important;padding:17px 15px!important}
+        .mh-signals-card *{visibility:visible!important;opacity:1!important}
+        .mh-signals-card .mh-service-copy{display:block!important;flex:1!important;min-width:0!important}
+        .mh-signals-card .mh-service-copy strong{display:block!important;color:#fff!important;font-size:14px!important;line-height:1.4!important}
+        .mh-signals-card .mh-signal-action{display:flex!important;align-items:center!important;gap:8px!important;margin-top:13px!important}
+        .mh-signals-card .mh-signal-action i{display:grid!important;place-items:center!important;background:rgba(255,255,255,.18)!important;color:#fff!important}
+        .mh-signals-card .mh-signal-action b{display:block!important;flex:1!important;text-align:center!important;border:1px solid rgba(255,255,255,.65)!important;background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:10px!important;padding:10px 7px!important;font-size:11px!important}
+
         .mh-signals-card .mh-service-copy strong{color:#fff}
         .mh-signals-card .mh-signal-action i{background:rgba(255,255,255,.18);color:#fff}
         .mh-signals-card .mh-signal-action b{border-color:rgba(255,255,255,.65);background:rgba(255,255,255,.08);color:#fff}
