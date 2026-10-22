@@ -13,7 +13,7 @@ const LANGUAGE_OPTIONS = [
 
 export default function LoginPage({ initialPlatformReady = false, initialUserName = '', initialAuthError = '' }: { initialPlatformReady?: boolean; initialUserName?: string; initialAuthError?: string }) {
   const { language, setLanguage } = useLanguage();
-  const [mode, setMode] = useState<'register' | 'login'>('register');
+  const [mode, setMode] = useState<'register' | 'login'>(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('authview') === 'login' ? 'login' : 'register');
   const [platformReady, setPlatformReady] = useState(initialPlatformReady);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
