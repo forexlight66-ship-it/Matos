@@ -10,7 +10,7 @@ export default function Home() {
   const [status, setStatus] = useState<{ authenticated: boolean; platformAuthenticated: boolean; user: { name?: string } | null } | null>(null);
   const [authError, setAuthError] = useState('');
   const [authMode, setAuthMode] = useState<'register' | 'login' | null>(null);
-  const [authMode, setAuthMode] = useState<'register' | 'login' | null>(null);
+
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
