@@ -22,7 +22,7 @@ export default function LandingPage({ onChoose }: Props) {
           <span className="mh-brand-copy"><strong>Moz<span>Hyper</span></strong><small>NEGOCIA MAIS RÁPIDO</small></span>
         </a>
         <div className="mh-nav-actions">
-          <button className="mh-login" onClick={() => onChoose('login')}>Iniciar sessão</button>
+          <button className="mh-primary mh-login" onClick={() => onChoose('login')}>Iniciar sessão</button>
           <button className="mh-primary mh-small" onClick={() => onChoose('register')}>Criar conta <span aria-hidden="true">↗</span></button>
         </div>
       </header>
@@ -34,9 +34,9 @@ export default function LandingPage({ onChoose }: Props) {
           <p className="mh-lead">O MozHyper reúne robôs de negociação, análise de dígitos e ferramentas para acompanhar as operações num único painel, com ligação à sua conta Deriv.</p>
           <div className="mh-hero-actions">
             <button className="mh-primary" onClick={() => onChoose('register')}>Criar conta MozHyper <span aria-hidden="true">↗</span></button>
-            <button className="mh-secondary" onClick={() => onChoose('login')}>Faz depósito ou levantamento na Deriv por e-Mola ou M-Pesa <span aria-hidden="true">↗</span></button>
+            <button className="mh-primary mh-secondary" onClick={() => onChoose('login')}>Faz depósito ou levantamento na Deriv por e-Mola ou M-Pesa <span aria-hidden="true">↗</span></button>
           </div>
-          <a className="mh-signals-link" href="https://t.me/" target="_blank" rel="noreferrer">
+          <a className="mh-signals-link mh-primary" href="https://t.me/" target="_blank" rel="noreferrer">
             <span className="mh-signals-icon" aria-hidden="true">↗</span>
             <span><strong>Recebe sinais de Boom1000/XAUUSD grátis</strong><small>Sinais de forex gratuitos</small></span>
           </a>
@@ -59,7 +59,7 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-nav-links a:hover{color:var(--mh-red)}
         .mh-nav-actions{display:flex;align-items:center;gap:8px}
         .mh-landing button{font-family:inherit;cursor:pointer}
-        .mh-login{border:0;background:transparent;color:#394457;padding:12px 10px;font-size:12px;font-weight:700}
+        .mh-login{padding:12px 16px;font-size:12px;font-weight:800;white-space:nowrap}
         .mh-login:hover{color:var(--mh-red)}
         .mh-primary{display:inline-flex;align-items:center;justify-content:center;gap:12px;border:1px solid var(--mh-red);border-radius:12px;padding:14px 19px;background:var(--mh-red);color:#fff;font-size:13px;font-weight:800;box-shadow:0 7px 18px rgba(255,68,79,.17);transition:background .18s,transform .18s,box-shadow .18s}
         .mh-primary:hover{background:var(--mh-red-dark);border-color:var(--mh-red-dark);transform:translateY(-1px);box-shadow:0 10px 22px rgba(255,68,79,.22)}
@@ -72,8 +72,8 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-hero h1 span,.mh-section-intro h2 span,.mh-steps-intro h2 span{color:var(--mh-red)}
         .mh-lead{max-width:540px;margin:0;color:#687588;font-size:15px;line-height:1.85}
         .mh-hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:13px;margin-top:28px}
-        .mh-secondary{border:1px solid #d5dce6;border-radius:12px;background:#fff;color:#394457;padding:13px 16px;font-size:12px;font-weight:700}
-        .mh-secondary:hover{border-color:#f2a2a8;color:var(--mh-red)}
+        .mh-secondary{border:1px solid var(--mh-red);border-radius:12px;background:var(--mh-red);color:#fff;padding:13px 16px;font-size:12px;font-weight:800;box-shadow:0 7px 18px rgba(255,68,79,.17)}
+        .mh-secondary:hover{background:var(--mh-red-dark);border-color:var(--mh-red-dark);color:#fff;transform:translateY(-1px)}
         .mh-hero-note{display:flex;align-items:center;gap:12px;margin-top:30px}
         .mh-note-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:var(--mh-red-soft);color:var(--mh-red);font-weight:800}
         .mh-hero-note strong,.mh-hero-note small{display:block}.mh-hero-note strong{font-size:11px;color:#384458}.mh-hero-note small{margin-top:5px;font-size:10px;line-height:1.5;color:#8a94a4}
@@ -132,12 +132,12 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-hero-simple .mh-hero-copy{max-width:850px;width:100%}
         .mh-hero-simple .mh-hero-actions{display:grid;grid-template-columns:1fr;max-width:620px}
         .mh-hero-simple .mh-secondary{line-height:1.5;text-align:center}
-        .mh-signals-link{display:flex;align-items:center;gap:13px;max-width:620px;margin-top:18px;padding:17px 19px;border:1px solid #dbe2ea;border-radius:13px;background:#fff;color:#172033;text-decoration:none;box-shadow:0 8px 24px rgba(23,32,51,.04)}
-        .mh-signals-link:hover{border-color:#ff444f;background:#fffafa}
-        .mh-signals-icon{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:11px;background:#fff0f1;color:#ff444f;font-size:19px;font-weight:800}
+        .mh-signals-link{display:flex;align-items:center;gap:13px;max-width:620px;margin-top:18px;padding:17px 19px;border:1px solid var(--mh-red);border-radius:13px;background:var(--mh-red);color:#fff;text-decoration:none;box-shadow:0 7px 18px rgba(255,68,79,.17)}
+        .mh-signals-link:hover{border-color:var(--mh-red-dark);background:var(--mh-red-dark);color:#fff}
+        .mh-signals-icon{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.18);color:#fff;font-size:19px;font-weight:800}
         .mh-signals-link strong,.mh-signals-link small{display:block}
         .mh-signals-link strong{font-size:14px;line-height:1.45}
-        .mh-signals-link small{margin-top:4px;color:#7b8798;font-size:11px}
+        .mh-signals-link small{margin-top:4px;color:rgba(255,255,255,.88);font-size:11px}
         @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:42px 19px 50px}.mh-hero-simple .mh-hero-actions{max-width:none}.mh-hero-simple .mh-secondary{font-size:12px}.mh-signals-link{padding:15px}.mh-signals-link strong{font-size:12px}}
       `}</style>
     </main>
