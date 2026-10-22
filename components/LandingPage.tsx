@@ -21,122 +21,27 @@ export default function LandingPage({ onChoose }: Props) {
           <img src="/icon.svg?v=2" alt="" width="44" height="44" />
           <span className="mh-brand-copy"><strong>Moz<span>Hyper</span></strong><small>NEGOCIA MAIS RÁPIDO</small></span>
         </a>
-        <nav className="mh-nav-links" aria-label="Navegação principal">
-          <a href="#plataforma">Plataforma</a>
-          <a href="#funcionalidades">Funcionalidades</a>
-          <a href="#como-comecar">Como começar</a>
-          <a href="#risco">Risco</a>
-        </nav>
         <div className="mh-nav-actions">
           <button className="mh-login" onClick={() => onChoose('login')}>Iniciar sessão</button>
           <button className="mh-primary mh-small" onClick={() => onChoose('register')}>Criar conta <span aria-hidden="true">↗</span></button>
         </div>
       </header>
 
-      <section className="mh-hero" id="inicio">
+      <section className="mh-hero mh-hero-simple" id="inicio">
         <div className="mh-hero-copy">
           <div className="mh-eyebrow"><i /> PLATAFORMA DE NEGOCIAÇÃO E ANÁLISE</div>
           <h1>Conheça os seus sinais.<br /><span>Controle as suas operações.</span></h1>
           <p className="mh-lead">O MozHyper reúne robôs de negociação, análise de dígitos e ferramentas para acompanhar as operações num único painel, com ligação à sua conta Deriv.</p>
           <div className="mh-hero-actions">
             <button className="mh-primary" onClick={() => onChoose('register')}>Criar conta MozHyper <span aria-hidden="true">↗</span></button>
-            <button className="mh-secondary" onClick={() => document.getElementById('funcionalidades')?.scrollIntoView({ behavior: 'smooth' })}>Conhecer funcionalidades <span aria-hidden="true">↓</span></button>
+            <button className="mh-secondary" onClick={() => onChoose('login')}>Faz depósito ou levantamento na Deriv por e-Mola ou M-Pesa <span aria-hidden="true">↗</span></button>
           </div>
-          <div className="mh-hero-note"><span className="mh-note-mark">M</span><span><strong>Uma plataforma, várias ferramentas</strong><small>Consulte estratégias, análise e histórico num só lugar.</small></span></div>
-        </div>
-
-        <div className="mh-preview-wrap" id="plataforma">
-          <div className="mh-preview-card">
-            <div className="mh-preview-top">
-              <div className="mh-preview-brand"><img src="/icon.svg?v=2" alt="" width="32" height="32" /><span><strong>MozHyper</strong><small>Painel da plataforma</small></span></div>
-              <span className="mh-preview-tag">PRÉ-VISUALIZAÇÃO</span>
-            </div>
-            <div className="mh-preview-stats">
-              <div><span>Saldo</span><strong>—</strong><small>Conforme a conta ligada</small></div>
-              <div><span>Lucro / perda</span><strong className="mh-neutral">—</strong><small>Resultado das operações</small></div>
-            </div>
-            <div className="mh-preview-controls">
-              <div><span>Conta</span><strong>Demo / Real*</strong></div>
-              <div><span>Estratégia</span><strong>Robôs disponíveis <b>⌄</b></strong></div>
-            </div>
-            <div className="mh-digit-panel">
-              <div className="mh-digit-head"><strong>Análise de dígitos</strong><span>Visão da interface</span></div>
-              <div className="mh-digits" aria-hidden="true">
-                {Array.from({ length: 10 }, (_, i) => <div className="mh-digit" key={i}><div className={`mh-digit-bar ${i === 0 ? 'muted' : i === 7 ? 'accent' : i === 3 || i === 6 ? 'red' : ''}`} style={{ height: [34, 9, 15, 25, 12, 18, 28, 43, 11, 17][i] + 'px' }} /><span>{i}</span></div>)}
-              </div>
-              <div className="mh-preview-foot"><i /> Elementos ilustrativos — sem dados de negociação</div>
-            </div>
-            <div className="mh-preview-action"><span><i /> Área de controlo do robô</span><span className="mh-preview-button">Iniciar robô</span></div>
-          </div>
-          <p className="mh-preview-caption">Exemplo visual da interface. Os dados reais só são apresentados na plataforma, conforme a conta e a ligação.</p>
+          <a className="mh-signals-link" href="https://t.me/" target="_blank" rel="noreferrer">
+            <span className="mh-signals-icon" aria-hidden="true">↗</span>
+            <span><strong>Recebe sinais de Boom1000/XAUUSD grátis</strong><small>Sinais de forex gratuitos</small></span>
+          </a>
         </div>
       </section>
-
-      <section className="mh-intro-band">
-        <div><span className="mh-section-kicker">MOZHYPER</span><h2>Ferramentas para acompanhar<br /><span>as suas decisões de negociação.</span></h2></div>
-        <p>Consulte as estratégias e os indicadores disponíveis, configure as operações e acompanhe os resultados dentro do painel. O comportamento depende da estratégia, da conta e das condições da plataforma de negociação.</p>
-      </section>
-
-      <section className="mh-feature-section" id="funcionalidades">
-        <div className="mh-section-intro">
-          <div className="mh-eyebrow"><i /> O QUE ENCONTRA NA PLATAFORMA</div>
-          <h2>Da análise ao acompanhamento,<br /><span>num único painel.</span></h2>
-          <p>Funcionalidades destinadas a organizar a análise e a gestão das operações — sem promessas de lucro nem resultados garantidos.</p>
-        </div>
-        <div className="mh-features">
-          <article className="mh-feature">
-            <div className="mh-feature-icon">01</div>
-            <small>ROBÔS E ESTRATÉGIAS</small>
-            <h3>Escolha a estratégia disponível</h3>
-            <p>Explore estratégias da família Hyper, incluindo HyperDrive e HyperFlow, de acordo com as opções apresentadas no painel.</p>
-          </article>
-          <article className="mh-feature">
-            <div className="mh-feature-icon">02</div>
-            <small>ANÁLISE DE DÍGITOS</small>
-            <h3>Acompanhe os indicadores</h3>
-            <p>Consulte a visualização dos dígitos e as informações utilizadas pelas estratégias para analisar os dados recebidos.</p>
-          </article>
-          <article className="mh-feature">
-            <div className="mh-feature-icon">03</div>
-            <small>OPERAÇÕES E RISCO</small>
-            <h3>Configure e acompanhe</h3>
-            <p>Utilize as opções de stake e gestão de risco disponíveis e consulte o histórico e os resultados das operações.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="mh-steps-section" id="como-comecar">
-        <div className="mh-steps-intro">
-          <div className="mh-eyebrow"><i /> COMO COMEÇAR</div>
-          <h2>Entre na plataforma<br /><span>com passos claros.</span></h2>
-          <p>A criação da conta MozHyper e a ligação à Deriv são etapas distintas. Siga as instruções apresentadas em cada ecrã.</p>
-          <button className="mh-primary" onClick={() => onChoose('register')}>Criar conta <span aria-hidden="true">↗</span></button>
-        </div>
-        <div className="mh-steps">
-          <article><b>1</b><div><h3>Crie a sua conta MozHyper</h3><p>Registe os dados pedidos no formulário da plataforma.</p></div></article>
-          <article><b>2</b><div><h3>Conclua a ligação necessária</h3><p>Siga o fluxo de autenticação e ligação à Deriv que for apresentado.</p></div></article>
-          <article><b>3</b><div><h3>Consulte o painel</h3><p>Verifique a conta selecionada, a estratégia, os parâmetros e as informações disponíveis antes de operar.</p></div></article>
-        </div>
-      </section>
-
-      <section className="mh-risk-section" id="risco">
-        <div className="mh-risk-icon" aria-hidden="true">!</div>
-        <div className="mh-risk-copy">
-          <div className="mh-eyebrow">NEGOCIAÇÃO RESPONSÁVEL</div>
-          <h2>Conheça os riscos antes de operar.</h2>
-          <p>A negociação de contratos digitais envolve risco de perda, incluindo a possibilidade de perder toda a aposta. Os robôs, os sinais, a análise de dígitos e os resultados anteriores não garantem resultados futuros. Utilize apenas dinheiro que possa perder e confirme sempre os parâmetros antes de iniciar operações.</p>
-        </div>
-        <button className="mh-outline" onClick={() => onChoose('register')}>Continuar para a plataforma <span aria-hidden="true">↗</span></button>
-      </section>
-
-      <footer className="mh-footer">
-        <a className="mh-brand" href="#inicio" aria-label="MozHyper — voltar ao início">
-          <img src="/icon.svg?v=2" alt="" width="36" height="36" />
-          <span className="mh-brand-copy"><strong>Moz<span>Hyper</span></strong><small>NEGOCIA MAIS RÁPIDO</small></span>
-        </a>
-        <span>© {new Date().getFullYear()} MozHyper. As operações envolvem risco financeiro.</span>
-        <div className="mh-footer-actions"><button onClick={() => onChoose('login')}>Já tem conta? <b>Iniciar sessão</b></button><button onClick={() => onChoose('register')}>Criar conta <b>↗</b></button></div>
-      </footer>
 
       <style jsx global>{`
         .mh-landing{--mh-red:#ff444f;--mh-red-dark:#e63240;--mh-red-soft:#fff0f1;--mh-text:#172033;--mh-muted:#697589;--mh-border:#dbe2ea;--mh-panel:#fff;background:#f5f7fb;color:var(--mh-text);font-family:Inter,Arial,sans-serif;overflow:hidden;min-height:100vh}
@@ -222,6 +127,18 @@ export default function LandingPage({ onChoose }: Props) {
         @media(max-width:1060px){.mh-nav{padding:0 22px;gap:12px}.mh-nav-links{gap:13px}.mh-nav-links a{font-size:10px}.mh-brand-copy strong{font-size:19px}.mh-brand>img{width:39px;height:39px}.mh-hero{padding:58px 30px;gap:28px}.mh-hero h1{font-size:clamp(34px,4.5vw,47px);letter-spacing:-1.8px}.mh-intro-band{padding:50px 42px;gap:30px}.mh-steps-section{padding:60px 42px;gap:35px}}
         @media(max-width:760px){.mh-nav{height:72px;padding:0 14px;gap:8px}.mh-brand{gap:7px}.mh-brand>img{width:36px;height:36px;border-radius:10px}.mh-brand-copy strong{font-size:18px}.mh-brand-copy small{font-size:7px;letter-spacing:.3px}.mh-nav-links{display:none}.mh-nav-actions{gap:2px}.mh-login{font-size:10px;padding:10px 7px;white-space:nowrap}.mh-small{font-size:10px;padding:10px 9px;gap:5px}.mh-hero{grid-template-columns:1fr;padding:42px 19px 38px;gap:28px}.mh-hero h1{font-size:clamp(33px,9.1vw,45px);letter-spacing:-1.6px;margin:18px 0 15px}.mh-eyebrow{font-size:8px;letter-spacing:.75px}.mh-lead{font-size:12px;line-height:1.8}.mh-hero-actions{display:grid;grid-template-columns:1fr;gap:9px;margin-top:22px}.mh-primary,.mh-secondary{width:100%;min-height:45px}.mh-hero-note{margin-top:21px}.mh-preview-card{padding:13px;border-radius:15px}.mh-preview-stats{gap:7px}.mh-preview-stats>div{padding:10px}.mh-preview-stats strong{font-size:21px}.mh-preview-controls{gap:7px;grid-template-columns:.78fr 1.22fr}.mh-preview-controls>div{padding:10px}.mh-preview-controls strong{font-size:9px}.mh-digit-head strong{font-size:10px}.mh-digit-head span{font-size:7px}.mh-digits{gap:4px}.mh-digit>span{font-size:7px}.mh-digit-bar{width:15px}.mh-preview-action>span:first-child{font-size:8px}.mh-preview-button{padding:9px;font-size:8px}.mh-preview-caption{font-size:8px}.mh-intro-band{grid-template-columns:1fr;gap:16px;padding:44px 21px}.mh-intro-band h2,.mh-section-intro h2,.mh-steps-intro h2{font-size:28px}.mh-intro-band>p{font-size:11px}.mh-feature-section{padding:54px 19px 60px}.mh-section-intro{margin-bottom:25px}.mh-section-intro>p{font-size:11px}.mh-features{grid-template-columns:1fr;gap:10px}.mh-feature{padding:19px}.mh-feature-icon{margin-bottom:15px}.mh-feature h3{font-size:15px}.mh-feature p{font-size:10px}.mh-steps-section{grid-template-columns:1fr;gap:24px;padding:53px 20px}.mh-steps-intro>p{font-size:11px}.mh-steps article{padding:13px}.mh-risk-section{grid-template-columns:38px 1fr;gap:12px;padding:28px 19px}.mh-risk-icon{width:36px;height:36px}.mh-risk-copy h2{font-size:16px;line-height:1.35}.mh-risk-copy p{font-size:9px}.mh-outline{grid-column:1/-1;white-space:normal;width:100%}.mh-footer{flex-wrap:wrap;padding:19px;gap:13px}.mh-footer>span{order:3;width:100%;line-height:1.6}.mh-footer-actions{margin-left:auto;gap:7px}.mh-footer-actions button{font-size:8px;padding:5px 0}}
         @media(prefers-reduced-motion:reduce){.mh-landing *{scroll-behavior:auto!important;transition:none!important}}
+
+        .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding-top:clamp(60px,10vh,115px);padding-bottom:70px}
+        .mh-hero-simple .mh-hero-copy{max-width:850px;width:100%}
+        .mh-hero-simple .mh-hero-actions{display:grid;grid-template-columns:1fr;max-width:620px}
+        .mh-hero-simple .mh-secondary{line-height:1.5;text-align:center}
+        .mh-signals-link{display:flex;align-items:center;gap:13px;max-width:620px;margin-top:18px;padding:17px 19px;border:1px solid #dbe2ea;border-radius:13px;background:#fff;color:#172033;text-decoration:none;box-shadow:0 8px 24px rgba(23,32,51,.04)}
+        .mh-signals-link:hover{border-color:#ff444f;background:#fffafa}
+        .mh-signals-icon{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:11px;background:#fff0f1;color:#ff444f;font-size:19px;font-weight:800}
+        .mh-signals-link strong,.mh-signals-link small{display:block}
+        .mh-signals-link strong{font-size:14px;line-height:1.45}
+        .mh-signals-link small{margin-top:4px;color:#7b8798;font-size:11px}
+        @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:42px 19px 50px}.mh-hero-simple .mh-hero-actions{max-width:none}.mh-hero-simple .mh-secondary{font-size:12px}.mh-signals-link{padding:15px}.mh-signals-link strong{font-size:12px}}
       `}</style>
     </main>
   );
