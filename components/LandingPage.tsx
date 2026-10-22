@@ -29,30 +29,47 @@ export default function LandingPage({ onChoose }: Props) {
 
       <section className="mh-hero mh-hero-simple" id="inicio">
         <div className="mh-hero-copy">
-          <div className="mh-eyebrow"><i /> AUTOMAÇÃO E ANÁLISE PARA TRADERS</div>
-          <h1>Automatize a análise.<br /><span>Acompanhe as suas operações.</span></h1>
-          <p className="mh-lead">Centralize robôs de negociação, análise de dígitos e ferramentas de acompanhamento num único painel integrado com a sua conta Deriv.</p>
-          <button className="mh-primary mh-main-cta" onClick={() => onChoose('register')}>Criar conta gratuita <span aria-hidden="true">↗</span></button>
+          <div className="mh-eyebrow mh-badge"><i /> PLATAFORMA DE NEGOCIAÇÃO E ANÁLISE</div>
+          <h1>Conheça os seus sinais.<br /><span>Controle as suas operações.</span></h1>
+          <p className="mh-lead">O MozHyper reúne robôs de negociação, análise de dígitos e ferramentas para acompanhar as operações num único painel, com ligação à sua conta Deriv.</p>
+
+          <div className="mh-dashboard-preview" aria-label="Pré-visualização ilustrativa do painel MozHyper">
+            <div className="mh-dashboard-title">MozHyper — Painel de análise</div>
+            <div className="mh-dashboard-ui">
+              <aside className="mh-dashboard-sidebar">
+                <div className="mh-dashboard-mini-brand"><img src="/icon.svg?v=2" alt="" /> <b>MozHyper</b></div>
+                <span className="active">▦ &nbsp; Dashboard</span><span>▤ &nbsp; Ferramentas</span><span>↗ &nbsp; Operações</span><span>◷ &nbsp; Análise</span><span>⚙ &nbsp; Definições</span>
+              </aside>
+              <div className="mh-dashboard-main">
+                <div className="mh-dashboard-top"><b>Dashboard</b><span>Conta Deriv <i>Ligada</i></span></div>
+                <div className="mh-dashboard-widgets">
+                  <div className="mh-dash-widget mh-chart-widget"><b>Gráfico de atividade</b><div className="mh-fake-chart"><svg viewBox="0 0 240 85" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,70 20,58 36,64 52,37 69,50 86,29 102,42 120,20 139,33 155,12 173,28 190,8 208,20 224,4 240,10" fill="none" stroke="#ff4450" strokeWidth="3" /></svg></div><small>Atividade recente</small></div>
+                  <div className="mh-dash-widget"><b>Robôs ativos</b><div className="mh-bot-row">HyperDrive <i>Disponível</i></div><div className="mh-bot-row">HyperFlow <i>Disponível</i></div><small>Estratégias da plataforma</small></div>
+                  <div className="mh-dash-widget mh-deriv-widget"><b>Conta de negociação</b><div className="mh-deriv-word">DERIV</div><span>Ligação à conta</span><i>Ver estado</i></div>
+                </div>
+                <div className="mh-dashboard-bottom"><b>Resumo das operações</b><div><span>Saldo <strong>—</strong></span><span>Lucro / perda <strong>—</strong></span><span>Histórico <strong>Disponível no painel</strong></span></div></div>
+              </div>
+            </div>
+          </div>
+
+          <button className="mh-primary mh-main-cta" onClick={() => onChoose('register')}>Criar conta MozHyper Gratuita <span aria-hidden="true">↗</span></button>
 
           <div className="mh-service-cards">
             <button className="mh-service-card" onClick={() => onChoose('login')}>
-              <span className="mh-service-icon" aria-hidden="true">↔</span>
               <span className="mh-service-copy">
-                <strong>Depósitos e levantamentos fáceis</strong>
-                <small>Faça depósito ou levantamento na Deriv por e-Mola ou M-Pesa.</small>
+                <strong>Depósitos e Levantamentos Fáceis (e-Mola / M-Pesa)</strong>
+                <span className="mh-payment-icons"><i aria-label="e-Mola">M</i><i aria-label="M-Pesa">P</i></span>
               </span>
               <span className="mh-service-arrow" aria-hidden="true">↗</span>
             </button>
             <a className="mh-service-card" href="https://t.me/" target="_blank" rel="noreferrer">
-              <span className="mh-service-icon" aria-hidden="true">↗</span>
               <span className="mh-service-copy">
-                <strong>Sinais gratuitos de trading</strong>
-                <small>Recebe sinais de Boom1000/XAUUSD grátis e conteúdos de Forex.</small>
+                <strong>Sinais Gratuitos de Boom1000/XAUUSD &amp; Forex</strong>
+                <span className="mh-signal-action"><i aria-hidden="true">↗</i><b>Aceder Agora</b></span>
               </span>
-              <span className="mh-service-arrow" aria-hidden="true">↗</span>
             </a>
           </div>
-          <p className="mh-risk-note">A negociação envolve risco de perda. Os sinais e robôs não garantem lucros.</p>
+          <p className="mh-security-note"><span aria-hidden="true">🔒</span> Ligação segura • A negociação envolve risco financeiro.</p>
         </div>
       </section>
 
@@ -144,6 +161,47 @@ export default function LandingPage({ onChoose }: Props) {
 
         .mh-login{border:0;background:transparent;color:#394457;padding:12px 14px;font-size:12px;font-weight:700;box-shadow:none}
         .mh-login:hover{color:var(--mh-red);background:transparent;transform:none;box-shadow:none}
+
+        .mh-nav-actions .mh-login{border:1px solid #dbe2ea;background:#fff;color:#293244;box-shadow:0 5px 14px rgba(23,32,51,.06)}
+        .mh-nav-actions .mh-login:hover{border-color:#cbd3df;background:#f9fafc;color:#172033;transform:translateY(-1px)}
+        .mh-nav-actions .mh-small{background:linear-gradient(145deg,#64748b,#374151);border-color:#64748b;box-shadow:0 8px 20px rgba(55,65,81,.18)}
+        .mh-nav-actions .mh-small:hover{background:#374151;border-color:#374151}
+        .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding:42px clamp(20px,5vw,70px) 36px}
+        .mh-hero-simple .mh-hero-copy{max-width:850px;width:100%}
+        .mh-badge{display:inline-flex;background:linear-gradient(100deg,#9f111b,#d51f2b);color:#fff;border-radius:999px;padding:8px 15px;letter-spacing:.4px}
+        .mh-badge i{background:#ffd06a}
+        .mh-hero-simple .mh-hero h1{margin-top:19px}
+        .mh-dashboard-preview{width:100%;margin-top:24px;padding:16px 16px 0;border:1px solid #e0e3e9;border-radius:20px;background:linear-gradient(145deg,#fff,#f4f5f9);box-shadow:0 12px 25px rgba(23,32,51,.12);overflow:hidden}
+        .mh-dashboard-title{text-align:center;font-size:15px;font-weight:800;color:#303746;margin-bottom:13px}
+        .mh-dashboard-ui{display:grid;grid-template-columns:150px minmax(0,1fr);min-height:235px;border:1px solid #e1e5eb;border-radius:12px 12px 0 0;background:#fff;overflow:hidden;box-shadow:0 4px 16px rgba(23,32,51,.07)}
+        .mh-dashboard-sidebar{display:flex;flex-direction:column;gap:8px;padding:12px 9px;background:#fafbfc;border-right:1px solid #edf0f4;color:#7a8494;font-size:9px}
+        .mh-dashboard-mini-brand{display:flex;align-items:center;gap:5px;margin-bottom:8px;color:#263143;font-size:10px}
+        .mh-dashboard-mini-brand img{width:18px;height:18px;border-radius:5px}
+        .mh-dashboard-sidebar>span{padding:7px 6px;border-radius:5px;white-space:nowrap}
+        .mh-dashboard-sidebar>span.active{background:#fff0f1;color:#d92f3d;font-weight:800}
+        .mh-dashboard-main{padding:13px;min-width:0}
+        .mh-dashboard-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#293244}
+        .mh-dashboard-top>span{font-size:8px;color:#7b8798}.mh-dashboard-top i{font-style:normal;color:#169c75;background:#e8f8f2;padding:4px 6px;border-radius:5px;margin-left:3px}
+        .mh-dashboard-widgets{display:grid;grid-template-columns:1.15fr 1fr .9fr;gap:8px;margin-top:13px}
+        .mh-dash-widget{padding:10px;border:1px solid #edf0f4;border-radius:7px;min-width:0;background:#fff}
+        .mh-dash-widget>b,.mh-dashboard-bottom>b{display:block;font-size:8px;color:#4b5565;margin-bottom:9px}
+        .mh-fake-chart{height:76px;padding:6px 0 0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 18px,#f0f2f6 19px)}
+        .mh-fake-chart svg{width:100%;height:100%}.mh-dash-widget small{display:block;margin-top:5px;font-size:7px;color:#98a1af}
+        .mh-bot-row{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:7px 5px;margin-bottom:6px;border:1px solid #e7eee9;border-radius:5px;background:#f8fcf9;font-size:8px;color:#3e4b5c}
+        .mh-bot-row i{font-style:normal;color:#148866;font-size:7px}
+        .mh-deriv-widget{text-align:center}.mh-deriv-word{font-size:20px;font-weight:900;letter-spacing:-1px;color:#263143;margin:19px 0 4px}.mh-deriv-widget>span{display:block;font-size:7px;color:#7b8798}.mh-deriv-widget>i{display:inline-block;margin-top:9px;padding:5px 8px;border:1px solid #e1e5eb;border-radius:5px;font-style:normal;font-size:7px;color:#626e80}
+        .mh-dashboard-bottom{margin-top:10px;padding:11px;border:1px solid #edf0f4;border-radius:7px;background:#fff}.mh-dashboard-bottom>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.mh-dashboard-bottom>div span{font-size:8px;color:#8a94a4}.mh-dashboard-bottom strong{display:block;margin-top:4px;font-size:10px;color:#394457}
+        .mh-main-cta{display:flex;width:100%;margin-top:22px;min-height:54px;border-radius:12px;background:linear-gradient(100deg,#a60f19,#c91d28);border:1px solid #e6b8a1;box-shadow:0 9px 20px rgba(180,22,33,.19);font-size:15px}
+        .mh-main-cta:hover{background:linear-gradient(100deg,#8e0b14,#b31420);border-color:#d6a18d}
+        .mh-service-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:17px}
+        .mh-service-card{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;text-align:left;padding:17px 15px;border:1px solid #dfe4eb;border-radius:16px;background:#fff;color:#172033;text-decoration:none;box-shadow:0 7px 18px rgba(23,32,51,.08);font-family:inherit;cursor:pointer;transition:border-color .18s,transform .18s,box-shadow .18s}
+        .mh-service-card:hover{border-color:#e8a0a5;transform:translateY(-1px);box-shadow:0 10px 22px rgba(23,32,51,.1)}
+        .mh-service-copy{display:block;min-width:0;flex:1}.mh-service-copy strong{display:block;font-size:14px;line-height:1.35;color:#171d29}
+        .mh-service-arrow{color:#697589;font-size:17px;font-weight:800;flex:none}
+        .mh-payment-icons{display:flex;gap:8px;margin-top:13px}.mh-payment-icons i{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;background:#fff0f1;color:#c52230;font-size:14px;font-weight:900;font-style:normal}.mh-payment-icons i+ i{background:#e7f8ee;color:#15945c}
+        .mh-signal-action{display:flex;align-items:center;gap:8px;margin-top:13px}.mh-signal-action i{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;background:#eef1f8;color:#293244;font-style:normal;font-size:17px}.mh-signal-action b{flex:1;text-align:center;border:1px solid #dbe2ea;border-radius:10px;padding:10px 7px;color:#30394a;font-size:11px}
+        .mh-security-note{text-align:center;margin:19px 0 0;color:#8a94a4;font-size:10px;line-height:1.6}
+        @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:32px 19px 30px}.mh-badge{font-size:8px;padding:7px 10px}.mh-dashboard-preview{margin-top:20px;padding:12px 9px 0;border-radius:16px}.mh-dashboard-title{font-size:12px}.mh-dashboard-ui{grid-template-columns:78px minmax(0,1fr);min-height:190px}.mh-dashboard-sidebar{padding:8px 5px;gap:6px;font-size:7px}.mh-dashboard-mini-brand{font-size:7px;gap:3px}.mh-dashboard-mini-brand img{width:14px;height:14px}.mh-dashboard-sidebar>span{padding:6px 3px}.mh-dashboard-main{padding:8px 6px}.mh-dashboard-top{font-size:8px}.mh-dashboard-top>span{font-size:6px}.mh-dashboard-widgets{grid-template-columns:1.1fr 1fr;gap:5px;margin-top:9px}.mh-dash-widget{padding:6px}.mh-dash-widget>b,.mh-dashboard-bottom>b{font-size:6px;margin-bottom:6px}.mh-fake-chart{height:54px}.mh-bot-row{font-size:6px;padding:6px 3px}.mh-bot-row i{font-size:5px}.mh-deriv-widget{display:none}.mh-dashboard-bottom{padding:7px;margin-top:6px}.mh-dashboard-bottom>div{gap:4px}.mh-dashboard-bottom>div span{font-size:6px}.mh-dashboard-bottom strong{font-size:7px}.mh-main-cta{min-height:50px;margin-top:17px;font-size:13px;padding:12px}.mh-service-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}.mh-service-card{align-items:flex-start;padding:13px 10px;border-radius:14px}.mh-service-copy strong{font-size:12px}.mh-service-arrow{display:none}.mh-payment-icons{margin-top:11px}.mh-payment-icons i,.mh-signal-action i{width:32px;height:32px}.mh-signal-action{gap:6px;flex-wrap:wrap}.mh-signal-action b{font-size:9px;padding:9px 5px}.mh-security-note{font-size:9px;margin-top:15px}}
         .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding-top:clamp(54px,9vh,100px);padding-bottom:58px}
         .mh-hero-simple .mh-hero-copy{max-width:820px;width:100%}
         .mh-hero-simple .mh-hero-actions{display:none}
