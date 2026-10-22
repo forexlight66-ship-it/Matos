@@ -170,7 +170,14 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-nav-actions .mh-small{background:linear-gradient(145deg,#64748b,#374151);border-color:#64748b;box-shadow:0 8px 20px rgba(55,65,81,.18)}
         .mh-nav-actions .mh-small:hover{background:#374151;border-color:#374151}
 
-        .mh-landing{--mh-red:#ff3f4b;--mh-red-dark:#d92330;--mh-red-soft:#fff0f1}
+
+        .mh-landing{--mh-red:#ff444f;--mh-red-dark:#e63240;--mh-red-soft:#fff0f1}
+        .mh-badge{background:#ff444f!important;border-color:#ff444f!important;color:#fff!important;box-shadow:none!important}
+        .mh-badge i{background:#fff!important}
+        .mh-main-cta{background:#ff444f!important;border-color:#ff444f!important;color:#fff!important;box-shadow:0 8px 20px rgba(255,68,79,.2)!important}
+        .mh-main-cta:hover{background:#e63240!important;border-color:#e63240!important}
+        .mh-nav-actions .mh-small{background:#ff444f!important;border-color:#ff444f!important;color:#fff!important}
+
         .mh-nav-actions .mh-small{background:var(--mh-red);border-color:var(--mh-red);box-shadow:0 8px 20px rgba(255,63,75,.22)}
         .mh-nav-actions .mh-small:hover{background:var(--mh-red-dark);border-color:var(--mh-red-dark)}
         .mh-badge{background:linear-gradient(100deg,#b30e1b,#ed1c2e);border:1px solid #f5a0a7;color:#fff}
