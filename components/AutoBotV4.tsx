@@ -882,16 +882,13 @@ export default function AutoBotV4(){
       setNotice('HyperFlows: operação alternativa perdeu. A regressar à análise normal de MATCH 9 ('+hyperFlowsConsecutiveLossesRef.current+'/5 perdas consecutivas).');
      }
     }else{
+     // Wins from normal MATCH 9 / alternate trades must never reduce the
+     // accumulated deficit. Only designated recovery contracts can pay it down.
      hyperFlowsConsecutiveLossesRef.current=0;
-     hyperFlowsDeficitRef.current=Number(Math.max(0,hyperFlowsDeficitRef.current-Math.max(0,result)).toFixed(2));
      hyperFlowsNextDigitRef.current=null;
      hyperFlowsRecoveryModeRef.current=false;
-     if(hyperFlowsDeficitRef.current<=0.01){
-      hyperFlowsDeficitRef.current=0;
-      hyperFlowsRecoveryAttemptsRef.current=0;
-     }
-     if(wasAlternate)setNotice('HyperFlows: MATCH '+String(Number.isFinite(closeBarrier)?closeBarrier:'alternativo')+' ganhou. A regressar à estratégia normal MATCH 9.');
-     else setNotice('HyperFlows: MATCH 9 ganhou. A estratégia normal continua ativa.');
+     if(wasAlternate)setNotice('HyperFlows: MATCH '+String(Number.isFinite(closeBarrier)?closeBarrier:'alternativo')+' ganhou. O défice acumulado mantém-se em '+hyperFlowsDeficitRef.current.toFixed(2)+'; só operações de recuperação o podem reduzir. A regressar à estratégia normal MATCH 9.');
+     else setNotice('HyperFlows: MATCH 9 ganhou. O défice acumulado mantém-se em '+hyperFlowsDeficitRef.current.toFixed(2)+'; só operações de recuperação o podem reduzir. A estratégia normal continua ativa.');
     }
     console.info('[HyperFlows recovery state]',{mode:wasEvenRecovery?'EVEN':wasUnder9?'UNDER9':wasAlternate?'ALTERNATE':'MATCH9',outcome:hyperFlowWon?'won':'lost',consecutiveLosses:hyperFlowsConsecutiveLossesRef.current,deficit:hyperFlowsDeficitRef.current,recoveryActive:hyperFlowsRecoveryModeRef.current,nextDigit:hyperFlowsNextDigitRef.current});
    }
