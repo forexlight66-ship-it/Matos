@@ -1458,20 +1458,20 @@ export default function AutoBotV4(){
   if(strategyName==='HYPERFLOWS'&&hyperFlowsRecoveryModeRef.current){
    const deficit=Number(Math.max(0,Number(hyperFlowsDeficitRef.current)||0).toFixed(2));
    const recoveryContractType=hyperFlowsRecoveryContractRef.current==='EVEN'?'DIGITEVEN':'DIGITODD';
-   // HyperFlows recovery stake is the accumulated cash deficit itself.
-   // Do not divide by a remembered payout ratio: a stale/mismatched ratio
-   // previously inflated a $60.87 deficit into a $131.16 stake.
-   const recoveryStake=Math.max(0.35,deficit);
+   // Size stake from the net payout ratio for the actual EVEN/ODD recovery
+   // contract, rounding UP to cents so the estimated net profit covers deficit.
+   const recoveryPayoutRatio=Math.max(0.01,payoutRatioForContract(recoveryContractType));
+   const recoveryStake=Math.max(0.35,Math.ceil((deficit/recoveryPayoutRatio)*100-1e-9)/100);
    if(!Number.isFinite(availableBalance)||recoveryStake>maxStakeByBalance+0.005){
     recoveryBalancePauseRef.current=recoveryStake;
     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
     setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
-    setNotice('HyperFlows: recuperação em '+(hyperFlowsRecoveryContractRef.current==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+' pausada. Stake estimada '+recoveryStake.toFixed(2)+' para tentar cobrir o défice de '+deficit.toFixed(2)+', mas o saldo disponível é '+Math.max(0,availableBalance).toFixed(2)+'. Nenhuma compra foi enviada.');
+    setNotice('HyperFlows: recuperação em '+(hyperFlowsRecoveryContractRef.current==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+' pausada. Stake estimada '+recoveryStake.toFixed(2)+' (rácio líquido estimado '+(recoveryPayoutRatio*100).toFixed(1)+'%) para cobrir o défice de '+deficit.toFixed(2)+', mas o saldo disponível é '+Math.max(0,availableBalance).toFixed(2)+'. Nenhuma compra foi enviada.');
     console.warn('[HyperFlows parity recovery blocked: insufficient total balance]',{symbol,recoveryContractType,deficit,recoveryRatio,recoveryStake,availableBalance});
     return;
    }
    amount=recoveryStake;
-   console.info('[HyperFlows parity recovery stake]',{symbol,recoveryContractType,deficit,recoveryStake,availableBalance,durationTicks:1,stakeRule:'stake equals accumulated deficit'});
+   console.info('[HyperFlows parity recovery stake]',{symbol,recoveryContractType,deficit,recoveryPayoutRatio,recoveryStake,expectedNetProfit:Number((recoveryStake*recoveryPayoutRatio).toFixed(2)),availableBalance,durationTicks:1,stakeRule:'ceil(deficit / actual recovery contract net payout ratio)'});
   }
 
   iaRecoveryQuotePendingRef.current=false;
