@@ -808,15 +808,11 @@ export default function AutoBotV4(){
       hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
       // Keep recovering on the same parity; increase the martingale level rather than
       // alternating EVEN/ODD or abandoning the accumulated deficit.
-      if(recoveryAttempt>=Math.max(1,maxMartingale)){
-       hyperFlowsRecoveryModeRef.current=false;
-       setNotice('HyperFlows: atingiu o limite configurado de martingale ('+maxMartingale+' níveis) em '+recoveryLabel+'. Robô pausado para proteger o saldo; défice pendente: '+hyperFlowsDeficitRef.current.toFixed(2)+'. Reinicie apenas após rever o risco.');
-       stopped.current=true;botArmedRef.current=false;setRunning(false);
-      }else{
-       hyperFlowsRecoveryContractRef.current=recoveryType;
-       hyperFlowsRecoveryModeRef.current=true;
-       setNotice('HyperFlows: recuperação em '+recoveryLabel+' perdeu. Martingale nível '+(recoveryAttempt+1)+'/'+maxMartingale+'. Mantém '+recoveryLabel+'; défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
-      }
+      // Continue na mesma paridade depois de cada perda; a stake cresce por nível
+      // e a entrada seguinte só é bloqueada se não couber no saldo disponível.
+      hyperFlowsRecoveryContractRef.current=recoveryType;
+      hyperFlowsRecoveryModeRef.current=true;
+      setNotice('HyperFlows: recuperação em '+recoveryLabel+' perdeu. Continua na mesma paridade com martingale nível '+(recoveryAttempt+1)+'. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
      }else{
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
@@ -826,14 +822,12 @@ export default function AutoBotV4(){
        hyperFlowsRecoveryAttemptsRef.current=0;
        hyperFlowsRecoveryModeRef.current=false;
        setNotice('HyperFlows: recuperação em '+recoveryLabel+' cobriu todo o défice. Novo ciclo normal MATCH 9 iniciado.');
-      }else if(recoveryAttempt>=Math.max(1,maxMartingale)){
-       hyperFlowsRecoveryModeRef.current=false;
-       setNotice('HyperFlows: limite de martingale ('+maxMartingale+' níveis) atingido com défice residual de '+hyperFlowsDeficitRef.current.toFixed(2)+'. Robô pausado para proteger o saldo.');
-       stopped.current=true;botArmedRef.current=false;setRunning(false);
       }else{
+       // Um ganho parcial reduz o défice, mas não termina a recuperação.
+       // Mantém a mesma paridade e avança o nível até o défice chegar a zero.
        hyperFlowsRecoveryContractRef.current=recoveryType;
        hyperFlowsRecoveryModeRef.current=true;
-       setNotice('HyperFlows: ganho em '+recoveryLabel+', mas resta défice de '+hyperFlowsDeficitRef.current.toFixed(2)+'. Continua em '+recoveryLabel+' no nível de martingale '+(recoveryAttempt+1)+'/'+maxMartingale+'.');
+       setNotice('HyperFlows: ganho em '+recoveryLabel+', mas ainda falta recuperar '+hyperFlowsDeficitRef.current.toFixed(2)+'. Continua na mesma paridade com martingale nível '+(recoveryAttempt+1)+'.');
       }
      }
     }else if(wasUnder9){
