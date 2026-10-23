@@ -810,9 +810,11 @@ export default function AutoBotV4(){
       // alternating EVEN/ODD or abandoning the accumulated deficit.
       // Continue na mesma paridade depois de cada perda; a stake cresce por nível
       // e a entrada seguinte só é bloqueada se não couber no saldo disponível.
-      hyperFlowsRecoveryContractRef.current=recoveryType;
+      const nextRecoveryType: 'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
+      const nextRecoveryLabel=nextRecoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES';
+      hyperFlowsRecoveryContractRef.current=nextRecoveryType;
       hyperFlowsRecoveryModeRef.current=true;
-      setNotice('HyperFlows: recuperação em '+recoveryLabel+' perdeu. Continua na mesma paridade com martingale nível '+(recoveryAttempt+1)+'. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
+      setNotice('HyperFlows: recuperação em '+recoveryLabel+' perdeu. Próxima operação alterna para '+nextRecoveryLabel+' no martingale nível '+(recoveryAttempt+1)+'. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
      }else{
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
@@ -825,9 +827,11 @@ export default function AutoBotV4(){
       }else{
        // Um ganho parcial reduz o défice, mas não termina a recuperação.
        // Mantém a mesma paridade e avança o nível até o défice chegar a zero.
-       hyperFlowsRecoveryContractRef.current=recoveryType;
+       const nextRecoveryType: 'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
+       const nextRecoveryLabel=nextRecoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES';
+       hyperFlowsRecoveryContractRef.current=nextRecoveryType;
        hyperFlowsRecoveryModeRef.current=true;
-       setNotice('HyperFlows: ganho em '+recoveryLabel+', mas ainda falta recuperar '+hyperFlowsDeficitRef.current.toFixed(2)+'. Continua na mesma paridade com martingale nível '+(recoveryAttempt+1)+'.');
+       setNotice('HyperFlows: ganho em '+recoveryLabel+', mas ainda falta recuperar '+hyperFlowsDeficitRef.current.toFixed(2)+'. Próxima operação alterna para '+nextRecoveryLabel+' no martingale nível '+(recoveryAttempt+1)+'.');
       }
      }
     }else if(wasUnder9){
