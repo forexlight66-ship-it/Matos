@@ -824,10 +824,20 @@ export default function AutoBotV4(){
       // win as a completed/partially completed recovery; the next attempt targets
       // the same full deficit (plus any losses added by later failed attempts).
       if(result+0.005>=deficitBeforeWin){
+       // Recovery completed: clear the entire recovery-cycle state, not just the
+       // deficit flag, so a stale recovery signal cannot price the next MATCH 9
+       // or alternate-digit entry as though recovery were still active.
        hyperFlowsDeficitRef.current=0;
        hyperFlowsRecoveryAttemptsRef.current=0;
+       hyperFlowsConsecutiveLossesRef.current=0;
        hyperFlowsRecoveryModeRef.current=false;
-       setNotice('HyperFlows: uma única operação em '+recoveryLabel+' cobriu todo o défice de '+deficitBeforeWin.toFixed(2)+'. Novo ciclo normal MATCH 9 iniciado.');
+       hyperFlowsNextDigitRef.current=null;
+       hyperFlowsLastTradeModeRef.current=null;
+       hyperFlowsLastEntryTickRef.current=null;
+       hyperFlowsAnalysisActiveRef.current=true;
+       setSignalNow(null);
+       setNotice('HyperFlows: recuperação concluída numa única operação; défice, martingale e contagem de perdas reiniciados. Novo ciclo normal MATCH 9 iniciado.');
+       console.info('[HyperFlows recovery cycle reset]',{closedContractId:id,profit:result,deficitCovered: deficitBeforeWin,nextMode:'MATCH9',recoveryMode:false,consecutiveLosses:0,deficit:0});
       }else{
        const nextRecoveryType: 'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
        const nextRecoveryLabel=nextRecoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES';
@@ -863,6 +873,11 @@ export default function AutoBotV4(){
       }
      }
     }else if(hyperFlowLost){
+     // This close belongs to the normal MATCH 9 / alternate cycle, not to parity
+     // recovery. Clear any stale recovery flag before counting this cycle's loss;
+     // the fifth loss below may deliberately activate a NEW recovery.
+     hyperFlowsRecoveryModeRef.current=false;
+     hyperFlowsRecoveryAttemptsRef.current=0;
      hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
      // The consecutive-loss counter is capped at 5; the fifth loss switches to recovery.
      hyperFlowsConsecutiveLossesRef.current=Math.min(5,Math.max(0,hyperFlowsConsecutiveLossesRef.current)+1);
@@ -879,6 +894,10 @@ export default function AutoBotV4(){
       setNotice('HyperFlows: operação alternativa perdeu. A regressar à análise normal de MATCH 9 ('+hyperFlowsConsecutiveLossesRef.current+'/5 perdas consecutivas).');
      }
     }else{
+     // This is a normal MATCH 9 / alternate-digit win. It must never inherit
+     // the parity-recovery state from a previous cycle.
+     hyperFlowsRecoveryModeRef.current=false;
+     hyperFlowsRecoveryAttemptsRef.current=0;
      // Uma vitória de MATCH 9 ou de um dígito alternativo NÃO reinicia
      // a contagem de perdas usada para ativar a recuperação. Contamos perdas
      // acumuladas no ciclo; só a recuperação concluída inicia um ciclo novo.
