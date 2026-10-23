@@ -818,20 +818,22 @@ export default function AutoBotV4(){
      }else{
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
-      hyperFlowsDeficitRef.current=Number(Math.max(0,hyperFlowsDeficitRef.current-Math.max(0,result)).toFixed(2));
-      if(hyperFlowsDeficitRef.current<=0.01){
+      const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
+      // A recovery win only completes recovery if this single trade's net profit
+      // covers the entire deficit carried into the trade. Never count a partial
+      // win as a completed/partially completed recovery; the next attempt targets
+      // the same full deficit (plus any losses added by later failed attempts).
+      if(result+0.005>=deficitBeforeWin){
        hyperFlowsDeficitRef.current=0;
        hyperFlowsRecoveryAttemptsRef.current=0;
        hyperFlowsRecoveryModeRef.current=false;
-       setNotice('HyperFlows: recuperação em '+recoveryLabel+' cobriu todo o défice. Novo ciclo normal MATCH 9 iniciado.');
+       setNotice('HyperFlows: uma única operação em '+recoveryLabel+' cobriu todo o défice de '+deficitBeforeWin.toFixed(2)+'. Novo ciclo normal MATCH 9 iniciado.');
       }else{
-       // Um ganho parcial reduz o défice, mas não termina a recuperação.
-       // Mantém a mesma paridade e avança o nível até o défice chegar a zero.
        const nextRecoveryType: 'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
        const nextRecoveryLabel=nextRecoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES';
        hyperFlowsRecoveryContractRef.current=nextRecoveryType;
        hyperFlowsRecoveryModeRef.current=true;
-       setNotice('HyperFlows: ganho em '+recoveryLabel+', mas ainda falta recuperar '+hyperFlowsDeficitRef.current.toFixed(2)+'. Próxima operação alterna para '+nextRecoveryLabel+' no martingale nível '+(recoveryAttempt+1)+'.');
+       setNotice('HyperFlows: lucro de '+Number(result).toFixed(2)+' insuficiente para cobrir o défice total de '+deficitBeforeWin.toFixed(2)+'. O défice integral mantém-se; próxima operação: '+nextRecoveryLabel+'.');
       }
      }
     }else if(wasUnder9){
