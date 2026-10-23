@@ -1356,6 +1356,14 @@ export default function AutoBotV4(){
   }
   if(!forceHypercover&&!hyperFlowFallbackActive&&strategy!=='HYPERFLOWS'&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
   if(proposal||buying||activeContractId!==null||trackedContractId!==null||!isAuthorized||!isConnected){setBotActivity(!isConnected||!isAuthorized?'reconnectingDeriv':(buying?'waitingBuyConfirmation':'reconcilingBot'));return;}
+  // A close can release Deriv's active-contract id before its financial result
+  // has been delivered/processed. HyperFlows keeps lastTradeMode set until the
+  // close handler consumes that result. Never submit the next order in this gap:
+  // otherwise the stale deficit can launch another oversized recovery stake.
+  if(strategy==='HYPERFLOWS'&&hyperFlowsLastTradeModeRef.current!==null){
+   setBotActivity('waitingRobotSignal');
+   return;
+  }
   let freshSignal:any=null;
   if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(hyperFlowFallbackActive){
    if(hyperFlowOverZeroModeRef.current){
