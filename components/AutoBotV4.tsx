@@ -1526,7 +1526,7 @@ export default function AutoBotV4(){
     return;
    }
    amount=recoveryStake;
-   console.info('[HyperFlows parity recovery stake]',{symbol,recoveryContractType,deficit,recoveryPayoutRatio,recoveryStake,expectedNetProfit:Number((recoveryStake*recoveryPayoutRatio).toFixed(2)),availableBalance,durationTicks:1,stakeRule:'ceil(deficit / actual recovery contract net payout ratio)'});
+   console.info('[HyperFlows parity recovery stake]',{symbol,recoveryContractType,deficit,recoveryPayoutRatio,recoveryStake,expectedNetProfit:Number((recoveryStake*recoveryPayoutRatio).toFixed(2)),availableBalance,durationTicks:5,stakeRule:'ceil(deficit / actual recovery contract net payout ratio)'});
   }
 
   iaRecoveryQuotePendingRef.current=false;
@@ -1570,7 +1570,7 @@ export default function AutoBotV4(){
   setBotActivity('sendingDirectBuy');
   let sent=false;
   try{
-   const contractDuration=1;
+   const contractDuration=isHyperFlowsRecoveryTrade?5:1;
    const directContractType=isHyperFlowsRecoveryTrade?(hyperFlowsRecoveryContractRef.current==='EVEN'?'DIGITEVEN':'DIGITODD'):isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr;
    // EVEN has no barrier. Never attach a synthetic barrier 0 to its order/history metadata.
    const directBarrier=isHyperFlowsRecoveryTrade?undefined:isHyperFlowRecoveryTrade?0:barrier;
