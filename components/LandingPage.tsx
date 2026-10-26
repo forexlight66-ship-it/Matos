@@ -315,11 +315,7 @@ export default function LandingPage({ onChoose }: Props) {
     </main>
   );
 }
- },
-  { win: false, bot: 'HyperDrive', value: '−0.35  = { onChoose: (mode: 'register' | 'login') => void };
 
-export default function LandingPage({ onChoose }: Props) {
-  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
