@@ -6,7 +6,12 @@ import { useEffect, useState, type CSSProperties } from 'react';
 const DEMO_DIGITS = [9, 12, 8, 11, 10, 14, 7, 10, 9, 10];
 const DEMO_CURRENT_DIGIT = 5;
 const DEMO_HISTORY = [
-  { win: true, bot: 'HyperFlow B9', value: '+2.11  = { onChoose: (mode: 'register' | 'login') => void };
+  { win: true, bot: 'HyperFlow B9', value: '+2.11 $' },
+  { win: false, bot: 'HyperDrive', value: '−0.35 $' },
+  { win: true, bot: 'HyperFlows', value: '+4.52 $' },
+];
+
+type Props = { onChoose: (mode: 'register' | 'login') => void };
 
 export default function LandingPage({ onChoose }: Props) {
   const demoMax = Math.max(...DEMO_DIGITS);
