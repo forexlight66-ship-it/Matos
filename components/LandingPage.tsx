@@ -15,7 +15,6 @@ type Props = { onChoose: (mode: 'register' | 'login') => void };
 
 export default function LandingPage({ onChoose }: Props) {
   const demoMax = Math.max(...DEMO_DIGITS);
-  const demoMin = Math.min(...DEMO_DIGITS);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -44,36 +43,54 @@ export default function LandingPage({ onChoose }: Props) {
           <h1>Conheça os seus sinais.<br /><span>Controle as suas operações.</span></h1>
           <p className="mh-lead">O MozHyper reúne robôs de negociação, análise de dígitos e ferramentas para acompanhar as operações num único painel, com ligação à sua conta Deriv.</p>
 
-          <div className="mh-dashboard-preview" aria-label="Pré-visualização ilustrativa do painel MozHyper">
-            <div className="mh-dashboard-title">Demonstração do painel MozHyper</div>
-            <div className="mh-dashboard-ui">
-              <aside className="mh-dashboard-sidebar">
-                <div className="mh-dashboard-mini-brand"><img src="/icon.svg?v=2" alt="" /> <b>MozHyper</b></div>
-                <span className="active">▦ &nbsp; Dashboard</span><span>▤ &nbsp; Ferramentas</span><span>↗ &nbsp; Operações</span><span>◷ &nbsp; Análise</span><span>⚙ &nbsp; Definições</span>
-              </aside>
-              <div className="mh-dashboard-main">
-                <div className="mh-dashboard-top"><b>Painel de demonstração</b><span>Conta <i>Demo</i></span></div>
-                <div className="mh-dashboard-widgets">
-                  <div className="mh-dash-widget mh-chart-widget">
-                    <b>Dígitos — últimos 100 ticks</b>
-                    <div className="mh-fake-chart mh-demo-digit-chart" role="img" aria-label={`Distribuição ilustrativa dos dígitos. Dígito atual: ${DEMO_CURRENT_DIGIT}`}>
-                      {DEMO_DIGITS.map((count, digitValue) => {
-                        const barStyle: CSSProperties = { height: `${Math.max(10, (count / demoMax) * 100)}%` };
-                        const isCurrent = digitValue === DEMO_CURRENT_DIGIT;
-                        const isHigh = count >= demoMax * 0.8;
-                        return <div className="mh-demo-digit" key={digitValue}>
-                          <span className="mh-demo-digit-count">{count}%</span>
-                          <i className={isCurrent ? 'current' : isHigh ? 'high' : ''} style={barStyle} />
-                          <small>{digitValue}</small>
-                        </div>;
-                      })}
-                    </div>
-                    <small>Dígito atual: <strong className="mh-demo-current-digit">{DEMO_CURRENT_DIGIT}</strong> · Frequências ilustrativas ({demoMin}%–{demoMax}%)</small>
+          <div className="mh-demo" role="img" aria-label="Pré-visualização ilustrativa do painel MozHyper, com dados de exemplo">
+            <div className="mh-demo-head">
+              <span className="mh-demo-title">Demonstração do painel MozHyper</span>
+              <span className="mh-demo-tag">Dados ilustrativos</span>
+            </div>
+
+            <div className="mh-demo-stats">
+              <div className="mh-demo-card"><small>Saldo</small><strong>200.00 $</strong></div>
+              <div className="mh-demo-card"><small>Lucro/Perda</small><strong className="mh-demo-up">+42.17 $</strong><em>Operações fechadas: 25</em></div>
+            </div>
+
+            <div className="mh-demo-card mh-demo-setup">
+              <div><small>Conta</small><span className="mh-demo-select">Real <i>⌄</i></span></div>
+              <div><small>Estratégia</small><span className="mh-demo-select">HyperFlows <i>⌄</i></span></div>
+            </div>
+
+            <div className="mh-demo-card mh-demo-chart-card">
+              <div className="mh-demo-digits-top">
+                <span className="mh-demo-current">DÍGITO: <b>{DEMO_CURRENT_DIGIT}</b></span>
+                <span className="mh-demo-live"><i />ABERTO</span>
+                <span className="mh-demo-ticks">100 ticks</span>
+              </div>
+              <div className="mh-demo-bars">
+                {DEMO_DIGITS.map((pct, digit) => (
+                  <div
+                    key={digit}
+                    className={`mh-demo-bar${pct === demoMax ? ' is-max' : ''}${pct === demoMin ? ' is-min' : ''}${digit === DEMO_CURRENT_DIGIT ? ' is-current' : ''}`}
+                    style={{ '--h': `${(pct / demoMax) * 100}%`, '--i': digit } as CSSProperties}
+                  >
+                    <span className="mh-demo-pct">{pct}%</span>
+                    <span className="mh-demo-col" />
+                    <span className="mh-demo-n">{digit}</span>
                   </div>
-                  <div className="mh-dash-widget"><b>Robôs disponíveis</b><div className="mh-bot-row">HyperDrive <i>Disponível</i></div><div className="mh-bot-row">HyperFlow B9 <i>Disponível</i></div><div className="mh-bot-row">HyperFlows <i>Disponível</i></div><small>Pré-visualização, não representa estado em tempo real</small></div>
-                  <div className="mh-dash-widget mh-deriv-widget"><b>Conta de negociação</b><div className="mh-deriv-word">DERIV</div><span>Exemplo visual</span><i>Modo demonstração</i></div>
-                </div>
-                <div className="mh-dashboard-bottom"><b>Histórico recente · exemplo</b><div>{DEMO_HISTORY.map((item, index) => <span className={item.win ? 'mh-demo-win' : 'mh-demo-loss'} key={`${item.bot}-${index}`}>{item.win ? 'GANHO' : 'PERDA'} <small>{item.bot}</small><strong>{item.value}</strong></span>)}</div></div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mh-demo-card mh-demo-history">
+              <div className="mh-demo-history-head">HISTÓRICO RECENTE</div>
+              <div className="mh-demo-history-list">
+                {DEMO_HISTORY.map((trade, i) => (
+                  <div key={i} className={`mh-demo-trade ${trade.win ? 'win' : 'loss'}`}>
+                    <svg viewBox="0 0 12 26" aria-hidden="true"><path d="M6 0v26" stroke="currentColor" strokeWidth="1.6" /><rect x="2" y="6" width="8" height="14" rx="2" fill="currentColor" /></svg>
+                    <b>{trade.win ? 'GANHO' : 'PERDA'}</b>
+                    <span>{trade.bot}</span>
+                    <strong>{trade.value}</strong>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -160,6 +177,52 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-preview-action{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}.mh-preview-action>span:first-child{display:flex;align-items:center;gap:7px;font-size:9px;color:#7b8798}
         .mh-preview-button{padding:9px 12px;border-radius:8px;background:#ff444f;color:#fff;font-size:9px;font-weight:800;opacity:.92}
         .mh-preview-caption{margin:10px 5px 0;font-size:9px;line-height:1.55;color:#8993a3}
+
+        .mh-demo{width:100%;margin-top:24px;padding:14px;border:1px solid #dbe2ea;border-radius:20px;background:linear-gradient(150deg,#fff 0%,#f7f9fc 100%);box-shadow:0 18px 42px rgba(23,32,51,.09);overflow:hidden;color:#172033}
+        .mh-demo-head{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+        .mh-demo-title{font-size:clamp(12px,3.1vw,15px);font-weight:800;letter-spacing:-.25px;color:#202a3b}
+        .mh-demo-tag{display:inline-flex;align-items:center;padding:6px 8px;border:1px solid #dfe7ef;border-radius:7px;background:#f4f7fb;color:#718095;font-size:8px;font-weight:800;white-space:nowrap}
+        .mh-demo-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+        .mh-demo-card{min-width:0;padding:12px;border:1px solid #e3e9f0;border-radius:12px;background:#fff;box-shadow:0 3px 9px rgba(23,32,51,.025)}
+        .mh-demo-card>small{display:block;color:#7b8798;font-size:10px;line-height:1.4}
+        .mh-demo-stats .mh-demo-card{min-height:86px;padding:11px 10px}
+        .mh-demo-stats .mh-demo-card>strong{display:block;margin-top:6px;color:#172033;font:700 clamp(18px,5vw,24px)/1.15 'JetBrains Mono',monospace;letter-spacing:-.9px;white-space:nowrap;font-variant-numeric:tabular-nums}
+        .mh-demo-stats .mh-demo-card>strong.mh-demo-up{color:#12966d}
+        .mh-demo-stats .mh-demo-card>em{display:block;margin-top:5px;color:#91a0b1;font-size:8px;line-height:1.4;font-style:normal}
+        .mh-demo-setup{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:10px;margin-top:10px}
+        .mh-demo-setup>div{min-width:0}
+        .mh-demo-select{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;padding:8px 9px;border:1px solid #e2e8ef;border-radius:8px;background:#fbfcfe;color:#253246;font-size:11px;font-weight:800;white-space:nowrap}
+        .mh-demo-select i{font-style:normal;color:#8591a2;font-size:12px}
+        .mh-demo-chart-card{margin-top:10px;padding:12px 10px 10px}
+        .mh-demo-digits-top{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap}
+        .mh-demo-current{display:inline-flex;align-items:center;gap:5px;color:#6d7a8c;font-size:9px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+        .mh-demo-current b{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border-radius:6px;background:#fff0f1;color:#e63240;font-size:10px}
+        .mh-demo-live{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border-radius:7px;background:#ecfbf5;color:#0b946a;font-size:8px;font-weight:900;letter-spacing:.45px;white-space:nowrap}
+        .mh-demo-live>i{display:block;width:6px;height:6px;border-radius:50%;background:#13b887;animation:mh-demo-pulse 1.3s ease-in-out infinite}
+        .mh-demo-ticks{color:#8994a4;font-size:9px;white-space:nowrap}
+        .mh-demo-bars{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;align-items:stretch;height:119px;margin-top:10px;padding:0 1px}
+        .mh-demo-bar{display:grid;grid-template-rows:12px minmax(0,1fr) 18px;align-items:stretch;min-width:0;height:100%}
+        .mh-demo-pct{display:block;align-self:start;justify-self:center;color:#7f8b9b;font-size:clamp(6px,1.85vw,8px);font-weight:700;line-height:1;white-space:nowrap}
+        .mh-demo-col{display:block;align-self:end;justify-self:center;width:min(100%,16px);height:var(--h);min-height:5px;border-radius:4px 4px 1px 1px;background:#cbd4df;transform-origin:center bottom;animation:mh-demo-bar-rise .76s cubic-bezier(.2,.75,.25,1) calc(var(--i,0)*55ms) both}
+        .mh-demo-bar.is-max .mh-demo-col{background:#13b887}
+        .mh-demo-bar.is-min .mh-demo-col{background:#ff737d}
+        .mh-demo-n{align-self:end;justify-self:center;min-width:17px;padding:2px 1px;border-radius:5px;color:#687588;font-size:9px;font-weight:700;line-height:14px;text-align:center}
+        .mh-demo-bar.is-current .mh-demo-col{outline:2px solid #ff444f;outline-offset:1px}
+        .mh-demo-bar.is-current .mh-demo-n{background:#ff444f;color:#fff}
+        .mh-demo-history{margin-top:10px}
+        .mh-demo-history-head{margin-bottom:9px;color:#718095;font-size:9px;font-weight:900;letter-spacing:.65px}
+        .mh-demo-history-list{display:grid;gap:7px}
+        .mh-demo-trade{display:grid;grid-template-columns:10px auto minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0;padding:8px 9px;border:1px solid #e6edf3;border-radius:9px;background:#fcfdff}
+        .mh-demo-trade svg{display:block;width:9px;height:20px}
+        .mh-demo-trade>b{font-size:8px;font-weight:900;letter-spacing:.2px}
+        .mh-demo-trade>span{min-width:0;overflow:hidden;color:#697789;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+        .mh-demo-trade>strong{font-size:10px;font-weight:900;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+        .mh-demo-trade.win{border-color:#d8f1e6;background:#f3fcf8;color:#13956b}
+        .mh-demo-trade.loss{border-color:#f4dfe2;background:#fff7f7;color:#e63240}
+        @keyframes mh-demo-bar-rise{from{transform:scaleY(0);opacity:.45}to{transform:scaleY(1);opacity:1}}
+        @keyframes mh-demo-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(19,184,135,.2)}50%{opacity:.45;box-shadow:0 0 0 4px rgba(19,184,135,0)}}
+        @media(max-width:460px){.mh-demo{margin-top:20px;padding:11px;border-radius:16px}.mh-demo-head{gap:7px}.mh-demo-title{font-size:12px}.mh-demo-card{padding:10px}.mh-demo-stats{gap:7px}.mh-demo-stats .mh-demo-card{padding:10px 8px;min-height:80px}.mh-demo-stats .mh-demo-card>strong{font-size:clamp(18px,5.1vw,21px);letter-spacing:-1px}.mh-demo-setup{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:7px}.mh-demo-setup .mh-demo-select{padding:8px 7px;font-size:10px}.mh-demo-chart-card{padding:10px 8px}.mh-demo-bars{gap:3px;height:112px}.mh-demo-trade{grid-template-columns:9px auto minmax(0,1fr) auto;gap:6px;padding:8px 7px}.mh-demo-trade>span{font-size:9px}.mh-demo-trade>strong{font-size:9px}}
+        @media(prefers-reduced-motion:reduce){.mh-demo .mh-demo-col,.mh-demo .mh-demo-live>i{animation:none!important;transition:none!important;transform:none!important;opacity:1!important}.mh-demo .mh-demo-col{height:var(--h)!important}}
         .mh-intro-band{display:grid;grid-template-columns:1.1fr .9fr;gap:55px;align-items:center;padding:62px clamp(24px,9vw,132px);background:#fff;border-bottom:1px solid var(--mh-border)}
         .mh-section-kicker{display:block;margin-bottom:10px;color:var(--mh-red);font-size:9px;font-weight:800;letter-spacing:1.6px}
         .mh-intro-band h2,.mh-section-intro h2,.mh-steps-intro h2{margin:0;font:700 clamp(27px,3vw,39px)/1.2 'Space Grotesk',Inter,sans-serif;letter-spacing:-1.2px;color:#172033}
@@ -221,14 +284,6 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-nav-actions .mh-small{background:var(--mh-red);border-color:var(--mh-red);box-shadow:0 8px 20px rgba(255,63,75,.22)}
         .mh-nav-actions .mh-small:hover{background:var(--mh-red-dark);border-color:var(--mh-red-dark)}
         .mh-badge{background:linear-gradient(100deg,#b30e1b,#ed1c2e);border:1px solid #f5a0a7;color:#fff}
-        .mh-dashboard-preview{background:#f5f7fb;border-color:#dbe2ea}
-        .mh-dashboard-title{color:#e63240}
-        .mh-dashboard-ui{border-color:#dbe2ea}
-        .mh-dashboard-sidebar>span.active{background:#fff0f1;color:#ed1c2e}
-        .mh-dashboard-top i{color:#ed1c2e;background:#fff0f1}
-        .mh-bot-row{border-color:#f4d8db;background:#fff8f8}
-        .mh-bot-row i{color:#ed1c2e}
-        .mh-deriv-widget>i{color:#ed1c2e;border-color:#f3c5c9}
         .mh-main-cta{background:linear-gradient(100deg,#ff444f,#d92330);border-color:#ed1c2e;box-shadow:0 9px 20px rgba(255,63,75,.25)}
         .mh-main-cta:hover{background:#c91827;border-color:#c91827}
         .mh-payment-icons{display:flex;gap:10px;margin-top:13px;width:100%}
@@ -237,43 +292,13 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-payment-icons b{font-size:13px;line-height:1;color:#fff;text-transform:none}
         .mh-mpesa-logo{background:#ed1c2e!important;color:#fff!important}
         .mh-emola-logo{background:#f47b20!important;color:#fff!important}
-        .mh-demo-digit-chart{display:flex!important;align-items:flex-end;justify-content:space-between;gap:4px;height:82px!important;padding:5px 0 0!important;background:repeating-linear-gradient(to bottom,transparent 0,transparent 18px,#f0f2f6 19px)!important}
-        .mh-demo-digit{display:flex;flex:1;min-width:0;height:100%;align-items:center;justify-content:flex-end;flex-direction:column;gap:3px}
-        .mh-demo-digit-count{font-size:6px;color:#8490a1;line-height:1}
-        .mh-demo-digit i{display:block;width:100%;max-width:13px;min-height:4px;border-radius:3px 3px 1px 1px;background:#cbd4df}
-        .mh-demo-digit i.high{background:#13b887}
-        .mh-demo-digit i.current{background:#ff444f;outline:1px solid #ff444f}
-        .mh-demo-digit small{font-size:6px!important;margin:0!important;color:#697589!important}
         .mh-demo-current-digit{color:#ff444f}
-        .mh-dashboard-bottom .mh-demo-loss small,.mh-dashboard-bottom .mh-demo-win small{display:block;margin-top:4px;font-size:7px;color:#8490a1}
-        .mh-dashboard-bottom .mh-demo-loss strong{color:#ff444f}
-        .mh-dashboard-bottom .mh-demo-win strong{color:#13a982}
         @media(max-width:760px){.mh-payment-icons i{min-height:92px;border-radius:12px;padding:7px}.mh-payment-icons svg{height:52px}.mh-payment-icons b{font-size:11px}}
         .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding:42px clamp(20px,5vw,70px) 36px}
         .mh-hero-simple .mh-hero-copy{max-width:850px;width:100%}
         .mh-badge{display:inline-flex;background:linear-gradient(100deg,#9f111b,#d51f2b);color:#fff;border-radius:999px;padding:8px 15px;letter-spacing:.4px}
         .mh-badge i{background:#ffd06a}
         .mh-hero-simple .mh-hero h1{margin-top:19px}
-        .mh-dashboard-preview{width:100%;margin-top:24px;padding:16px 16px 0;border:1px solid #e0e3e9;border-radius:20px;background:linear-gradient(145deg,#fff,#f4f5f9);box-shadow:0 12px 25px rgba(23,32,51,.12);overflow:hidden}
-        .mh-dashboard-title{text-align:center;font-size:15px;font-weight:800;color:#303746;margin-bottom:13px}
-        .mh-dashboard-ui{display:grid;grid-template-columns:150px minmax(0,1fr);min-height:235px;border:1px solid #e1e5eb;border-radius:12px 12px 0 0;background:#fff;overflow:hidden;box-shadow:0 4px 16px rgba(23,32,51,.07)}
-        .mh-dashboard-sidebar{display:flex;flex-direction:column;gap:8px;padding:12px 9px;background:#fafbfc;border-right:1px solid #edf0f4;color:#7a8494;font-size:9px}
-        .mh-dashboard-mini-brand{display:flex;align-items:center;gap:5px;margin-bottom:8px;color:#263143;font-size:10px}
-        .mh-dashboard-mini-brand img{width:18px;height:18px;border-radius:5px}
-        .mh-dashboard-sidebar>span{padding:7px 6px;border-radius:5px;white-space:nowrap}
-        .mh-dashboard-sidebar>span.active{background:#fff0f1;color:#d92f3d;font-weight:800}
-        .mh-dashboard-main{padding:13px;min-width:0}
-        .mh-dashboard-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#293244}
-        .mh-dashboard-top>span{font-size:8px;color:#7b8798}.mh-dashboard-top i{font-style:normal;color:#169c75;background:#e8f8f2;padding:4px 6px;border-radius:5px;margin-left:3px}
-        .mh-dashboard-widgets{display:grid;grid-template-columns:1.15fr 1fr .9fr;gap:8px;margin-top:13px}
-        .mh-dash-widget{padding:10px;border:1px solid #edf0f4;border-radius:7px;min-width:0;background:#fff}
-        .mh-dash-widget>b,.mh-dashboard-bottom>b{display:block;font-size:8px;color:#4b5565;margin-bottom:9px}
-        .mh-fake-chart{height:76px;padding:6px 0 0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 18px,#f0f2f6 19px)}
-        .mh-fake-chart svg{width:100%;height:100%}.mh-dash-widget small{display:block;margin-top:5px;font-size:7px;color:#98a1af}
-        .mh-bot-row{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:7px 5px;margin-bottom:6px;border:1px solid #e7eee9;border-radius:5px;background:#f8fcf9;font-size:8px;color:#3e4b5c}
-        .mh-bot-row i{font-style:normal;color:#148866;font-size:7px}
-        .mh-deriv-widget{text-align:center}.mh-deriv-word{font-size:20px;font-weight:900;letter-spacing:-1px;color:#263143;margin:19px 0 4px}.mh-deriv-widget>span{display:block;font-size:7px;color:#7b8798}.mh-deriv-widget>i{display:inline-block;margin-top:9px;padding:5px 8px;border:1px solid #e1e5eb;border-radius:5px;font-style:normal;font-size:7px;color:#626e80}
-        .mh-dashboard-bottom{margin-top:10px;padding:11px;border:1px solid #edf0f4;border-radius:7px;background:#fff}.mh-dashboard-bottom>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.mh-dashboard-bottom>div span{font-size:8px;color:#8a94a4}.mh-dashboard-bottom strong{display:block;margin-top:4px;font-size:10px;color:#394457}
         .mh-main-cta{display:flex;width:100%;margin-top:22px;min-height:54px;border-radius:12px;background:linear-gradient(100deg,#a60f19,#c91d28);border:1px solid #e6b8a1;box-shadow:0 9px 20px rgba(180,22,33,.19);font-size:15px}
         .mh-main-cta:hover{background:linear-gradient(100deg,#8e0b14,#b31420);border-color:#d6a18d}
         .mh-service-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:17px}
@@ -284,7 +309,7 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-payment-icons{display:flex;gap:8px;margin-top:13px}.mh-payment-icons i{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;background:#fff0f1;color:#c52230;font-size:14px;font-weight:900;font-style:normal}.mh-payment-icons i+ i{background:#e7f8ee;color:#15945c}
         .mh-signal-action{display:flex;align-items:center;gap:8px;margin-top:13px}.mh-signal-action i{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;background:#eef1f8;color:#293244;font-style:normal;font-size:17px}.mh-signal-action b{flex:1;text-align:center;border:1px solid #dbe2ea;border-radius:10px;padding:10px 7px;color:#30394a;font-size:11px}
         .mh-security-note{text-align:center;margin:19px 0 0;color:#8a94a4;font-size:10px;line-height:1.6}
-        @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:32px 19px 30px}.mh-badge{font-size:8px;padding:7px 10px}.mh-dashboard-preview{margin-top:20px;padding:12px 9px 0;border-radius:16px}.mh-dashboard-title{font-size:12px}.mh-dashboard-ui{grid-template-columns:78px minmax(0,1fr);min-height:190px}.mh-dashboard-sidebar{padding:8px 5px;gap:6px;font-size:7px}.mh-dashboard-mini-brand{font-size:7px;gap:3px}.mh-dashboard-mini-brand img{width:14px;height:14px}.mh-dashboard-sidebar>span{padding:6px 3px}.mh-dashboard-main{padding:8px 6px}.mh-dashboard-top{font-size:8px}.mh-dashboard-top>span{font-size:6px}.mh-dashboard-widgets{grid-template-columns:1.1fr 1fr;gap:5px;margin-top:9px}.mh-dash-widget{padding:6px}.mh-dash-widget>b,.mh-dashboard-bottom>b{font-size:6px;margin-bottom:6px}.mh-fake-chart{height:54px}.mh-bot-row{font-size:6px;padding:6px 3px}.mh-bot-row i{font-size:5px}.mh-deriv-widget{display:none}.mh-dashboard-bottom{padding:7px;margin-top:6px}.mh-dashboard-bottom>div{gap:4px}.mh-dashboard-bottom>div span{font-size:6px}.mh-dashboard-bottom strong{font-size:7px}.mh-main-cta{min-height:50px;margin-top:17px;font-size:13px;padding:12px}.mh-service-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}.mh-service-card{align-items:flex-start;padding:13px 10px;border-radius:14px}.mh-service-copy strong{font-size:12px}.mh-service-arrow{display:none}.mh-payment-icons{margin-top:11px}.mh-payment-icons i,.mh-signal-action i{width:32px;height:32px}.mh-signal-action{gap:6px;flex-wrap:wrap}.mh-signal-action b{font-size:9px;padding:9px 5px}.mh-security-note{font-size:9px;margin-top:15px}}
+        @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:32px 19px 30px}.mh-badge{font-size:8px;padding:7px 10px}.mh-main-cta{min-height:50px;margin-top:17px;font-size:13px;padding:12px}.mh-service-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}.mh-service-card{align-items:flex-start;padding:13px 10px;border-radius:14px}.mh-service-copy strong{font-size:12px}.mh-service-arrow{display:none}.mh-payment-icons{margin-top:11px}.mh-payment-icons i,.mh-signal-action i{width:32px;height:32px}.mh-signal-action{gap:6px;flex-wrap:wrap}.mh-signal-action b{font-size:9px;padding:9px 5px}.mh-security-note{font-size:9px;margin-top:15px}}
         .mh-hero-simple{display:flex;justify-content:center;min-height:calc(100vh - 82px);padding-top:clamp(54px,9vh,100px);padding-bottom:58px}
         .mh-hero-simple .mh-hero-copy{max-width:820px;width:100%}
         .mh-hero-simple .mh-hero-actions{display:none}
