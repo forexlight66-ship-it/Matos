@@ -336,13 +336,13 @@ export default function LandingPage({ onChoose }: Props) {
         /* Identidade do novo slogan: fundo escuro, texto branco e destaque vermelho MozHyper. */
         .mh-landing .mh-tagline-badge{
           display:inline-flex!important;align-items:center;flex-wrap:wrap;gap:5px;
-          padding:9px 15px;border:1px solid #172033!important;border-radius:999px;
-          background:#172033!important;color:#fff!important;box-shadow:none!important;
+          padding:9px 15px;border:1px solid #ff444f!important;border-radius:999px;
+          background:#ff444f!important;color:#fff!important;box-shadow:none!important;
           font-size:10px;font-weight:900;letter-spacing:.55px;line-height:1.5;
         }
         .mh-landing .mh-tagline-badge>i{background:#fff!important;flex:none}
-        .mh-landing .mh-tagline-white{color:#fff!important}
-        .mh-landing .mh-tagline-red{color:#ff444f!important}
+        .mh-landing .mh-tagline-white,
+        .mh-landing .mh-tagline-red{color:#fff!important}
         .mh-landing .mh-hero-simple h1{max-width:100%;overflow-wrap:normal}
         .mh-landing .mh-hero-simple h1 span{color:#ff444f!important}
         @media(max-width:760px){
