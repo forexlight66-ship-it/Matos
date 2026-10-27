@@ -327,6 +327,28 @@ export async function createSignalsFreeUnlimitedRequest(input: {
   return result.rows[0] as PaymentRequest;
 }
 
+
+export async function getSignalsFreeUnlimitedAccess(userId: string | number) {
+  await ensurePaymentRequestSchema();
+  const result = await pool.query(
+    `SELECT id, status, agent_confirmed_at
+     FROM payment_agent_requests
+     WHERE user_id=$1
+       AND purpose='signals_free_unlimited'
+       AND status IN ('payment_confirmed','completed')
+     ORDER BY COALESCE(agent_confirmed_at, completed_at, created_at) DESC
+     LIMIT 1`,
+    [userId],
+  );
+  const row = result.rows[0];
+  return {
+    active: Boolean(row),
+    requestId: row?.id ? String(row.id) : null,
+    status: row?.status ? String(row.status) : null,
+    confirmedAt: row?.agent_confirmed_at || null,
+  };
+}
+
 export async function getAIAnalystAccess(userId: string | number, derivNickname?: string | null) {
   await ensurePaymentRequestSchema();
   const nickname=derivNickname?.trim()||'';
