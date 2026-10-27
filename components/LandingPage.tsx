@@ -7,13 +7,6 @@ const DEMO_DIGITS = [9, 12, 8, 11, 10, 14, 7, 10, 9, 10];
 const DEMO_GREEN_DIGITS = [0, 2, 8];
 const DEMO_RED_DIGITS = [1, 3, 7, 9];
 const DEMO_CURRENT_DIGIT = 5;
-const DEMO_HISTORY = [
-  { win: true, bot: 'HyperFlow B9', value: '+2.11 $' },
-  { win: false, bot: 'HyperDrive', value: '−0.35 $' },
-  { win: true, bot: 'HyperFlows', value: '+4.52 $' },
-  { win: true, bot: 'HyperFlow B9', value: '+1.86 $' },
-  { win: false, bot: 'HyperFlows', value: '−1.20 $' },
-];
 
 type Props = { onChoose: (mode: 'register' | 'login') => void };
 
@@ -85,24 +78,6 @@ export default function LandingPage({ onChoose }: Props) {
               </div>
             </div>
 
-            <div className="mh-demo-card mh-demo-history">
-              <div className="mh-demo-history-head">
-                <span>HISTÓRICO RECENTE</span>
-                <div className="mh-demo-history-icons" aria-hidden="true">
-                  <span>↗</span><span>↘</span><span>⌁</span><span>☰</span>
-                </div>
-              </div>
-              <div className="mh-demo-history-list">
-                {DEMO_HISTORY.map((trade, i) => (
-                  <div key={i} className={`mh-demo-trade ${trade.win ? 'win' : 'loss'}`}>
-                    <svg viewBox="0 0 12 26" aria-hidden="true"><path d="M6 0v26" stroke="currentColor" strokeWidth="1.6" /><rect x="2" y="6" width="8" height="14" rx="2" fill="currentColor" /></svg>
-                    <b>{trade.win ? 'GANHO' : 'PERDA'}</b>
-                    <span>{trade.bot}</span>
-                    <strong>{trade.value}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
           <button className="mh-primary mh-main-cta" onClick={() => onChoose('register')}>Criar conta MozHyper Gratuita <span aria-hidden="true">↗</span></button>
@@ -226,12 +201,6 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-demo-bar.is-current .mh-demo-col{outline:none;box-shadow:none;background:#cbd3dd}
         .mh-demo-n{display:grid;place-items:center;align-self:end;justify-self:center;min-width:calc(17 * var(--u));padding:calc(2 * var(--u)) calc(1 * var(--u));border-radius:calc(5 * var(--u));color:#687588;font-size:calc(13 * var(--u));font-weight:700;line-height:calc(18 * var(--u));text-align:center}
         .mh-demo-bar.is-current .mh-demo-n{background:transparent;color:#172033}
-        .mh-demo-history{margin-top:calc(12 * var(--u));padding:calc(18 * var(--u))}
-        .mh-demo-history-head{display:flex;align-items:center;justify-content:space-between;gap:calc(8 * var(--u));margin-bottom:calc(16 * var(--u));color:#718095;font-size:calc(12 * var(--u));font-weight:900;letter-spacing:calc(.5 * var(--u))}
-        .mh-demo-history-icons{display:flex;align-items:center;gap:calc(8 * var(--u));flex:none}
-        .mh-demo-history-icons span{display:grid;place-items:center;width:calc(42 * var(--u));height:calc(42 * var(--u));border:1px solid #d9dee6;border-radius:calc(13 * var(--u));background:#fff;color:#667184;font-size:calc(18 * var(--u));font-weight:800}
-        .mh-demo-history-list{display:flex;gap:calc(12 * var(--u));overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding:calc(2 * var(--u)) 0 calc(6 * var(--u));scrollbar-width:none;-webkit-overflow-scrolling:touch}
-        .mh-demo-history-list::-webkit-scrollbar{display:none}
         .mh-demo-trade{display:flex;flex:0 0 calc(225 * var(--u));min-width:0;min-height:calc(220 * var(--u));flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:calc(8 * var(--u));padding:calc(20 * var(--u));border:1px solid #e0e6ed;border-radius:calc(22 * var(--u));background:#fff;scroll-snap-align:start}
         .mh-demo-trade svg{display:block;width:calc(18 * var(--u));height:calc(30 * var(--u));margin-bottom:calc(4 * var(--u))}
         .mh-demo-trade>b{font-size:calc(26 * var(--u));font-weight:900;letter-spacing:0;line-height:1.1}
@@ -241,7 +210,6 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-demo-trade.win>b,.mh-demo-trade.win>strong{color:#18a97f}
         .mh-demo-trade.loss>b,.mh-demo-trade.loss>strong{color:#ff4054}
         @keyframes mh-demo-bar-rise{from{transform:scaleY(0);opacity:.45}to{transform:scaleY(1);opacity:1}}
-        @media(max-width:380px){.mh-demo-title{font-size:calc(14 * var(--u))}.mh-demo-head{gap:calc(5 * var(--u))}.mh-demo-digits-top{gap:calc(5 * var(--u))}.mh-demo-history-icons{gap:calc(5 * var(--u))}}
         .mh-login{border:0;background:transparent;color:#394457;padding:12px 14px;font-size:12px;font-weight:700;box-shadow:none}
         .mh-login:hover{color:var(--mh-red);background:transparent;transform:none;box-shadow:none}
 
