@@ -15,6 +15,7 @@ type Props = { onChoose: (mode: 'register' | 'login') => void };
 
 export default function LandingPage({ onChoose }: Props) {
   const demoMax = Math.max(...DEMO_DIGITS);
+  const demoMin = Math.min(...DEMO_DIGITS);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
