@@ -190,7 +190,7 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-demo-live>i{display:none}
         .mh-demo-ticks{color:#596273;font-size:calc(12 * var(--u));font-weight:700;white-space:nowrap}
         .mh-demo-lightning{display:inline-grid;place-items:center;width:calc(42 * var(--u));height:calc(42 * var(--u));border:1px solid #d9dee6;border-radius:calc(13 * var(--u));background:#fff;color:#30394a;font-size:calc(24 * var(--u));font-weight:900;line-height:1}
-        .mh-demo-bars{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:calc(6 * var(--u));align-items:stretch;height:calc(245 * var(--u));margin-top:calc(20 * var(--u));padding:0}
+        .mh-demo-bars{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:calc(6 * var(--u));align-items:stretch;height:calc(165 * var(--u));margin-top:calc(14 * var(--u));padding:0}
         .mh-demo-bar{display:grid;grid-template-rows:calc(22 * var(--u)) minmax(0,1fr) calc(24 * var(--u));align-items:stretch;min-width:0;height:100%}
         .mh-demo-pct{display:block;align-self:start;justify-self:center;color:#8a94a4;font-size:calc(11 * var(--u));font-weight:700;line-height:1;white-space:nowrap}
         .mh-demo-col{display:block;align-self:end;justify-self:center;width:calc(30 * var(--u));max-width:100%;height:var(--h);min-height:calc(5 * var(--u));border-radius:calc(7 * var(--u)) calc(7 * var(--u)) calc(2 * var(--u)) calc(2 * var(--u));background:#cbd3dd;transform-origin:center bottom;animation:mh-demo-bar-rise .76s cubic-bezier(.2,.75,.25,1) calc(var(--i,0)*55ms) both}
