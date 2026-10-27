@@ -695,7 +695,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
           {isAiAnalyst
   ? aiInfo
   : isSignalsFree
-    ? (language === 'en' ? 'Forex signals subscription. Pay 3 USDT with Binance on TRON (TRC20), or 250 MT with M-Pesa/e-Mola if eligible. Access is enabled after the Payment Agent confirms payment.' : 'Assinatura de sinais Forex. Pague 3 USDT na Binance pela rede TRON (TRC20), ou 250 MT por M-Pesa/e-Mola se for elegível. O acesso é liberado após confirmação do Payment Agent.')
+    ? (signalsMznEligible ? (language === 'en' ? 'Forex signals subscription. Pay 250 MT with M-Pesa or e-Mola. Access is enabled after MozHyper confirms payment.' : 'Assinatura de sinais Forex. Pague 250 MT por M-Pesa ou e-Mola. O acesso é liberado após confirmação da MozHyper.') : (language === 'en' ? 'Forex signals subscription. Pay 3 USDT with Binance on TRON (TRC20). Access is enabled after MozHyper confirms payment.' : 'Assinatura de sinais Forex. Pague 3 USDT na Binance pela rede TRON (TRC20). O acesso é liberado após confirmação da MozHyper.'))
   : isCourse
     ? (language === 'en'
         ? (courseMznEligible ? 'Complete Course payment via MozHyper. Pay 999 MZN with M-Pesa or e-Mola, then upload the payment screenshot and click “I PAID”.' : 'Complete Course payment via MozHyper. Pay 15 USDT on Binance using TRON (TRC20), then upload the payment screenshot and click “I PAID”.')
