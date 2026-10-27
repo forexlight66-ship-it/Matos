@@ -53,7 +53,7 @@ export default function LandingPage({ onChoose }: Props) {
 
             <div className="mh-demo-card mh-demo-setup">
               <div><small>Conta</small><span className="mh-demo-account">Real <i>⌄</i></span></div>
-              <div><small>Estratégia</small><span className="mh-demo-select">HyperFlows <i>⌄</i></span></div>
+              <div><small>Estratégia</small><span className="mh-demo-select">Hypercover <i>⌄</i></span></div>
             </div>
 
             <div className="mh-demo-card mh-demo-chart-card">
@@ -295,6 +295,42 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-signals-link strong{font-size:14px;line-height:1.45}
         .mh-signals-link small{margin-top:4px;color:rgba(255,255,255,.88);font-size:11px}
         @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:42px 19px 50px}.mh-hero-simple .mh-hero-actions{max-width:none}.mh-hero-simple .mh-secondary{font-size:12px}.mh-signals-link{padding:15px}.mh-signals-link strong{font-size:12px}}
+
+
+        /* Ajustes mobile: impedir cortes no cabeçalho, evitar sobreposição no painel
+           demonstrativo e reduzir os espaços verticais excessivos. */
+        @media(max-width:760px){
+          .mh-nav{height:72px;padding:0 12px;gap:6px}
+          .mh-brand{gap:7px;min-width:0}
+          .mh-brand>img{width:36px;height:36px;border-radius:11px}
+          .mh-brand-copy{min-width:0;gap:2px}
+          .mh-brand-copy strong{font-size:18px;letter-spacing:-.6px;white-space:nowrap}
+          .mh-brand-copy small{font-size:7px;letter-spacing:.3px;white-space:nowrap}
+          .mh-nav-actions{flex:none;gap:5px}
+          .mh-nav-actions .mh-login{padding:9px 9px;font-size:10px;white-space:nowrap}
+          .mh-nav-actions .mh-small{padding:10px 8px;font-size:10px;gap:4px;white-space:nowrap;flex:none}
+          .mh-hero-simple{min-height:auto;padding:24px 16px 24px}
+          .mh-hero-simple .mh-hero-copy{width:100%;max-width:none}
+          .mh-hero-simple h1{margin:15px 0 12px;line-height:1.13;letter-spacing:-1.6px}
+          .mh-hero-simple .mh-lead{line-height:1.65}
+          .mh-demo{margin-top:16px}
+          .mh-demo-head{align-items:flex-start;flex-wrap:wrap;gap:7px;margin-bottom:11px}
+          .mh-demo-title{flex:1 1 170px;white-space:normal;overflow-wrap:anywhere;font-size:calc(13 * var(--u));line-height:1.3}
+          .mh-demo-tag{font-size:calc(9 * var(--u));padding:calc(6 * var(--u)) calc(7 * var(--u));}
+          .mh-main-cta{margin-top:17px;min-height:48px}
+          .mh-service-cards{margin-top:14px;gap:10px}
+          .mh-security-note{margin-top:12px}
+        }
+        @media(max-width:390px){
+          .mh-nav{padding-left:9px;padding-right:9px;gap:4px}
+          .mh-brand{gap:5px}
+          .mh-brand>img{width:32px;height:32px}
+          .mh-brand-copy strong{font-size:16px;letter-spacing:-.5px}
+          .mh-brand-copy small{font-size:6px;letter-spacing:.2px}
+          .mh-nav-actions{gap:4px}
+          .mh-nav-actions .mh-login{padding:8px 7px;font-size:9px}
+          .mh-nav-actions .mh-small{padding:9px 7px;font-size:9px}
+        }
 
       `}</style>
     </main>
