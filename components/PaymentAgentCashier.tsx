@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-type Action = 'deposit' | 'withdraw' | 'ai_analyst' | 'course';
+type Action = 'deposit' | 'withdraw' | 'ai_analyst' | 'course' | 'signals_free';
 type Step = 'form' | 'confirm' | 'otp' | 'result';
 
 type AgentCurrency = {
@@ -73,6 +73,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   const { language } = useLanguage();
   const isAiAnalyst = action === 'ai_analyst';
   const isCourse = action === 'course';
+  const isSignalsFree = action === 'signals_free';
   const copy: Copy = language === 'en'
     ? {
         deposit:'Deposit', withdraw:'Withdraw', paymentAgent:'MozHyper', close:'Close', account:'Deriv account', amount:'Amount', yourName:'Your name', paymentPhone:'Phone number used for payment', aiPaymentMethod:'Payment method', aiAccessInfo:'Access for 30 days after MozHyper administrator confirmation.',
@@ -141,6 +142,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   const [nicknameError, setNicknameError] = useState('');
   const [payerName, setPayerName] = useState('');
   const [payerNumber, setPayerNumber] = useState('');
+  const [mt5Id, setMt5Id] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola' | 'binance_usdt_trc20'>('mpesa');
   const [paymentNumber, setPaymentNumber] = useState('');
   const [paymentName, setPaymentName] = useState('');
@@ -163,7 +165,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   useEffect(() => {
     if (!open || !action) return;
     setStep('form');
-    setAmount(action === 'ai_analyst' ? (eligibleClient ? '250' : '3') : action === 'course' ? (eligibleClient ? '999' : '15') : '');
+    setAmount(action === 'ai_analyst' || action === 'signals_free' ? (eligibleClient ? '250' : '3') : action === 'course' ? (eligibleClient ? '999' : '15') : '');
     setCode('');
     setBusy(false);
     setMessage('');
@@ -173,7 +175,8 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
     setNicknameError('');
     setPayerName('');
     setPayerNumber('');
-    setPaymentMethod((action === 'ai_analyst' || action === 'course') && !eligibleClient ? 'binance_usdt_trc20' : 'mpesa');
+    setMt5Id('');
+    setPaymentMethod((action === 'ai_analyst' || action === 'course' || action === 'signals_free') && !eligibleClient ? 'binance_usdt_trc20' : 'mpesa');
     setPaymentNumber('');
     setPaymentName('');
     setDepositPaid(false);
@@ -181,7 +184,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
     setDepositStatus('');
     setAuthExpired(false);
     setSupportedCurrencies([]);
-    setPaymentCurrency((action === 'ai_analyst' || action === 'course') ? (eligibleClient ? 'MZN' : 'USDT') : (agentCurrency || currency));
+    setPaymentCurrency((action === 'ai_analyst' || action === 'course' || action === 'signals_free') ? (eligibleClient ? 'MZN' : 'USDT') : (agentCurrency || currency));
     try {
       const raw = sessionStorage.getItem('mozhyper_payment_agent_draft');
       if (raw) {
@@ -284,8 +287,8 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
     };
   }, [open, currency, isAiAnalyst, copy.nicknameError, copy.nicknameMissing]);
 
-  const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : isCourse ? 'Complete Course' : copy.aiTitle;
-  const binanceFallback = (isAiAnalyst || isCourse) && paymentMethod === 'binance_usdt_trc20';
+  const actionTitle = action === 'deposit' ? copy.deposit : action === 'withdraw' ? copy.withdraw : isCourse ? 'Complete Course' : isSignalsFree ? (language === 'en' ? 'Forex Signals' : 'Sinais de Forex') : copy.aiTitle;
+  const binanceFallback = (isAiAnalyst || isCourse || isSignalsFree) && paymentMethod === 'binance_usdt_trc20';
   const limits = useMemo(
     () => agentCurrencies.find(item => String(item.currency || '').toUpperCase() === paymentCurrency.toUpperCase()),
     [agentCurrencies, paymentCurrency],
@@ -294,7 +297,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   const maxWithdraw = Number(limits?.withdrawal_maximum ?? 0);
 
   useEffect(() => {
-    if (!open || (action !== 'deposit' && action !== 'ai_analyst' && action !== 'course') || !requestId || !depositPaid) return;
+    if (!open || (action !== 'deposit' && action !== 'ai_analyst' && action !== 'course' && action !== 'signals_free') || !requestId || !depositPaid) return;
 
     let cancelled = false;
     let timer: number | undefined;
@@ -401,6 +404,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   const paymentReady = supportedCurrencies.length > 0;
   const aiAnalystMznEligible = isAiAnalyst && eligibleClient;
   const courseMznEligible = isCourse && eligibleClient;
+  const signalsMznEligible = isSignalsFree && eligibleClient;
 
   const retryNickname = async () => {
     setNicknameLoading(true);
@@ -432,6 +436,21 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
   const currencySupported = supportedCurrencies.includes(paymentCurrency.toUpperCase());
 
   const validate = () => {
+    if (isSignalsFree) {
+      setAmount(signalsMznEligible ? '250' : '3');
+      setPaymentCurrency(signalsMznEligible ? 'MZN' : 'USDT');
+      if (mt5Id.trim().length < 3) { showError(language === 'en' ? 'Enter your MT5 login ID.' : 'Informe o ID de login da sua conta MT5.'); return false; }
+      if (signalsMznEligible) {
+        if (paymentMethod !== 'mpesa' && paymentMethod !== 'emola') { showError(language === 'en' ? 'Select M-Pesa or e-Mola.' : 'Seleccione M-Pesa ou e-Mola.'); return false; }
+        if (payerName.trim().length < 2) { showError(copy.yourName); return false; }
+        if (!/^\\d{9,15}$/.test(payerNumber.replace(/\\D/g,''))) { showError(copy.paymentPhone); return false; }
+      } else if (paymentMethod !== 'binance_usdt_trc20') {
+        setPaymentMethod('binance_usdt_trc20');
+        showError(language === 'en' ? 'Ineligible clients must pay 3 USDT on TRC20.' : 'Clientes não elegíveis devem pagar 3 USDT pela rede TRC20.');
+        return false;
+      }
+      return true;
+    }
     if (isCourse) {
       const courseAmount = courseMznEligible ? '999' : '15';
       setAmount(courseAmount);
@@ -454,8 +473,8 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
       if (payerName.trim().length < 2) { showError(copy.yourName); return false; }
       if (!/^\d{9,15}$/.test(payerNumber.replace(/\s+/g,''))) { showError(copy.paymentPhone); return false; }
     }
-    if (!isAiAnalyst && !paymentReady) { showError(copy.loadingCurrencies); return false; }
-    if (!isAiAnalyst && !currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
+    if (!isAiAnalyst && !isSignalsFree && !paymentReady) { showError(copy.loadingCurrencies); return false; }
+    if (!isAiAnalyst && !isSignalsFree && !currencySupported) { showError(copy.unsupportedCurrency + ' (' + paymentCurrency + ')'); return false; }
     if (action === 'withdraw' && minWithdraw > 0 && value < minWithdraw) {
       showError(copy.minWithdraw + ' ' + minWithdraw.toFixed(2) + ' ' + paymentCurrency + '.');
       return false;
@@ -557,12 +576,14 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
     setMessage('');
     setAuthExpired(false);
     try {
-      const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : action === 'withdraw' ? '/api/payment-agent/withdraw' : action === 'ai_analyst' ? '/api/ai-analyst/purchase' : '/api/course/purchase';
+      const endpoint = action === 'deposit' ? '/api/payment-agent/deposit' : action === 'withdraw' ? '/api/payment-agent/withdraw' : action === 'ai_analyst' ? '/api/ai-analyst/purchase' : action === 'course' ? '/api/course/purchase' : '/api/signals-free-unlimited/purchase';
       const body = action === 'deposit'
         ? { amount: parseMoney(amount), currency: paymentCurrency, paymentMethod, payerName: payerName.trim(), payerNumber: payerNumber.replace(/\s+/g,'') }
         : action === 'withdraw'
           ? { amount: parseMoney(amount), currency: paymentCurrency, verificationCode: code, paymentMethod, paymentNumber, paymentName }
-          : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency: (isCourse || isAiAnalyst) ? ((isCourse ? courseMznEligible : aiAnalystMznEligible) ? 'MZN' : 'USDT') : currency, payerName: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerName.trim() : undefined, payerNumber: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerNumber.replace(/\s+/g,'') : undefined };
+          : isSignalsFree
+            ? { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency: signalsMznEligible ? 'MZN' : 'USDT', mt5Id: mt5Id.trim(), payerName: signalsMznEligible ? payerName.trim() : undefined, payerNumber: signalsMznEligible ? payerNumber.replace(/\s+/g,'') : undefined }
+            : { paymentMethod: binanceFallback ? 'binance_usdt_trc20' : paymentMethod, currency: (isCourse || isAiAnalyst) ? ((isCourse ? courseMznEligible : aiAnalystMznEligible) ? 'MZN' : 'USDT') : currency, payerName: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerName.trim() : undefined, payerNumber: (aiAnalystMznEligible || (isCourse && paymentMethod !== 'binance_usdt_trc20')) ? payerNumber.replace(/\s+/g,'') : undefined };
 
       const response = await fetch(endpoint, {
         method: 'POST',
