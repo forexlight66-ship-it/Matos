@@ -36,8 +36,8 @@ export default function LandingPage({ onChoose }: Props) {
 
       <section className="mh-hero mh-hero-simple" id="inicio">
         <div className="mh-hero-copy">
-          <div className="mh-eyebrow mh-badge"><i /> PLATAFORMA DE NEGOCIAÇÃO E ANÁLISE</div>
-          <h1>Conheça os seus sinais.<br /><span>Controle as suas operações.</span></h1>
+          <div className="mh-eyebrow mh-badge mh-tagline-badge"><i /> <span className="mh-tagline-white">CADA DÍGITO CONTA,</span> <span className="mh-tagline-red">TU DECIDES</span></div>
+          <h1>A plataforma completa para operar na <span>Deriv</span></h1>
           <p className="mh-lead">O MozHyper reúne robôs de negociação, análise de dígitos e ferramentas para acompanhar as operações num único painel, com ligação à sua conta Deriv.</p>
 
           <div className="mh-demo" role="img" aria-label="Pré-visualização ilustrativa do painel MozHyper, com dados de exemplo">
@@ -330,6 +330,24 @@ export default function LandingPage({ onChoose }: Props) {
           .mh-nav-actions{gap:4px}
           .mh-nav-actions .mh-login{padding:8px 7px;font-size:9px}
           .mh-nav-actions .mh-small{padding:9px 7px;font-size:9px}
+        }
+
+
+        /* Identidade do novo slogan: fundo escuro, texto branco e destaque vermelho MozHyper. */
+        .mh-landing .mh-tagline-badge{
+          display:inline-flex!important;align-items:center;flex-wrap:wrap;gap:5px;
+          padding:9px 15px;border:1px solid #172033!important;border-radius:999px;
+          background:#172033!important;color:#fff!important;box-shadow:none!important;
+          font-size:10px;font-weight:900;letter-spacing:.55px;line-height:1.5;
+        }
+        .mh-landing .mh-tagline-badge>i{background:#fff!important;flex:none}
+        .mh-landing .mh-tagline-white{color:#fff!important}
+        .mh-landing .mh-tagline-red{color:#ff444f!important}
+        .mh-landing .mh-hero-simple h1{max-width:100%;overflow-wrap:normal}
+        .mh-landing .mh-hero-simple h1 span{color:#ff444f!important}
+        @media(max-width:760px){
+          .mh-landing .mh-tagline-badge{font-size:9px;padding:8px 11px;gap:4px;letter-spacing:.3px}
+          .mh-landing .mh-hero-simple h1{margin-top:15px;line-height:1.13}
         }
 
       `}</style>
