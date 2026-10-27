@@ -328,17 +328,21 @@ export async function createSignalsFreeUnlimitedRequest(input: {
 }
 
 
-export async function getSignalsFreeUnlimitedAccess(userId: string | number) {
+export async function getSignalsFreeUnlimitedAccess(derivNickname: string) {
   await ensurePaymentRequestSchema();
+  const nickname = derivNickname.trim();
+  if (!nickname) {
+    return { active: false, requestId: null, status: null, confirmedAt: null };
+  }
   const result = await pool.query(
     `SELECT id, status, agent_confirmed_at
      FROM payment_agent_requests
-     WHERE user_id=$1
+     WHERE LOWER(TRIM(client_nickname))=LOWER($1)
        AND purpose='signals_free_unlimited'
        AND status IN ('payment_confirmed','completed')
      ORDER BY COALESCE(agent_confirmed_at, completed_at, created_at) DESC
      LIMIT 1`,
-    [userId],
+    [nickname],
   );
   const row = result.rows[0];
   return {
