@@ -443,7 +443,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
       if (signalsMznEligible) {
         if (paymentMethod !== 'mpesa' && paymentMethod !== 'emola') { showError(language === 'en' ? 'Select M-Pesa or e-Mola.' : 'Seleccione M-Pesa ou e-Mola.'); return false; }
         if (payerName.trim().length < 2) { showError(copy.yourName); return false; }
-        if (!/^\\d{9,15}$/.test(payerNumber.replace(/\\D/g,''))) { showError(copy.paymentPhone); return false; }
+        if (!/^\d{9,15}$/.test(payerNumber.replace(/\D/g,''))) { showError(copy.paymentPhone); return false; }
       } else if (paymentMethod !== 'binance_usdt_trc20') {
         setPaymentMethod('binance_usdt_trc20');
         showError(language === 'en' ? 'Ineligible clients must pay 3 USDT on TRC20.' : 'Clientes não elegíveis devem pagar 3 USDT pela rede TRC20.');
@@ -756,12 +756,12 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, textTransform:'uppercase', opacity:.6, fontWeight:900 }}>{isAiAnalyst ? copy.aiPaymentMethod : copy.paymentMethod}</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:8 }}>
-              {((!isAiAnalyst && !isCourse) || aiAnalystMznEligible || courseMznEligible) && <button type="button" onClick={()=>{setPaymentMethod('mpesa'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); } else if(isCourse) { setAmount('999'); setPaymentCurrency('MZN'); }}} aria-label={copy.mpesa}
+              {((!isAiAnalyst && !isCourse) || aiAnalystMznEligible || courseMznEligible) && <button type="button" onClick={()=>{setPaymentMethod('mpesa'); if(isAiAnalyst || isSignalsFree) { setAmount('250'); setPaymentCurrency('MZN'); } else if(isCourse) { setAmount('999'); setPaymentCurrency('MZN'); }}} aria-label={copy.mpesa}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='mpesa' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#ed1b24', boxShadow: paymentMethod==='mpesa' ? '0 0 0 3px #ff4654, 0 10px 25px rgba(237,27,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src="/payment-agent/mpesa.svg" alt={copy.mpesa} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='mpesa' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#ed1b24', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
               </button>}
-              {((!isAiAnalyst && !isCourse) || aiAnalystMznEligible || (isCourse && courseMznEligible)) && <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst) { setAmount('250'); setPaymentCurrency('MZN'); } else if(isCourse) { setAmount('999'); setPaymentCurrency('MZN'); }}} aria-label={copy.emola}
+              {((!isAiAnalyst && !isCourse) || aiAnalystMznEligible || (isCourse && courseMznEligible)) && <button type="button" onClick={()=>{setPaymentMethod('emola'); if(isAiAnalyst || isSignalsFree) { setAmount('250'); setPaymentCurrency('MZN'); } else if(isCourse) { setAmount('999'); setPaymentCurrency('MZN'); }}} aria-label={copy.emola}
                 style={{ position:'relative', flex:1, height:112, padding:0, borderRadius:14, border: paymentMethod==='emola' ? '3px solid #fff' : '2px solid rgba(255,255,255,.55)', background:'#f97824', boxShadow: paymentMethod==='emola' ? '0 0 0 3px #ff7a24, 0 10px 25px rgba(249,120,36,.28)' : '0 8px 20px rgba(0,0,0,.12)', cursor:'pointer', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src="/payment-agent/emola.svg" alt={copy.emola} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
                 {paymentMethod==='emola' && <span style={{ position:'absolute', top:7, right:7, width:26, height:26, borderRadius:'50%', background:'#fff', color:'#f97824', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:900 }}>✓</span>}
