@@ -354,6 +354,52 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-signals-link strong{font-size:14px;line-height:1.45}
         .mh-signals-link small{margin-top:4px;color:rgba(255,255,255,.88);font-size:11px}
         @media(max-width:760px){.mh-hero-simple{min-height:calc(100vh - 72px);padding:42px 19px 50px}.mh-hero-simple .mh-hero-actions{max-width:none}.mh-hero-simple .mh-secondary{font-size:12px}.mh-signals-link{padding:15px}.mh-signals-link strong{font-size:12px}}
+
+        /* Ajustes finais do painel demonstrativo para corresponder ao layout de referência. */
+        .mh-demo-chart-card{padding:14px 12px 12px!important}
+        .mh-demo-digits-top{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto auto!important;align-items:center!important;gap:10px!important;flex-wrap:nowrap!important}
+        .mh-demo-current{font-size:clamp(10px,2.8vw,14px)!important;color:#30394a!important;letter-spacing:0!important}
+        .mh-demo-current b{background:transparent!important;color:#ff444f!important;font-size:clamp(23px,5vw,31px)!important;min-width:0!important;height:auto!important;padding:0!important}
+        .mh-demo-live{background:transparent!important;color:#ff444f!important;font-size:clamp(9px,2.5vw,13px)!important;padding:0!important;letter-spacing:.35px!important}
+        .mh-demo-live>i{display:none!important}
+        .mh-demo-ticks{font-size:clamp(10px,2.7vw,14px)!important;color:#596273!important;font-weight:700}
+        .mh-demo-lightning{width:42px!important;height:42px!important;border:1px solid #d9dee6!important;border-radius:13px!important;background:#fff!important;color:#30394a!important;font-size:24px!important}
+        .mh-demo-bars{height:245px!important;gap:8px!important;margin-top:20px!important}
+        .mh-demo-bar{grid-template-rows:22px minmax(0,1fr) 24px!important}
+        .mh-demo-pct{font-size:clamp(9px,2.3vw,12px)!important}
+        .mh-demo-col{width:min(100%,42px)!important;border-radius:9px 9px 2px 2px!important}
+        .mh-demo-bar.is-green .mh-demo-col{background:#18b68b!important}
+        .mh-demo-bar.is-red .mh-demo-col{background:#ff4054!important}
+        .mh-demo-bar.is-green .mh-demo-pct{color:#159c79!important}
+        .mh-demo-bar.is-red .mh-demo-pct{color:#d84959!important}
+        .mh-demo-bar.is-current .mh-demo-col{background:#cbd3dd!important;outline:none!important;box-shadow:none!important}
+        .mh-demo-bar.is-current .mh-demo-n{color:#172033!important;background:transparent!important}
+        .mh-demo-n{display:grid;place-items:center;font-size:clamp(12px,3vw,16px)!important;font-weight:700!important;color:#7b8492!important}
+        .mh-demo-history{margin-top:12px!important;padding:18px!important}
+        .mh-demo-history-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin-bottom:18px!important}
+        .mh-demo-history-head>span{font-size:clamp(12px,3vw,16px)!important;font-weight:800!important;letter-spacing:.45px!important;color:#737f90!important;white-space:nowrap}
+        .mh-demo-history-icons{display:flex!important;align-items:center!important;gap:9px!important}
+        .mh-demo-history-icons span{display:grid!important;place-items:center!important;width:44px!important;height:44px!important;flex:none!important;border:1px solid #d9dee6!important;border-radius:14px!important;background:#fff!important;color:#667184!important;font-size:18px!important}
+        .mh-demo-history-list{display:flex!important;flex-direction:row!important;align-items:stretch!important;gap:12px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:2px 1px 8px!important;scroll-snap-type:x mandatory!important;-webkit-overflow-scrolling:touch!important}
+        .mh-demo-trade{display:flex!important;flex:0 0 225px!important;min-width:0!important;min-height:220px!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:8px!important;padding:22px!important;border:1px solid #e0e6ed!important;border-radius:24px!important;background:#fff!important;scroll-snap-align:start!important}
+        .mh-demo-trade svg{width:18px!important;height:32px!important;margin-bottom:4px!important}
+        .mh-demo-trade b{font-size:clamp(20px,4.5vw,28px)!important;line-height:1.1!important;font-weight:900!important}
+        .mh-demo-trade span{font-size:16px!important;color:#778191!important;white-space:nowrap!important}
+        .mh-demo-trade strong{margin-top:8px!important;font-size:clamp(22px,5vw,29px)!important;line-height:1.15!important;color:#172033!important;white-space:nowrap!important}
+        .mh-demo-trade.win{background:#fff!important;border-color:#e0e6ed!important}
+        .mh-demo-trade.loss{background:#fff!important;border-color:#e0e6ed!important}
+        .mh-demo-trade.win b,.mh-demo-trade.win strong{color:#18a97f!important}
+        .mh-demo-trade.loss b,.mh-demo-trade.loss strong{color:#ff4054!important}
+        @media(max-width:760px){
+          .mh-demo{padding:14px!important;border-radius:20px!important}
+          .mh-demo-setup{grid-template-columns:.8fr 1.2fr!important;gap:12px!important}
+          .mh-demo-account,.mh-demo-select{font-size:clamp(12px,3.5vw,16px)!important;padding:12px 10px!important}
+          .mh-demo-bars{height:245px!important;gap:6px!important;margin-top:22px!important}
+          .mh-demo-col{width:min(100%,30px)!important}
+          .mh-demo-history{padding:18px!important}
+          .mh-demo-trade{flex-basis:225px!important;min-height:220px!important;padding:22px!important}
+        }
+
       `}</style>
     </main>
   );
