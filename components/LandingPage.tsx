@@ -4,18 +4,21 @@ import { useEffect, useState, type CSSProperties } from 'react';
 
 // Dados ilustrativos do painel de demonstração (não são resultados reais).
 const DEMO_DIGITS = [9, 12, 8, 11, 10, 14, 7, 10, 9, 10];
+const DEMO_GREEN_DIGITS = [0, 2, 8];
+const DEMO_RED_DIGITS = [1, 3, 7, 9];
 const DEMO_CURRENT_DIGIT = 5;
 const DEMO_HISTORY = [
   { win: true, bot: 'HyperFlow B9', value: '+2.11 $' },
   { win: false, bot: 'HyperDrive', value: '−0.35 $' },
   { win: true, bot: 'HyperFlows', value: '+4.52 $' },
+  { win: true, bot: 'HyperFlow B9', value: '+1.86 $' },
+  { win: false, bot: 'HyperFlows', value: '−1.20 $' },
 ];
 
 type Props = { onChoose: (mode: 'register' | 'login') => void };
 
 export default function LandingPage({ onChoose }: Props) {
   const demoMax = Math.max(...DEMO_DIGITS);
-  const demoMin = Math.min(...DEMO_DIGITS);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function LandingPage({ onChoose }: Props) {
             </div>
 
             <div className="mh-demo-card mh-demo-setup">
-              <div><small>Conta</small><span className="mh-demo-select">Real <i>⌄</i></span></div>
+              <div><small>Conta</small><span className="mh-demo-account">Real <i>⌄</i></span></div>
               <div><small>Estratégia</small><span className="mh-demo-select">HyperFlows <i>⌄</i></span></div>
             </div>
 
@@ -65,12 +68,13 @@ export default function LandingPage({ onChoose }: Props) {
                 <span className="mh-demo-current">DÍGITO: <b>{DEMO_CURRENT_DIGIT}</b></span>
                 <span className="mh-demo-live"><i />ABERTO</span>
                 <span className="mh-demo-ticks">100 ticks</span>
+                <span className="mh-demo-lightning" aria-label="Sinal ilustrativo" title="Sinal ilustrativo">ϟ</span>
               </div>
               <div className="mh-demo-bars">
                 {DEMO_DIGITS.map((pct, digit) => (
                   <div
                     key={digit}
-                    className={`mh-demo-bar${pct === demoMax ? ' is-max' : ''}${pct === demoMin ? ' is-min' : ''}${digit === DEMO_CURRENT_DIGIT ? ' is-current' : ''}`}
+                    className={`mh-demo-bar${DEMO_GREEN_DIGITS.includes(digit) ? ' is-green' : ''}${DEMO_RED_DIGITS.includes(digit) ? ' is-red' : ''}${digit === DEMO_CURRENT_DIGIT ? ' is-current' : ''}`}
                     style={{ '--h': `${(pct / demoMax) * 100}%`, '--i': digit } as CSSProperties}
                   >
                     <span className="mh-demo-pct">{pct}%</span>
@@ -82,7 +86,12 @@ export default function LandingPage({ onChoose }: Props) {
             </div>
 
             <div className="mh-demo-card mh-demo-history">
-              <div className="mh-demo-history-head">HISTÓRICO RECENTE</div>
+              <div className="mh-demo-history-head">
+                <span>HISTÓRICO RECENTE</span>
+                <div className="mh-demo-history-icons" aria-hidden="true">
+                  <span>↗</span><span>↘</span><span>⌁</span><span>☰</span>
+                </div>
+              </div>
               <div className="mh-demo-history-list">
                 {DEMO_HISTORY.map((trade, i) => (
                   <div key={i} className={`mh-demo-trade ${trade.win ? 'win' : 'loss'}`}>
@@ -192,28 +201,36 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-demo-stats .mh-demo-card>em{display:block;margin-top:5px;color:#91a0b1;font-size:8px;line-height:1.4;font-style:normal}
         .mh-demo-setup{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:10px;margin-top:10px}
         .mh-demo-setup>div{min-width:0}
-        .mh-demo-select{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;padding:8px 9px;border:1px solid #e2e8ef;border-radius:8px;background:#fbfcfe;color:#253246;font-size:11px;font-weight:800;white-space:nowrap}
+        .mh-demo-account{display:inline-flex;align-items:center;gap:10px;margin-top:6px;padding:8px 1px;color:#253246;font-size:11px;font-weight:800;white-space:nowrap}
+        .mh-demo-account i{font-style:normal;color:#8591a2;font-size:12px}
+        .mh-demo-select{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;padding:8px 9px;border:1px solid #e2e8ef;border-radius:8px;background:#eef2f7;color:#253246;font-size:11px;font-weight:800;white-space:nowrap}
         .mh-demo-select i{font-style:normal;color:#8591a2;font-size:12px}
         .mh-demo-chart-card{margin-top:10px;padding:12px 10px 10px}
         .mh-demo-digits-top{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap}
         .mh-demo-current{display:inline-flex;align-items:center;gap:5px;color:#6d7a8c;font-size:9px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
-        .mh-demo-current b{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border-radius:6px;background:#fff0f1;color:#e63240;font-size:10px}
-        .mh-demo-live{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border-radius:7px;background:#ecfbf5;color:#0b946a;font-size:8px;font-weight:900;letter-spacing:.45px;white-space:nowrap}
-        .mh-demo-live>i{display:block;width:6px;height:6px;border-radius:50%;background:#13b887;animation:mh-demo-pulse 1.3s ease-in-out infinite}
+        .mh-demo-current b{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border-radius:6px;background:#ff444f;color:#fff;font-size:10px}
+        .mh-demo-live{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border-radius:7px;background:#fff0f1;color:#e63240;font-size:8px;font-weight:900;letter-spacing:.45px;white-space:nowrap}
+        .mh-demo-live>i{display:block;width:6px;height:6px;border-radius:50%;background:#ff444f}
         .mh-demo-ticks{color:#8994a4;font-size:9px;white-space:nowrap}
+        .mh-demo-lightning{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:#fff0f1;color:#ff444f;font-size:17px;font-weight:900;line-height:1}
         .mh-demo-bars{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;align-items:stretch;height:119px;margin-top:10px;padding:0 1px}
         .mh-demo-bar{display:grid;grid-template-rows:12px minmax(0,1fr) 18px;align-items:stretch;min-width:0;height:100%}
-        .mh-demo-pct{display:block;align-self:start;justify-self:center;color:#7f8b9b;font-size:clamp(6px,1.85vw,8px);font-weight:700;line-height:1;white-space:nowrap}
-        .mh-demo-col{display:block;align-self:end;justify-self:center;width:min(100%,16px);height:var(--h);min-height:5px;border-radius:4px 4px 1px 1px;background:#cbd4df;transform-origin:center bottom;animation:mh-demo-bar-rise .76s cubic-bezier(.2,.75,.25,1) calc(var(--i,0)*55ms) both}
-        .mh-demo-bar.is-max .mh-demo-col{background:#13b887}
-        .mh-demo-bar.is-min .mh-demo-col{background:#ff737d}
+        .mh-demo-pct{display:block;align-self:start;justify-self:center;color:#8a94a4;font-size:clamp(6px,1.85vw,8px);font-weight:700;line-height:1;white-space:nowrap}
+        .mh-demo-col{display:block;align-self:end;justify-self:center;width:min(100%,16px);height:var(--h);min-height:5px;border-radius:4px 4px 1px 1px;background:#bfc8d4;transform-origin:center bottom;animation:mh-demo-bar-rise .76s cubic-bezier(.2,.75,.25,1) calc(var(--i,0)*55ms) both}
+        .mh-demo-bar.is-green .mh-demo-col{background:#13b887}
+        .mh-demo-bar.is-red .mh-demo-col{background:#ff737d}
+        .mh-demo-bar.is-green .mh-demo-pct{color:#13a477}
+        .mh-demo-bar.is-red .mh-demo-pct{color:#e63240}
+        .mh-demo-bar.is-current .mh-demo-pct{color:#e63240}
         .mh-demo-n{align-self:end;justify-self:center;min-width:17px;padding:2px 1px;border-radius:5px;color:#687588;font-size:9px;font-weight:700;line-height:14px;text-align:center}
         .mh-demo-bar.is-current .mh-demo-col{outline:2px solid #ff444f;outline-offset:1px}
         .mh-demo-bar.is-current .mh-demo-n{background:#ff444f;color:#fff}
         .mh-demo-history{margin-top:10px}
-        .mh-demo-history-head{margin-bottom:9px;color:#718095;font-size:9px;font-weight:900;letter-spacing:.65px}
-        .mh-demo-history-list{display:grid;gap:7px}
-        .mh-demo-trade{display:grid;grid-template-columns:10px auto minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0;padding:8px 9px;border:1px solid #e6edf3;border-radius:9px;background:#fcfdff}
+        .mh-demo-history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;color:#718095;font-size:9px;font-weight:900;letter-spacing:.65px}
+        .mh-demo-history-icons{display:flex;align-items:center;gap:5px}
+        .mh-demo-history-icons span{display:grid;place-items:center;width:20px;height:20px;border:1px solid #e3e9f0;border-radius:6px;background:#f8fafc;color:#718095;font-size:12px;font-weight:800}
+        .mh-demo-history-list{display:flex;gap:7px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding-bottom:3px;scrollbar-width:thin}
+        .mh-demo-trade{display:grid;grid-template-columns:10px auto minmax(0,1fr) auto;align-items:center;gap:8px;flex:0 0 228px;min-width:0;padding:8px 9px;border:1px solid #e6edf3;border-radius:9px;background:#fcfdff;scroll-snap-align:start}
         .mh-demo-trade svg{display:block;width:9px;height:20px}
         .mh-demo-trade>b{font-size:8px;font-weight:900;letter-spacing:.2px}
         .mh-demo-trade>span{min-width:0;overflow:hidden;color:#697789;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
@@ -222,7 +239,7 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-demo-trade.loss{border-color:#f4dfe2;background:#fff7f7;color:#e63240}
         @keyframes mh-demo-bar-rise{from{transform:scaleY(0);opacity:.45}to{transform:scaleY(1);opacity:1}}
         @keyframes mh-demo-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(19,184,135,.2)}50%{opacity:.45;box-shadow:0 0 0 4px rgba(19,184,135,0)}}
-        @media(max-width:460px){.mh-demo{margin-top:20px;padding:11px;border-radius:16px}.mh-demo-head{gap:7px}.mh-demo-title{font-size:12px}.mh-demo-card{padding:10px}.mh-demo-stats{gap:7px}.mh-demo-stats .mh-demo-card{padding:10px 8px;min-height:80px}.mh-demo-stats .mh-demo-card>strong{font-size:clamp(18px,5.1vw,21px);letter-spacing:-1px}.mh-demo-setup{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:7px}.mh-demo-setup .mh-demo-select{padding:8px 7px;font-size:10px}.mh-demo-chart-card{padding:10px 8px}.mh-demo-bars{gap:3px;height:112px}.mh-demo-trade{grid-template-columns:9px auto minmax(0,1fr) auto;gap:6px;padding:8px 7px}.mh-demo-trade>span{font-size:9px}.mh-demo-trade>strong{font-size:9px}}
+        @media(max-width:460px){.mh-demo{margin-top:20px;padding:11px;border-radius:16px}.mh-demo-head{gap:7px}.mh-demo-title{font-size:12px}.mh-demo-card{padding:10px}.mh-demo-stats{gap:7px}.mh-demo-stats .mh-demo-card{padding:10px 8px;min-height:80px}.mh-demo-stats .mh-demo-card>strong{font-size:clamp(18px,5.1vw,21px);letter-spacing:-1px}.mh-demo-setup{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:7px}.mh-demo-setup .mh-demo-select{padding:8px 7px;font-size:10px}.mh-demo-setup .mh-demo-account{font-size:10px}.mh-demo-chart-card{padding:10px 8px}.mh-demo-bars{gap:3px;height:112px}.mh-demo-trade{grid-template-columns:9px auto minmax(0,1fr) auto;gap:6px;padding:8px 7px}.mh-demo-trade>span{font-size:9px}.mh-demo-trade>strong{font-size:9px}}
         @media(prefers-reduced-motion:reduce){.mh-demo .mh-demo-col,.mh-demo .mh-demo-live>i{animation:none!important;transition:none!important;transform:none!important;opacity:1!important}.mh-demo .mh-demo-col{height:var(--h)!important}}
         .mh-intro-band{display:grid;grid-template-columns:1.1fr .9fr;gap:55px;align-items:center;padding:62px clamp(24px,9vw,132px);background:#fff;border-bottom:1px solid var(--mh-border)}
         .mh-section-kicker{display:block;margin-bottom:10px;color:var(--mh-red);font-size:9px;font-weight:800;letter-spacing:1.6px}
