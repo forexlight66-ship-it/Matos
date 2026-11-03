@@ -1527,7 +1527,7 @@ export default function AutoBotV4(){
    const recoveryType=hyperFlowsRecoveryContractRef.current;
    const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER';
    const recoveryBarrier=recoveryType==='OVER0'?0:undefined;
-   const recoveryExtraProfit=Number(stake)<0.35?1:2;
+   const recoveryExtraProfit=recoveryType==='EVEN'?1:(Number(stake)<0.35?1:2);
    const recoveryTargetNetProfit=Number((deficit+recoveryExtraProfit).toFixed(2));
    if(!hyperFlowsRecoveryQuoteRef.current){
     // Payout for EVEN and OVER 0 varies by symbol/market conditions. Quote
