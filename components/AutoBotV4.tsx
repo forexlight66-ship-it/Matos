@@ -562,7 +562,7 @@ function estimateBotSuccessScores(values:number[],pipSize?:number):BotSuccessEst
  estimates.HYPERCOVER=Math.round(Math.max(over1,under8));
  return estimates;
 }
-const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',HyperFlow:'#22D3EE',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7',Hypercover:'#0EA5E9',HyperFlows:'#06B6D4'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',HyperFlow:'MATCH0',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP',Hypercover:'HYPERCOVER'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperFlow',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap',HYPERCOVER:'Hypercover',HYPERFLOWS:'HyperFlows'};const BOT_PICKER_OPTIONS:{id:Strategy;name:string;color:string}[]=[
+const localDateValue=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const ANALYZER_COLORS:Record<string,string>={HyperDrive:'#3D7FFF',HyperStrike:'#F5B942',HyperForce:'#8B5CF6',HyperNova:'#FF444F',HyperFlow:'#22D3EE',HyperBeen:'#22D3EE',Hyperlite:'#EC4899',HyperGuard:'#34D399',HyperShield:'#14B8A6',HyperBreak:'#F97316',HyperSwap:'#A855F7',Hypercover:'#0EA5E9',HyperFlows:'#06B6D4'};const ANALYZER_STRATEGY_TO_BOT:Record<string,Strategy>={HyperDrive:'PAR_IMPAR',HyperStrike:'ACIMA5_BAIXO4',HyperForce:'RISE_FALL',HyperNova:'DIFERENTE',HyperFlow:'MATCH0',HyperBeen:'MATCH0',Hyperlite:'HYPERLITE',HyperGuard:'HYPERGUARD',HyperShield:'HYPERSHIELD',HyperBreak:'HYPERBREAK',HyperSwap:'HYPERSWAP',Hypercover:'HYPERCOVER'};const STRATEGY_BOT_NAMES:Record<Strategy,string>={PAR_IMPAR:'HyperDrive',ACIMA5_BAIXO4:'HyperStrike',RISE_FALL:'HyperForce',DIFERENTE:'HyperNova',MATCH0:'HyperBeen',HYPERLITE:'Hyperlite',HYPERGUARD:'HyperGuard',HYPERSHIELD:'HyperShield',HYPERBREAK:'HyperBreak',HYPERSWAP:'HyperSwap',HYPERCOVER:'Hypercover',HYPERFLOWS:'HyperFlows'};const BOT_PICKER_OPTIONS:{id:Strategy;name:string;color:string}[]=[
  {id:'PAR_IMPAR',name:'HyperDrive',color:'#4F8BFF'},
  {id:'ACIMA5_BAIXO4',name:'HyperStrike',color:'#FB923C'},
  {id:'RISE_FALL',name:'HyperForce',color:'#34D399'},
@@ -647,6 +647,11 @@ export default function AutoBotV4(){
  const hyperFlowRecoveryQuoteTargetRef=useRef<number|null>(null);
  const hyperFlowLastEntryTickRef=useRef<{symbol:string;epoch:number}|null>(null);
   const hyperFlowNormalSignalDisarmedRef=useRef(false);
+ const hyperBeenRecoveryModeRef=useRef(false);
+ const hyperBeenDeficitRef=useRef(0);
+ const hyperBeenNextParityRef=useRef<'EVEN'|'ODD'>('EVEN');
+ const hyperBeenLastTradeModeRef=useRef<'OVER0'|'EVEN'|'ODD'|null>(null);
+ const hyperBeenRecoveryQuoteRef=useRef<{recoveryType:'EVEN'|'ODD';stage:'seed'|'final';targetNetProfit:number;deficit:number;amount:number;attempt:number}|null>(null);
  const hyperFlowsAnalysisActiveRef=useRef(false);
  const hyperFlowsNextDigitRef=useRef<number|null>(null);
  const hyperFlowsRecoveryModeRef=useRef(false);
@@ -671,8 +676,10 @@ export default function AutoBotV4(){
   const closedBarrier=Number(closed?.barrier);
   const unknownClosedBot=!rawClosedBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawClosedBotLabel);
   const looksLikeHyperFlowContract=(closedBarrier===0&&closedContractType==='DIGITMATCH')||(closedBarrier===0&&closedContractType==='DIGITOVER'&&strategy==='MATCH0');
+  const looksLikeHyperBeenContract=strategy==='MATCH0'&&((closedBarrier===0&&(closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH'))||closedContractType==='DIGITEVEN'||closedContractType==='DIGITODD');
   const looksLikeHyperFlowsContract=strategy==='HYPERFLOWS'&&(closedContractType==='DIGITEVEN'||closedContractType==='DIGITODD'||(closedContractType==='DIGITOVER'&&closedBarrier===0)||(closedContractType==='DIGITMATCH'&&closedBarrier>=0&&closedBarrier<=9)||(closedContractType==='DIGITUNDER'&&closedBarrier===9));
   const knownHyperFlowLabel=rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel);
+  const knownHyperBeenLabel=rawClosedBotName==='hyperbeen'||/^hyperbeen(?:\s+|$)/i.test(rawClosedBotLabel);
   const knownHyperFlowsLabel=rawClosedBotName==='hyperflows'||/^hyperflows(?:\s+|$)/i.test(rawClosedBotLabel);
   // Match the current HyperFlows entry mode against the close event. Early close
   // notifications may omit contract_type/barrier, so use the tracked mode if the
@@ -692,8 +699,7 @@ export default function AutoBotV4(){
        ?(!closedContractType||closedContractType==='DIGITOVER')&&(!Number.isFinite(closedBarrier)||closedBarrier===0)
       :false;
   const looksLikeTrackedHyperFlowsClose=strategy==='HYPERFLOWS'&&trackedHyperFlowsMode!==null&&trackedHyperFlowsContractMatches&&(knownHyperFlowLabel||knownHyperFlowsLabel||unknownClosedBot);
-  const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperFlowLabel||(unknownClosedBot&&(looksLikeHyperFlowContract||(strategy==='MATCH0'&&String(closed?.contract_type||'').trim().toUpperCase()==='DIGITMATCH'))))?'hyperflow':rawClosedBotName;
-  if(identifiedClosedBotName==='hyperflow'){hyperFlowRecoveryBuyPendingRef.current=false;if(strategy==='MATCH0'&&!hyperFlowOverZeroModeRef.current)hyperFlowNormalSignalDisarmedRef.current=false;}
+  const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperBeenLabel||(strategy==='MATCH0'&&(knownHyperFlowLabel||(unknownClosedBot&&looksLikeHyperBeenContract))))?'hyperbeen':(knownHyperFlowLabel||(unknownClosedBot&&looksLikeHyperFlowContract))?'hyperflow':rawClosedBotName;
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
    const id=Number(closed.contract_id);
@@ -747,47 +753,39 @@ export default function AutoBotV4(){
     setNotice('BLOQUEIO DE SEGURANÇA: o estado oficial da Deriv contradiz o lucro/prejuízo do contrato. O robô foi pausado para proteger o saldo.');
    }
    const closedBotName=identifiedClosedBotName||String(closed?.bot||'').trim().toLowerCase();
-   const isHyperFlowTrade=closedBotName==='hyperflow';
+   const isHyperBeenTrade=closedBotName==='hyperbeen';
    const hyperFlowWon=statusOutcome??(result>0);
    const hyperFlowLost=statusOutcome===false||(statusOutcome===null&&result<0);
-   if(isHyperFlowTrade&&(hyperFlowWon||hyperFlowLost)){
-    // HyperFlow: uma primeira perda no MATCH 0 gera mais uma tentativa normal.
-    // A recuperação usa ACIMA 0 com stake fixa de $15 e duração de 1 tick.
-    // Qualquer resultado de ACIMA 0 devolve o bot ao MATCH 0. Sem recuperação de défice.
-    const wasAboveZero=hyperFlowOverZeroModeRef.current;
-    hyperFlowRecoveryActiveRef.current=false;
-    if(wasAboveZero){
-     // ACIMA 0 terminou (ganho ou perda): voltar imediatamente ao HyperFlow normal.
-     hyperFlowOverZeroModeRef.current=false;
-     hyperFlowRetryNormalAfterLossRef.current=false;
-    }else if(hyperFlowLost){
-     hyperFlowOverZeroModeRef.current=hyperFlowRetryNormalAfterLossRef.current;
-      hyperFlowRetryNormalAfterLossRef.current=!hyperFlowRetryNormalAfterLossRef.current;
-      if(hyperFlowOverZeroModeRef.current)hyperFlowRetryNormalAfterLossRef.current=false;
+   if(isHyperBeenTrade&&(hyperFlowWon||hyperFlowLost)){
+    const savedMode=hyperBeenLastTradeModeRef.current;
+    const recoveryType:'EVEN'|'ODD'=closedType==='DIGITEVEN'?'EVEN':closedType==='DIGITODD'?'ODD':savedMode==='ODD'?'ODD':savedMode==='EVEN'?'EVEN':hyperBeenNextParityRef.current;
+    const isPrimaryOverZero=(closedType==='DIGITOVER'&&Number.isFinite(closeBarrier)&&closeBarrier===0)||(closedType==='DIGITMATCH'&&Number.isFinite(closeBarrier)&&closeBarrier===0)||savedMode==='OVER0';
+    hyperBeenLastTradeModeRef.current=null;
+    hyperBeenRecoveryQuoteRef.current=null;
+    if(isPrimaryOverZero){
+     if(hyperFlowLost){
+      hyperBeenDeficitRef.current=Number((Math.max(0,hyperBeenDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
+      hyperBeenRecoveryModeRef.current=true;
+      hyperBeenNextParityRef.current='EVEN';
+      setNotice('HyperBeen: ACIMA 0 perdeu. Recuperação iniciada em NÚMEROS PARES. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. Objectivo: recuperar o défice total + $5.');
+     }else{
+      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenNextParityRef.current='EVEN';
+      setNotice('HyperBeen: ACIMA 0 ganhou. Mantém a estratégia principal ACIMA 0.');
+     }
     }else{
-     hyperFlowRetryNormalAfterLossRef.current=false;
-     hyperFlowOverZeroModeRef.current=false;
+     const deficitBeforeTrade=Number(Math.max(0,hyperBeenDeficitRef.current).toFixed(2));
+     if(hyperFlowLost)hyperBeenDeficitRef.current=Number((deficitBeforeTrade+Math.abs(Math.min(0,result))).toFixed(2));
+     const targetNetProfit=Number((deficitBeforeTrade+5).toFixed(2));
+     if(hyperFlowWon&&result+0.005>=targetNetProfit){
+      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenNextParityRef.current='EVEN';
+      setNotice('HyperBeen: recuperação concluída. O trade cobriu o défice total e confirmou +$5 líquidos. A retomar ACIMA 0.');
+     }else{
+      const nextParity:'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
+      hyperBeenRecoveryModeRef.current=true;hyperBeenNextParityRef.current=nextParity;
+      setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+(hyperFlowLost?' perdeu.':' ganhou, mas ainda não atingiu o objectivo.')+' O défice integral mantém-se em '+hyperBeenDeficitRef.current.toFixed(2)+'. Próxima recuperação: '+(nextParity==='EVEN'?'PAR':'ÍMPAR')+'. Objectivo: défice total + $5.');
+     }
     }
-    hyperFlowNormalSignalDisarmedRef.current=false;
-    hyperFlowNextDigitRef.current=null;
-    hyperFlowTargetDigitRef.current=0;
-    hyperFlowWatchRef.current={active:false,symbol:tradeSymbol,snapshots:[]};
-    hyperFlowRecoveryQuoteStageRef.current=null;
-    hyperFlowRecoveryQuoteAttemptsRef.current=0;
-    hyperFlowRecoveryQuoteReadyRef.current=false;
-    hyperFlowRecoveryQuoteTargetRef.current=null;
-    hyperFlowRecoveryBuyPendingRef.current=false;
-    setHyperFlowFallbackRevision(v=>v+1);
-    const nextMode=hyperFlowOverZeroModeRef.current?'ABOVE_0':'NORMAL_MATCH_0';
-    const nextNotice=wasAboveZero
-     ?'HYPERFLOW ACIMA 0 concluído (1 tick). Próxima operação: HyperFlow normal — MATCH 0.'
-     :hyperFlowOverZeroModeRef.current
-      ?'HYPERFLOW normal perdeu. Próxima operação: ACIMA 0 durante 1 tick, stake fixa $15.'
-      :hyperFlowLost
-       ?'HYPERFLOW normal perdeu uma vez. Vai tentar novamente com HyperFlow normal — MATCH 0.'
-       :'HYPERFLOW normal ganhou. Mantém HyperFlow normal — MATCH 0.';
-    setNotice(nextNotice);
-    console.info('[HyperFlow retry then Above 0 fallback]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',previousMode:wasAboveZero?'ABOVE_0':'NORMAL_MATCH_0',nextMode,duration:hyperFlowOverZeroModeRef.current?1:1,retryNormalArmed:hyperFlowRetryNormalAfterLossRef.current,above0Stake:15,deficitRecovery:false});
+    console.info('[HyperBeen recovery state]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',mode:isPrimaryOverZero?'OVER0':recoveryType,deficit:hyperBeenDeficitRef.current,target:hyperBeenDeficitRef.current+5,recoveryActive:hyperBeenRecoveryModeRef.current,nextParity:hyperBeenNextParityRef.current});
    }
    const isHyperFlowsTrade=closedBotName==='hyperflows';
    if(isHyperFlowsTrade&&(hyperFlowWon||hyperFlowLost)){
@@ -970,7 +968,7 @@ export default function AutoBotV4(){
    payoutRatiosByContractRef.current[payoutContractKey(closedType,closedBarrier)]=payoutRatio;
   }
 
-  if(iaPower&&!isHyperFlowTrade&&!isHyperFlowsTrade&&!processedStakeContractsRef.current.has(id)){
+  if(iaPower&&!isHyperBeenTrade&&!isHyperFlowsTrade&&!processedStakeContractsRef.current.has(id)){
    processedStakeContractsRef.current.add(id);
    lastProcessedStakeResult.current=id;
    gestorRef.current.atualizarPayout(lastPayoutRatioRef.current);
@@ -999,7 +997,7 @@ export default function AutoBotV4(){
    if(result>0&&soundEnabled)sound('win');
   }
 
-  if(sonic&&!isHyperFlowTrade&&!isHyperFlowsTrade&&!processedSonicContractsRef.current.has(id)){
+  if(sonic&&!isHyperBeenTrade&&!isHyperFlowsTrade&&!processedSonicContractsRef.current.has(id)){
    processedSonicContractsRef.current.add(id);
    lastProcessedSonicResult.current=id;
    sonicRef.current.atualizarPayout(lastPayoutRatioRef.current);
