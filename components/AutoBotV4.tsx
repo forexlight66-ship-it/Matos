@@ -901,7 +901,7 @@ export default function AutoBotV4(){
        setSmartAnalyzer(false);
        setExitSpotsMode(false);
        setSignalNow(null);
-       setBotActivity('idle');
+       // A atividade permanece no último estado válido; o robô fica parado via running/stopped.
        setNotice('HyperFlows: a única recuperação ACIMA 0 perdeu. Robô parado imediatamente; nenhuma recuperação PAR/ÍMPAR será executada. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
       }else{
        const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
