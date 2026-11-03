@@ -1784,6 +1784,8 @@ export default function AutoBotV4(){
     }
     return;
    }
+   // HyperBeen's dedicated quote branch above is the only path allowed to buy MATCH0 proposals.
+   if(strategy==='MATCH0')return;
    if(iaPower&&iaRecoveryQuotePendingRef.current)return;
    if(strategy!=='MATCH0'&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
 
