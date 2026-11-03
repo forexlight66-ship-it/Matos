@@ -793,6 +793,13 @@ export default function AutoBotV4(){
      }
     }
     console.info('[HyperBeen recovery state]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',mode:isPrimaryOverZero?'OVER0':recoveryType,deficit:hyperBeenDeficitRef.current,target:hyperBeenDeficitRef.current+5,recoveryActive:hyperBeenRecoveryModeRef.current,nextParity:hyperBeenNextParityRef.current});
+   }else if(isHyperBeenTrade){
+    // Do not infer a win or loss from an ambiguous close result.
+    hyperBeenLastTradeModeRef.current=null;
+    hyperBeenRecoveryQuoteRef.current=null;
+    stopped.current=true;botArmedRef.current=false;requested.current=false;requestStartedAt.current=0;
+    setRunning(false);setSmartAnalyzer(false);setExitSpotsMode(false);setSignalNow(null);
+    setNotice('HyperBeen: o contrato fechou sem um resultado oficial claro. O robô foi pausado por segurança; nenhuma recuperação será calculada com um resultado incerto.');
    }
    const isHyperFlowsTrade=closedBotName==='hyperflows';
    if(isHyperFlowsTrade&&(hyperFlowWon||hyperFlowLost)){
@@ -1711,6 +1718,11 @@ export default function AutoBotV4(){
     if(!Number.isFinite(balanceNow)||exactStake>availableNow+0.005){
      recoveryBalancePauseRef.current=exactStake;
      abandonHyperBeenQuote('HyperBeen: recuperação '+(hyperBeenQuote.recoveryType==='EVEN'?'PAR':'ÍMPAR')+' pausada. A cotação real exige stake '+exactStake.toFixed(2)+' para cobrir o défice total '+hyperBeenQuote.deficit.toFixed(2)+' e obter +$5 líquidos; saldo disponível '+Math.max(0,Number.isFinite(balanceNow)?balanceNow:0).toFixed(2)+' '+currencyNow+'. Nenhuma compra foi enviada.');
+     return;
+    }
+    if(!Number.isFinite(ask)||ask<=0||ask>availableNow+0.005){
+     recoveryBalancePauseRef.current=Number.isFinite(ask)&&ask>0?ask:null;
+     abandonHyperBeenQuote('HyperBeen: a stake devolvida na cotação ('+(Number.isFinite(ask)?ask.toFixed(2):'inválida')+') não cabe no saldo disponível de '+Math.max(0,Number.isFinite(availableNow)?availableNow:0).toFixed(2)+' '+currencyNow+'. Nenhuma compra foi enviada.');
      return;
     }
     if(ask+0.005<exactStake){
