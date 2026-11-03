@@ -1931,7 +1931,7 @@ export default function AutoBotV4(){
     requestStartedAt.current=0;
     stakeReadyRef.current=true;riskLockStartedAt.current=0;
    }
-  },[proposal,buying,activeContractId,running,smartAnalyzer,exitSpotsMode,smartAdvice,botAnalysisValues,aiAnalysisValues,analysisExitValues,ticks,exitSpotReady,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal,getProposal,symbol,balance?.balance,hypercoverRevision]); useEffect(()=>{
+  },[proposal,buying,activeContractId,running,smartAnalyzer,exitSpotsMode,smartAdvice,botAnalysisValues,aiAnalysisValues,analysisExitValues,ticks,exitSpotReady,tickWindow,tickPipSize,isAuthorized,isConnected,strategy,buy,iaPower,setSmartAdvice,clearProposal,getProposal,symbol,balance?.balance,balance?.currency,hypercoverRevision]); useEffect(()=>{
    if(activeContractId!==null){
     riskAwaitingContractRef.current=activeContractId;
     stakeReadyRef.current=false;riskLockStartedAt.current=Date.now();
