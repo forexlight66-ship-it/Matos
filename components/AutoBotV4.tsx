@@ -885,11 +885,24 @@ export default function AutoBotV4(){
      if(wasAboveZeroRecovery){
       if(hyperFlowLost){
        hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
-       const nextRecoveryType:'EVEN'|'ODD'='EVEN';
+       // A single failed ABOVE 0 recovery ends HyperFlows immediately; do not place a parity recovery trade.
        hyperFlowsNextParityRef.current='EVEN';
-       hyperFlowsRecoveryContractRef.current=nextRecoveryType;
-       hyperFlowsRecoveryModeRef.current=true;
-       setNotice('HyperFlows: recuperação ACIMA 0 perdeu. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'. A continuar a recuperação em '+(nextRecoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+'.');
+       hyperFlowsRecoveryContractRef.current='OVER0';
+       hyperFlowsRecoveryModeRef.current=false;
+       hyperFlowsRecoveryQuoteRef.current=null;
+       hyperFlowsAnalysisActiveRef.current=false;
+       pendingAutoEntryRef.current=null;
+       pendingRiskStakeRef.current=null;
+       requested.current=false;
+       requestStartedAt.current=0;
+       stopped.current=true;
+       botArmedRef.current=false;
+       setRunning(false);
+       setSmartAnalyzer(false);
+       setExitSpotsMode(false);
+       setSignalNow(null);
+       setBotActivity('idle');
+       setNotice('HyperFlows: a única recuperação ACIMA 0 perdeu. Robô parado imediatamente; nenhuma recuperação PAR/ÍMPAR será executada. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
       }else{
        const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
        const requiredRecoveryProfit=Number((deficitBeforeWin+2).toFixed(2));
