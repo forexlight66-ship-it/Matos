@@ -676,7 +676,14 @@ export default function AutoBotV4(){
   const closedBarrier=Number(closed?.barrier);
   const unknownClosedBot=!rawClosedBotLabel||/^(estrat[eé]gia|strategy|unknown|bot não identificado)$/i.test(rawClosedBotLabel);
   const looksLikeHyperFlowContract=(closedBarrier===0&&closedContractType==='DIGITMATCH')||(closedBarrier===0&&closedContractType==='DIGITOVER'&&strategy==='MATCH0');
-  const looksLikeHyperBeenContract=strategy==='MATCH0'&&((closedBarrier===0&&(closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH'))||closedContractType==='DIGITEVEN'||closedContractType==='DIGITODD');
+  const trackedHyperBeenMode=hyperBeenLastTradeModeRef.current;
+  const trackedHyperBeenCloseMatches=trackedHyperBeenMode==='OVER0'
+   ?(!closedContractType||closedContractType==='DIGITOVER')&&(!Number.isFinite(closedBarrier)||closedBarrier===0)
+   :trackedHyperBeenMode==='EVEN'
+    ?(!closedContractType||closedContractType==='DIGITEVEN')
+    :trackedHyperBeenMode==='ODD'
+     ?(!closedContractType||closedContractType==='DIGITODD')
+     :false;
   const looksLikeHyperFlowsContract=strategy==='HYPERFLOWS'&&(closedContractType==='DIGITEVEN'||closedContractType==='DIGITODD'||(closedContractType==='DIGITOVER'&&closedBarrier===0)||(closedContractType==='DIGITMATCH'&&closedBarrier>=0&&closedBarrier<=9)||(closedContractType==='DIGITUNDER'&&closedBarrier===9));
   const knownHyperFlowLabel=rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel);
   const knownHyperBeenLabel=rawClosedBotName==='hyperbeen'||/^hyperbeen(?:\s+|$)/i.test(rawClosedBotLabel);
@@ -699,7 +706,7 @@ export default function AutoBotV4(){
        ?(!closedContractType||closedContractType==='DIGITOVER')&&(!Number.isFinite(closedBarrier)||closedBarrier===0)
       :false;
   const looksLikeTrackedHyperFlowsClose=strategy==='HYPERFLOWS'&&trackedHyperFlowsMode!==null&&trackedHyperFlowsContractMatches&&(knownHyperFlowLabel||knownHyperFlowsLabel||unknownClosedBot);
-  const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperBeenLabel||(strategy==='MATCH0'&&(knownHyperFlowLabel||(unknownClosedBot&&looksLikeHyperBeenContract))))?'hyperbeen':(knownHyperFlowLabel||(unknownClosedBot&&looksLikeHyperFlowContract))?'hyperflow':rawClosedBotName;
+  const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperBeenLabel||(strategy==='MATCH0'&&(knownHyperFlowLabel||(unknownClosedBot&&trackedHyperBeenCloseMatches))))?'hyperbeen':(knownHyperFlowLabel||(unknownClosedBot&&looksLikeHyperFlowContract))?'hyperflow':rawClosedBotName;
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
    const id=Number(closed.contract_id);
@@ -1370,6 +1377,7 @@ export default function AutoBotV4(){
   }
   if(!forceHypercover&&!hyperBeenActive&&strategy!=='HYPERFLOWS'&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
   if(proposal||buying||activeContractId!==null||trackedContractId!==null||!isAuthorized||!isConnected){setBotActivity(!isConnected||!isAuthorized?'reconnectingDeriv':(buying?'waitingBuyConfirmation':'reconcilingBot'));return;}
+  if(strategy==='MATCH0'&&hyperBeenLastTradeModeRef.current!==null){setBotActivity('waitingRobotSignal');return;}
   // A close can release Deriv's active-contract id before its financial result
   // has been delivered/processed. HyperFlows keeps lastTradeMode set until the
   // close handler consumes that result. Never submit the next order in this gap:
