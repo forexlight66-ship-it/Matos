@@ -844,7 +844,17 @@ export default function AutoBotV4(){
        hyperFlowsRecoveryModeRef.current=true;
        setNotice('HyperFlows: recuperação ACIMA 0 perdeu. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'. A continuar a recuperação em '+(nextRecoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+'.');
       }else{
-       resetHyperFlowsRecovery('HyperFlows: recuperação ACIMA 0 ganhou. Ciclo de recuperação, défice e contagem de perdas reiniciados; a retomar MATCH 9 após um novo tick.');
+       const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
+       const requiredRecoveryProfit=Number((deficitBeforeWin+2).toFixed(2));
+       if(result+0.005>=requiredRecoveryProfit){
+        resetHyperFlowsRecovery('HyperFlows: recuperação ACIMA 0 concluída. Um único trade cobriu todo o défice e gerou +$2 líquidos.');
+       }else{
+        hyperFlowsRecoveryContractRef.current='EVEN';
+        hyperFlowsNextParityRef.current='EVEN';
+        hyperFlowsRecoveryExtraProfitRef.current=2;
+        hyperFlowsRecoveryModeRef.current=true;
+        setNotice('HyperFlows: ACIMA 0 ganhou, mas não atingiu '+requiredRecoveryProfit.toFixed(2)+' (défice total + $2). O défice integral mantém-se; a próxima recuperação será PAR.');
+       }
       }
      }else if(hyperFlowLost){
       hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
@@ -857,17 +867,15 @@ export default function AutoBotV4(){
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
       const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
-      const requiredRecoveryProfit=Number((deficitBeforeWin+Math.max(0,hyperFlowsRecoveryExtraProfitRef.current)).toFixed(2));
+      const requiredRecoveryProfit=Number((deficitBeforeWin+2).toFixed(2));
       if(result+0.005>=requiredRecoveryProfit){
        resetHyperFlowsRecovery('HyperFlows: recuperação '+recoveryLabel+' concluída. Défice total recuperado e lucro extra de '+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+' confirmado; a retomar MATCH 9 após um novo tick.');
       }else{
-       const remainingDeficit=Number(Math.max(0,deficitBeforeWin-Math.max(0,result)).toFixed(2));
-       hyperFlowsDeficitRef.current=remainingDeficit;
        const nextParity: 'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
        hyperFlowsNextParityRef.current=nextParity;
        hyperFlowsRecoveryContractRef.current=nextParity;
        hyperFlowsRecoveryModeRef.current=true;
-       setNotice('HyperFlows: recuperação '+recoveryLabel+' ganhou, mas ainda não atingiu o objectivo total. Défice restante '+remainingDeficit.toFixed(2)+'; próxima operação '+(nextParity==='EVEN'?'PAR':'ÍMPAR')+' com +'+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+' líquido.');
+       setNotice('HyperFlows: recuperação '+recoveryLabel+' ganhou, mas não atingiu '+requiredRecoveryProfit.toFixed(2)+' (défice total + $2). O défice integral mantém-se; próxima operação '+(nextParity==='EVEN'?'PAR':'ÍMPAR')+'.');
       }
      }
     }else if(wasUnder9){
@@ -1529,7 +1537,7 @@ export default function AutoBotV4(){
    const recoveryType=hyperFlowsRecoveryContractRef.current;
    const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER';
    const recoveryBarrier=recoveryType==='OVER0'?0:undefined;
-   const recoveryExtraProfit=(recoveryType==='EVEN'||recoveryType==='ODD')?1:(Number(stake)<0.35?1:2);
+   const recoveryExtraProfit=2;
    const recoveryTargetNetProfit=Number((deficit+recoveryExtraProfit).toFixed(2));
    if(!hyperFlowsRecoveryQuoteRef.current){
     // Payout for EVEN and OVER 0 varies by symbol/market conditions. Quote
