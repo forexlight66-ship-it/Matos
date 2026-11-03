@@ -1053,21 +1053,13 @@ export default function AutoBotV4(){
   else if(bot==='HYPERSHIELD'){full=all.probs.slice(5).reduce((a,b)=>a+b,0);short=recent.probs.slice(5).reduce((a,b)=>a+b,0);baseline=50;}
   else if(bot==='HYPERBREAK'){full=all.probs.slice(0,8).reduce((a,b)=>a+b,0);short=recent.probs.slice(0,8).reduce((a,b)=>a+b,0);baseline=80;}
   else if(bot==='HYPERCOVER'){full=Math.max(100-all.probs[0],100-all.probs[9]);short=Math.max(100-recent.probs[0],100-recent.probs[9]);baseline=80;}
-  // HyperFlow MATCH 0 needs a symbol with emerging zero activity, not a 65% signal.
-  // Score it directly from both 25-tick frequency and the latest 9 ticks, allowing
-  // a modest increase in zero frequency to change the preferred symbol early.
-  if(bot==='MATCH0'&&hyperFlowOverZeroModeRef.current){
+  // HyperBeen opens ACIMA 0, so rank symbols by observed non-zero frequency.
+  if(bot==='MATCH0'){
    const fullAboveZero=100-all.match0;
    const recentAboveZero=100-recent.match0;
-   return 50+(fullAboveZero-90)*0.35+(recentAboveZero-90)*0.65;
-  }
-  if(bot==='MATCH0'){
-   const fullZero=all.match0;
-   const recentZero=recent.match0;
-   const priorZero=stats(values.slice(-18,-9)).match0;
-   const acceleration=recentZero-priorZero;
-   const hasTrigger=recentZero>=22;
-   return 50+fullZero*0.35+recentZero*0.65+acceleration*0.25+(hasTrigger?8:0);
+   const priorAboveZero=100-stats(values.slice(-18,-9)).match0;
+   const acceleration=recentAboveZero-priorAboveZero;
+   return 50+fullAboveZero*0.35+recentAboveZero*0.65+acceleration*0.25;
   }
   const edge=(full-baseline)*0.45+(short-baseline)*0.55;
   const validSignal=makeSignal(values.slice(-25),bot,undefined,false,65,9);
@@ -1367,15 +1359,16 @@ export default function AutoBotV4(){
   // bloquear o AI Analyst normal quando não há histórico suficiente de operações.
     if(hypercoverAlternationRef.current.pauseTicksRemaining>0&&(strategy==='HYPERCOVER'||smartAnalyzer||hypercoverAlternationRef.current.forceNextDirection)){setBotActivity('waitingRobotSignal');return;}
   const forceHypercover=hypercoverAlternationRef.current.forceNextDirection;
-  const hyperFlowFallbackActive=strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current;
-  if(!forceHypercover&&!hyperFlowFallbackActive&&(exitSpotsMode?analysisExitValues.length<28:(smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))){setBotActivity(exitSpotsMode?'waitingExitSpots':'collectingTicks');return;}
+  const hyperBeenActive=strategy==='MATCH0';
+  const hyperBeenRecoveryActive=hyperBeenActive&&hyperBeenRecoveryModeRef.current;
+  if(!forceHypercover&&!hyperBeenActive&&(exitSpotsMode?analysisExitValues.length<28:(smartAnalyzer?aiAnalysisValues.length<25:botAnalysisValues.length<9))){setBotActivity(exitSpotsMode?'waitingExitSpots':'collectingTicks');return;}
   let analystStrategy:Strategy|null=null;
-  if(smartAnalyzer&&!forceHypercover&&!exitSpotsMode&&!hyperFlowFallbackActive&&strategy!=='HYPERFLOWS'){
+  if(smartAnalyzer&&!forceHypercover&&!exitSpotsMode&&!hyperBeenActive&&strategy!=='HYPERFLOWS'){
    if(!smartAdvice||smartAdvice.noTrade){setBotActivity('waitingAnalystSignal');return;}
    analystStrategy=ANALYZER_STRATEGY_TO_BOT[smartAdvice.strategy]||null;
    if(!analystStrategy||strategy!==analystStrategy){setBotActivity('waitingAnalystSignal');return;}
   }
-  if(!forceHypercover&&!hyperFlowFallbackActive&&strategy!=='HYPERFLOWS'&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
+  if(!forceHypercover&&!hyperBeenActive&&strategy!=='HYPERFLOWS'&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy){setBotActivity('waitingAnalystSignal');return;}
   if(proposal||buying||activeContractId!==null||trackedContractId!==null||!isAuthorized||!isConnected){setBotActivity(!isConnected||!isAuthorized?'reconnectingDeriv':(buying?'waitingBuyConfirmation':'reconcilingBot'));return;}
   // A close can release Deriv's active-contract id before its financial result
   // has been delivered/processed. HyperFlows keeps lastTradeMode set until the
@@ -1386,9 +1379,12 @@ export default function AutoBotV4(){
    return;
   }
   let freshSignal:any=null;
-  if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(hyperFlowFallbackActive){
-   if(hyperFlowOverZeroModeRef.current){
-    freshSignal={contract:'OVER' as Contract,label:'ACIMA 0',strength:90,score:90,barrier:0,contractType:'DIGITOVER',hyperFlowOverZero:true};
+  if(forceHypercover){const forced=hypercoverAlternationRef.current;freshSignal={contract:forced.contractType==='DIGITOVER'?'OVER':'UNDER',label:forced.contractType==='DIGITOVER'?'ACIMA 1':'ABAIXO 8',strength:100,score:100,barrier:forced.barrier,contractType:forced.contractType,forcedHypercover:true};}else if(strategy==='MATCH0'){
+   if(hyperBeenRecoveryActive){
+    const recoveryType=hyperBeenNextParityRef.current;
+    freshSignal={contract:recoveryType as Contract,label:(recoveryType==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+' — RECUPERAÇÃO',strength:100,score:100,contractType:recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD',hyperBeenRecovery:true};
+   }else{
+    freshSignal={contract:'OVER' as Contract,label:'ACIMA 0',strength:90,score:90,barrier:0,contractType:'DIGITOVER',hyperBeenPrimary:true};
    }
   }else if(strategy==='HYPERFLOWS'){
    const latest10=hyperFlowObservationTicksRef.current.slice(-10).map(value=>digit(value,tickPipSize)).filter((value):value is number=>value!==null);
@@ -1430,8 +1426,7 @@ export default function AutoBotV4(){
   }else{
    freshSignal=makeNormalMomentumSignal9(ticks.slice(-10),strategy,tickPipSize,65,10);
   }
-  if(!freshSignal){if(strategy==='MATCH0'&&!hyperFlowOverZeroModeRef.current)hyperFlowNormalSignalDisarmedRef.current=false;setBotActivity('waitingRobotSignal');return;}
-  if(strategy==='MATCH0'&&!hyperFlowOverZeroModeRef.current&&hyperFlowNormalSignalDisarmedRef.current){setBotActivity('waitingRobotSignal');return;}
+  if(!freshSignal){setBotActivity('waitingRobotSignal');return;}
   const hyperFlowTickEpoch=Number(tick?.epoch);
   if(strategy==='MATCH0'&&Number.isFinite(hyperFlowTickEpoch)){
    const lastEntry=hyperFlowLastEntryTickRef.current;
@@ -1462,7 +1457,7 @@ export default function AutoBotV4(){
    barrier=barrierStateRef.current.barrier;
   } else {
    const c:Contract=freshSignal.contract as Contract;
-   barrier=strategyName==='HYPERFLOWS'?Number(freshSignal?.barrier??9):strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current?0:
+   barrier=strategyName==='HYPERFLOWS'?Number(freshSignal?.barrier??9):strategyName==='MATCH0'?0:
     isRecoveryStrategy(strategy)?(barrierStateRef.current?.barrier??4):
     strategyName==='HYPERGUARD'?0:strategyName==='HYPERSHIELD'?4:strategyName==='HYPERBREAK'?8:strategyName==='HYPERCOVER'?(c==='OVER'?1:8):
     c==='DIFFER'?0:c==='MATCH0'?0:c==='OVER'?5:c==='UNDER'?4:0;
@@ -1471,7 +1466,7 @@ export default function AutoBotV4(){
   if(strategyName==='MATCH0')hyperFlowTargetDigitRef.current=barrier;
   // Sonic é a fonte de verdade da stake quando está ativo.
   // O Soros interno do Sonic controla a repetição da mesma stake vencedora.
-  // HyperFlow uses the configured normal stake and bypasses IA Power/Sonic recovery sizing.
+  // HyperBeen and HyperFlows use the configured stake and bypass IA Power/Sonic recovery sizing.
   const rawAmount=(strategy==='MATCH0'||strategy==='HYPERFLOWS')?stake:(iaPower?gestorRef.current.proximoStake():(sonic?sonicRef.current.getStake():stake));
   const availableBalance=Number(balance?.balance);
   const maxStakeByBalance=Math.floor(availableBalance*100)/100;
@@ -1518,19 +1513,26 @@ export default function AutoBotV4(){
    }
    amount=recoveryStake;
   }
-  // HyperFlow ACIMA 0 has a fixed $15 stake and one-tick duration; it never sizes
-  // the stake from accumulated losses. Do not place the trade if balance is insufficient.
-  if(strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current){
-   if(maxStakeByBalance<15){
-    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;pendingRiskStakeRef.current=null;
-    setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
-    setNotice('HyperFlow ACIMA 0 aguardado: é necessário saldo disponível de pelo menos $15. Não será acumulado nem recuperado qualquer défice.');
+  if(strategyName==='MATCH0'&&hyperBeenRecoveryModeRef.current){
+    const deficit=Number(Math.max(0,Number(hyperBeenDeficitRef.current)||0).toFixed(2));
+    const recoveryType=hyperBeenNextParityRef.current;
+    const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD';
+    const targetNetProfit=Number((deficit+5).toFixed(2));
+    if(hyperBeenRecoveryQuoteRef.current){setBotActivity('requestingProposal');return;}
+    hyperBeenRecoveryQuoteRef.current={recoveryType,stage:'seed',targetNetProfit,deficit,amount:0.35,attempt:0};
+    pendingRiskStakeRef.current=null;
+    setBotActivity('requestingProposal');lastActivityAt.current=Date.now();
+    clearProposal();
+    if(!getProposal(symbol,recoveryContractType,0.35,1,0,false)){
+     hyperBeenRecoveryQuoteRef.current=null;
+     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+     setBotActivity('waitingRobotSignal');
+     setNotice('HyperBeen: não foi possível obter a cotação real da recuperação PAR/ÍMPAR. Nenhuma compra foi enviada; será tentada nova cotação.');
+    }
     return;
    }
-   amount=15;
-  }
 
-  if(strategyName==='HYPERFLOWS'&&hyperFlowsRecoveryModeRef.current){
+   if(strategyName==='HYPERFLOWS'&&hyperFlowsRecoveryModeRef.current){
    const deficit=Number(Math.max(0,Number(hyperFlowsDeficitRef.current)||0).toFixed(2));
    const recoveryType=hyperFlowsRecoveryContractRef.current;
    const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER';
@@ -1572,43 +1574,26 @@ export default function AutoBotV4(){
    }
    requestedHypercoverContractRef.current={contractType:expectedType as 'DIGITOVER'|'DIGITUNDER',barrier:expectedBarrier};
   }else requestedHypercoverContractRef.current=null;
-  const isHyperFlowRecoveryTrade=strategyName==='MATCH0'&&hyperFlowOverZeroModeRef.current;
+  const isHyperBeenPrimaryTrade=strategyName==='MATCH0'&&!hyperBeenRecoveryModeRef.current;
   const isHyperFlowsRecoveryTrade=strategyName==='HYPERFLOWS'&&hyperFlowsRecoveryModeRef.current&&Boolean(freshSignal?.hyperFlowsRecovery);
   const hyperFlowsTradeMode:'MATCH9'|'ALTERNATE'|'UNDER9'|'EVEN'|'ODD'|'OVER0'|null=strategyName!=='HYPERFLOWS'?null:(isHyperFlowsRecoveryTrade?hyperFlowsRecoveryContractRef.current:freshSignal?.hyperFlowsAlternate?'ALTERNATE':'MATCH9');
-  if(strategyName==='MATCH0'&&!isHyperFlowRecoveryTrade)hyperFlowNormalSignalDisarmedRef.current=true;
-  if(isHyperFlowRecoveryTrade&&hyperFlowRecoveryBuyPendingRef.current){
-   // The hook's synchronous buy lock and active-contract refs are authoritative.
-   // If neither an acknowledged/pending buy nor an active contract exists, this
-   // component-only flag is stale (for example, close metadata had no bot name).
-   const hyperFlowPurchaseStillTracked=Boolean(buying||proposal||activeContractId!==null||trackedContractId!==null);
-   if(hyperFlowPurchaseStillTracked){
-    requested.current=false;
-    requestStartedAt.current=0;
-    setBotActivity('waitingBuyConfirmation');
-    lastActivityAt.current=Date.now();
-    return;
-   }
-   console.warn('[HyperFlow ACIMA 0 stale entry lock cleared]',{symbol,reason:'no pending buy or active contract remains'});
-   hyperFlowRecoveryBuyPendingRef.current=false;
-  }
-  pendingAutoEntryRef.current=null;
+    pendingAutoEntryRef.current=null;
   // SENDINGDIRECTBUY now only covers the actual buy invocation.
   setBotActivity('sendingDirectBuy');
   let sent=false;
   try{
    const contractDuration=1;
    const recoveryType=hyperFlowsRecoveryContractRef.current;
-   const directContractType=isHyperFlowsRecoveryTrade?(recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER'):isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr;
-   // EVEN/ODD have no barrier; ACIMA 0 recovery must carry barrier 0.
-   const directBarrier=isHyperFlowsRecoveryTrade?(recoveryType==='OVER0'?0:undefined):isHyperFlowRecoveryTrade?0:barrier;
-   if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=true;
+   const directContractType=isHyperFlowsRecoveryTrade?(recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER'):contractTypeStr;
+   const directBarrier=isHyperFlowsRecoveryTrade?(recoveryType==='OVER0'?0:undefined):barrier;
+   if(isHyperBeenPrimaryTrade)hyperBeenLastTradeModeRef.current='OVER0';
    if(hyperFlowsTradeMode)hyperFlowsLastTradeModeRef.current=hyperFlowsTradeMode;
    if(isHyperFlowsRecoveryTrade)console.info('[HyperFlows recovery buy request]',{symbol,recoveryType,contract_type:directContractType,barrier:directBarrier??null,amount,duration:contractDuration,expectedWinningDigits:recoveryType==='EVEN'?[0,2,4,6,8]:recoveryType==='ODD'?[1,3,5,7,9]:[1,2,3,4,5,6,7,8,9]});
    sent=buyDirect({symbol,contractType:directContractType,amount,duration:contractDuration,...(directBarrier!==undefined?{barrier:directBarrier}:{}),currency:String(balance?.currency||'USD')},amount,botName,directBarrier);
   }catch(buyError){
    if(hyperFlowsTradeMode&&hyperFlowsLastTradeModeRef.current===hyperFlowsTradeMode)hyperFlowsLastTradeModeRef.current=null;
-   if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=false;
-   if(strategyName==='MATCH0'&&!isHyperFlowRecoveryTrade)hyperFlowNormalSignalDisarmedRef.current=false;
+   if(isHyperBeenPrimaryTrade)hyperBeenLastTradeModeRef.current=null;
+   
    console.error('[Bot direct buy exception]',buyError,{account,strategy,symbol,contractTypeStr,barrier,amount});
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
@@ -1619,9 +1604,9 @@ export default function AutoBotV4(){
   if(sent&&hyperFlowsTradeMode==='ALTERNATE')hyperFlowsNextDigitRef.current=null;
   if(!sent){
    if(hyperFlowsTradeMode&&hyperFlowsLastTradeModeRef.current===hyperFlowsTradeMode)hyperFlowsLastTradeModeRef.current=null;
-   if(isHyperFlowRecoveryTrade)hyperFlowRecoveryBuyPendingRef.current=false;
-   if(strategyName==='MATCH0'&&!isHyperFlowRecoveryTrade)hyperFlowNormalSignalDisarmedRef.current=false;
-   console.warn('[Bot direct buy returned false]',{account,strategy,symbol,contractType:isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr,barrier:isHyperFlowRecoveryTrade?0:barrier,amount,availableBalance,buying,activeContractId,botName,at:new Date().toISOString()});
+   if(isHyperBeenPrimaryTrade)hyperBeenLastTradeModeRef.current=null;
+   
+   console.warn('[Bot direct buy returned false]',{account,strategy,symbol,contractType:contractTypeStr,barrier,amount,availableBalance,buying,activeContractId,botName,at:new Date().toISOString()});
    setBotActivity('reconcilingBot');
    if(iaPower||sonic)pendingRiskStakeRef.current=null;
    // The hook logs whether this was a duplicate/in-flight request or a socket refusal.
@@ -1676,6 +1661,69 @@ export default function AutoBotV4(){
   iaRecoveryQuotePendingRef.current=false;
  },[iaPower,running,smartAnalyzer,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,clearProposal,symbol]); useEffect(()=>{
    if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
+   const hyperBeenQuote=hyperBeenRecoveryQuoteRef.current;
+   if(strategy==='MATCH0'&&hyperBeenQuote){
+    const expectedType=hyperBeenQuote.recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD';
+    const ask=Number(proposal.ask_price);
+    const payout=Number(proposal.payout);
+    const liveRatio=ask>0&&Number.isFinite(payout)&&payout>ask?(payout-ask)/ask:0;
+    const currencyNow=String(balance?.currency||'USD');
+    const balanceNow=Number(balance?.balance);
+    const availableNow=Math.floor(balanceNow*100)/100;
+    const abandonHyperBeenQuote=(message:string)=>{
+     hyperBeenRecoveryQuoteRef.current=null;
+     hyperBeenLastTradeModeRef.current=null;
+     pendingRiskStakeRef.current=null;
+     clearProposal();
+     requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+     setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
+     setNotice(message);
+    };
+    const quotedType=String((proposal as any).requested_contract_type||(proposal as any).contract_type||'').toUpperCase();
+    if(quotedType&&quotedType!==expectedType){
+     abandonHyperBeenQuote('HyperBeen: cotação cancelada porque a Deriv devolveu um contrato diferente da recuperação PAR/ÍMPAR solicitada.');
+     return;
+    }
+    if(!Number.isFinite(liveRatio)||liveRatio<=0){
+     abandonHyperBeenQuote('HyperBeen: o payout real da Deriv não permite calcular uma recuperação segura. Nenhuma compra foi enviada.');
+     return;
+    }
+    payoutRatiosByContractRef.current[payoutContractKey(expectedType)]=liveRatio;
+    const exactStake=Math.max(0.35,Math.ceil((hyperBeenQuote.targetNetProfit/liveRatio)*100-1e-9)/100);
+    if(!Number.isFinite(balanceNow)||exactStake>availableNow+0.005){
+     recoveryBalancePauseRef.current=exactStake;
+     abandonHyperBeenQuote('HyperBeen: recuperação '+(hyperBeenQuote.recoveryType==='EVEN'?'PAR':'ÍMPAR')+' pausada. A cotação real exige stake '+exactStake.toFixed(2)+' para cobrir o défice total '+hyperBeenQuote.deficit.toFixed(2)+' e obter +$5 líquidos; saldo disponível '+Math.max(0,Number.isFinite(balanceNow)?balanceNow:0).toFixed(2)+' '+currencyNow+'. Nenhuma compra foi enviada.');
+     return;
+    }
+    if(ask+0.005<exactStake){
+     if(hyperBeenQuote.attempt>=3){
+      abandonHyperBeenQuote('HyperBeen: payout mudou durante as cotações. Não foi enviada stake inferior à necessária de '+exactStake.toFixed(2)+' para recuperar o défice total + $5.');
+      return;
+     }
+     hyperBeenQuote.stage='final';hyperBeenQuote.amount=exactStake;hyperBeenQuote.attempt+=1;
+     pendingRiskStakeRef.current=exactStake;
+     clearProposal();
+     if(!getProposal(symbol,expectedType,exactStake,1,0,false)){
+      abandonHyperBeenQuote('HyperBeen: falhou a cotação final da stake de recuperação. Nenhuma compra foi enviada; será tentada nova cotação.');
+     }else{
+      setBotActivity('requestingProposal');lastActivityAt.current=Date.now();
+     }
+     return;
+    }
+    const estimatedNetProfit=Number((ask*liveRatio).toFixed(2));
+    pendingRiskStakeRef.current=ask;
+    hyperBeenLastTradeModeRef.current=hyperBeenQuote.recoveryType;
+    const bought=buy(proposal.id,ask,STRATEGY_BOT_NAMES[strategy],undefined);
+    if(bought){
+     hyperBeenRecoveryQuoteRef.current=null;
+     setBotActivity('waitingBuyConfirmation');lastActivityAt.current=Date.now();
+     setNotice('HyperBeen: recuperação '+(hyperBeenQuote.recoveryType==='EVEN'?'PAR':'ÍMPAR')+' enviada com payout confirmado. Stake '+ask.toFixed(2)+'; défice '+hyperBeenQuote.deficit.toFixed(2)+'; lucro líquido estimado '+estimatedNetProfit.toFixed(2)+' (objectivo '+hyperBeenQuote.targetNetProfit.toFixed(2)+').');
+     console.info('[HyperBeen live-quote recovery buy]',{symbol,recoveryType:hyperBeenQuote.recoveryType,contractType:expectedType,askPrice:ask,payout,liveNetRatio:liveRatio,deficit:hyperBeenQuote.deficit,targetNetProfit:hyperBeenQuote.targetNetProfit,estimatedNetProfit,attempt:hyperBeenQuote.attempt,durationTicks:1});
+    }else{
+     abandonHyperBeenQuote('HyperBeen: a compra de recuperação foi recusada pela Deriv. Nenhuma stake parcial foi enviada; a cotação será refeita.');
+    }
+    return;
+   }
    const recoveryQuote=hyperFlowsRecoveryQuoteRef.current;
    if(strategy==='HYPERFLOWS'&&recoveryQuote){
     const expectedType=recoveryQuote.recoveryType==='EVEN'?'DIGITEVEN':recoveryQuote.recoveryType==='ODD'?'DIGITODD':'DIGITOVER';
@@ -1737,7 +1785,7 @@ export default function AutoBotV4(){
     return;
    }
    if(iaPower&&iaRecoveryQuotePendingRef.current)return;
-   if(pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy&&!(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current))return;
+   if(strategy!=='MATCH0'&&pendingAnalyzerStrategyRef.current&&pendingAnalyzerStrategyRef.current!==strategy)return;
 
    const cancelUnqualifiedEntry=(message:string)=>{
     pendingAutoEntryRef.current=null;
@@ -1908,7 +1956,7 @@ export default function AutoBotV4(){
   setAnalyzerNotice(null);analyzerDecisionHistoryRef.current=[];return;
  }
  if(exitSpotsMode)return;
- if(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current)return;
+ if(strategy==='MATCH0')return;
  if(aiAnalysisValues.length<25){
   setSmartAdvice(null);setAnalyzerNoticeColor('#64748b');setAnalyzerNotice('A recolher 25 resultados ao vivo...');
   pendingAnalyzerStrategyRef.current=null;return;
@@ -2051,8 +2099,8 @@ useEffect(()=>{
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
- const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;setExitSpotsMode(false);hyperFlowNormalSignalDisarmedRef.current=false;if(strategy==='HYPERFLOWS'){hyperFlowsAnalysisActiveRef.current=false;hyperFlowsNextDigitRef.current=null;hyperFlowsRecoveryModeRef.current=false;hyperFlowsRecoveryContractRef.current='EVEN';hyperFlowsNextParityRef.current='EVEN';hyperFlowsRecoveryExtraProfitRef.current=1;hyperFlowsRecoveryQuoteRef.current=null;hyperFlowsConsecutiveLossesRef.current=0;hyperFlowsDeficitRef.current=0;hyperFlowsRecoveryAttemptsRef.current=0;hyperFlowsLastTradeModeRef.current=null;hyperFlowsLastEntryTickRef.current=null;hyperFlowsObservedTickRef.current=null;hyperFlowsPostRecoveryResetTickRef.current=null;}if(strategy==='MATCH0'){hyperFlowOverZeroModeRef.current=false;hyperFlowRetryNormalAfterLossRef.current=false;hyperFlowRecoveryActiveRef.current=false;hyperFlowRecoveryBuyPendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;hyperFlowTargetDigitRef.current=0;hyperFlowNextDigitRef.current=null;hyperFlowWatchRef.current={active:false,symbol,snapshots:[]};}recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
- const stop=()=>{saveStakeState();hyperFlowNormalSignalDisarmedRef.current=false;pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
+ const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;setExitSpotsMode(false);hyperFlowNormalSignalDisarmedRef.current=false;if(strategy==='HYPERFLOWS'){hyperFlowsAnalysisActiveRef.current=false;hyperFlowsNextDigitRef.current=null;hyperFlowsRecoveryModeRef.current=false;hyperFlowsRecoveryContractRef.current='EVEN';hyperFlowsNextParityRef.current='EVEN';hyperFlowsRecoveryExtraProfitRef.current=1;hyperFlowsRecoveryQuoteRef.current=null;hyperFlowsConsecutiveLossesRef.current=0;hyperFlowsDeficitRef.current=0;hyperFlowsRecoveryAttemptsRef.current=0;hyperFlowsLastTradeModeRef.current=null;hyperFlowsLastEntryTickRef.current=null;hyperFlowsObservedTickRef.current=null;hyperFlowsPostRecoveryResetTickRef.current=null;}if(strategy==='MATCH0'){hyperBeenRecoveryModeRef.current=false;hyperBeenDeficitRef.current=0;hyperBeenNextParityRef.current='EVEN';hyperBeenLastTradeModeRef.current=null;hyperBeenRecoveryQuoteRef.current=null;hyperFlowOverZeroModeRef.current=false;hyperFlowRetryNormalAfterLossRef.current=false;hyperFlowRecoveryActiveRef.current=false;hyperFlowRecoveryBuyPendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;hyperFlowTargetDigitRef.current=0;hyperFlowNextDigitRef.current=null;hyperFlowWatchRef.current={active:false,symbol,snapshots:[]};}recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
+ const stop=()=>{saveStakeState();hyperBeenRecoveryQuoteRef.current=null;hyperFlowNormalSignalDisarmedRef.current=false;pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
  const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setSorosEnabled(false);setExitSpotsMode(false);if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(!running)stop()}},[aiAnalystActive,clientCountryReady,language,running,isConnected,isAuthorized,start,stop,setSorosEnabled,iaPower,sonic]);
  const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
