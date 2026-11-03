@@ -848,24 +848,26 @@ export default function AutoBotV4(){
       }
      }else if(hyperFlowLost){
       hyperFlowsDeficitRef.current=Number((Math.max(0,hyperFlowsDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
-      const nextParity: 'EVEN'|'ODD'='EVEN';
-      hyperFlowsNextParityRef.current='EVEN';
-      hyperFlowsRecoveryContractRef.current='EVEN';
+      const nextParity: 'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
+      hyperFlowsNextParityRef.current=nextParity;
+      hyperFlowsRecoveryContractRef.current=nextParity;
       hyperFlowsRecoveryModeRef.current=true;
-      setNotice('HyperFlows: recuperação em NÚMEROS PARES perdeu. A repetir NÚMEROS PARES, com stake calculada para recuperar todo o défice num único trade. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
+      setNotice('HyperFlows: recuperação em '+recoveryLabel+' perdeu. Próxima recuperação: '+(nextParity==='EVEN'?'NÚMEROS PARES':'NÚMEROS ÍMPARES')+'. Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
      }else{
       const paidIn=Number(closed?.buy_price);
       if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
       const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
       const requiredRecoveryProfit=Number((deficitBeforeWin+Math.max(0,hyperFlowsRecoveryExtraProfitRef.current)).toFixed(2));
       if(result+0.005>=requiredRecoveryProfit){
-       resetHyperFlowsRecovery('HyperFlows: recuperação PAR concluída. Défice total recuperado e lucro extra de '+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+' confirmado; a retomar MATCH 9 após um novo tick.');
+       resetHyperFlowsRecovery('HyperFlows: recuperação '+recoveryLabel+' concluída. Défice total recuperado e lucro extra de '+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+' confirmado; a retomar MATCH 9 após um novo tick.');
       }else{
-       const nextParity: 'EVEN'|'ODD'='EVEN';
-       hyperFlowsNextParityRef.current='EVEN';
-       hyperFlowsRecoveryContractRef.current='EVEN';
+       const remainingDeficit=Number(Math.max(0,deficitBeforeWin-Math.max(0,result)).toFixed(2));
+       hyperFlowsDeficitRef.current=remainingDeficit;
+       const nextParity: 'EVEN'|'ODD'=recoveryType==='EVEN'?'ODD':'EVEN';
+       hyperFlowsNextParityRef.current=nextParity;
+       hyperFlowsRecoveryContractRef.current=nextParity;
        hyperFlowsRecoveryModeRef.current=true;
-       setNotice('HyperFlows: lucro da recuperação PAR ('+Number(result).toFixed(2)+') abaixo do objectivo '+requiredRecoveryProfit.toFixed(2)+' (défice '+deficitBeforeWin.toFixed(2)+' + extra '+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+'). A repetir PAR sem abater parcialmente o défice.');
+       setNotice('HyperFlows: recuperação '+recoveryLabel+' ganhou, mas ainda não atingiu o objectivo total. Défice restante '+remainingDeficit.toFixed(2)+'; próxima operação '+(nextParity==='EVEN'?'PAR':'ÍMPAR')+' com +'+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+' líquido.');
       }
      }
     }else if(wasUnder9){
@@ -1527,7 +1529,7 @@ export default function AutoBotV4(){
    const recoveryType=hyperFlowsRecoveryContractRef.current;
    const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER';
    const recoveryBarrier=recoveryType==='OVER0'?0:undefined;
-   const recoveryExtraProfit=recoveryType==='EVEN'?1:(Number(stake)<0.35?1:2);
+   const recoveryExtraProfit=(recoveryType==='EVEN'||recoveryType==='ODD')?1:(Number(stake)<0.35?1:2);
    const recoveryTargetNetProfit=Number((deficit+recoveryExtraProfit).toFixed(2));
    if(!hyperFlowsRecoveryQuoteRef.current){
     // Payout for EVEN and OVER 0 varies by symbol/market conditions. Quote
@@ -1538,7 +1540,7 @@ export default function AutoBotV4(){
     pendingRiskStakeRef.current=null;
     setBotActivity('requestingProposal');lastActivityAt.current=Date.now();
     clearProposal();
-    if(!getProposal(symbol,recoveryContractType,0.35,5,recoveryBarrier??0,false)){
+    if(!getProposal(symbol,recoveryContractType,0.35,1,recoveryBarrier??0,false)){
      hyperFlowsRecoveryQuoteRef.current=null;
      hyperFlowsLastTradeModeRef.current=null;
      requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
@@ -1588,7 +1590,7 @@ export default function AutoBotV4(){
   setBotActivity('sendingDirectBuy');
   let sent=false;
   try{
-   const contractDuration=isHyperFlowsRecoveryTrade?5:1;
+   const contractDuration=1;
    const recoveryType=hyperFlowsRecoveryContractRef.current;
    const directContractType=isHyperFlowsRecoveryTrade?(recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER'):isHyperFlowRecoveryTrade?'DIGITOVER':contractTypeStr;
    // EVEN/ODD have no barrier; ACIMA 0 recovery must carry barrier 0.
@@ -1708,7 +1710,7 @@ export default function AutoBotV4(){
      recoveryQuote.attempt+=1;
      pendingRiskStakeRef.current=exactStake;
      clearProposal();
-     if(!getProposal(symbol,expectedType,exactStake,5,expectedBarrier??0,false)){
+     if(!getProposal(symbol,expectedType,exactStake,1,expectedBarrier??0,false)){
       abandonRecoveryQuote('HyperFlows: falhou a cotação final da stake de recuperação. Nenhuma compra foi enviada; será feita nova tentativa.');
      }else{
       setBotActivity('requestingProposal');lastActivityAt.current=Date.now();
@@ -1722,7 +1724,7 @@ export default function AutoBotV4(){
      hyperFlowsRecoveryQuoteRef.current=null;
      setBotActivity('waitingBuyConfirmation');lastActivityAt.current=Date.now();
      setNotice('HyperFlows: recuperação '+(recoveryQuote.recoveryType==='OVER0'?'ACIMA 0':'PAR')+' enviada com payout confirmado. Stake '+ask.toFixed(2)+'; défice '+recoveryQuote.deficit.toFixed(2)+'; lucro líquido estimado '+quotedNetProfit.toFixed(2)+' (objectivo '+recoveryQuote.targetNetProfit.toFixed(2)+').');
-     console.info('[HyperFlows live-quote recovery buy]',{symbol,recoveryType:recoveryQuote.recoveryType,contractType:expectedType,barrier:expectedBarrier??null,askPrice:ask,payout,liveNetRatio:liveRatio,deficit:recoveryQuote.deficit,extraProfit:recoveryQuote.extraProfit,targetNetProfit:recoveryQuote.targetNetProfit,quotedNetProfit,attempt:recoveryQuote.attempt,durationTicks:5});
+     console.info('[HyperFlows live-quote recovery buy]',{symbol,recoveryType:recoveryQuote.recoveryType,contractType:expectedType,barrier:expectedBarrier??null,askPrice:ask,payout,liveNetRatio:liveRatio,deficit:recoveryQuote.deficit,extraProfit:recoveryQuote.extraProfit,targetNetProfit:recoveryQuote.targetNetProfit,quotedNetProfit,attempt:recoveryQuote.attempt,durationTicks:1});
     }else{
      abandonRecoveryQuote('HyperFlows: a Deriv recusou a compra pela cotação de recuperação. Nenhuma operação foi confirmada; a análise será retomada.');
     }
