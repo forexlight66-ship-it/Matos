@@ -1670,6 +1670,16 @@ export default function AutoBotV4(){
  },[iaPower,running,smartAnalyzer,proposal,buying,activeContractId,isAuthorized,isConnected,balance?.balance,getProposal,clearProposal,symbol]); useEffect(()=>{
    if(!botArmedRef.current||(!running&&!smartAnalyzer)||stopped.current||!proposal||buying||activeContractId!==null||!isAuthorized||!isConnected)return;
    const hyperBeenQuote=hyperBeenRecoveryQuoteRef.current;
+   if(hyperBeenQuote&&strategy!=='MATCH0'){
+    hyperBeenRecoveryQuoteRef.current=null;
+    hyperBeenLastTradeModeRef.current=null;
+    pendingRiskStakeRef.current=null;
+    clearProposal();
+    requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
+    setBotActivity('waitingRobotSignal');lastActivityAt.current=Date.now();
+    setNotice('HyperBeen: cotação de recuperação cancelada porque a estratégia foi alterada antes da confirmação. Nenhuma compra foi enviada.');
+    return;
+   }
    if(strategy==='MATCH0'&&hyperBeenQuote){
     const expectedType=hyperBeenQuote.recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD';
     const ask=Number(proposal.ask_price);
@@ -1721,7 +1731,7 @@ export default function AutoBotV4(){
     const estimatedNetProfit=Number((ask*liveRatio).toFixed(2));
     pendingRiskStakeRef.current=ask;
     hyperBeenLastTradeModeRef.current=hyperBeenQuote.recoveryType;
-    const bought=buy(proposal.id,ask,STRATEGY_BOT_NAMES[strategy],undefined);
+    const bought=buy(proposal.id,ask,'HyperBeen',undefined);
     if(bought){
      hyperBeenRecoveryQuoteRef.current=null;
      setBotActivity('waitingBuyConfirmation');lastActivityAt.current=Date.now();
