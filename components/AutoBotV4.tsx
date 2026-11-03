@@ -803,19 +803,20 @@ export default function AutoBotV4(){
      }else if(hyperFlowLost){
       hyperBeenDeficitRef.current=Number((deficitBeforeTrade+Math.abs(Math.min(0,result))).toFixed(2));
       const failedStep=hyperBeenRecoveryStepRef.current;
-      if(failedStep>=2){
-       hyperBeenRecoveryStepRef.current=3;
+      if(failedStep>=3){
+       hyperBeenRecoveryStepRef.current=4;
        hyperBeenPauseTicksRef.current=50;
        hyperBeenPauseStartEpochRef.current=lastEpoch.current;
        hyperBeenNextParityRef.current='EVEN';
        hyperBeenRecoveryModeRef.current=true;
-       setNotice('HyperBeen: terceira recuperação consecutiva perdeu. Pausa de 50 ticks; depois a sequência recomeça em PAR. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
+       setNotice('HyperBeen: quarta recuperação consecutiva perdeu (PAR → PAR → ÍMPAR → ÍMPAR). Pausa de 50 ticks; depois a sequência recomeça em PAR. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
       }else{
        hyperBeenRecoveryStepRef.current=failedStep+1;
-       // The recovery order is PAR -> ÍMPAR -> ÍMPAR.
-       hyperBeenNextParityRef.current='ODD';
+       // Recovery sequence: PAR -> PAR -> ÍMPAR -> ÍMPAR, then pause 50 ticks.
+       hyperBeenNextParityRef.current=failedStep===0?'EVEN':'ODD';
        hyperBeenRecoveryModeRef.current=true;
-       setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: ÍMPAR. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + $5 líquidos.');
+       const nextLabel=hyperBeenNextParityRef.current==='EVEN'?'PAR':'ÍMPAR';
+       setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+'. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + $5 líquidos.');
       }
      }else{
       // A positive result below the target reduces the remaining deficit;
