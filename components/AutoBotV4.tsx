@@ -1900,9 +1900,6 @@ export default function AutoBotV4(){
       validationSignal=makeNormalMomentumSignal9(ticks.slice(-10),strategy,tickPipSize,65,10);
      }
     }
-    if(strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current){
-     validationSignal={contract:'OVER' as Contract,label:'ACIMA 0',strength:90,barrier:0,contractType:'DIGITOVER',hyperFlowOverZero:true};
-    }
     if(!validationSignal){
      cancelUnqualifiedEntry(smartAnalyzer?(exitSpotsMode?'Exit Spots: o sinal já não cumpre 20% nos 28 resultados e nos blocos.':'AI Analyst: falta o gatilho de 65% e a confirmação dos últimos 5 ticks.'):'Robô normal: sem gatilho de 65% ou tendência antecipada confirmada nos últimos 9 ticks.');
      return;
@@ -1935,14 +1932,11 @@ export default function AutoBotV4(){
     }
     hypercoverBarrierToRecord=expectedBarrier;
    }
-    const isHyperFlowRecoveryProposalTrade=strategy==='MATCH0'&&hyperFlowOverZeroModeRef.current&&hyperFlowRecoveryQuoteReadyRef.current;
-    if(isHyperFlowRecoveryProposalTrade)hyperFlowRecoveryBuyPendingRef.current=true;
     const bought=buy(proposal.id,Number(proposal.ask_price),botName,botName==='Hypercover'?hypercoverBarrierToRecord:(proposal.barrier!=null&&Number.isFinite(Number(proposal.barrier))?Number(proposal.barrier):(Number.isFinite(Number((proposal as any).requested_barrier))?Number((proposal as any).requested_barrier):undefined)));
-    if(bought){pendingAutoEntryRef.current=null;if(botName==='Hypercover')requestedHypercoverContractRef.current=null;if(isHyperFlowRecoveryProposalTrade)hyperFlowRecoveryQuoteReadyRef.current=false;}
+    if(bought){pendingAutoEntryRef.current=null;if(botName==='Hypercover')requestedHypercoverContractRef.current=null;}
     const boughtDirection=String((proposal as any).contract_type||(proposal as any).requested_contract_type||'').toUpperCase();if(bought&&botName==='Hypercover'&&(boughtDirection==='DIGITOVER'||boughtDirection==='DIGITUNDER')){hypercoverAlternationRef.current.lastDirection=boughtDirection as 'DIGITOVER'|'DIGITUNDER';if(forcedHypercoverBuy)hypercoverAlternationRef.current.forceNextDirection=false;}
     if(!bought){
     pendingAutoEntryRef.current=null;
-    if(isHyperFlowRecoveryProposalTrade){hyperFlowRecoveryBuyPendingRef.current=false;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteTargetRef.current=null;}
     clearProposal();
     setNotice('Falha ao enviar a operação para a Deriv.');
     requested.current=false;
