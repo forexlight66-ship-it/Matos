@@ -44,8 +44,6 @@ function translateAutoBotStaticText(language:Language){
 
 export function LanguageProvider({children}:{children:ReactNode}) {
   const [language,setLanguageState] = useState<Language>('pt');
-  const [invertAccountNames,setInvertAccountNames] = useState(false);
-
   useEffect(()=>{
     try{
       const stored=localStorage.getItem('lang');
@@ -53,16 +51,6 @@ export function LanguageProvider({children}:{children:ReactNode}) {
       setLanguageState(normalized);
       if(stored!==normalized)localStorage.setItem('lang',normalized);
     }catch{setLanguageState('pt')}
-  },[]);
-
-  useEffect(()=>{
-    fetch('/api/auth/me',{cache:'no-store'})
-      .then(res=>res.ok?res.json():null)
-      .then(data=>{
-        const email=String(data?.user?.email||'').trim().toLowerCase();
-        setInvertAccountNames(email==='khatangana@gmail.com');
-      })
-      .catch(()=>setInvertAccountNames(false));
   },[]);
 
   useEffect(()=>{
@@ -86,12 +74,7 @@ export function LanguageProvider({children}:{children:ReactNode}) {
     setLanguageState(normalized);
     try{localStorage.setItem('lang',normalized)}catch{}
   };
-  const t=(key:string)=>{
-    const value=translations[language][key] || translations.en[key] || key;
-    if(invertAccountNames && key==='demo') return translations[language].real || translations.en.real || 'Real';
-    if(invertAccountNames && key==='real') return translations[language].demo || translations.en.demo || 'Demo';
-    return value;
-  };
+  const t=(key:string)=>translations[language][key] || translations.en[key] || key;
   return <LanguageContext.Provider value={{language,setLanguage,t}}>{children}</LanguageContext.Provider>;
 }
 export const useLanguage=()=>useContext(LanguageContext);
