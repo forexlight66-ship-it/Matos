@@ -1349,11 +1349,11 @@ export default function AutoBotV4(){
        setClientCountry(country);
        setClientCountryReady(/^[A-Z]{2}$/.test(country));
        setPaymentAgentCurrency(country==='MZ'||country==='ZA'?'MZN':'');
-       const isAllCurrenciesUser=String(auth?.user?.email||'').trim().toLowerCase()==='khatangana@gmail.com';
+       // As moedas disponíveis dependem apenas do país/moeda do cliente.
        if(native!=='USD'&&FALLBACK_RATES[native]&&!Number.isFinite(rate))rate=FALLBACK_RATES[native];
        CURRENCY_RATES[native]=rate;
        CURRENCY_LABELS[native]=getCurrencyMeta(native).symbol;
-       setCurrencyOptions(isAllCurrenciesUser?Object.keys(CURRENCY_RATES):Array.from(new Set(['USD',native])));
+       setCurrencyOptions(Array.from(new Set(['USD',native])));
        setCurrency('USD');
      }catch(error){
        console.error('[MozHyper] client country detection failed:',error);
