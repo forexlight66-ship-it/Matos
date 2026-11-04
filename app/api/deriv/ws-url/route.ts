@@ -46,8 +46,17 @@ export async function GET(request: NextRequest) {
   const appId = process.env.DERIV_APP_ID?.trim();
   if (!appId) return NextResponse.json({ error: 'DERIV_APP_ID is not configured' }, { status: 500 });
 
-  const requestedType = request.nextUrl.searchParams.get('account_type') || process.env.DERIV_ACCOUNT_TYPE || 'demo';
-  const accountType = requestedType === 'real' ? 'real' : 'demo';
+  const accountTypeParam = request.nextUrl.searchParams.get('account_type');
+  const requestedType = (accountTypeParam === null
+    ? (process.env.DERIV_ACCOUNT_TYPE || 'demo')
+    : accountTypeParam).trim().toLowerCase();
+  if (requestedType !== 'demo' && requestedType !== 'real') {
+    return NextResponse.json(
+      { error: 'Tipo de conta inválido. Escolha Demo ou Real.', code: 'INVALID_ACCOUNT_TYPE' },
+      { status: 400 },
+    );
+  }
+  const accountType = requestedType as 'demo' | 'real';
   let accessToken = accessCookie;
   let refreshed = false;
   let rotatedRefreshToken: string | undefined;
