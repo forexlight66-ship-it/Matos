@@ -819,8 +819,8 @@ export default function AutoBotV4(){
        setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+'. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + $'+recoveryExtraProfit.toFixed(2)+' líquidos.');
       }
      }else{
-      // A positive result below the target reduces the remaining deficit;
-      // retry the same parity with a fresh live quote.
+      // A positive result below the full target is not partial recovery;
+      // keep the full deficit and retry the same parity with a fresh live quote.
       hyperBeenDeficitRef.current=deficitBeforeTrade;
       hyperBeenRecoveryModeRef.current=true;
       hyperBeenNextParityRef.current=recoveryType;
@@ -911,7 +911,7 @@ export default function AutoBotV4(){
        }else{
         hyperFlowsRecoveryContractRef.current='EVEN';
         hyperFlowsNextParityRef.current='EVEN';
-        hyperFlowsRecoveryExtraProfitRef.current=2;
+        hyperFlowsRecoveryExtraProfitRef.current=recoveryExtraProfit;
         hyperFlowsRecoveryModeRef.current=true;
         setNotice('HyperFlows: ACIMA 0 ganhou, mas não atingiu '+requiredRecoveryProfit.toFixed(2)+' (défice total + '+recoveryExtraProfit.toFixed(2)+'). O défice integral mantém-se; a próxima recuperação será PAR.');
        }
