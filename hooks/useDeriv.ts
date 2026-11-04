@@ -335,7 +335,7 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
    const handlePageShow=()=>resumeApp();
    document.addEventListener('visibilitychange',handleVisibility);
    window.addEventListener('pageshow',handlePageShow);
-   const start=async()=>{try{const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);if(cancelled)return;const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
+   const start=async()=>{try{const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});const session=await response.json().catch(()=>null);if(!response.ok||!session?.wsUrl)throw new Error(session?.error||`Unable to create Deriv WebSocket session (${response.status})`);const returnedAccountType=String(session?.account?.account_type||'').trim().toLowerCase();if(returnedAccountType!==accountType)throw new Error(`Deriv returned account type "${returnedAccountType||'unknown'}" while "${accountType}" was requested. Reconnect and verify the selected account.`);if(cancelled)return;const ws=new DerivWebSocket(session.wsUrl);wsRef.current=ws;
      // Every reconnect gets a fresh authenticated WebSocket URL. Deriv OTP
      // URLs are short-lived, so reusing the original URL can cause a silent
      // freeze after a network interruption.
@@ -343,6 +343,8 @@ export function useDeriv(accountType:'demo'|'real'='demo',onContractClosed?: (tx
        const response=await fetch(`/api/deriv/ws-url?account_type=${accountType}`,{cache:'no-store',credentials:'same-origin'});
        const refreshed=await response.json().catch(()=>null);
        if(!response.ok||!refreshed?.wsUrl)throw new Error(refreshed?.error||`Unable to refresh Deriv WebSocket session (${response.status})`);
+       const refreshedAccountType=String(refreshed?.account?.account_type||'').trim().toLowerCase();
+       if(refreshedAccountType!==accountType)throw new Error(`Deriv returned account type "${refreshedAccountType||'unknown'}" while "${accountType}" was requested.`);
        return String(refreshed.wsUrl);
      });
      ws.subscribe('*',(data)=>{if(!data.error)return;const message=data.error.message||'Unknown Deriv error';if(data.echo_req?.forget!==undefined)return;if(data.error.code==='RateLimit'||/rate.?limit/i.test(message)){
