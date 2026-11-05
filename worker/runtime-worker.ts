@@ -14,7 +14,7 @@ const HEARTBEAT_MS = 7000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const allowedStrategies = new Set<Strategy>([
   'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE',
-  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER',
+  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP',
 ]);
 
 function contractType(signal: any): string {
@@ -202,6 +202,16 @@ class RuntimeWorker {
     if (Number(contract.profit_loss) > 0) this.state.winCount = Number(this.state.winCount || 0) + 1;
     else this.state.lossCount = Number(this.state.lossCount || 0) + 1;
     if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'reconciled', { contractId: contract.contract_id });
+    const totalProfitLoss = Number(this.state.profitLoss || 0);
+    const target = Math.max(0, Number(this.runtime.config.target) || 0);
+    const lossLimit = Math.max(0, Number(this.runtime.config.lossLimit) || 0);
+    if ((target > 0 && totalProfitLoss >= target) || (lossLimit > 0 && totalProfitLoss <= -lossLimit)) {
+      this.stopRequested = true;
+      await appendRuntimeEvent(this.runtime, 'session_limit_reached', {
+        profitLoss: totalProfitLoss, target, lossLimit,
+        reason: target > 0 && totalProfitLoss >= target ? 'target' : 'loss_limit',
+      });
+    }
     this.activeContractId = null;
     this.activeIntentId = null;
     this.activeSignal = null;
