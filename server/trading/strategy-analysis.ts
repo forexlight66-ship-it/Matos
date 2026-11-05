@@ -261,8 +261,8 @@ export function makeSignal(v:number[],s:Strategy,pipSize?:number,applyQualityFil
  if(strategyName==='HYPERCOVER'){
   const ds=v.map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
   const candidates=[
-   {contract:'OVER' as Contract,label:'ACIMA 0',strength:ds.filter(n=>n>0).length/Math.max(1,ds.length)*100},
-   {contract:'UNDER' as Contract,label:'ABAIXO 9',strength:ds.filter(n=>n<9).length/Math.max(1,ds.length)*100}
+   {contract:'OVER' as Contract,label:'ACIMA 1 — OVER 1',strength:ds.filter(n=>n>1).length/Math.max(1,ds.length)*100},
+   {contract:'UNDER' as Contract,label:'ABAIXO 8 — UNDER 8',strength:ds.filter(n=>n<8).length/Math.max(1,ds.length)*100}
   ].filter(candidate=>candidate.strength>=t).sort((a,b)=>b.strength-a.strength);
   return candidates.length?pick(candidates[0]):null;
  }
@@ -290,8 +290,8 @@ export function strategyMomentumCandidates(values:number[],s:Strategy,pipSize?:n
  else if(name==='HYPERBREAK')add('UNDER','ABAIXO 8',x.probs.slice(0,8).reduce((sum,value)=>sum+value,0));
  else if(name==='HYPERCOVER'){
   const denominator=Math.max(1,digits.length);
-  add('OVER','ACIMA 0',digits.filter(value=>value>0).length/denominator*100);
-  add('UNDER','ABAIXO 9',digits.filter(value=>value<9).length/denominator*100);
+  add('OVER','ACIMA 1 — OVER 1',digits.filter(value=>value>1).length/denominator*100);
+  add('UNDER','ABAIXO 8 — UNDER 8',digits.filter(value=>value<8).length/denominator*100);
  }
  return candidates;
 }
