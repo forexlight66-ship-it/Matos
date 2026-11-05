@@ -2177,6 +2177,7 @@ useEffect(()=>{
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const start=async()=>{
+  if(exitSpotsMode||smartAnalyzer){setNotice('AI Analyst e Exit Spots ainda não estão ligados ao executor server-side.');return false}
   if(account!=='demo'){setNotice('A migração server-side está em validação. Nesta fase só é permitido iniciar em conta Demo.');return false}
   if(strategy==='HYPERFLOWS'||strategy==='MATCH0'){setNotice('HyperFlows/HyperBeen ainda estão a ser ligados ao motor server-side. Estas estratégias ficam bloqueadas até a recuperação completa estar validada.');return false}
   try{
