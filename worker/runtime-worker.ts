@@ -14,7 +14,7 @@ const HEARTBEAT_MS = 7000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const allowedStrategies = new Set<Strategy>([
   'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','MATCH0','HYPERLITE',
-  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER','HYPERFLOWS',
+  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER',
 ]);
 
 function contractType(signal: any): string {
@@ -29,6 +29,7 @@ class RuntimeWorker {
   private gateway: DerivGateway | null = null;
   private stopped = false;
   private stopRequested = false;
+  private terminalStatus: 'stopped' | 'safety_stopped' = 'stopped';
   private queue = Promise.resolve();
   private ticks: number[] = [];
   private lastEpoch = 0;
@@ -80,7 +81,7 @@ class RuntimeWorker {
       await sleep(500);
     }
     this.gateway?.close();
-    await finishRuntime(this.runtime.id, WORKER_ID, 'stopped');
+    await finishRuntime(this.runtime.id, WORKER_ID, this.terminalStatus);
   }
 
   private snapshot() {
@@ -170,6 +171,7 @@ class RuntimeWorker {
   private async fail(error: unknown) {
     if (this.stopped) return;
     this.stopped = true;
+    this.terminalStatus = 'safety_stopped';
     const message = error instanceof Error ? error.message : 'Erro desconhecido no motor.';
     try { await appendRuntimeEvent(this.runtime, 'worker_safety_stop', { message }); } catch {}
     try { await finishRuntime(this.runtime.id, WORKER_ID, 'safety_stopped', { code: 'WORKER_SAFETY_STOP', message }); } catch {}
