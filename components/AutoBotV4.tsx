@@ -2222,7 +2222,7 @@ const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetc
      setBotActivity(runtime?.status==='safety_stopped'?'stopped':runtime?.status||'stopped');
      if(runtime?.status==='safety_stopped')setNotice('O motor server-side parou por segurança. Consulte o estado da conta Demo antes de reiniciar.');
     }else if(runtime?.status==='stopping'){
-     setBotActivity('stopping');
+     setBotActivity('analyzing');
     }else{
      setBotActivity('analyzing');
     }
