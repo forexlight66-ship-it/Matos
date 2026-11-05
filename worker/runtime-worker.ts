@@ -6,8 +6,12 @@ import {
   acquireRuntimeLease, appendRuntimeEvent, createOrderIntent, finishRuntime,
   heartbeatRuntime, recordTrade, updateOrderIntent, getUnresolvedOrderIntent, type RuntimeRow,
 } from './repository';
-import { makeSignal, type Strategy } from '../server/trading/strategy-analysis';
-import { initialHypercoverState, onHypercoverClose, onHypercoverTick } from '../server/trading/recovery';
+import { digit, makeSignal, type Strategy } from '../server/trading/strategy-analysis';
+import {
+  initialHyperBeenState, onHyperBeenClose, onHyperBeenTick,
+  initialHyperFlowsState, onHyperFlowsClose, rankHyperFlowsAlternativeDigit,
+  initialHypercoverState, onHypercoverClose, onHypercoverTick,
+} from '../server/trading/recovery';
 
 const WORKER_ID = randomUUID();
 const POLL_MS = 4000;
@@ -15,7 +19,7 @@ const HEARTBEAT_MS = 7000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const allowedStrategies = new Set<Strategy>([
   'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE',
-  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER',
+  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER','MATCH0','HYPERFLOWS',
 ]);
 
 function contractType(signal: any): string {
@@ -43,6 +47,9 @@ class RuntimeWorker {
 
   constructor(private runtime: RuntimeRow) {
     this.state = { ...(runtime.state || {}) };
+    this.state.hyperBeen ||= initialHyperBeenState();
+    this.state.hyperFlows ||= initialHyperFlowsState(Number(runtime.config.recoveryExtraProfit ?? 5));
+    this.state.hypercover ||= initialHypercoverState();
     this.ticks = Array.isArray(this.state.ticks) ? this.state.ticks.slice(-500).map(Number).filter(Number.isFinite) : [];
     this.lastEpoch = Number(this.state.lastEpoch || 0);
     this.activeContractId = this.state.activeContractId ? Number(this.state.activeContractId) : null;
@@ -62,7 +69,7 @@ class RuntimeWorker {
     // Seed the rolling window from Deriv's latest official ticks before live subscription.
     // This avoids waiting for nine new ticks and keeps the first decision aligned with
     // the normal strategy's nine-tick rule.
-    const initialWindow = 9;
+    const initialWindow = cfg.strategy === 'HYPERFLOWS' ? 25 : cfg.strategy === 'MATCH0' ? 10 : 9;
     const history = await this.gateway.getTicksHistory(cfg.symbol, initialWindow);
     if (history.length) this.ticks = history.slice(-initialWindow);
     this.gateway.onBalance(value => { this.balance = value.balance; this.currency = value.currency || this.currency; });
@@ -132,22 +139,63 @@ class RuntimeWorker {
     if (this.ticks.length > 500) this.ticks.shift();
     this.state.tickSequence = Number(this.state.tickSequence || 0) + 1;
     if (this.activeContractId || this.state.pendingIntentId) return;
-    if (this.runtime.config.strategy === 'HYPERCOVER') {
+    const cfg = this.runtime.config;
+    if (cfg.strategy === 'HYPERCOVER') {
       const current = this.state.hypercover || initialHypercoverState();
       const transition = onHypercoverTick(current);
       this.state.hypercover = transition.state;
       if (transition.notice) await appendRuntimeEvent(this.runtime, 'strategy_notice', { strategy: 'HYPERCOVER', notice: transition.notice });
       if (transition.nextAction === 'WAIT') return;
     }
+    if (cfg.strategy === 'MATCH0') {
+      const current = this.state.hyperBeen || initialHyperBeenState();
+      const transition = onHyperBeenTick(current);
+      this.state.hyperBeen = transition.state;
+      if (transition.notice) await appendRuntimeEvent(this.runtime, 'strategy_notice', { strategy: 'MATCH0', notice: transition.notice });
+      if (transition.nextAction === 'WAIT') {
+        await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
+        return;
+      }
+    }
     const leaseStatus = await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
     if (leaseStatus !== 'running' && leaseStatus !== 'starting') { this.stopRequested = true; return; }
-    const cfg = this.runtime.config;
     const windowSize = 9;
     const sample = this.ticks.slice(-windowSize);
     if (sample.length < windowSize) return;
     const threshold = cfg.strategy === 'PAR_IMPAR' ? 78 : cfg.strategy === 'DIFERENTE' ? 30 : cfg.strategy === 'HYPERCOVER' ? 60 : 65;
     let signal: any;
-    if (cfg.strategy === 'HYPERCOVER') {
+    let hyperFlowsMode: string | null = null;
+    if (cfg.strategy === 'MATCH0') {
+      const recovery = this.state.hyperBeen || initialHyperBeenState();
+      if (recovery.active) {
+        signal = { contract: recovery.nextParity, label: recovery.nextParity === 'EVEN' ? 'PAR — RECUPERAÇÃO' : 'ÍMPAR — RECUPERAÇÃO', strength: 100 };
+      } else {
+        signal = makeSignal(sample, 'MATCH0', tick.pipSize, false, 22, 9);
+        if (signal) signal.barrier = 0;
+      }
+    } else if (cfg.strategy === 'HYPERFLOWS') {
+      const recovery = this.state.hyperFlows || initialHyperFlowsState(Number(cfg.recoveryExtraProfit ?? 5));
+      if (recovery.recoveryMode) {
+        if (recovery.recoveryContract === 'OVER0') {
+          signal = { contract: 'OVER', label: 'ACIMA 0 — RECUPERAÇÃO', strength: 100, barrier: 0 };
+          hyperFlowsMode = 'OVER0';
+        } else {
+          signal = { contract: recovery.recoveryContract, label: recovery.recoveryContract === 'EVEN' ? 'PAR — RECUPERAÇÃO' : 'ÍMPAR — RECUPERAÇÃO', strength: 100 };
+          hyperFlowsMode = recovery.recoveryContract;
+        }
+      } else if (recovery.nextDigit !== null) {
+        signal = { contract: 'MATCH9', label: 'MATCH ' + recovery.nextDigit + ' — ALTERNATIVO', strength: 90, barrier: recovery.nextDigit };
+        hyperFlowsMode = 'ALTERNATE';
+      } else {
+        const latest10 = this.ticks.slice(-10);
+        const latest9 = latest10.slice(-9);
+        const zeroCount = latest9.filter(value => digit(value, tick.pipSize) === 0).length;
+        if (latest10.length === 10 && zeroCount / 9 * 100 >= 22) {
+          signal = { contract: 'MATCH9', label: 'MATCH 9', strength: zeroCount / 9 * 100, barrier: 9 };
+          hyperFlowsMode = 'MATCH9';
+        }
+      }
+    } else if (cfg.strategy === 'HYPERCOVER') {
       const recovery = this.state.hypercover || initialHypercoverState();
       if (recovery.forceNextDirection) {
         signal = {
@@ -166,6 +214,17 @@ class RuntimeWorker {
     if (!signal) return;
     const type = contractType(signal);
     if (!type) return;
+    if (cfg.strategy === 'MATCH0') {
+      const current = this.state.hyperBeen || initialHyperBeenState();
+      this.state.hyperBeen = { ...current, lastTradeMode: current.active ? current.nextParity : 'OVER0' };
+    }
+    if (cfg.strategy === 'HYPERFLOWS' && hyperFlowsMode) {
+      const current = this.state.hyperFlows || initialHyperFlowsState(Number(cfg.recoveryExtraProfit ?? 5));
+      this.state.hyperFlows = { ...current, lastTradeMode: hyperFlowsMode as any };
+    }
+    if (cfg.strategy === 'MATCH0' && !this.state.hyperBeen.active) signal.barrier = 0;
+    if (cfg.strategy === 'HYPERFLOWS' && (hyperFlowsMode === 'OVER0')) signal.barrier = 0;
+    if (cfg.strategy === 'HYPERFLOWS' && (hyperFlowsMode === 'MATCH9' || hyperFlowsMode === 'ALTERNATE')) signal.barrier = Number(signal.barrier);
     if (cfg.strategy === 'HYPERCOVER') {
       const current = this.state.hypercover || initialHypercoverState();
       this.state.hypercover = {
@@ -174,8 +233,40 @@ class RuntimeWorker {
         barrier: Number(signal.barrier ?? (signal.contract === 'OVER' ? 1 : 8)),
       };
     }
-    const stake = Math.min(Number(cfg.stake), this.balance ?? Number(cfg.stake));
+
+    let stake = Math.min(Number(cfg.stake), this.balance ?? Number(cfg.stake));
     if (!Number.isFinite(stake) || stake < 0.35) throw new Error('Saldo Demo insuficiente para a stake configurada.');
+    const isRecoveryTrade = (cfg.strategy === 'MATCH0' && Boolean(this.state.hyperBeen?.active))
+      || (cfg.strategy === 'HYPERFLOWS' && Boolean(this.state.hyperFlows?.recoveryMode));
+    const recoveryTarget = cfg.strategy === 'MATCH0'
+      ? Number(this.state.hyperBeen?.deficit || 0) + Math.max(0, Number(cfg.recoveryExtraProfit ?? 5))
+      : Number(this.state.hyperFlows?.deficit || 0) + Math.max(0, Number(this.state.hyperFlows?.extraProfit ?? cfg.recoveryExtraProfit ?? 5));
+    const duration = Math.max(1, Math.min(10, Number(cfg.durationTicks) || 1));
+    let proposal = await this.gateway!.getProposal({
+      symbol: cfg.symbol, contractType: type, amount: stake, duration,
+      currency: this.currency, barrier: signal.barrier,
+    });
+    if (isRecoveryTrade) {
+      const profitRatio = (proposal.payout - proposal.askPrice) / proposal.askPrice;
+      if (!Number.isFinite(profitRatio) || profitRatio <= 0 || !Number.isFinite(recoveryTarget) || recoveryTarget <= 0) {
+        throw new Error('Recuperação bloqueada: a cotação Deriv não permite calcular uma stake segura para cobrir o défice total + lucro extra.');
+      }
+      const requiredStake = Math.ceil((recoveryTarget / profitRatio) * 100 - 1e-8) / 100;
+      stake = Math.max(stake, requiredStake);
+      const availableBalance = this.balance ?? 0;
+      if (!Number.isFinite(stake) || stake > availableBalance + 0.001 || stake > 10000) {
+        throw new Error('Recuperação bloqueada: o saldo Demo não cobre a stake necessária para recuperar o défice total + lucro extra. O robô foi parado sem abrir uma operação parcial.');
+      }
+      if (stake > Number(cfg.stake) + 0.001) {
+        proposal = await this.gateway!.getProposal({
+          symbol: cfg.symbol, contractType: type, amount: stake, duration,
+          currency: this.currency, barrier: signal.barrier,
+        });
+      }
+      if (proposal.payout - proposal.askPrice + 0.005 < recoveryTarget) {
+        throw new Error('Recuperação bloqueada: a nova cotação não garante o lucro líquido necessário. Nenhuma compra foi enviada.');
+      }
+    }
     const intentId = await createOrderIntent({
       runtime: this.runtime, tickEpoch: tick.epoch, symbol: cfg.symbol, contractType: type,
       barrier: signal.barrier, stake, currency: this.currency, botName: cfg.strategy,
@@ -183,25 +274,19 @@ class RuntimeWorker {
     if (!intentId) return;
     this.activeIntentId = intentId;
     this.state.pendingIntentId = intentId;
-    this.state.lastSignal = { label: signal.label, contract: type, strength: signal.strength, epoch: tick.epoch };
+    this.state.lastSignal = { label: signal.label, contract: type, strength: signal.strength, epoch: tick.epoch, stake, recoveryTarget: isRecoveryTrade ? recoveryTarget : null };
+    await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
     await updateOrderIntent(intentId, 'created');
     try {
-      const proposal = await this.gateway!.getProposal({
-        symbol: cfg.symbol, contractType: type, amount: stake,
-        duration: Math.max(1, Math.min(10, Number(cfg.durationTicks) || 1)),
-        currency: this.currency, barrier: signal.barrier,
-      });
       await updateOrderIntent(intentId, 'quoted', { proposalId: proposal.id, maxPrice: proposal.askPrice });
       await updateOrderIntent(intentId, 'sent');
       // A timeout after this point is ambiguous. Never retry a buy blindly.
       const bought = await this.gateway!.buy(proposal.id, proposal.askPrice);
-      // Persist the confirmed purchase before subscribing to contract updates.
-      // A failed subscription must never turn a confirmed buy into an unknown buy.
       this.activeContractId = bought.contractId;
       this.activeSignal = signal;
       this.state.activeContractId = bought.contractId;
       await updateOrderIntent(intentId, 'confirmed', { contractId: bought.contractId });
-      await appendRuntimeEvent(this.runtime, 'contract_opened', { contractId: bought.contractId, stake, strategy: cfg.strategy });
+      await appendRuntimeEvent(this.runtime, 'contract_opened', { contractId: bought.contractId, stake, strategy: cfg.strategy, recoveryTarget: isRecoveryTrade ? recoveryTarget : null });
       this.gateway!.subscribeContract(bought.contractId);
     } catch (error) {
       if (!this.activeContractId) {
@@ -210,8 +295,6 @@ class RuntimeWorker {
         this.activeIntentId = null;
         throw new Error('Resultado de compra não confirmado. Motor parado para reconciliação; nenhuma repetição automática.');
       }
-      // The contract ID was already persisted as confirmed. Do not downgrade a
-      // known purchase to "unknown" if only the contract stream subscription failed.
       await appendRuntimeEvent(this.runtime, 'contract_stream_subscribe_failed', {
         contractId: this.activeContractId,
         message: error instanceof Error ? error.message : 'subscription failed',
