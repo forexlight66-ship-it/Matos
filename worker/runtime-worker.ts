@@ -308,19 +308,71 @@ class RuntimeWorker {
     const closed = Boolean(contract.is_sold) || ['won','lost','sold','expired','closed'].includes(String(contract.status).toLowerCase());
     if (!closed) return;
     await recordTrade(this.runtime, contract, this.runtime.config.strategy, this.runtime.config.symbol);
+    const rawStatus = String(contract.status || '').toLowerCase();
+    const pnl = Number(contract.profit_loss);
+    const outcome = rawStatus === 'won' || rawStatus === 'lost'
+      ? rawStatus
+      : rawStatus === 'sold' && Number.isFinite(pnl) && pnl !== 0
+        ? (pnl > 0 ? 'won' : 'lost') : rawStatus;
     if (this.runtime.config.strategy === 'HYPERCOVER') {
-      const current = this.state.hypercover || initialHypercoverState();
-      const result = String(contract.status || '').toLowerCase();
-      if (!['won','lost'].includes(result) || !Number.isFinite(Number(contract.profit_loss))) {
+      if (!['won','lost'].includes(outcome) || !Number.isFinite(pnl)) {
         throw new Error('Hypercover: resultado oficial inválido; robô parado por segurança.');
       }
-      const transition = onHypercoverClose(current, result === 'won');
+      const current = this.state.hypercover || initialHypercoverState();
+      const transition = onHypercoverClose(current, outcome === 'won');
       this.state.hypercover = transition.state;
       await appendRuntimeEvent(this.runtime, 'strategy_recovery_transition', {
         strategy: 'HYPERCOVER', notice: transition.notice, nextAction: transition.nextAction,
         state: transition.state,
       });
       if (transition.stop) this.stopRequested = true;
+    }
+    if (this.runtime.config.strategy === 'MATCH0') {
+      if (!['won','lost'].includes(outcome) || !Number.isFinite(pnl)) {
+        throw new Error('HyperBeen: resultado oficial inválido; robô parado sem avançar a recuperação.');
+      }
+      const current = this.state.hyperBeen || initialHyperBeenState();
+      const transition = onHyperBeenClose(current, {
+        status: outcome, profitLoss: pnl,
+        contractType: String(contract.contract_type || ''),
+        barrier: contract.barrier == null ? null : Number(contract.barrier),
+        exitSpot: contract.exit_spot, exitTick: contract.exit_tick,
+      }, Number(this.runtime.config.recoveryExtraProfit ?? 5));
+      this.state.hyperBeen = transition.state;
+      await appendRuntimeEvent(this.runtime, 'strategy_recovery_transition', {
+        strategy: 'MATCH0', notice: transition.notice, nextAction: transition.nextAction,
+        stop: transition.stop, state: transition.state,
+      });
+      if (transition.stop) {
+        this.stopRequested = true;
+        this.terminalStatus = 'safety_stopped';
+      }
+    }
+    if (this.runtime.config.strategy === 'HYPERFLOWS') {
+      if (!['won','lost'].includes(outcome) || !Number.isFinite(pnl)) {
+        throw new Error('HyperFlows: resultado oficial inválido; robô parado sem avançar a recuperação.');
+      }
+      const current = this.state.hyperFlows || initialHyperFlowsState(Number(this.runtime.config.recoveryExtraProfit ?? 5));
+      const isPrimaryMatch9 = String(contract.contract_type || '').toUpperCase() === 'DIGITMATCH'
+        && Number(contract.barrier) === 9;
+      const alternativeDigit = outcome === 'lost' && isPrimaryMatch9
+        ? rankHyperFlowsAlternativeDigit(this.ticks.slice(-10), undefined) : null;
+      const transition = onHyperFlowsClose(current, {
+        status: outcome, profitLoss: pnl,
+        contractType: String(contract.contract_type || ''),
+        barrier: contract.barrier == null ? null : Number(contract.barrier),
+        alternativeDigit,
+        exitSpot: contract.exit_spot, exitTick: contract.exit_tick,
+      });
+      this.state.hyperFlows = transition.state;
+      await appendRuntimeEvent(this.runtime, 'strategy_recovery_transition', {
+        strategy: 'HYPERFLOWS', notice: transition.notice, nextAction: transition.nextAction,
+        stop: transition.stop, state: transition.state,
+      });
+      if (transition.stop) {
+        this.stopRequested = true;
+        this.terminalStatus = 'safety_stopped';
+      }
     }
     await appendRuntimeEvent(this.runtime, 'contract_closed', {
       contractId: contract.contract_id, status: contract.status, profitLoss: contract.profit_loss,
@@ -346,6 +398,7 @@ class RuntimeWorker {
     this.activeSignal = null;
     this.state.activeContractId = null;
     this.state.pendingIntentId = null;
+    await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
   }
 
   private async fail(error: unknown) {
