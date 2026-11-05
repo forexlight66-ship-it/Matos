@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, getDerivAccessToken, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getSession, getDerivAccessToken, saveDerivAccessToken, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { createRuntime, getUserRuntime, type RuntimeConfig } from '@/worker/repository';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,15 @@ export async function POST(request: NextRequest) {
     const user = await getSession(sessionId);
     if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401, headers: NO_STORE });
     if (!process.env.DERIV_APP_ID?.trim()) return NextResponse.json({ error: 'A integração Deriv não está configurada no servidor.' }, { status: 503, headers: NO_STORE });
-    const storedDerivCredential = await getDerivAccessToken(user.id);
+    let storedDerivCredential = await getDerivAccessToken(user.id);
+    // The existing OAuth callback places the short-lived access token in an
+    // HttpOnly cookie. Bridge it into encrypted server storage here, without
+    // changing the callback route.
+    const callbackAccessToken = request.cookies.get('deriv_access_token')?.value?.trim();
+    if (!storedDerivCredential && callbackAccessToken) {
+      await saveDerivAccessToken(user.id, callbackAccessToken, 3600);
+      storedDerivCredential = await getDerivAccessToken(user.id);
+    }
     if (!storedDerivCredential) {
       return NextResponse.json({ error: 'A ligação Deriv expirou ou não tem uma credencial válida. Volte a ligar a conta Deriv ao Matos.' }, { status: 409, headers: NO_STORE });
     }
