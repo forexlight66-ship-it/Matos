@@ -119,7 +119,7 @@ class RuntimeWorker {
       balance: this.balance,
       currency: this.currency,
       activeContractId: this.activeContractId,
-      botActivity: this.activeContractId ? 'contractOpen' : 'analysing',
+      botActivity: this.activeContractId ? 'reconcilingBot' : 'analyzing',
       updatedAt: new Date().toISOString(),
     };
   }
