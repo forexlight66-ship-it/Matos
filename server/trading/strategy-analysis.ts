@@ -491,7 +491,7 @@ export function analyzeStrategies100(v:number[],pipSize?:number){
   advantage,regimeChange,earlyEntry,noTrade,confidenceBand:confidenceBand(best.score)
  };
 }
-type BotSuccessEstimates=Partial<Record<Strategy,number>>;
+
 function estimateSeriesScore(series:number[],base:number){
  if(series.length<5)return 0;
  const weighted=weightedMean(series);
