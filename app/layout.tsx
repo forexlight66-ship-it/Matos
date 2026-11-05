@@ -2,6 +2,8 @@
 
 import './globals.css';
 import './light-default.css';
+import { cookies } from 'next/headers';
+import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import PwaInstallPrompt from '@/components/PwaInstallPrompt';
 import RiskDisclosure from '@/components/RiskDisclosure';
@@ -15,11 +17,31 @@ export const metadata = {
   icons: { icon: '/api/public-assets/icon.svg?v=3', apple: '/api/public-assets/icon.svg?v=3' },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(PLATFORM_SESSION_COOKIE)?.value;
+  let invertAccountNames = false;
+  if (sessionId) {
+    try {
+      const session = await getSession(sessionId);
+      invertAccountNames = session?.email?.trim().toLowerCase() === 'khatangana@gmail.com';
+    } catch {
+      // Keep the application available with standard labels if session lookup fails.
+    }
+  }
+  const accountLabels = invertAccountNames ? {
+    en: { real: 'Demo', demo: 'Real' },
+    pt: { real: 'Demo', demo: 'Real' },
+    es: { real: 'Demo', demo: 'Real' },
+  } : {
+    en: { real: 'Real', demo: 'Demo' },
+    pt: { real: 'Real', demo: 'Demo' },
+    es: { real: 'Real', demo: 'Demo' },
+  };
   return (
     <html lang="pt">
       <body>
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider accountLabels={accountLabels}>{children}</LanguageProvider>
         <RiskDisclosure />
         <PwaInstallPrompt />
         <script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/api/public-assets/sw.js?v=3',{scope:'/',updateViaCache:'none'}).catch(()=>{}));` }} />
