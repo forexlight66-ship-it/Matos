@@ -155,7 +155,7 @@ export function rankHyperFlowsAlternativeDigit(values: number[], pipSize?: numbe
     const places = Number.isInteger(pipSize) && Number(pipSize) >= 0 && Number(pipSize) <= 10
       ? Number(pipSize) : decimals;
     const normalized = places > 0 ? Number(value).toFixed(places) : raw;
-    const found = normalized.match(/\\d/g);
+    const found = normalized.match(/\d/g);
     return found?.length ? Number(found[found.length - 1]) : null;
   }).filter((value): value is number => value !== null && Number.isInteger(value));
   if (!digits.length) return null;
