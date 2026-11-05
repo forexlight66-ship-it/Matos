@@ -74,7 +74,7 @@ class RuntimeWorker {
       this.state.activeContractId = recoveredId;
       this.gateway.subscribeContract(recoveredId);
       if (this.state.pendingIntentId) {
-        await updateOrderIntent(String(this.state.pendingIntentId), 'open', { contractId: recoveredId });
+        await updateOrderIntent(String(this.state.pendingIntentId), 'confirmed', { contractId: recoveredId });
         this.activeIntentId = String(this.state.pendingIntentId);
       }
       await appendRuntimeEvent(this.runtime, 'open_contract_reconciled', { contractId: recoveredId });
@@ -145,15 +145,15 @@ class RuntimeWorker {
     this.activeIntentId = intentId;
     this.state.pendingIntentId = intentId;
     this.state.lastSignal = { label: signal.label, contract: type, strength: signal.strength, epoch: tick.epoch };
-    await updateOrderIntent(intentId, 'requesting_proposal');
+    await updateOrderIntent(intentId, 'created');
     try {
       const proposal = await this.gateway!.getProposal({
         symbol: cfg.symbol, contractType: type, amount: stake,
         duration: Math.max(1, Math.min(10, Number(cfg.durationTicks) || 1)),
         currency: this.currency, barrier: signal.barrier,
       });
-      await updateOrderIntent(intentId, 'proposal_received', { proposalId: proposal.id, maxPrice: proposal.askPrice });
-      await updateOrderIntent(intentId, 'buy_sent');
+      await updateOrderIntent(intentId, 'quoted', { proposalId: proposal.id, maxPrice: proposal.askPrice });
+      await updateOrderIntent(intentId, 'sent');
       // A timeout after this point is ambiguous. Never retry a buy blindly.
       const bought = await this.gateway!.buy(proposal.id, proposal.askPrice);
       this.activeContractId = bought.contractId;
