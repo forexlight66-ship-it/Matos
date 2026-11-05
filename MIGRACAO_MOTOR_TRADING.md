@@ -50,10 +50,10 @@ Estes módulos são apenas uma camada inicial. Ainda não existe um ciclo worker
 ## Critério de produção
 
 Não remover o motor antigo nem activar negociação pelo worker enquanto:
-- O worker não compilar e iniciar como serviço separado;
+- O executor server-side não compilar e iniciar dentro do Web Service Render existente, sem criar serviço pago; validar explicitamente o comportamento após suspensão/reinício do Render Free;
 - A API não estiver autenticada e testada com dois utilizadores diferentes;
 - Não houver testes automáticos de paridade para todas as estratégias e máquinas de recuperação;
 - A Deriv não for validada em Demo com compra, fecho, reconciliação, reinício do worker e duplicação de sessão;
 - O browser bundle não tiver deixado de importar o motor de estratégia e o WebSocket de negociação.
 
-**Estado actual: ainda não pronto para produção.** O endpoint de status/paragem é apenas uma etapa de controlo; o executor worker, API Start, reconciliação de ordens, remoção da lógica do browser e testes Demo continuam pendentes. Manter o deploy live actual e não utilizar uma conta Real para testar.
+**Estado actual: ainda não pronto para produção.** A arquitetura aprovada para esta migração não cria um Background Worker pago: o executor terá de correr no processo do Web Service Free existente e aceitar que a suspensão do Render interrompe a execução. O endpoint de status/paragem é apenas uma etapa de controlo; o executor worker, API Start, reconciliação de ordens, remoção da lógica do browser e testes Demo continuam pendentes. Manter o deploy live actual e não utilizar uma conta Real para testar.
