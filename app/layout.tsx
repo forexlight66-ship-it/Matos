@@ -9,10 +9,10 @@ import RiskDisclosure from '@/components/RiskDisclosure';
 export const metadata = {
   title: 'MozHyper',
   description: 'MozHyper',
-  manifest: '/manifest.webmanifest?v=2',
+  manifest: '/api/public-assets/manifest.webmanifest?v=3',
   themeColor: '#0e0e0e',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MozHyper' },
-  icons: { icon: '/icon.svg?v=2', apple: '/icon.svg?v=2' },
+  icons: { icon: '/api/public-assets/icon.svg?v=3', apple: '/api/public-assets/icon.svg?v=3' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>{children}</LanguageProvider>
         <RiskDisclosure />
         <PwaInstallPrompt />
-        <script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js?v=2',{updateViaCache:'none'}).catch(()=>{}));` }} />
+        <script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/api/public-assets/sw.js?v=3',{scope:'/',updateViaCache:'none'}).catch(()=>{}));` }} />
       </body>
     </html>
   );
