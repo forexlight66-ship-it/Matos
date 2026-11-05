@@ -295,10 +295,10 @@ export function strategyMomentumCandidates(values:number[],s:Strategy,pipSize?:n
  }
  return candidates;
 }
-// Start Robô Normal conserva a janela oficial de 9 ticks e o gatilho normal de 65%.
-// Só quando o gatilho normal ainda não existe aceita uma tendência antecipada,
-// confirmada pela evolução do MESMO contrato em três blocos cronológicos de 3 ticks.
-export function makeNormalMomentumSignal9(values:number[],s:Strategy,pipSize?:number,threshold=65,minSamples=10){
+// Start Robô Normal usa exactamente os últimos 9 ticks e o gatilho normal de 65%.
+// Se o gatilho não existir, a tendência antecipada compara dois blocos cronológicos
+// dentro da mesma janela de 9 ticks; não recolhe amostras adicionais.
+export function makeNormalMomentumSignal9(values:number[],s:Strategy,pipSize?:number,threshold=65,minSamples=9){
  const standard=makeSignal(values,s,pipSize,false,threshold,minSamples);
  if(standard)return standard;
  if(values.length<minSamples||String(s)==='MATCH0'||isRecoveryStrategy(s))return null;
@@ -314,7 +314,7 @@ export function makeNormalMomentumSignal9(values:number[],s:Strategy,pipSize?:nu
   const older=previous.find(item=>item.contract===candidate.contract)?.strength??0;
   const latest=recent.find(item=>item.contract===candidate.contract)?.strength??0;
   const trend=latest-older;
-  // Normal analysis now uses the latest 10 ticks (two blocks of five).
+  // The 9-tick window is split chronologically into blocks of 5 and 4.
   // Keep the normal 65% rule first; early momentum only qualifies with a strong
   // recent block and a positive increase compared with the previous block.
   if(candidate.strength<40||latest<60||trend<20)return null;
