@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { DerivGateway, type DerivContractUpdate, type DerivTick } from './deriv-gateway';
 import {
   acquireRuntimeLease, appendRuntimeEvent, createOrderIntent, finishRuntime,
-  heartbeatRuntime, recordTrade, updateOrderIntent, type RuntimeRow,
+  heartbeatRuntime, recordTrade, updateOrderIntent, getUnresolvedOrderIntent, type RuntimeRow,
 } from './repository';
 import { makeSignal, type Strategy } from '../server/trading/strategy-analysis';
 
@@ -59,25 +59,26 @@ class RuntimeWorker {
     if (connected.account.accountId !== this.runtime.account_id) throw new Error('A conta Demo ligada mudou desde o início. Inicie novamente para validar a conta correcta.');
     this.currency = connected.account.currency;
     await this.gateway.subscribe(cfg.symbol);
-    if (this.activeContractId || this.state.pendingIntentId) {
+    const unresolvedIntent = await getUnresolvedOrderIntent(this.runtime.id);
+    if (unresolvedIntent || this.activeContractId || this.state.pendingIntentId) {
       const portfolio = await this.gateway.getPortfolio();
       const open = Array.isArray(portfolio?.portfolio?.contracts) ? portfolio.portfolio.contracts
         : Array.isArray(portfolio?.contracts) ? portfolio.contracts : [];
-      const recovered = this.activeContractId
-        ? open.find((item: any) => Number(item?.contract_id) === this.activeContractId)
+      const expectedId = Number(unresolvedIntent?.contract_id || this.activeContractId || 0);
+      const recovered = expectedId > 0
+        ? open.find((item: any) => Number(item?.contract_id) === expectedId)
         : open.length === 1 ? open[0] : null;
       const recoveredId = Number(recovered?.contract_id);
       if (!Number.isFinite(recoveredId) || recoveredId <= 0) {
-        throw new Error('Existe uma compra anterior sem reconciliação confirmada. O motor ficou bloqueado; verifique as posições Demo na Deriv antes de reiniciar.');
+        throw new Error('Existe uma intenção de compra anterior sem posição aberta correspondente. Resultado incerto: motor bloqueado para evitar compra duplicada.');
       }
       this.activeContractId = recoveredId;
+      this.activeIntentId = String(unresolvedIntent?.id || this.state.pendingIntentId || '');
       this.state.activeContractId = recoveredId;
+      this.state.pendingIntentId = this.activeIntentId || null;
       this.gateway.subscribeContract(recoveredId);
-      if (this.state.pendingIntentId) {
-        await updateOrderIntent(String(this.state.pendingIntentId), 'confirmed', { contractId: recoveredId });
-        this.activeIntentId = String(this.state.pendingIntentId);
-      }
-      await appendRuntimeEvent(this.runtime, 'open_contract_reconciled', { contractId: recoveredId });
+      if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'confirmed', { contractId: recoveredId });
+      await appendRuntimeEvent(this.runtime, 'open_contract_reconciled', { contractId: recoveredId, intentId: this.activeIntentId || null });
     }
     this.gateway.onBalance(value => { this.balance = value.balance; this.currency = value.currency || this.currency; });
     this.gateway.onTick(tick => {
@@ -182,6 +183,7 @@ class RuntimeWorker {
     this.state.profitLoss = Number(this.state.profitLoss || 0) + Number(contract.profit_loss || 0);
     if (Number(contract.profit_loss) > 0) this.state.winCount = Number(this.state.winCount || 0) + 1;
     else this.state.lossCount = Number(this.state.lossCount || 0) + 1;
+    if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'reconciled', { contractId: contract.contract_id });
     this.activeContractId = null;
     this.activeIntentId = null;
     this.activeSignal = null;
