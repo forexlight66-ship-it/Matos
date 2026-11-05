@@ -7,6 +7,7 @@ import {
   heartbeatRuntime, recordTrade, updateOrderIntent, getUnresolvedOrderIntent, type RuntimeRow,
 } from './repository';
 import { makeSignal, type Strategy } from '../server/trading/strategy-analysis';
+import { initialHypercoverState, onHypercoverClose, onHypercoverTick } from '../server/trading/recovery';
 
 const WORKER_ID = randomUUID();
 const POLL_MS = 4000;
@@ -14,7 +15,7 @@ const HEARTBEAT_MS = 7000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const allowedStrategies = new Set<Strategy>([
   'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE',
-  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP',
+  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER',
 ]);
 
 function contractType(signal: any): string {
@@ -131,6 +132,13 @@ class RuntimeWorker {
     if (this.ticks.length > 500) this.ticks.shift();
     this.state.tickSequence = Number(this.state.tickSequence || 0) + 1;
     if (this.activeContractId || this.state.pendingIntentId) return;
+    if (this.runtime.config.strategy === 'HYPERCOVER') {
+      const current = this.state.hypercover || initialHypercoverState();
+      const transition = onHypercoverTick(current);
+      this.state.hypercover = transition.state;
+      if (transition.notice) await appendRuntimeEvent(this.runtime, 'strategy_notice', { strategy: 'HYPERCOVER', notice: transition.notice });
+      if (transition.nextAction === 'WAIT') return;
+    }
     const leaseStatus = await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
     if (leaseStatus !== 'running' && leaseStatus !== 'starting') { this.stopRequested = true; return; }
     const cfg = this.runtime.config;
@@ -138,7 +146,23 @@ class RuntimeWorker {
     const sample = this.ticks.slice(-windowSize);
     if (sample.length < windowSize) return;
     const threshold = cfg.strategy === 'PAR_IMPAR' ? 78 : cfg.strategy === 'DIFERENTE' ? 30 : cfg.strategy === 'HYPERCOVER' ? 60 : 65;
-    const signal: any = makeSignal(sample, cfg.strategy as Strategy, tick.pipSize, false, threshold, windowSize);
+    let signal: any;
+    if (cfg.strategy === 'HYPERCOVER') {
+      const recovery = this.state.hypercover || initialHypercoverState();
+      if (recovery.forceNextDirection) {
+        signal = {
+          contract: recovery.contractType === 'DIGITOVER' ? 'OVER' : 'UNDER',
+          label: recovery.contractType === 'DIGITOVER' ? 'ACIMA 1 — OVER 1' : 'ABAIXO 8 — UNDER 8',
+          strength: 100,
+          barrier: recovery.barrier,
+        };
+      } else {
+        signal = makeSignal(sample, 'HYPERCOVER', tick.pipSize, false, threshold, windowSize);
+        if (signal) signal.barrier = signal.contract === 'OVER' ? 1 : 8;
+      }
+    } else {
+      signal = makeSignal(sample, cfg.strategy as Strategy, tick.pipSize, false, threshold, windowSize);
+    }
     if (!signal) return;
     const type = contractType(signal);
     if (!type) return;
@@ -193,6 +217,20 @@ class RuntimeWorker {
     const closed = Boolean(contract.is_sold) || ['won','lost','sold','expired','closed'].includes(String(contract.status).toLowerCase());
     if (!closed) return;
     await recordTrade(this.runtime, contract, this.runtime.config.strategy, this.runtime.config.symbol);
+    if (this.runtime.config.strategy === 'HYPERCOVER') {
+      const current = this.state.hypercover || initialHypercoverState();
+      const result = String(contract.status || '').toLowerCase();
+      if (!['won','lost'].includes(result) || !Number.isFinite(Number(contract.profit_loss))) {
+        throw new Error('Hypercover: resultado oficial inválido; robô parado por segurança.');
+      }
+      const transition = onHypercoverClose(current, result === 'won');
+      this.state.hypercover = transition.state;
+      await appendRuntimeEvent(this.runtime, 'strategy_recovery_transition', {
+        strategy: 'HYPERCOVER', notice: transition.notice, nextAction: transition.nextAction,
+        state: transition.state,
+      });
+      if (transition.stop) this.stopRequested = true;
+    }
     await appendRuntimeEvent(this.runtime, 'contract_closed', {
       contractId: contract.contract_id, status: contract.status, profitLoss: contract.profit_loss,
       exitSpot: contract.exit_spot, exitTick: contract.exit_tick,
