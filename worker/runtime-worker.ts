@@ -59,6 +59,26 @@ class RuntimeWorker {
     if (connected.account.accountId !== this.runtime.account_id) throw new Error('A conta Demo ligada mudou desde o início. Inicie novamente para validar a conta correcta.');
     this.currency = connected.account.currency;
     await this.gateway.subscribe(cfg.symbol);
+    if (this.activeContractId || this.state.pendingIntentId) {
+      const portfolio = await this.gateway.getPortfolio();
+      const open = Array.isArray(portfolio?.portfolio?.contracts) ? portfolio.portfolio.contracts
+        : Array.isArray(portfolio?.contracts) ? portfolio.contracts : [];
+      const recovered = this.activeContractId
+        ? open.find((item: any) => Number(item?.contract_id) === this.activeContractId)
+        : open.length === 1 ? open[0] : null;
+      const recoveredId = Number(recovered?.contract_id);
+      if (!Number.isFinite(recoveredId) || recoveredId <= 0) {
+        throw new Error('Existe uma compra anterior sem reconciliação confirmada. O motor ficou bloqueado; verifique as posições Demo na Deriv antes de reiniciar.');
+      }
+      this.activeContractId = recoveredId;
+      this.state.activeContractId = recoveredId;
+      this.gateway.subscribeContract(recoveredId);
+      if (this.state.pendingIntentId) {
+        await updateOrderIntent(String(this.state.pendingIntentId), 'open', { contractId: recoveredId });
+        this.activeIntentId = String(this.state.pendingIntentId);
+      }
+      await appendRuntimeEvent(this.runtime, 'open_contract_reconciled', { contractId: recoveredId });
+    }
     this.gateway.onBalance(value => { this.balance = value.balance; this.currency = value.currency || this.currency; });
     this.gateway.onTick(tick => {
       this.queue = this.queue.then(() => this.handleTick(tick)).catch(error => this.fail(error));
