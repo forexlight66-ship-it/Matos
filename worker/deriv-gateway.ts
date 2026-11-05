@@ -256,6 +256,11 @@ export class DerivGateway {
     return { contractId, buyPrice: Number(response.buy.buy_price || maxPrice) };
   }
 
+  subscribeContract(contractId: number) {
+    if (!Number.isFinite(contractId) || contractId <= 0) throw new Error('Invalid contract ID.');
+    this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1, req_id: ++this.nextRequestId });
+  }
+
   async getPortfolio() { return this.request({ portfolio: 1 }); }
   async getProfitTable() { return this.request({ profit_table: 1, limit: 50, offset: 0, sort: 'DESC', description: 1 }); }
 
