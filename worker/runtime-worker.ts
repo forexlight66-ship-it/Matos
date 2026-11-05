@@ -313,9 +313,14 @@ class RuntimeWorker {
     if (this.stopped || !this.activeContractId || contract.contract_id !== this.activeContractId) return;
     const closed = Boolean(contract.is_sold) || ['won','lost','sold','expired','closed'].includes(String(contract.status).toLowerCase());
     if (!closed) return;
-    await recordTrade(this.runtime, contract, this.runtime.config.strategy, this.runtime.config.symbol);
+    // Deriv's current proposal_open_contract payload exposes the realised
+    // result as "profit". Keep profit_loss as a compatibility fallback for
+    // older payloads, and persist one normalized value throughout the runtime.
+    const pnlRaw = (contract as any).profit ?? contract.profit_loss;
+    const pnl = Number(pnlRaw);
+    const normalizedContract = { ...contract, profit_loss: pnl };
+    await recordTrade(this.runtime, normalizedContract, this.runtime.config.strategy, this.runtime.config.symbol);
     const rawStatus = String(contract.status || '').toLowerCase();
-    const pnl = Number(contract.profit_loss);
     const outcome = rawStatus === 'won' || rawStatus === 'lost'
       ? rawStatus
       : rawStatus === 'sold' && Number.isFinite(pnl) && pnl !== 0
@@ -381,13 +386,13 @@ class RuntimeWorker {
       }
     }
     await appendRuntimeEvent(this.runtime, 'contract_closed', {
-      contractId: contract.contract_id, status: contract.status, profitLoss: contract.profit_loss,
+      contractId: contract.contract_id, status: contract.status, profitLoss: pnl,
       exitSpot: contract.exit_spot, exitTick: contract.exit_tick,
     });
     this.state.tradeCount = Number(this.state.tradeCount || 0) + 1;
     this.state.profitLoss = Number(this.state.profitLoss || 0) + Number(contract.profit_loss || 0);
-    if (Number(contract.profit_loss) > 0) this.state.winCount = Number(this.state.winCount || 0) + 1;
-    else this.state.lossCount = Number(this.state.lossCount || 0) + 1;
+    if (Number.isFinite(pnl) && pnl > 0) this.state.winCount = Number(this.state.winCount || 0) + 1;
+    else if (Number.isFinite(pnl) && pnl < 0) this.state.lossCount = Number(this.state.lossCount || 0) + 1;
     if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'reconciled', { contractId: contract.contract_id });
     const totalProfitLoss = Number(this.state.profitLoss || 0);
     const target = Math.max(0, Number(this.runtime.config.target) || 0);
