@@ -28,6 +28,7 @@ function contractType(signal: any): string {
 class RuntimeWorker {
   private gateway: DerivGateway | null = null;
   private stopped = false;
+  private stopRequested = false;
   private queue = Promise.resolve();
   private ticks: number[] = [];
   private lastEpoch = 0;
@@ -71,7 +72,9 @@ class RuntimeWorker {
       const now = Date.now();
       if (now - lastHeartbeat >= HEARTBEAT_MS) {
         const status = await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
-        if (!status || status === 'stopping') { this.stopped = true; break; }
+        if (!status) { this.stopped = true; break; }
+        if (status === 'stopping') this.stopRequested = true;
+        if (this.stopRequested && !this.activeContractId) { this.stopped = true; break; }
         lastHeartbeat = now;
       }
       await sleep(500);
@@ -94,12 +97,14 @@ class RuntimeWorker {
   }
 
   private async handleTick(tick: DerivTick) {
-    if (this.stopped || tick.epoch <= this.lastEpoch) return;
+    if (this.stopped || this.stopRequested || tick.epoch <= this.lastEpoch) return;
     this.lastEpoch = tick.epoch;
     this.ticks.push(tick.quote);
     if (this.ticks.length > 500) this.ticks.shift();
     this.state.tickSequence = Number(this.state.tickSequence || 0) + 1;
     if (this.activeContractId || this.state.pendingIntentId) return;
+    const leaseStatus = await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
+    if (leaseStatus !== 'running' && leaseStatus !== 'starting') { this.stopRequested = true; return; }
     const cfg = this.runtime.config;
     const windowSize = Math.max(9, Math.min(100, Number(cfg.tickWindow) || 9));
     const sample = this.ticks.slice(-windowSize);
