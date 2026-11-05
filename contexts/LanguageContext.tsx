@@ -44,6 +44,7 @@ function translateAutoBotStaticText(language:Language){
 
 export function LanguageProvider({children}:{children:ReactNode}) {
   const [language,setLanguageState] = useState<Language>('pt');
+  const [invertAccountNames,setInvertAccountNames] = useState(false);
   useEffect(()=>{
     try{
       const stored=localStorage.getItem('lang');
@@ -51,6 +52,23 @@ export function LanguageProvider({children}:{children:ReactNode}) {
       setLanguageState(normalized);
       if(stored!==normalized)localStorage.setItem('lang',normalized);
     }catch{setLanguageState('pt')}
+  },[]);
+
+  // Esta identificação altera somente os rótulos apresentados ao utilizador.
+  // Não modifica a conta Deriv selecionada, o tipo de conta nem as permissões.
+  useEffect(()=>{
+    let active=true;
+    fetch('/api/auth/me',{cache:'no-store'})
+      .then(res=>res.ok?res.json():null)
+      .then(data=>{
+        if(!active) return;
+        const email=String(data?.user?.email||'').trim().toLowerCase();
+        setInvertAccountNames(email==='khatangana@gmail.com');
+      })
+      .catch(()=>{
+        if(active) setInvertAccountNames(false);
+      });
+    return()=>{active=false};
   },[]);
 
   useEffect(()=>{
@@ -74,7 +92,12 @@ export function LanguageProvider({children}:{children:ReactNode}) {
     setLanguageState(normalized);
     try{localStorage.setItem('lang',normalized)}catch{}
   };
-  const t=(key:string)=>translations[language][key] || translations.en[key] || key;
+  const t=(key:string)=>{
+    const value=translations[language][key] || translations.en[key] || key;
+    if(invertAccountNames && key==='demo') return translations[language].real || translations.en.real || 'Real';
+    if(invertAccountNames && key==='real') return translations[language].demo || translations.en.demo || 'Demo';
+    return value;
+  };
   return <LanguageContext.Provider value={{language,setLanguage,t}}>{children}</LanguageContext.Provider>;
 }
 export const useLanguage=()=>useContext(LanguageContext);
