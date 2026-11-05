@@ -23,6 +23,10 @@ function withdrawalStatus(value: unknown): 'rejected' | 'transfer_pending' | 'co
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  const originFailure = sameOriginGuard(request);
+  if (originFailure) return originFailure;
+  const limited = await rateLimit(request, 'payment-withdraw', 3, 1800, String(session.id));
+  if (limited) return limited;
   let token = request.cookies.get('deriv_access_token')?.value || '';
   let refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
   if (!refreshToken) refreshToken = (await getDerivRefreshToken(session.id)) || '';
