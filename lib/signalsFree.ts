@@ -1,3 +1,4 @@
+import 'server-only';
 import { createHash } from 'crypto';
 import { Pool } from 'pg';
 import { sendAgentAlert } from '@/lib/telegram';
