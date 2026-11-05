@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { resetPasswordWithToken } from '@/lib/platform-auth';
 
@@ -14,6 +15,8 @@ export async function POST(request: NextRequest) {
     if (password.length < 8) return NextResponse.json({ error: 'A password deve ter pelo menos 8 caracteres.' }, { status: 400 });
     if (password !== confirmPassword) return NextResponse.json({ error: 'As passwords não coincidem.' }, { status: 400 });
 
+    const limited = await rateLimit(request, 'reset-password', 8, 1800, token);
+    if (limited) return limited;
     const success = await resetPasswordWithToken(token, password);
     if (!success) return NextResponse.json({ error: 'Este link expirou ou já foi utilizado.' }, { status: 400 });
 
