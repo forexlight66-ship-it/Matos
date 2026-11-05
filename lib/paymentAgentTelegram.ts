@@ -1,3 +1,4 @@
+import 'server-only';
 import { randomUUID } from 'crypto';
 import { getPaymentRequest, transitionPaymentRequest, claimTransfer, activateAIAnalystSubscription, activateCourseAccess, completeTransfer } from '@/lib/paymentAgentRequests';
 import { answerTelegramCallback, editTelegramMessage, telegramRequest } from '@/lib/telegram';
