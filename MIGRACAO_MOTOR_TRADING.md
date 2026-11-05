@@ -70,9 +70,9 @@ Não remover o motor antigo nem activar negociação pelo worker enquanto:
 
 ## Pendências que impedem a migração integral
 
-- As máquinas de recuperação HyperBeen, HyperFlows e Hypercover ainda não estão ligadas ao executor. HyperFlows e MATCH0 estão bloqueados no Start server-side para não executar regras incompletas.
-- A lógica HyperBeen (PAR → PAR → ÍMPAR → ÍMPAR, pausa de 50 ticks e défice + lucro extra) e HyperFlows (5 perdas, OVER 0 e paragem após perda da recuperação) precisa de ser integrada e testada.
+- A máquina de recuperação Hypercover já está ligada ao executor: alterna entre OVER 1 e UNDER 8 após perda e pausa 30 ticks após três perdas consecutivas. HyperBeen e HyperFlows continuam sem integração completa e permanecem bloqueados no Start server-side.
+- A lógica HyperBeen (PAR → PAR → ÍMPAR → ÍMPAR, pausa de 50 ticks e défice + lucro extra) e HyperFlows (5 perdas, OVER 0 e paragem após perda da recuperação) ainda precisa de ser integrada e testada.
 - Falta portar AI Analyst 25 ticks/5×5, Exit Spots 28/4×7 (apenas modo Exit Spots), seleção dinâmica HyperFlow, regras IA Power/Sonic e restantes limiares especiais.
 - O executor usa proposta + buy por ID; a equivalência com o caminho de compra directa existente no browser ainda precisa de validação Deriv Demo antes de alterar a semântica de compra.
-- Falta teste Demo end-to-end, testes automáticos das transições de recuperação e verificação final de que nenhuma lógica de compra/estratégia fica no bundle do browser.
+- Falta teste Demo end-to-end, testes automáticos das transições de recuperação e verificação final de que nenhuma lógica de compra/estratégia fica no bundle do browser. A integração Hypercover desta revisão ainda precisa de validação de paridade em Demo.
 - Render Free pode suspender/reiniciar o processo; não há garantia de execução autónoma 24/7.
