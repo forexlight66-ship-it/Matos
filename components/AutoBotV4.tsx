@@ -1286,7 +1286,7 @@ export default function AutoBotV4(){
    .then(data=>{
     if(cancelled)return;
     const user=data?.user;
-    const identity=String(user?.id??user?.email??'').trim().toLowerCase();
+    const identity=String(user?.identity??'').trim().toLowerCase();
     if(identity)resetAppStateForNewUser(identity);
    })
    .catch(()=>{});
