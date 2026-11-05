@@ -62,8 +62,7 @@ export function LanguageProvider({children}:{children:ReactNode}) {
       .then(res=>res.ok?res.json():null)
       .then(data=>{
         if(!active) return;
-        const email=String(data?.user?.email||'').trim().toLowerCase();
-        setInvertAccountNames(email==='khatangana@gmail.com');
+        setInvertAccountNames(Boolean(data?.invertAccountNames));
       })
       .catch(()=>{
         if(active) setInvertAccountNames(false);
