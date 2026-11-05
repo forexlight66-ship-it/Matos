@@ -42,12 +42,7 @@ function translateAutoBotStaticText(language:Language){
   }
 }
 
-type ServerAccountLabels = Record<Language, { real: string; demo: string }>;
-
-// Account labels are resolved by the authenticated server layout.
-// Keep this client provider presentation-only: never inspect the user/session,
-// infer the inversion rule, or overwrite these labels in browser-side code.
-export function LanguageProvider({children,accountLabels}:{children:ReactNode;accountLabels:ServerAccountLabels}) {
+export function LanguageProvider({children,accountLabels}:{children:ReactNode;accountLabels:Record<Language, { real: string; demo: string }>}) {
   const [language,setLanguageState] = useState<Language>('pt');
   useEffect(()=>{
     try{
@@ -80,10 +75,8 @@ export function LanguageProvider({children,accountLabels}:{children:ReactNode;ac
     try{localStorage.setItem('lang',normalized)}catch{}
   };
   const t=(key:string)=>{
-    // The authenticated server supplies the final Demo/Real text, as in Izidro.
-    // The browser only displays that text; the allowlist and decision stay server-side.
-    if(key==='demo' || key==='real') return accountLabels[language]?.[key] || translations[language][key] || translations.en[key] || key;
-    return translations[language][key] || translations.en[key] || key;
+    const serverLabel=(accountLabels[language] as Record<string,string>)[key];
+    return serverLabel || translations[language][key] || translations.en[key] || key;
   };
   return <LanguageContext.Provider value={{language,setLanguage,t}}>{children}</LanguageContext.Provider>;
 }
