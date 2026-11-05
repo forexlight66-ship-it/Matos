@@ -173,11 +173,22 @@ export function onHyperFlowsClose(state: HyperFlowsState, close: CloseResult): T
   }
 
   if (modeIsUnder9 || mode === 'UNDER9') {
-    if (!won) {
-      return { state: { ...current, deficit: 0, recoveryMode: false, nextDigit: null, consecutiveLosses: 0, analysisActive: true }, stop: false, notice: 'HyperFlows B9 / UNDER 9 perdeu. Recuperação encerrada; retoma MATCH 9.', nextAction: 'ANALYZE' };
-    }
-    const remaining = money(Math.max(0, current.deficit - Math.max(0, pnl)));
-    return { state: { ...current, deficit: remaining, recoveryMode: remaining > 0.01, nextDigit: null, analysisActive: true }, stop: false, notice: remaining > 0.01 ? 'HyperFlows: UNDER 9 ganhou; défice restante ' + remaining.toFixed(2) + '.' : 'HyperFlows: défice totalmente recuperado; retoma MATCH 9.', nextAction: remaining > 0.01 ? 'RECOVER' : 'ANALYZE' };
+    // UNDER 9 / B9 is a retired HyperFlows recovery path. Never let a legacy
+    // state clear accumulated losses and silently resume normal trading.
+    const preservedDeficit = money(Math.max(0, current.deficit) + (won ? 0 : Math.abs(Math.min(0, pnl))));
+    return {
+      state: {
+        ...current,
+        deficit: preservedDeficit,
+        recoveryMode: false,
+        recoveryContract: 'OVER0',
+        nextDigit: null,
+        analysisActive: false,
+      },
+      stop: true,
+      notice: 'HyperFlows: recuperação antiga UNDER 9 bloqueada. Robô parado por segurança; défice preservado.',
+      nextAction: 'STOP',
+    };
   }
 
   const parityRecovery = modeIsParity || mode === 'EVEN' || mode === 'ODD';
