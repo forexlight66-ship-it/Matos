@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { createPasswordResetToken, safeErrorMessage } from '@/lib/platform-auth';
 
@@ -12,6 +13,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email inválido.' }, { status: 400 });
     }
 
+    const limited = await rateLimit(request, 'forgot-password', 5, 1800, email);
+    if (limited) return limited;
     const reset = await createPasswordResetToken(email);
 
     // Always return the same public response so registered emails cannot be enumerated.
