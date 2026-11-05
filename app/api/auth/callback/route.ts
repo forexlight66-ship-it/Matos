@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         });
 
         if (refresh_token) {
-          await saveDerivRefreshToken(oauthUserId, refresh_token);
+          await saveDerivRefreshToken(oauthUserId, refresh_token, derivIdentity.externalReferenceId);
           const partnerSetup = await tryRegisterDerivPartnerRefreshToken(
             access_token,
             refresh_token,
