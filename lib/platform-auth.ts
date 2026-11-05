@@ -282,6 +282,14 @@ export async function saveDerivRefreshToken(userId: string | number, refreshToke
   const value = refreshToken.trim();
   if (!value) return;
   await ensureSchema();
+  // Do not copy an OAuth access token into the legacy refresh-token column.
+  const current = await pool.query('SELECT deriv_access_ciphertext FROM platform_users WHERE id=$1', [userId]);
+  const encryptedAccess = current.rows[0]?.deriv_access_ciphertext;
+  if (encryptedAccess) {
+    try {
+      if (decryptDerivRefreshToken(String(encryptedAccess)).token === value) return;
+    } catch { /* Continue with the explicit refresh-token write. */ }
+  }
   const externalId = String(externalReferenceId || '').trim().toLowerCase() || null;
   await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1, deriv_external_reference_id=COALESCE($2, deriv_external_reference_id) WHERE id=$3', [encryptDerivRefreshToken(value), externalId, userId]);
 }
@@ -296,18 +304,21 @@ export async function getDerivRefreshToken(userId: string | number) {
   await ensureSchema();
   const result = await pool.query('SELECT deriv_refresh_ciphertext FROM platform_users WHERE id=$1', [userId]);
   const encrypted = result.rows[0]?.deriv_refresh_ciphertext;
-  if (!encrypted) return null;
-  try {
-    const decoded = decryptDerivRefreshToken(String(encrypted));
-    if (decoded.needsReencrypt) {
-      await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2 AND deriv_refresh_ciphertext=$3', [
-        encryptDerivRefreshToken(decoded.token), userId, encrypted,
-      ]);
-    }
-    return decoded.token;
-  } catch {
-    return null;
+  if (encrypted) {
+    try {
+      const decoded = decryptDerivRefreshToken(String(encrypted));
+      if (decoded.needsReencrypt) {
+        await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2 AND deriv_refresh_ciphertext=$3', [
+          encryptDerivRefreshToken(decoded.token), userId, encrypted,
+        ]);
+      }
+      return decoded.token;
+    } catch { /* Try the encrypted OAuth access token below. */ }
   }
+  // Compatibility bridge for the legacy gateway API. Access tokens remain
+  // expiry-checked by getDerivAccessToken and are never treated as refresh grants.
+  const access = await getDerivAccessToken(userId);
+  return access?.token || null;
 }
 
 export type DerivPartnerCredentialMetadata = {
