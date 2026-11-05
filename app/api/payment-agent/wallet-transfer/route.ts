@@ -9,6 +9,10 @@ export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const token = request.cookies.get('deriv_access_token')?.value || '';
   if (!session) return NextResponse.json({ error: 'Autenticação necessária.' }, { status: 401 });
+  const originFailure = sameOriginGuard(request);
+  if (originFailure) return originFailure;
+  const limited = await rateLimit(request, 'wallet-transfer', 4, 600, String(session.id));
+  if (limited) return limited;
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({ error: 'Transferência disponível apenas para contas elegíveis de Moçambique e África do Sul.' }, { status: 403 });
   }
