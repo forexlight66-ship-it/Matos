@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 360">
-<g transform="translate(250 0)">
-<g fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"><rect x="-75" y="55" width="105" height="140" rx="17"/><path d="M-48 168h52"/><path d="M-45 39c16-15 37-12 45 4M-28 27c10-10 22-8 28 2"/></g>
-<path d="M-5 92l62-48 68 70-63 48z" fill="#fff"/>
-<path d="M20 91l72 75" stroke="#f97824" stroke-width="9"/>
-</g>
-<text x="250" y="310" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="62" font-weight="700" fill="#fff">e-Mola</text>
-</svg>
