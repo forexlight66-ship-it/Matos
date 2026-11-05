@@ -3,7 +3,7 @@
 //
 // Regras:
 // 1. O P/L REAL da operação é a única fonte de verdade.
-// 2. WIN em Soros repete a stake REAL que venceu.
+// 2. WIN em Soros reinveste a stake executada + o lucro líquido real.
 // 3. LOSS soma o valor perdido ao défice do ciclo.
 // 4. Durante recuperação, WIN reduz somente o lucro REAL recebido.
 // 5. Enquanto houver défice (> 0.01), o ciclo NÃO é reiniciado.
@@ -234,7 +234,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
 
       if (nivelSoros === 0) {
         nivelSoros = 1;
-        stakeAtual = actualStake;
+        stakeAtual = arredondar(actualStake + resultadoNumerico);
       } else if (nivelSoros === 1) {
         nivelSoros = 2;
         stakeAtual = actualStake;
@@ -340,7 +340,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
       recuperacaoFinanceiraReal: true,
       martingaleContinuaEnquantoHouverDeficit: true,
       resetSomenteComDeficitZerado: true,
-      sorosRepeteStakeVencedora: true,
+      sorosReinvesteLucroReal: true,
     };
   }
 
