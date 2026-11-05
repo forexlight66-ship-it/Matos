@@ -67,6 +67,10 @@ export async function POST(request: NextRequest) {
     const account = await (async () => {
       const { getAuthenticatedDerivIdentity } = await import('@/lib/derivNickname');
       const identity = await getAuthenticatedDerivIdentity({ accessToken: storedDerivCredential.token, appId: process.env.DERIV_APP_ID!.trim() });
+      const remainingSeconds = Math.floor((Date.parse(storedDerivCredential.expiresAt) - Date.now()) / 1000);
+      if (remainingSeconds > 60) {
+        await saveDerivAccessToken(user.id, storedDerivCredential.token, remainingSeconds, identity.externalReferenceId);
+      }
       const response = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
         headers: { Authorization: `Bearer ${identity.accessToken}`, 'Deriv-App-ID': process.env.DERIV_APP_ID!.trim() },
         cache: 'no-store', signal: AbortSignal.timeout(10000),
