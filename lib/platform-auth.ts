@@ -301,26 +301,27 @@ export async function getDerivExternalReferenceId(userId: string | number) {
 }
 
 export async function getDerivRefreshToken(userId: string | number) {
+  // Prefer the current, expiry-checked OAuth access token. The legacy gateway
+  // calls this function using its old refresh-token interface.
+  const access = await getDerivAccessToken(userId);
+  if (access?.token) return access.token;
+
   await ensureSchema();
   const result = await pool.query('SELECT deriv_refresh_ciphertext FROM platform_users WHERE id=$1', [userId]);
   const encrypted = result.rows[0]?.deriv_refresh_ciphertext;
-  if (encrypted) {
-    try {
-      const decoded = decryptDerivRefreshToken(String(encrypted));
-      if (decoded.needsReencrypt) {
-        await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2 AND deriv_refresh_ciphertext=$3', [
-          encryptDerivRefreshToken(decoded.token), userId, encrypted,
-        ]);
-      }
-      return decoded.token;
-    } catch { /* Try the encrypted OAuth access token below. */ }
+  if (!encrypted) return null;
+  try {
+    const decoded = decryptDerivRefreshToken(String(encrypted));
+    if (decoded.needsReencrypt) {
+      await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2 AND deriv_refresh_ciphertext=$3', [
+        encryptDerivRefreshToken(decoded.token), userId, encrypted,
+      ]);
+    }
+    return decoded.token;
+  } catch {
+    return null;
   }
-  // Compatibility bridge for the legacy gateway API. Access tokens remain
-  // expiry-checked by getDerivAccessToken and are never treated as refresh grants.
-  const access = await getDerivAccessToken(userId);
-  return access?.token || null;
 }
-
 export type DerivPartnerCredentialMetadata = {
   partnerId: string;
   linkedUserId: string | null;
