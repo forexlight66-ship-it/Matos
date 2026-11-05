@@ -33,9 +33,6 @@ export function digit(v:number|string|null|undefined,pipSize?:number){
  return digits?.length?Number(digits[digits.length-1]):null;
  }
 export function stats(v:number[],pipSize?:number){const d=v.map(x=>digit(x,pipSize)).filter((x):x is number=>x!==null),n=d.length||1,even=d.filter(x=>x%2===0).length/n*100,above5=d.filter(x=>x>5).length/n*100,below4=d.filter(x=>x<4).length/n*100,diff=d.filter(x=>x!==0).length/n*100,match0=d.filter(x=>x===0).length/n*100;let up=0,down=0;for(let i=1;i<v.length;i++){if(v[i]>v[i-1])up++;else if(v[i]<v[i-1])down++}const m=Math.max(1,up+down);return{even,odd:100-even,above5,below4,diff,match0,rise:up/m*100,fall:down/m*100,probs:Array.from({length:10},(_,x)=>d.filter(y=>y===x).length/n*100)}}
-type HyperFlowWindow = { key:string; digits:number[]; zeroPercent:number };
-type HyperFlowDigitRank = { digit:number; score:number; frequency:number; recentFrequency:number; trend:number; acceleration:number; momentumScore:number; selectionScore:number; earlyRise:boolean };
-type HyperFlowRankResult = HyperFlowDigitRank & { ranking:HyperFlowDigitRank[] };
 export function rankHyperFlowMatchDigit(snapshots:HyperFlowWindow[],currentValues:number[],pipSize?:number,momentumValues:number[]=currentValues,momentumTickWindow=25):HyperFlowRankResult|null{
  const currentDigits=currentValues.slice(-9).map(value=>digit(value,pipSize)).filter((n):n is number=>n!==null);
  const windows=snapshots.map(item=>item.digits).filter(items=>items.length>0).map(items=>items.slice());
