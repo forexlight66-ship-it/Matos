@@ -1,3 +1,4 @@
+import 'server-only';
 import { refreshAccessToken } from '@/lib/oauth';
 
 const DERIV_API_BASE = 'https://api.derivws.com';
