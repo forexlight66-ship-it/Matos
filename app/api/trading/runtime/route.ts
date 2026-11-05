@@ -18,10 +18,14 @@ async function authenticatedUser(request: NextRequest) {
 }
 
 function sameOrigin(request: NextRequest) {
+  // State-changing browser requests must carry an Origin header. Do not treat
+  // a missing Origin as trusted: that would make cookie-authenticated POSTs
+  // vulnerable to cross-site request forgery.
   const origin = request.headers.get('origin');
-  if (!origin) return true;
+  if (!origin) return false;
   try {
-    return new URL(origin).host === request.headers.get('host');
+    const supplied = new URL(origin);
+    return supplied.origin === request.nextUrl.origin;
   } catch {
     return false;
   }
