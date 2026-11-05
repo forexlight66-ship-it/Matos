@@ -87,13 +87,17 @@ class RuntimeWorker {
       const portfolio = await this.gateway.getPortfolio();
       const open = Array.isArray(portfolio?.portfolio?.contracts) ? portfolio.portfolio.contracts
         : Array.isArray(portfolio?.contracts) ? portfolio.contracts : [];
+      // Reconcile only by an exact contract_id persisted before the interruption.
+      // A single open contract is not proof that it belongs to this runtime: it may
+      // have been opened manually or by another application/bot on the same account.
       const expectedId = Number(unresolvedIntent?.contract_id || this.activeContractId || 0);
-      const recovered = expectedId > 0
-        ? open.find((item: any) => Number(item?.contract_id) === expectedId)
-        : open.length === 1 ? open[0] : null;
+      if (!Number.isSafeInteger(expectedId) || expectedId <= 0) {
+        throw new Error('Reconciliação bloqueada: a intenção anterior não contém contract_id confirmado. Não é seguro associar uma posição apenas por ser a única aberta.');
+      }
+      const recovered = open.find((item: any) => Number(item?.contract_id) === expectedId);
       const recoveredId = Number(recovered?.contract_id);
-      if (!Number.isFinite(recoveredId) || recoveredId <= 0) {
-        throw new Error('Existe uma intenção de compra anterior sem posição aberta correspondente. Resultado incerto: motor bloqueado para evitar compra duplicada.');
+      if (!Number.isSafeInteger(recoveredId) || recoveredId !== expectedId) {
+        throw new Error('Existe uma intenção de compra anterior sem a posição exacta correspondente aberta. Resultado incerto: motor bloqueado para evitar compra duplicada.');
       }
       this.activeContractId = recoveredId;
       this.activeIntentId = String(unresolvedIntent?.id || this.state.pendingIntentId || '');
