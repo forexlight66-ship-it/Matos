@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, createSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 
@@ -10,6 +11,8 @@ export async function POST(request: NextRequest) {
     const password = String(body?.password || '');
     if (!email || !password) return NextResponse.json({ error: 'Email e password são obrigatórios.' }, { status: 400 });
 
+    const limited = await rateLimit(request, 'platform-login', 10, 900, email);
+    if (limited) return limited;
     const user = await authenticateUser(email, password);
     if (!user) return NextResponse.json({ error: 'Email ou password incorretos.' }, { status: 401 });
 
