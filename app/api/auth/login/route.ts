@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCodeVerifier, generateCodeChallenge, generateState, getAuthorizeUrl } from '@/lib/oauth';
 import { createDerivOAuthState } from '@/lib/platform-auth';
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
   const clientId = process.env.DERIV_APP_ID?.trim();
   if (!clientId) return NextResponse.json({ error: 'OAuth server configuration is incomplete: DERIV_APP_ID is missing' }, { status: 500 });
 
+  const limited = await rateLimit(request, 'oauth-login', 20, 900);
+  if (limited) return limited;
   console.info('[OAuth] Login initiation requested.', { host: request.nextUrl.host, configuredClientId: Boolean(clientId) });
   const verifier = generateCodeVerifier();
   const challenge = generateCodeChallenge(verifier);
