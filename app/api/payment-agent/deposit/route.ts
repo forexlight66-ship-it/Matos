@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
   if (!session || (!clientToken && !refreshToken)) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
+  const limited = await rateLimit(request, 'payment-deposit', 5, 900, String(session.id));
+  if (limited) return limited;
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
   }
