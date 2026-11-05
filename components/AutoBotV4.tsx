@@ -2198,6 +2198,19 @@ const stop=async()=>{
 const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
  useEffect(()=>{
+  let alive=true;
+  void fetch('/api/trading/runtime',{cache:'no-store'}).then(response=>response.json()).then(data=>{
+   if(!alive)return;
+   const runtime=data?.runtime;
+   if(runtime&&['starting','running','stopping'].includes(String(runtime.status))){
+    botArmedRef.current=false;stopped.current=false;setRunning(true);
+    setBotActivity(String(runtime.botActivity||'analysing'));
+   }
+  }).catch(error=>console.warn('[Trading runtime] Initial status check failed:',error));
+  return()=>{alive=false};
+ },[]);
+
+ useEffect(()=>{
   if(!running)return;
   let alive=true;
   const poll=async()=>{
