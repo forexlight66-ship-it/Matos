@@ -40,10 +40,12 @@ Estes módulos são apenas uma camada inicial. Ainda não existe um ciclo worker
 - O serviço Matos-1N actualmente publicado é um Web Service Render Free. A migração deve respeitar a exigência de custo zero: não criar Background Worker, Cron Job, Redis, outra base de dados nem actualizar o plano.
 - A opção sem custos adicionais é executar o ciclo de trabalho dentro do processo do Web Service existente, com arranque controlado no servidor, lease na Neon, heartbeat, recuperação após reinício e limites de concorrência. Isto é uma execução oportunista: Render Free pode suspender ou reiniciar o processo, portanto não garante negociação contínua 24/7 quando não há tráfego. Não apresentar essa limitação como serviço autónomo permanente.
 - O worker e as APIs partilham a base de dados Neon existente através de `DATABASE_URL`; não é necessária outra base de dados nem Redis para esta arquitectura inicial.
-- O token Deriv individual está cifrado usando uma chave derivada actualmente de `DERIV_PAYMENT_AGENT_TOKEN`. Antes de colocar tokens no worker, criar `DERIV_TOKEN_ENCRYPTION_KEY` independente e executar uma migração transaccional que re-cifre todos os tokens dos utilizadores e a credencial de parceiro. O worker não deve receber o segredo do Payment Agent.
+- Os tokens Deriv são cifrados com AES-256-GCM. A branch passou a suportar `DERIV_TOKEN_ENCRYPTION_KEY` independente (32 bytes em hexadecimal de 64 caracteres ou Base64). As credenciais já cifradas com a chave legada derivada de `DERIV_PAYMENT_AGENT_TOKEN` continuam legíveis e são re-cifradas automaticamente, de forma individual e condicionada, quando são lidas após configurar a nova chave. **Antes de activar o worker, configurar esta variável no Render e confirmar que as credenciais de utilizadores e parceiro foram migradas.** Não remover `DERIV_PAYMENT_AGENT_TOKEN`, pois continua a ser necessário para a integração de pagamentos; o worker não deve receber nem usar esse segredo para cifragem.
 - O worker necessita também de `DERIV_APP_ID`. Os valores das variáveis secretas não devem ser enviados ao browser ou registados em logs.
 
 ## Trabalho implementado nesta revisão
+
+- `lib/platform-auth.ts`: suporte a chave de cifragem dedicada `DERIV_TOKEN_ENCRYPTION_KEY`, mantendo leitura compatível das credenciais antigas e re-cifragem automática no primeiro acesso com a nova chave. Não é necessário criar base de dados nem serviço pago.
 
 - `app/api/trading/runtime/route.ts`: endpoint autenticado para consultar o estado resumido do runtime e registar pedido de paragem. Não devolve `account_id`, tokens, leases nem estado interno completo. O endpoint não inicia negociações; o executor ainda precisa de consumir o pedido de paragem.
 
