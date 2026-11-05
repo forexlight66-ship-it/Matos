@@ -157,11 +157,14 @@ class RuntimeWorker {
       await updateOrderIntent(intentId, 'sent');
       // A timeout after this point is ambiguous. Never retry a buy blindly.
       const bought = await this.gateway!.buy(proposal.id, proposal.askPrice);
+      // Persist the confirmed purchase before subscribing to contract updates.
+      // A failed subscription must never turn a confirmed buy into an unknown buy.
       this.activeContractId = bought.contractId;
       this.activeSignal = signal;
       this.state.activeContractId = bought.contractId;
       await updateOrderIntent(intentId, 'confirmed', { contractId: bought.contractId });
       await appendRuntimeEvent(this.runtime, 'contract_opened', { contractId: bought.contractId, stake, strategy: cfg.strategy });
+      this.gateway!.subscribeContract(bought.contractId);
     } catch (error) {
       await updateOrderIntent(intentId, 'unknown', { errorMessage: error instanceof Error ? error.message : 'buy outcome unknown' });
       this.state.pendingIntentId = null;
