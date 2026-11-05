@@ -166,6 +166,14 @@ class RuntimeWorker {
     if (!signal) return;
     const type = contractType(signal);
     if (!type) return;
+    if (cfg.strategy === 'HYPERCOVER') {
+      const current = this.state.hypercover || initialHypercoverState();
+      this.state.hypercover = {
+        ...current,
+        contractType: signal.contract === 'OVER' ? 'DIGITOVER' : 'DIGITUNDER',
+        barrier: Number(signal.barrier ?? (signal.contract === 'OVER' ? 1 : 8)),
+      };
+    }
     const stake = Math.min(Number(cfg.stake), this.balance ?? Number(cfg.stake));
     if (!Number.isFinite(stake) || stake < 0.35) throw new Error('Saldo Demo insuficiente para a stake configurada.');
     const intentId = await createOrderIntent({
