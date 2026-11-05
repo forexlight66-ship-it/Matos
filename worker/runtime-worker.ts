@@ -58,6 +58,20 @@ class RuntimeWorker {
     this.gateway = connected.gateway;
     if (connected.account.accountId !== this.runtime.account_id) throw new Error('A conta Demo ligada mudou desde o início. Inicie novamente para validar a conta correcta.');
     this.currency = connected.account.currency;
+    // Seed the rolling window from Deriv's latest official ticks before live subscription.
+    // This avoids waiting for nine new ticks and keeps the first decision aligned with
+    // the normal strategy's nine-tick rule.
+    const initialWindow = 9;
+    const history = await this.gateway.getTicksHistory(cfg.symbol, initialWindow);
+    if (history.length) this.ticks = history.slice(-initialWindow);
+    this.gateway.onBalance(value => { this.balance = value.balance; this.currency = value.currency || this.currency; });
+    this.gateway.onTick(tick => {
+      this.queue = this.queue.then(() => this.handleTick(tick)).catch(error => this.fail(error));
+    });
+    this.gateway.onContract(contract => {
+      this.queue = this.queue.then(() => this.handleContract(contract)).catch(error => this.fail(error));
+    });
+    this.gateway.onError(error => { void this.fail(error); });
     await this.gateway.subscribe(cfg.symbol);
     const unresolvedIntent = await getUnresolvedOrderIntent(this.runtime.id);
     if (unresolvedIntent || this.activeContractId || this.state.pendingIntentId) {
@@ -80,14 +94,6 @@ class RuntimeWorker {
       if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'confirmed', { contractId: recoveredId });
       await appendRuntimeEvent(this.runtime, 'open_contract_reconciled', { contractId: recoveredId, intentId: this.activeIntentId || null });
     }
-    this.gateway.onBalance(value => { this.balance = value.balance; this.currency = value.currency || this.currency; });
-    this.gateway.onTick(tick => {
-      this.queue = this.queue.then(() => this.handleTick(tick)).catch(error => this.fail(error));
-    });
-    this.gateway.onContract(contract => {
-      this.queue = this.queue.then(() => this.handleContract(contract)).catch(error => this.fail(error));
-    });
-    this.gateway.onError(error => { void this.fail(error); });
     await appendRuntimeEvent(this.runtime, 'worker_connected', { accountType: 'demo', symbol: cfg.symbol });
     let lastHeartbeat = 0;
     while (!this.stopped) {
@@ -128,7 +134,7 @@ class RuntimeWorker {
     const leaseStatus = await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
     if (leaseStatus !== 'running' && leaseStatus !== 'starting') { this.stopRequested = true; return; }
     const cfg = this.runtime.config;
-    const windowSize = Math.max(9, Math.min(100, Number(cfg.tickWindow) || 9));
+    const windowSize = 9;
     const sample = this.ticks.slice(-windowSize);
     if (sample.length < windowSize) return;
     const threshold = cfg.strategy === 'PAR_IMPAR' ? 78 : cfg.strategy === 'DIFERENTE' ? 30 : cfg.strategy === 'HYPERCOVER' ? 60 : 65;
@@ -166,10 +172,19 @@ class RuntimeWorker {
       await appendRuntimeEvent(this.runtime, 'contract_opened', { contractId: bought.contractId, stake, strategy: cfg.strategy });
       this.gateway!.subscribeContract(bought.contractId);
     } catch (error) {
-      await updateOrderIntent(intentId, 'unknown', { errorMessage: error instanceof Error ? error.message : 'buy outcome unknown' });
-      this.state.pendingIntentId = null;
-      this.activeIntentId = null;
-      throw new Error('Resultado de compra não confirmado. Motor parado para reconciliação; nenhuma repetição automática.');
+      if (!this.activeContractId) {
+        await updateOrderIntent(intentId, 'unknown', { errorMessage: error instanceof Error ? error.message : 'buy outcome unknown' });
+        this.state.pendingIntentId = null;
+        this.activeIntentId = null;
+        throw new Error('Resultado de compra não confirmado. Motor parado para reconciliação; nenhuma repetição automática.');
+      }
+      // The contract ID was already persisted as confirmed. Do not downgrade a
+      // known purchase to "unknown" if only the contract stream subscription failed.
+      await appendRuntimeEvent(this.runtime, 'contract_stream_subscribe_failed', {
+        contractId: this.activeContractId,
+        message: error instanceof Error ? error.message : 'subscription failed',
+      });
+      throw new Error('Compra confirmada, mas a subscrição do contrato falhou. Motor parado para reconciliação; não será feita nova compra.');
     }
   }
 
