@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     if (!/^[A-Z]{2}$/.test(country)) return NextResponse.json({ error: 'País inválido.' }, { status: 400 });
 
     const user = await updateUserCountry(session.id, country);
+    if (!user) return NextResponse.json({ error: 'O país já foi definido no registo e não pode ser alterado por esta via. Contacte o suporte para correção.', code: 'COUNTRY_LOCKED' }, { status: 409 });
     const response = NextResponse.json({ ok: true, country: user?.country || country });
     response.cookies.set('matos_country', user?.country || country, {
       httpOnly: true,
