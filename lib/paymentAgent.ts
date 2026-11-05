@@ -1,3 +1,4 @@
+import 'server-only';
 import { randomUUID } from 'crypto';
 
 const BASE = 'https://api.derivws.com';
