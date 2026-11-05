@@ -14,10 +14,12 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   if (!session) {
-  const originFailure = sameOriginGuard(request); if (originFailure) return originFailure;
-  const limited = await rateLimit(request, 'signals-free-unlimited-purchase', 5, 900, String(session.id)); if (limited) return limited;
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
+  const originFailure = sameOriginGuard(request);
+  if (originFailure) return originFailure;
+  const limited = await rateLimit(request, 'signals-free-unlimited-purchase', 5, 900, String(session.id));
+  if (limited) return limited;
 
   const body = await request.json().catch(() => ({}));
   const method = String(body.paymentMethod || '').trim().toLowerCase();
