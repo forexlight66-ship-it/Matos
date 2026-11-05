@@ -315,6 +315,17 @@ export async function recordTrade(runtime: Pick<RuntimeRow,'id'|'user_id'>, cont
   return result.rowCount || 0;
 }
 
+export async function getUnresolvedOrderIntent(runtimeId: string) {
+  const result = await tradingPool.query(
+    `SELECT id,status,contract_id,symbol,contract_type,barrier,stake,currency,bot_name,created_at
+     FROM bot_order_intents
+     WHERE runtime_id=$1 AND status IN ('sent','unknown','confirmed')
+     ORDER BY created_at DESC LIMIT 1`,
+    [runtimeId],
+  );
+  return result.rows[0] || null;
+}
+
 export async function listRuntimeTrades(runtimeId: string, limit = 200) {
   const result = await tradingPool.query(
     'SELECT contract_id,symbol,bot_name AS bot,contract_type,barrier,buy_price,payout,status,profit_loss,purchase_time,sell_time,exit_spot,exit_tick FROM bot_runtime_trades WHERE runtime_id=$1 ORDER BY COALESCE(sell_time,purchase_time) DESC LIMIT $2',
