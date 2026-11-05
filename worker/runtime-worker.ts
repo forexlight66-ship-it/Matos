@@ -13,7 +13,7 @@ const POLL_MS = 4000;
 const HEARTBEAT_MS = 7000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const allowedStrategies = new Set<Strategy>([
-  'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','MATCH0','HYPERLITE',
+  'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE',
   'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER',
 ]);
 
@@ -130,7 +130,8 @@ class RuntimeWorker {
     const windowSize = Math.max(9, Math.min(100, Number(cfg.tickWindow) || 9));
     const sample = this.ticks.slice(-windowSize);
     if (sample.length < windowSize) return;
-    const signal = makeSignal(sample, cfg.strategy as Strategy, tick.pipSize, false, 65, windowSize);
+    const threshold = cfg.strategy === 'PAR_IMPAR' ? 78 : cfg.strategy === 'DIFERENTE' ? 30 : cfg.strategy === 'HYPERCOVER' ? 60 : 65;
+    const signal: any = makeSignal(sample, cfg.strategy as Strategy, tick.pipSize, false, threshold, windowSize);
     if (!signal) return;
     const type = contractType(signal);
     if (!type) return;
