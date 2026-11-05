@@ -160,7 +160,7 @@ class RuntimeWorker {
       this.activeContractId = bought.contractId;
       this.activeSignal = signal;
       this.state.activeContractId = bought.contractId;
-      await updateOrderIntent(intentId, 'open', { contractId: bought.contractId });
+      await updateOrderIntent(intentId, 'confirmed', { contractId: bought.contractId });
       await appendRuntimeEvent(this.runtime, 'contract_opened', { contractId: bought.contractId, stake, strategy: cfg.strategy });
     } catch (error) {
       await updateOrderIntent(intentId, 'unknown', { errorMessage: error instanceof Error ? error.message : 'buy outcome unknown' });
