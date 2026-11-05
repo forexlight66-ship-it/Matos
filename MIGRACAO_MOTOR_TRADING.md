@@ -37,11 +37,15 @@ Estes módulos são apenas uma camada inicial. Ainda não existe um ciclo worker
 
 ## Recursos e segredos
 
-- O serviço Matos-1N actualmente publicado é um Web Service Render Free. Free Web Services podem suspender/reiniciar; não são apropriados para um robô que deve continuar a operar sem o navegador aberto.
-- O serviço dedicado deve ser um Render Background Worker em região Oregon, plano pago Starter (0.5 CPU / 512 MB como configuração mínima inicial). Este plano é uma despesa adicional e não foi criado nem activado nesta branch.
-- O worker deve partilhar a mesma base de dados Neon através de `DATABASE_URL`; não é necessário criar outra base de dados nem Redis para esta primeira arquitectura de polling/leases no Postgres.
+- O serviço Matos-1N actualmente publicado é um Web Service Render Free. A migração deve respeitar a exigência de custo zero: não criar Background Worker, Cron Job, Redis, outra base de dados nem actualizar o plano.
+- A opção sem custos adicionais é executar o ciclo de trabalho dentro do processo do Web Service existente, com arranque controlado no servidor, lease na Neon, heartbeat, recuperação após reinício e limites de concorrência. Isto é uma execução oportunista: Render Free pode suspender ou reiniciar o processo, portanto não garante negociação contínua 24/7 quando não há tráfego. Não apresentar essa limitação como serviço autónomo permanente.
+- O worker e as APIs partilham a base de dados Neon existente através de `DATABASE_URL`; não é necessária outra base de dados nem Redis para esta arquitectura inicial.
 - O token Deriv individual está cifrado usando uma chave derivada actualmente de `DERIV_PAYMENT_AGENT_TOKEN`. Antes de colocar tokens no worker, criar `DERIV_TOKEN_ENCRYPTION_KEY` independente e executar uma migração transaccional que re-cifre todos os tokens dos utilizadores e a credencial de parceiro. O worker não deve receber o segredo do Payment Agent.
 - O worker necessita também de `DERIV_APP_ID`. Os valores das variáveis secretas não devem ser enviados ao browser ou registados em logs.
+
+## Trabalho implementado nesta revisão
+
+- `app/api/trading/runtime/route.ts`: endpoint autenticado para consultar o estado resumido do runtime e registar pedido de paragem. Não devolve `account_id`, tokens, leases nem estado interno completo. O endpoint não inicia negociações; o executor ainda precisa de consumir o pedido de paragem.
 
 ## Critério de produção
 
@@ -52,4 +56,4 @@ Não remover o motor antigo nem activar negociação pelo worker enquanto:
 - A Deriv não for validada em Demo com compra, fecho, reconciliação, reinício do worker e duplicação de sessão;
 - O browser bundle não tiver deixado de importar o motor de estratégia e o WebSocket de negociação.
 
-**Neste estado, manter o deploy live actual.** Não aplicar esta branch ao serviço Matos-1N e não utilizar uma conta Real para testar.
+**Estado actual: ainda não pronto para produção.** O endpoint de status/paragem é apenas uma etapa de controlo; o executor worker, API Start, reconciliação de ordens, remoção da lógica do browser e testes Demo continuam pendentes. Manter o deploy live actual e não utilizar uma conta Real para testar.
