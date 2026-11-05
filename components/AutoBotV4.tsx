@@ -2197,6 +2197,31 @@ const stop=async()=>{
 };
 const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
+ useEffect(()=>{
+  if(!running)return;
+  let alive=true;
+  const poll=async()=>{
+   try{
+    const response=await fetch('/api/trading/runtime',{cache:'no-store'});
+    const data=await response.json().catch(()=>null);
+    if(!alive)return;
+    const runtime=data?.runtime;
+    if(!runtime||['stopped','error','safety_stopped'].includes(String(runtime.status))){
+     setRunning(false);
+     setBotActivity(runtime?.status==='safety_stopped'?'stopped':runtime?.status||'stopped');
+     if(runtime?.status==='safety_stopped')setNotice('O motor server-side parou por segurança. Consulte o estado da conta Demo antes de reiniciar.');
+    }else if(runtime?.status==='stopping'){
+     setBotActivity('stopping');
+    }else{
+     setBotActivity(String(runtime.botActivity||'analysing'));
+    }
+   }catch(error){console.warn('[Trading runtime] Status polling failed:',error)}
+  };
+  void poll();
+  const timer=window.setInterval(()=>{void poll()},3000);
+  return()=>{alive=false;window.clearInterval(timer)};
+ },[running]);
+
  const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setSorosEnabled(false);setExitSpotsMode(false);if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(!running)stop()}},[aiAnalystActive,clientCountryReady,language,running,isConnected,isAuthorized,start,stop,setSorosEnabled,iaPower,sonic]);
  const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
  const iaStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:ia`;
