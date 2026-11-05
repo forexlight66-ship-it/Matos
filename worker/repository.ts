@@ -3,10 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
 
 const connectionString = process.env.DATABASE_URL?.trim();
-if (!connectionString) throw new Error('DATABASE_URL is required by the trading worker.');
 
 export const tradingPool = new Pool({
-  connectionString,
+  ...(connectionString ? { connectionString } : {}),
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
   max: 8,
   idleTimeoutMillis: 30000,
@@ -50,6 +49,7 @@ export interface RuntimeRow {
 
 let schemaPromise: Promise<void> | null = null;
 export async function ensureTradingSchema() {
+  if (!connectionString) throw new Error('DATABASE_URL is required by the trading worker.');
   if (!schemaPromise) {
     schemaPromise = tradingPool.query(`
       CREATE TABLE IF NOT EXISTS bot_runtime_sessions (
