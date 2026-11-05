@@ -43,7 +43,7 @@ export async function exchangeCode(
   redirectUri: string,
   code: string,
   codeVerifier: string
-): Promise<{ access_token: string; refresh_token?: string }> {
+): Promise<{ access_token: string; expires_in: number; refresh_token?: string }> {
   const params = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: clientId,
@@ -64,8 +64,10 @@ export async function exchangeCode(
     throw new Error(`OAuth token exchange failed (${response.status}): ${data?.error_description || data?.error || JSON.stringify(data) || 'Unknown error'}`);
   }
   if (!data?.access_token) throw new Error('OAuth token exchange succeeded but no access_token was returned');
+  const expiresIn = Number(data.expires_in);
+  if (!Number.isFinite(expiresIn) || expiresIn <= 0) throw new Error('OAuth token exchange returned an invalid expires_in value.');
 
-  return { access_token: data.access_token, refresh_token: data.refresh_token };
+  return { access_token: String(data.access_token), expires_in: expiresIn, refresh_token: data.refresh_token };
 }
 
 export async function refreshAccessToken(
