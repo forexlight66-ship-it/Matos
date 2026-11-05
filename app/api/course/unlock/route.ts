@@ -18,8 +18,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       courseUnlocked: true,
-      telegramUserId: payment.telegram_user_id,
-      paymentId: payment.id,
     });
   } catch (error) {
     console.error('[Course Unlock]', error);
