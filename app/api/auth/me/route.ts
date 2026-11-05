@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
     platformAuthenticated: Boolean(platformSession),
     derivAuthenticated,
     user: platformSession ? {
-      name: platformSession.name,
       identity: createHash('sha256').update(String(sessionId || '')).digest('hex'),
     } : null,
   }, { headers: { 'Cache-Control': 'no-store, private', Pragma: 'no-cache', Vary: 'Cookie' } });
