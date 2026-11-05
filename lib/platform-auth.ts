@@ -19,6 +19,8 @@ async function ensureSchema() {
       password_hash TEXT NOT NULL,
       country TEXT,
       deriv_refresh_ciphertext TEXT,
+      deriv_access_ciphertext TEXT,
+      deriv_access_expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS platform_sessions (
@@ -48,6 +50,8 @@ async function ensureSchema() {
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS country TEXT');
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_external_reference_id TEXT');
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_refresh_ciphertext TEXT');
+  await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_access_ciphertext TEXT');
+  await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_access_expires_at TIMESTAMPTZ');
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deriv_partner_credentials (
       id SMALLINT PRIMARY KEY CHECK (id = 1),
@@ -242,6 +246,36 @@ export async function createDerivOAuthSession() {
     ['Deriv User', `deriv-${suffix}@oauth.matos.local`, await hashPassword(randomBytes(32).toString('base64url'))]
   );
   return createSession(result.rows[0].id);
+}
+
+export async function saveDerivAccessToken(userId: string | number, accessToken: string, expiresIn: number, externalReferenceId?: string) {
+  const value = accessToken.trim();
+  const lifetime = Number(expiresIn);
+  if (!value || !Number.isFinite(lifetime) || lifetime <= 0) throw new Error('Invalid Deriv OAuth access token or lifetime.');
+  await ensureSchema();
+  const externalId = String(externalReferenceId || '').trim().toLowerCase() || null;
+  const expiresAt = new Date(Date.now() + Math.floor(lifetime * 1000));
+  await pool.query(
+    'UPDATE platform_users SET deriv_access_ciphertext=$1, deriv_access_expires_at=$2, deriv_external_reference_id=COALESCE($3, deriv_external_reference_id) WHERE id=$4',
+    [encryptDerivRefreshToken(value), expiresAt, externalId, userId],
+  );
+}
+
+export async function getDerivAccessToken(userId: string | number): Promise<{ token: string; expiresAt: string } | null> {
+  await ensureSchema();
+  const result = await pool.query(
+    'SELECT deriv_access_ciphertext, deriv_access_expires_at FROM platform_users WHERE id=$1',
+    [userId],
+  );
+  const row = result.rows[0];
+  if (!row?.deriv_access_ciphertext || !row?.deriv_access_expires_at) return null;
+  const expiresAt = new Date(row.deriv_access_expires_at);
+  if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now() + 60_000) return null;
+  try {
+    return { token: decryptDerivRefreshToken(String(row.deriv_access_ciphertext)).token, expiresAt: expiresAt.toISOString() };
+  } catch {
+    return null;
+  }
 }
 
 export async function saveDerivRefreshToken(userId: string | number, refreshToken: string, externalReferenceId?: string) {
