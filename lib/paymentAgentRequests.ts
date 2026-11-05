@@ -1,3 +1,4 @@
+import 'server-only';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 import { Pool } from 'pg';
 
