@@ -7,7 +7,7 @@ export const revalidate = 0;
 
 const NO_STORE = { 'Cache-Control': 'no-store, private', Pragma: 'no-cache', Vary: 'Cookie' };
 const STRATEGIES = new Set([
-  'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','MATCH0','HYPERLITE',
+  'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE',
   'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER',
 ]);
 
