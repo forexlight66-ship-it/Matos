@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     platformAuthenticated: Boolean(platformSession),
     derivAuthenticated,
     user: platformSession ? { id: platformSession.id, name: platformSession.name, email: platformSession.email, country: platformSession.country || null } : null,
-  });
+  }, { headers: { 'Cache-Control': 'no-store, private', Pragma: 'no-cache', Vary: 'Cookie' } });
   if (platformSession?.country) response.cookies.set('matos_country', String(platformSession.country).toUpperCase(), {
     httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365,
   });
