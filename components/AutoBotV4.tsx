@@ -2202,7 +2202,7 @@ const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetc
    const runtime=data?.runtime;
    if(runtime&&['starting','running','stopping'].includes(String(runtime.status))){
     botArmedRef.current=false;stopped.current=false;setRunning(true);
-    setBotActivity(String(runtime.botActivity||'analysing'));
+    setBotActivity('analyzing');
    }
   }).catch(error=>console.warn('[Trading runtime] Initial status check failed:',error));
   return()=>{alive=false};
@@ -2224,7 +2224,7 @@ const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetc
     }else if(runtime?.status==='stopping'){
      setBotActivity('stopping');
     }else{
-     setBotActivity(String(runtime.botActivity||'analysing'));
+     setBotActivity('analyzing');
     }
    }catch(error){console.warn('[Trading runtime] Status polling failed:',error)}
   };
