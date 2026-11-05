@@ -252,7 +252,8 @@ export class DerivGateway {
     const response = await this.request({ buy: proposalId, price: maxPrice }, 12000);
     const contractId = Number(response?.buy?.contract_id);
     if (!Number.isFinite(contractId) || contractId <= 0) throw new Error('Deriv did not confirm the purchase.');
-    this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1, req_id: ++this.nextRequestId });
+    // Return the confirmed contract ID before attempting a stream subscription.
+    // If the socket drops here, the caller can still persist the known contract ID.
     return { contractId, buyPrice: Number(response.buy.buy_price || maxPrice) };
   }
 
