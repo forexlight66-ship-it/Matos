@@ -27,8 +27,9 @@ export function digit(v:number|string|null|undefined,pipSize?:number){
  const match=raw.match(/^[+-]?\d+(?:\.(\d+))?$/);
  if(!match)return null;
  const decimals=match[1]??'';
- const places=pipSize!=null&&Number.isFinite(pipSize)&&pipSize>0?decimalPlaces(pipSize):decimals.length;
- const normalized=pipSize!=null&&Number.isFinite(pipSize)&&pipSize>0?Number(raw).toFixed(places):raw;
+ const normalizedPipSize=pipSize!=null?normalizeTickPipSize(pipSize):undefined;
+ const places=normalizedPipSize!=null?decimalPlaces(normalizedPipSize):decimals.length;
+ const normalized=normalizedPipSize!=null?Number(raw).toFixed(places):raw;
  const digits=normalized.match(/\d/g);
  return digits?.length?Number(digits[digits.length-1]):null;
  }
