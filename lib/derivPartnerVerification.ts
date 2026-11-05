@@ -1,3 +1,4 @@
+import 'server-only';
 import { refreshAccessToken } from '@/lib/oauth';
 import {
   getDerivPartnerCredentialMetadata,
