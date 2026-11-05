@@ -1,3 +1,4 @@
+import 'server-only';
 // lib/oauth.ts
 
 import { randomBytes, createHash } from 'crypto';

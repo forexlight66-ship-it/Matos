@@ -1,3 +1,4 @@
+import 'server-only';
 // lib/platform-auth.ts
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
@@ -45,6 +46,7 @@ async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS deriv_oauth_states_expires_idx ON deriv_oauth_states(expires_at);
   `);
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS country TEXT');
+  await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_external_reference_id TEXT');
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_refresh_ciphertext TEXT');
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deriv_partner_credentials (
@@ -116,7 +118,7 @@ export async function updateUserCountry(userId: string | number, country: string
   const normalized = country.trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(normalized)) return null;
   const result = await pool.query(
-    'UPDATE platform_users SET country = $1 WHERE id = $2 RETURNING id, name, email, country',
+    `UPDATE platform_users SET country = $1 WHERE id = $2 AND (country IS NULL OR country = '' OR country = $1) RETURNING id, name, email, country`,
     [normalized, userId]
   );
   return result.rows[0] || null;
@@ -217,11 +219,18 @@ export async function createDerivOAuthSession() {
   return createSession(result.rows[0].id);
 }
 
-export async function saveDerivRefreshToken(userId: string | number, refreshToken: string) {
+export async function saveDerivRefreshToken(userId: string | number, refreshToken: string, externalReferenceId?: string) {
   const value = refreshToken.trim();
   if (!value) return;
   await ensureSchema();
-  await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2', [encryptDerivRefreshToken(value), userId]);
+  const externalId = String(externalReferenceId || '').trim().toLowerCase() || null;
+  await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1, deriv_external_reference_id=COALESCE($2, deriv_external_reference_id) WHERE id=$3', [encryptDerivRefreshToken(value), externalId, userId]);
+}
+
+export async function getDerivExternalReferenceId(userId: string | number) {
+  await ensureSchema();
+  const result = await pool.query('SELECT deriv_external_reference_id FROM platform_users WHERE id=$1', [userId]);
+  return String(result.rows[0]?.deriv_external_reference_id || '').trim().toLowerCase() || null;
 }
 
 export async function getDerivRefreshToken(userId: string | number) {

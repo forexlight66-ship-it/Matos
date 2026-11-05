@@ -1,3 +1,4 @@
+import { rateLimit, sameOriginGuard } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getSession,
@@ -15,6 +16,10 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
+  const originFailure = sameOriginGuard(request);
+  if (originFailure) return originFailure;
+  const limited = await rateLimit(request, 'signals-free-unlimited-purchase', 5, 900, String(session.id));
+  if (limited) return limited;
 
   const body = await request.json().catch(() => ({}));
   const method = String(body.paymentMethod || '').trim().toLowerCase();

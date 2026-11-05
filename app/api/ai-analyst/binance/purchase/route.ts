@@ -1,3 +1,4 @@
+import { rateLimit, sameOriginGuard } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { createAIAnalystBinanceRequest } from '@/lib/paymentAgentRequests';
@@ -9,6 +10,8 @@ function escapeHtml(value:string){return value.replace(/[&<>\"]/g,char=>({ '&':'
 export async function POST(request: NextRequest) {
  const session=await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
  if(!session)return NextResponse.json({error:'Autenticação necessária'},{status:401});
+ const originFailure=sameOriginGuard(request); if(originFailure)return originFailure;
+ const limited=await rateLimit(request,'ai-analyst-binance-purchase',5,900,String(session.id)); if(limited)return limited;
  let nickname='';
  try{const token=request.cookies.get('deriv_access_token')?.value||'';if(token){const result=await derivPaymentRequest(token,'/account/v1/nickname','GET',undefined,false);nickname=String(result?.data?.nickname||result?.nickname||'').trim();}}catch{}
  if(!nickname)return NextResponse.json({error:'Não foi possível obter o nickname da conta Deriv.'},{status:400});

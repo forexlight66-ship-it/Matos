@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { createSession, createUser, PLATFORM_SESSION_COOKIE, safeErrorMessage } from '@/lib/platform-auth';
 
@@ -5,6 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = await rateLimit(request, 'auth-register', 5, 3600);
+    if (limited) return limited;
     const body = await request.json();
     const name = String(body?.name || '').trim();
     const email = String(body?.email || '').trim().toLowerCase();

@@ -1,3 +1,4 @@
+import { rateLimit, sameOriginGuard } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken, saveDerivRefreshToken } from '@/lib/platform-auth';
 import { refreshAccessToken } from '@/lib/oauth';
@@ -8,6 +9,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
+  const originFailure = sameOriginGuard(request);
+  if (originFailure) return originFailure;
+  const limited = await rateLimit(request, 'withdraw-verification', 4, 900, String(session.id));
+  if (limited) return limited;
   if (!isPaymentAgentCountryAllowed(session.country)) return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
   let token = request.cookies.get('deriv_access_token')?.value || '';
   let refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';

@@ -1,3 +1,4 @@
+import 'server-only';
 const TELEGRAM_API = 'https://api.telegram.org';
 
 function token() {

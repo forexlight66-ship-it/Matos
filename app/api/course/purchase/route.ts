@@ -1,3 +1,4 @@
+import { rateLimit, sameOriginGuard } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE, getDerivRefreshToken } from '@/lib/platform-auth';
 import { getAuthenticatedDerivNickname } from '@/lib/derivNickname';
@@ -8,6 +9,8 @@ export const dynamic='force-dynamic';
 export async function POST(request:NextRequest){
   const session=await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   if(!session) return NextResponse.json({error:'Autenticação necessária'},{status:401});
+  const originFailure=sameOriginGuard(request); if(originFailure)return originFailure;
+  const limited=await rateLimit(request,'course-purchase',5,900,String(session.id)); if(limited)return limited;
   const body=await request.json().catch(()=>({}));
   const method=String(body.paymentMethod||'').toLowerCase();
   const currency=String(body.currency||'').trim().toUpperCase();

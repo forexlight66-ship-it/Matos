@@ -1,3 +1,4 @@
+import { rateLimit, sameOriginGuard } from '@/lib/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { derivPaymentRequest, isPaymentAgentCountryAllowed } from '@/lib/paymentAgent';
@@ -10,9 +11,13 @@ export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
   let clientToken = request.cookies.get('deriv_access_token')?.value || '';
+  const originFailure = sameOriginGuard(request);
+  if (originFailure) return originFailure;
   if (!session || (!clientToken && !refreshToken)) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
+  const limited = await rateLimit(request, 'payment-deposit', 5, 900, String(session.id));
+  if (limited) return limited;
   if (!isPaymentAgentCountryAllowed(session.country)) {
     return NextResponse.json({ error: 'O Payment Agent está disponível apenas para clientes de Moçambique (MZN/MT) e África do Sul (ZAR/Rand).', code: 'PAYMENT_AGENT_COUNTRY_UNSUPPORTED', redirect: 'https://deriv.com/' }, { status: 403 });
   }
