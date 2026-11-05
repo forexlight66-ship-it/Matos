@@ -43,6 +43,7 @@ export interface CloseResult {
   exitSpot?: number | string | null;
   exitTick?: number | string | null;
   bot?: string | null;
+  alternativeDigit?: number | null;
 }
 
 export interface Transition<T> {
@@ -61,7 +62,7 @@ export const initialHyperBeenState = (): HyperBeenState => ({
 });
 
 export const initialHyperFlowsState = (extraProfit = 5): HyperFlowsState => ({
-  analysisActive: false, nextDigit: null, recoveryMode: false, recoveryContract: 'EVEN',
+  analysisActive: true, nextDigit: null, recoveryMode: false, recoveryContract: 'EVEN',
   nextParity: 'ODD', consecutiveLosses: 0, deficit: 0, recoveryAttempts: 0,
   extraProfit: Math.max(0, money(extraProfit)), lastTradeMode: null,
 });
@@ -142,6 +143,39 @@ function resetHyperFlows(state: HyperFlowsState): HyperFlowsState {
   return { ...state, analysisActive: true, nextDigit: null, recoveryMode: false, recoveryContract: 'EVEN', nextParity: 'EVEN', consecutiveLosses: 0, deficit: 0, recoveryAttempts: 0, lastTradeMode: null };
 }
 
+
+/** Selects the strongest alternative digit (0–8) from the latest ten closed ticks.
+ * The weighting mirrors the browser strategy: total frequency, latest-five frequency,
+ * and recency. Digit 9 is deliberately excluded because MATCH 9 is the primary trade.
+ */
+export function rankHyperFlowsAlternativeDigit(values: number[], pipSize?: number): number | null {
+  const digits = values.slice(-10).map(value => {
+    const raw = String(value);
+    const decimals = raw.includes('.') ? raw.split('.')[1].length : 0;
+    const places = Number.isInteger(pipSize) && Number(pipSize) >= 0 && Number(pipSize) <= 10
+      ? Number(pipSize) : decimals;
+    const normalized = places > 0 ? Number(value).toFixed(places) : raw;
+    const found = normalized.match(/\\d/g);
+    return found?.length ? Number(found[found.length - 1]) : null;
+  }).filter((value): value is number => value !== null && Number.isInteger(value));
+  if (!digits.length) return null;
+  const recent = digits.slice(-5);
+  const ranked = Array.from({ length: 9 }, (_, digit) => {
+    const count = digits.filter(value => value === digit).length;
+    const recentCount = recent.filter(value => value === digit).length;
+    const lastIndex = digits.lastIndexOf(digit);
+    const recency = lastIndex < 0 ? 0 : (lastIndex + 1) / digits.length;
+    return {
+      digit, score: count / digits.length * 0.65
+        + recentCount / Math.max(1, recent.length) * 0.25
+        + recency * 0.10,
+      count, recentCount, lastIndex,
+    };
+  }).sort((a, b) => b.score - a.score || b.count - a.count
+    || b.recentCount - a.recentCount || b.lastIndex - a.lastIndex || a.digit - b.digit);
+  return ranked[0]?.digit ?? null;
+}
+
 export function onHyperFlowsClose(state: HyperFlowsState, close: CloseResult): Transition<HyperFlowsState> {
   const type = String(close.contractType || '').toUpperCase();
   const status = String(close.status || '').toLowerCase();
@@ -220,7 +254,7 @@ export function onHyperFlowsClose(state: HyperFlowsState, close: CloseResult): T
     current.recoveryAttempts = 0;
     current.deficit = money(current.deficit + Math.abs(Math.min(0, pnl)));
     current.consecutiveLosses = Math.min(5, Math.max(0, current.consecutiveLosses) + 1);
-    current.nextDigit = modeIsMatch9 || mode === 'MATCH9' ? 0 : modeIsAlt || mode === 'ALTERNATE' ? null : current.nextDigit;
+    current.nextDigit = modeIsMatch9 || mode === 'MATCH9' ? (Number.isInteger(close.alternativeDigit) && Number(close.alternativeDigit) >= 0 && Number(close.alternativeDigit) <= 8 ? Number(close.alternativeDigit) : null) : modeIsAlt || mode === 'ALTERNATE' ? null : current.nextDigit;
     if (current.consecutiveLosses >= 5) {
       current.recoveryMode = true;
       current.recoveryContract = 'OVER0';
