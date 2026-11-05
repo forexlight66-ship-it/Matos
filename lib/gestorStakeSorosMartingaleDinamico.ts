@@ -237,7 +237,7 @@ export function criarGestorStakeDinamico(config: ConfigGestorStakeDinamico) {
         stakeAtual = arredondar(actualStake + resultadoNumerico);
       } else if (nivelSoros === 1) {
         nivelSoros = 2;
-        stakeAtual = actualStake;
+        stakeAtual = arredondar(actualStake + resultadoNumerico);
       } else {
         resetCiclo();
       }
