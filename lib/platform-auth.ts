@@ -60,10 +60,25 @@ async function ensureSchema() {
   `);
 }
 
-function derivTokenEncryptionKey() {
+function dedicatedDerivTokenEncryptionKey() {
+  const raw = process.env.DERIV_TOKEN_ENCRYPTION_KEY?.trim();
+  if (!raw) return null;
+  // Accept exactly 32 bytes encoded as 64 hexadecimal characters or base64.
+  const key = /^[0-9a-f]{64}$/i.test(raw) ? Buffer.from(raw, 'hex') : Buffer.from(raw, 'base64');
+  if (key.length !== 32) throw new Error('DERIV_TOKEN_ENCRYPTION_KEY must encode exactly 32 bytes.');
+  return key;
+}
+
+function legacyDerivTokenEncryptionKey() {
   const seed = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
-  if (!seed) throw new Error('DERIV_PAYMENT_AGENT_TOKEN is not configured');
+  if (!seed) throw new Error('DERIV_TOKEN_ENCRYPTION_KEY is required (legacy key is unavailable).');
   return createHash('sha256').update(`matos-deriv-oauth-v1:${seed}`).digest();
+}
+
+function derivTokenEncryptionKey() {
+  // New writes use a dedicated secret. The legacy derivation remains temporarily
+  // available so existing encrypted OAuth credentials can be read during cutover.
+  return dedicatedDerivTokenEncryptionKey() || legacyDerivTokenEncryptionKey();
 }
 
 function encryptDerivRefreshToken(value: string) {
@@ -74,12 +89,22 @@ function encryptDerivRefreshToken(value: string) {
   return [iv.toString('base64url'), tag.toString('base64url'), encrypted.toString('base64url')].join('.');
 }
 
-function decryptDerivRefreshToken(value: string) {
+function decryptWithKey(value: string, key: Buffer) {
   const [ivRaw, tagRaw, encryptedRaw] = value.split('.');
   if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error('Invalid encrypted Deriv refresh token');
-  const decipher = createDecipheriv('aes-256-gcm', derivTokenEncryptionKey(), Buffer.from(ivRaw, 'base64url'));
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivRaw, 'base64url'));
   decipher.setAuthTag(Buffer.from(tagRaw, 'base64url'));
   return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, 'base64url')), decipher.final()]).toString('utf8');
+}
+
+function decryptDerivRefreshToken(value: string): { token: string; needsReencrypt: boolean } {
+  const dedicated = dedicatedDerivTokenEncryptionKey();
+  if (dedicated) {
+    try { return { token: decryptWithKey(value, dedicated), needsReencrypt: false }; }
+    catch { /* Try the legacy key below during the one-time migration. */ }
+  }
+  const token = decryptWithKey(value, legacyDerivTokenEncryptionKey());
+  return { token, needsReencrypt: Boolean(dedicated) };
 }
 
 function normalizeEmail(email: string) {
@@ -239,7 +264,13 @@ export async function getDerivRefreshToken(userId: string | number) {
   const encrypted = result.rows[0]?.deriv_refresh_ciphertext;
   if (!encrypted) return null;
   try {
-    return decryptDerivRefreshToken(String(encrypted));
+    const decoded = decryptDerivRefreshToken(String(encrypted));
+    if (decoded.needsReencrypt) {
+      await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2 AND deriv_refresh_ciphertext=$3', [
+        encryptDerivRefreshToken(decoded.token), userId, encrypted,
+      ]);
+    }
+    return decoded.token;
   } catch {
     return null;
   }
@@ -281,8 +312,15 @@ export async function getDerivPartnerRefreshCredential(): Promise<{
   if (!row) return null;
 
   try {
+    const decoded = decryptDerivRefreshToken(String(row.deriv_refresh_ciphertext));
+    if (decoded.needsReencrypt) {
+      await pool.query(
+        'UPDATE deriv_partner_credentials SET deriv_refresh_ciphertext=$1, updated_at=NOW() WHERE id=1 AND deriv_refresh_ciphertext=$2',
+        [encryptDerivRefreshToken(decoded.token), row.deriv_refresh_ciphertext],
+      );
+    }
     return {
-      refreshToken: decryptDerivRefreshToken(String(row.deriv_refresh_ciphertext)),
+      refreshToken: decoded.token,
       partnerId: String(row.partner_id),
       linkedUserId: row.linked_user_id == null ? null : String(row.linked_user_id),
     };
