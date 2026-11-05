@@ -43,6 +43,7 @@ class RuntimeWorker {
   private activeSignal: any = null;
   private balance: number | null = null;
   private currency = 'USD';
+  private pipSize?: number;
   private state: Record<string, any>;
 
   constructor(private runtime: RuntimeRow) {
@@ -135,6 +136,7 @@ class RuntimeWorker {
   private async handleTick(tick: DerivTick) {
     if (this.stopped || this.stopRequested || tick.epoch <= this.lastEpoch) return;
     this.lastEpoch = tick.epoch;
+    this.pipSize = tick.pipSize;
     this.ticks.push(tick.quote);
     if (this.ticks.length > 500) this.ticks.shift();
     this.state.tickSequence = Number(this.state.tickSequence || 0) + 1;
@@ -356,7 +358,7 @@ class RuntimeWorker {
       const isPrimaryMatch9 = String(contract.contract_type || '').toUpperCase() === 'DIGITMATCH'
         && Number(contract.barrier) === 9;
       const alternativeDigit = outcome === 'lost' && isPrimaryMatch9
-        ? rankHyperFlowsAlternativeDigit(this.ticks.slice(-10), undefined) : null;
+        ? rankHyperFlowsAlternativeDigit(this.ticks.slice(-10), this.pipSize) : null;
       const transition = onHyperFlowsClose(current, {
         status: outcome, profitLoss: pnl,
         contractType: String(contract.contract_type || ''),
