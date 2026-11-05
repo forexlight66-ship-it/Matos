@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
   const session = await getSession(request.cookies.get(PLATFORM_SESSION_COOKIE)?.value);
   const refreshToken = request.cookies.get('deriv_refresh_token')?.value || '';
   let clientToken = request.cookies.get('deriv_access_token')?.value || '';
+  const originFailure = sameOriginGuard(request);
+  if (originFailure) return originFailure;
   if (!session || (!clientToken && !refreshToken)) {
     return NextResponse.json({ error: 'Autenticação necessária' }, { status: 401 });
   }
