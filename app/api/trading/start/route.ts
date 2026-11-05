@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, getDerivRefreshToken, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getSession, getDerivAccessToken, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { createRuntime, getUserRuntime, type RuntimeConfig } from '@/worker/repository';
 
 export const dynamic = 'force-dynamic';
@@ -24,8 +24,9 @@ export async function POST(request: NextRequest) {
     const user = await getSession(sessionId);
     if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401, headers: NO_STORE });
     if (!process.env.DERIV_APP_ID?.trim()) return NextResponse.json({ error: 'A integração Deriv não está configurada no servidor.' }, { status: 503, headers: NO_STORE });
-    if (!(await getDerivRefreshToken(user.id))) {
-      return NextResponse.json({ error: 'A ligação Deriv desta sessão ainda não tem credencial OAuth renovável guardada no servidor. Volte a autenticar a conta Deriv; não introduza tokens manualmente no Render.' }, { status: 409, headers: NO_STORE });
+    const storedDerivCredential = await getDerivAccessToken(user.id);
+    if (!storedDerivCredential) {
+      return NextResponse.json({ error: 'A ligação Deriv expirou ou não tem uma credencial válida. Volte a ligar a conta Deriv ao Matos.' }, { status: 409, headers: NO_STORE });
     }
 
     const body = await request.json().catch(() => null);
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
     const account = await (async () => {
       const { getAuthenticatedDerivIdentity } = await import('@/lib/derivNickname');
-      const identity = await getAuthenticatedDerivIdentity({ refreshToken: (await getDerivRefreshToken(user.id))!, appId: process.env.DERIV_APP_ID!.trim() });
+      const identity = await getAuthenticatedDerivIdentity({ accessToken: storedDerivCredential.token, appId: process.env.DERIV_APP_ID!.trim() });
       const response = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
         headers: { Authorization: `Bearer ${identity.accessToken}`, 'Deriv-App-ID': process.env.DERIV_APP_ID!.trim() },
         cache: 'no-store', signal: AbortSignal.timeout(10000),
