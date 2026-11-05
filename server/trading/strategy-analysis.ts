@@ -526,3 +526,5 @@ export function estimateBotSuccessScores(values:number[],pipSize?:number):BotSuc
  const under8=estimateSeriesScore(digitSeries(n=>n<8),0.8);
  estimates.HYPERCOVER=Math.round(Math.max(over1,under8));
  return estimates;
+
+}
