@@ -7,6 +7,7 @@ import {
   heartbeatRuntime, markOrderIntentSent, recordTrade, updateOrderIntent, getUnresolvedOrderIntent, type RuntimeRow,
 } from './repository';
 import { digit, makeSignal, type Strategy } from '../server/trading/strategy-analysis';
+import { normalizeProfitTableContract } from '../server/trading/contract-normalization';
 import {
   initialHyperBeenState, onHyperBeenClose, onHyperBeenTick,
   initialHyperFlowsState, onHyperFlowsClose, rankHyperFlowsAlternativeDigit,
@@ -28,46 +29,6 @@ function contractType(signal: any): string {
     RISE:'CALL', FALL:'PUT', DIFFER:'DIGITDIFF', MATCH0:'DIGITMATCH', MATCH9:'DIGITMATCH',
   };
   return map[String(signal?.contract || '')] || '';
-}
-
-function normalizeProfitTableContract(raw: any, fallbackSymbol: string): DerivContractUpdate | null {
-  const contractId = Number(raw?.contract_id);
-  const sellTime = Number(raw?.sell_time);
-  if (!Number.isSafeInteger(contractId) || contractId <= 0 || !Number.isFinite(sellTime) || sellTime <= 0) return null;
-
-  const explicitProfitLoss = Number(raw?.profit_loss);
-  const apiProfit = Number(raw?.profit);
-  const buyPrice = Number(raw?.buy_price ?? 0);
-  const sellPrice = raw?.sell_price == null ? null : Number(raw.sell_price);
-  const profitLoss = Number.isFinite(explicitProfitLoss) && Math.abs(explicitProfitLoss) > 0.000001
-    ? explicitProfitLoss
-    : Number.isFinite(apiProfit) && Math.abs(apiProfit) > 0.000001
-      ? apiProfit
-      : Number.isFinite(buyPrice) && sellPrice !== null && Number.isFinite(sellPrice)
-        ? Number((sellPrice - buyPrice).toFixed(2))
-        : Number.isFinite(explicitProfitLoss) ? explicitProfitLoss : 0;
-
-  let status = String(raw?.status || '').toLowerCase();
-  if (!['won', 'lost', 'sold', 'expired', 'closed'].includes(status)) {
-    status = profitLoss > 0 ? 'won' : profitLoss < 0 ? 'lost' : 'sold';
-  }
-
-  return {
-    contract_id: contractId,
-    buy_price: Number.isFinite(buyPrice) ? buyPrice : 0,
-    sell_price: sellPrice !== null && Number.isFinite(sellPrice) ? sellPrice : null,
-    payout: Number(raw?.payout || 0),
-    purchase_time: Number(raw?.purchase_time ?? raw?.date_start ?? 0),
-    sell_time: sellTime,
-    contract_type: String(raw?.contract_type || ''),
-    status,
-    profit_loss: profitLoss,
-    exit_tick: raw?.exit_tick ?? null,
-    exit_spot: raw?.exit_spot ?? null,
-    barrier: raw?.barrier == null ? null : Number(raw.barrier),
-    symbol: String(raw?.symbol || raw?.underlying_symbol || raw?.underlying || fallbackSymbol),
-    is_sold: true,
-  };
 }
 
 class RuntimeWorker {
