@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:trading": "node --experimental-strip-types --conditions=react-server --test tests/trading-recovery.test.mjs"
   },
   "dependencies": {
     "next": "15.5.28",
