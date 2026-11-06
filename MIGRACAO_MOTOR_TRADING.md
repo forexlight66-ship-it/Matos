@@ -20,16 +20,17 @@ A lógica principal está agregada em `components/AutoBotV4.tsx` (componente cli
 
 - `server/trading/strategy-analysis.ts`: extração server-side das funções de análise de ticks, scoring, sinais normais, AI Analyst e Exit Spots.
 - `server/trading/recovery.ts`: transições explícitas e serializáveis para HyperBeen, HyperFlows e Hypercover.
-- `worker/repository.ts`: tabelas persistentes, leases concorrentes, eventos, intenções de ordem com chave única por tick e histórico de contratos.
-- `worker/deriv-gateway.ts`: gateway WebSocket privado, associação da identidade Deriv ao utilizador Matos, OTP de Options e métodos de consulta de proposta/compra/contrato.
+- `worker/repository.ts`: tabelas persistentes, leases concorrentes, eventos, intenções de ordem com chave única por tick, autorização atómica da compra apenas enquanto a lease/runtime continuam activos e histórico de contratos.
+- `worker/deriv-gateway.ts`: gateway WebSocket privado, associação da identidade Deriv ao utilizador Matos, OTP de Options e consultas de proposta, compra, carteira, histórico e contrato.
+- `server/trading/contract-normalization.ts`: normalização do resultado fechado da Deriv para reconciliação por `contract_id` exacto.
 
 Foi acrescentado um worker em processo (worker/runtime-worker.ts), iniciado por instrumentation.ts dentro do Web Service Node existente, sem criar outro serviço Render. O worker adquire lease na Neon, liga-se à Deriv com OAuth server-side, recebe ticks, cria intenções idempotentes, solicita proposta/compra, acompanha contratos, grava resultados, aplica limites de sessão e consome pedidos de paragem. O arranque é restrito a Demo. Esta primeira execução server-side ainda não representa a migração integral de todas as estratégias.
 
 ## Migração necessária antes de retirar a lógica do browser
 
 1. **Motor de estado**: portar literalmente as regras de entrada e saída, incluindo janelas de ticks, AI Analyst, Exit Spots, symbol scoring, HyperBeen, HyperFlows, Hypercover, HyperGuard, HyperShield, HyperBreak, HyperSwap, IA Power e Sonic.
-2. **Executor**: gerir cotações live, stake, limites de saldo, idempotência, compra, confirmação, contrato aberto e reconciliação de ordem incerta após reconexão. Não repetir compras automaticamente quando a confirmação for ambígua.
-3. **Persistência**: guardar todos os parâmetros e estados de recuperação, sequência de ticks, saldo, contratos activos, P/L e histórico por `user_id + account_id`. O worker deve obter lease exclusivo por conta.
+2. **Executor**: gerir cotações live, stake, limites de saldo, idempotência, compra, confirmação, contrato aberto e reconciliação por `contract_id` exacto tanto na carteira como no `profit_table` após reconexão. Não repetir compras automaticamente quando a confirmação for ambígua. A reconciliação de contratos fechados está implementada na branch, mas ainda precisa de validação end-to-end em Demo.
+3. **Persistência**: guardar configuração, estado de recuperação, sequência de ticks, saldo, contratos activos, P/L e histórico por utilizador/conta. A restrição actual permite apenas um runtime activo por utilizador e tipo de conta; confirmar a política final para utilizadores com várias contas Demo antes do cutover.
 4. **API de controlo**: existem endpoints autenticados Start (Demo apenas), Stop e Status com validação de origem. O browser envia configuração allowlisted; nunca token, account_id arbitrário, proposta ou comando buy/sell.
 5. **Dashboard**: o botão Start/Stop já encaminha o controlo para a API server-side e o dashboard recupera/consulta o estado do runtime. Ainda falta remover completamente useDeriv, lib/websocket.ts e a lógica/estratégias do bundle final; por isso, a inspecção do bundle ainda pode revelar código de negociação antigo.
 6. **Testes de paridade**: replay de séries de ticks e resultados históricos, comparação do sinal antigo/novo, casos de payout variável, contrato com resultado ambíguo, falha de rede, duplicate ack, worker restart e duas janelas no mesmo utilizador.
@@ -64,15 +65,16 @@ Não remover o motor antigo nem activar negociação pelo worker enquanto:
 
 - Existe API Start autenticada que valida sessão Matos, credencial OAuth renovável e identidade/conta Demo no servidor. Não aceita conta Real nem token enviado pelo browser.
 - Existe worker em processo no serviço existente, com lease/heartbeat, tick stream, intenção idempotente, proposta/compra, acompanhamento de contrato, histórico, limites de lucro/perda e paragem graciosa após contrato aberto.
-- O worker reconcilia intenções não resolvidas com o portfolio após reinício; quando não consegue provar o resultado, bloqueia novas compras por segurança.
+- O worker reconcilia intenções não resolvidas com o portfolio e, se o contrato já fechou durante uma suspensão, consulta o `profit_table` pelo `contract_id` exacto. Se não consegue provar o resultado, bloqueia novas compras por segurança.
+- A autorização da compra é verificada atomicamente na Neon contra o estado/lease do runtime; uma proposta antiga não pode avançar depois de um pedido Stop já registado.
 - O dashboard encaminha Start/Stop e consulta o estado do runtime. O executor antigo do browser deixa de ser armado pelo novo botão Start.
 - Nenhum Background Worker, Redis, Cron, nova base de dados ou plano pago foi criado.
 
 ## Pendências que impedem a migração integral
 
-- A máquina de recuperação Hypercover já está ligada ao executor: alterna entre OVER 1 e UNDER 8 após perda e pausa 30 ticks após três perdas consecutivas. HyperBeen e HyperFlows continuam sem integração completa e permanecem bloqueados no Start server-side.
+- A máquina de recuperação Hypercover está ligada ao executor: alterna entre OVER 1 e UNDER 8 após perda e pausa 30 ticks após três perdas consecutivas. HyperBeen e HyperFlows têm transições isoladas e testadas, mas ainda não estão ligadas ao executor e permanecem bloqueadas no Start server-side. HyperGuard, HyperShield, HyperBreak e HyperSwap também ficam bloqueadas até as respectivas transições serem portadas.
 - A lógica HyperBeen (PAR → PAR → ÍMPAR → ÍMPAR, pausa de 50 ticks e défice + lucro extra) e HyperFlows (5 perdas, OVER 0 e paragem após perda da recuperação) ainda precisa de ser integrada e testada.
-- Falta portar AI Analyst 25 ticks/5×5, Exit Spots 28/4×7 (apenas modo Exit Spots), seleção dinâmica HyperFlow, regras IA Power/Sonic e restantes limiares especiais.
+- Falta portar AI Analyst 25 ticks/5×5, Exit Spots 28/4×7 (apenas modo Exit Spots), seleção dinâmica HyperFlow, regras IA Power/Sonic e restantes limiares especiais. O allowlist actual do Start aceita apenas PAR/ÍMPAR, ACIMA 5/ABAIXO 4, RISE/FALL, DIFERENTE, HyperLite e Hypercover; as restantes estratégias não são executadas parcialmente.
 - O executor usa proposta + buy por ID; a equivalência com o caminho de compra directa existente no browser ainda precisa de validação Deriv Demo antes de alterar a semântica de compra.
-- Falta teste Demo end-to-end, testes automáticos das transições de recuperação e verificação final de que nenhuma lógica de compra/estratégia fica no bundle do browser. A integração Hypercover desta revisão ainda precisa de validação de paridade em Demo.
+- Existem testes automáticos das transições HyperBeen/HyperFlows/Hypercover e da normalização do histórico fechado (6 casos); ainda faltam replay de paridade para todas as estratégias, testes Demo end-to-end, validação Neon/restart e verificação final de que nenhuma lógica de compra/estratégia fica no bundle do browser. A integração Hypercover ainda precisa de validação de paridade em Demo.
 - Render Free pode suspender/reiniciar o processo; não há garantia de execução autónoma 24/7.
