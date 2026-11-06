@@ -301,6 +301,25 @@ export async function updateOrderIntent(id: string, status: string, values: { pr
   );
 }
 
+export async function markOrderIntentSent(intentId: string, runtimeId: string, workerId: string) {
+  // Atomically authorize the Deriv buy only while this worker still owns a live
+  // lease and the user has not requested Stop. A proposal can take several
+  // seconds; checking here prevents a stale signal from buying after Stop.
+  const result = await tradingPool.query(
+    `UPDATE bot_order_intents AS oi
+     SET status='sent', updated_at=NOW()
+     FROM bot_runtime_sessions AS runtime
+     WHERE oi.id=$1 AND oi.runtime_id=$2 AND oi.status='quoted'
+       AND runtime.id=oi.runtime_id
+       AND runtime.lease_owner=$3 AND runtime.lease_until>NOW()
+       AND runtime.status IN ('starting','running')
+       AND runtime.stop_requested_at IS NULL
+     RETURNING oi.id`,
+    [intentId,runtimeId,workerId],
+  );
+  return Boolean(result.rowCount);
+}
+
 export async function recordTrade(runtime: Pick<RuntimeRow,'id'|'user_id'>, contract: any, botName: string, symbol: string) {
   const result = await tradingPool.query(
     `INSERT INTO bot_runtime_trades
