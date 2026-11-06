@@ -146,8 +146,6 @@ class RuntimeWorker {
     this.state.tickSequence = Number(this.state.tickSequence || 0) + 1;
     if (this.activeContractId || this.state.pendingIntentId) return;
     const cfg = this.runtime.config;
-    if (cfg.strategy === 'ACIMA5_BAIXO4') signal.barrier = signal.contract === 'OVER' ? 5 : 4;
-    if (cfg.strategy === 'DIFERENTE') signal.barrier = 0;
     if (cfg.strategy === 'HYPERCOVER') {
       const current = this.state.hypercover || initialHypercoverState();
       const transition = onHypercoverTick(current);
@@ -220,6 +218,8 @@ class RuntimeWorker {
       signal = makeSignal(sample, cfg.strategy as Strategy, tick.pipSize, false, threshold, windowSize);
     }
     if (!signal) return;
+    if (cfg.strategy === 'ACIMA5_BAIXO4') signal.barrier = signal.contract === 'OVER' ? 5 : 4;
+    if (cfg.strategy === 'DIFERENTE') signal.barrier = 0;
     const type = contractType(signal);
     if (!type) return;
     if (cfg.strategy === 'MATCH0') {
