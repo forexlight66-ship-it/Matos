@@ -2191,8 +2191,33 @@ useEffect(()=>{
   }catch(error){setNotice(error instanceof Error?error.message:'Falha ao iniciar o motor server-side.');return false}
 };
 const stop=async()=>{
-  saveStakeState();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;setRunning(false);setSignalNow(null);
-  try{await fetch('/api/trading/runtime',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop'})})}catch(error){console.warn('[Trading runtime] Stop request failed:',error)}
+  saveStakeState();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;setSignalNow(null);
+  try{
+   const response=await fetch('/api/trading/runtime',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop'})});
+   const result=await response.json().catch(()=>null);
+   if(!response.ok)throw new Error(String(result?.error||'Não foi possível registar a paragem no servidor.'));
+   const statusResponse=await fetch('/api/trading/runtime',{cache:'no-store'});
+   const statusData=await statusResponse.json().catch(()=>null);
+   const runtime=statusData?.runtime;
+   const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
+   setRunning(stillActive);
+   setBotActivity(stillActive?'analyzing':'stopped');
+   if(result?.accepted)setNotice('Paragem registada no servidor. Se existir contrato aberto, o motor aguarda o fecho antes de terminar.');
+   else setNotice('Não existe um robô activo no servidor.');
+   return true;
+  }catch(error){
+   console.warn('[Trading runtime] Stop request failed:',error);
+   setNotice('Não foi possível confirmar a paragem no servidor. O estado do robô será mantido até nova confirmação.');
+   try{
+    const statusResponse=await fetch('/api/trading/runtime',{cache:'no-store'});
+    const statusData=await statusResponse.json().catch(()=>null);
+    const runtime=statusData?.runtime;
+    const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
+    setRunning(stillActive);
+    setBotActivity(stillActive?'analyzing':'stopped');
+   }catch{}
+   return false;
+  }
 };
 const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
@@ -2235,7 +2260,7 @@ const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetc
  },[running]);
 
  const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setNotice('AI Analyst ainda não foi ligado ao motor server-side. A função fica temporariamente bloqueada para evitar execução pelo browser.');return}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(running)void stop()}},[aiAnalystActive,clientCountryReady,language,running,stop,setSorosEnabled]);
- const logout=async()=>{await stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
+ const logout=async()=>{const stopConfirmed=await stop();if(!stopConfirmed)return;try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
  const iaStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:ia`;
  const sonicStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:sonic`;
  const saveStakeState=()=>{try{if(iaPower){localStorage.setItem(iaStateStorageKey,JSON.stringify({mode:'ia',state:gestorRef.current.getEstado(),savedAt:Date.now()}))}else if(sonic){localStorage.setItem(sonicStateStorageKey,JSON.stringify({mode:'sonic',state:sonicRef.current.getState(),savedAt:Date.now()}))}}catch{}};
