@@ -2202,7 +2202,7 @@ const stop=async()=>{
    const runtime=statusData?.runtime;
    const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
    setRunning(stillActive);
-   setBotActivity(stillActive?'analyzing':'stopped');
+   setBotActivity(stillActive?'analyzing':'collectingTicks');
    if(stillActive&&!result?.accepted&&runtime?.status!=='stopping'){
     setNotice('O servidor ainda indica o robô activo e não confirmou o pedido Stop. Não será feito logout.');
     return false;
@@ -2220,7 +2220,7 @@ const stop=async()=>{
     const runtime=statusData?.runtime;
     const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
     setRunning(stillActive);
-    setBotActivity(stillActive?'analyzing':'stopped');
+    setBotActivity(stillActive?'analyzing':'collectingTicks');
     if(!stillActive||runtime?.status==='stopping')return true;
    }catch{}
    return false;
