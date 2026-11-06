@@ -2197,11 +2197,16 @@ const stop=async()=>{
    const result=await response.json().catch(()=>null);
    if(!response.ok)throw new Error(String(result?.error||'Não foi possível registar a paragem no servidor.'));
    const statusResponse=await fetch('/api/trading/runtime',{cache:'no-store'});
+   if(!statusResponse.ok)throw new Error('O servidor não confirmou o estado depois do pedido Stop.');
    const statusData=await statusResponse.json().catch(()=>null);
    const runtime=statusData?.runtime;
    const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
    setRunning(stillActive);
    setBotActivity(stillActive?'analyzing':'stopped');
+   if(stillActive&&!result?.accepted&&runtime?.status!=='stopping'){
+    setNotice('O servidor ainda indica o robô activo e não confirmou o pedido Stop. Não será feito logout.');
+    return false;
+   }
    if(result?.accepted)setNotice('Paragem registada no servidor. Se existir contrato aberto, o motor aguarda o fecho antes de terminar.');
    else setNotice('Não existe um robô activo no servidor.');
    return true;
@@ -2210,11 +2215,13 @@ const stop=async()=>{
    setNotice('Não foi possível confirmar a paragem no servidor. O estado do robô será mantido até nova confirmação.');
    try{
     const statusResponse=await fetch('/api/trading/runtime',{cache:'no-store'});
+    if(!statusResponse.ok)return false;
     const statusData=await statusResponse.json().catch(()=>null);
     const runtime=statusData?.runtime;
     const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
     setRunning(stillActive);
     setBotActivity(stillActive?'analyzing':'stopped');
+    if(!stillActive)return true;
    }catch{}
    return false;
   }
