@@ -2221,7 +2221,7 @@ const stop=async()=>{
     const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
     setRunning(stillActive);
     setBotActivity(stillActive?'analyzing':'stopped');
-    if(!stillActive)return true;
+    if(!stillActive||runtime?.status==='stopping')return true;
    }catch{}
    return false;
   }
