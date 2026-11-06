@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, getDerivAccessToken, saveDerivAccessToken, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
+import { getSession, getDerivAccessToken, getDerivRefreshToken, getDerivExternalReferenceId, saveDerivAccessToken, saveDerivRefreshToken, PLATFORM_SESSION_COOKIE } from '@/lib/platform-auth';
 import { createRuntime, getUserRuntime, type RuntimeConfig } from '@/worker/repository';
 
 export const dynamic = 'force-dynamic';
@@ -7,8 +7,7 @@ export const revalidate = 0;
 
 const NO_STORE = { 'Cache-Control': 'no-store, private', Pragma: 'no-cache', Vary: 'Cookie' };
 const STRATEGIES = new Set([
-  'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE',
-  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER',
+  'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE','HYPERCOVER',
 ]);
 
 function sameOrigin(request: NextRequest) {
@@ -25,15 +24,16 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401, headers: NO_STORE });
     if (!process.env.DERIV_APP_ID?.trim()) return NextResponse.json({ error: 'A integração Deriv não está configurada no servidor.' }, { status: 503, headers: NO_STORE });
     let storedDerivCredential = await getDerivAccessToken(user.id);
-    // The existing OAuth callback places the short-lived access token in an
-    // HttpOnly cookie. Bridge it into encrypted server storage here, without
-    // changing the callback route.
+    // The OAuth callback stores refresh credentials server-side. Use them when
+    // the short-lived access token has expired instead of forcing a needless
+    // relink. A callback access cookie is only a compatibility fallback.
     const callbackAccessToken = request.cookies.get('deriv_access_token')?.value?.trim();
     if (!storedDerivCredential && callbackAccessToken) {
       await saveDerivAccessToken(user.id, callbackAccessToken, 3600);
       storedDerivCredential = await getDerivAccessToken(user.id);
     }
-    if (!storedDerivCredential) {
+    const storedRefreshCredential = storedDerivCredential ? null : await getDerivRefreshToken(user.id);
+    if (!storedDerivCredential && !storedRefreshCredential) {
       return NextResponse.json({ error: 'A ligação Deriv expirou ou não tem uma credencial válida. Volte a ligar a conta Deriv ao Matos.' }, { status: 409, headers: NO_STORE });
     }
 
@@ -66,10 +66,25 @@ export async function POST(request: NextRequest) {
     }
     const account = await (async () => {
       const { getAuthenticatedDerivIdentity } = await import('@/lib/derivNickname');
-      const identity = await getAuthenticatedDerivIdentity({ accessToken: storedDerivCredential.token, appId: process.env.DERIV_APP_ID!.trim() });
-      const remainingSeconds = Math.floor((Date.parse(storedDerivCredential.expiresAt) - Date.now()) / 1000);
-      if (remainingSeconds > 60) {
-        await saveDerivAccessToken(user.id, storedDerivCredential.token, remainingSeconds, identity.externalReferenceId);
+      const identity = await getAuthenticatedDerivIdentity({
+        accessToken: storedDerivCredential?.token,
+        refreshToken: storedRefreshCredential || undefined,
+        appId: process.env.DERIV_APP_ID!.trim(),
+      });
+      const expectedIdentityId = await getDerivExternalReferenceId(user.id);
+      if (expectedIdentityId && expectedIdentityId !== identity.externalReferenceId) {
+        throw new Error('A identidade Deriv não corresponde à conta já ligada a este utilizador Matos.');
+      }
+      if (identity.refreshed && identity.refreshToken) {
+        await saveDerivRefreshToken(user.id, identity.refreshToken, identity.externalReferenceId);
+      }
+      if (storedDerivCredential) {
+        const remainingSeconds = Math.floor((Date.parse(storedDerivCredential.expiresAt) - Date.now()) / 1000);
+        if (remainingSeconds > 60) {
+          await saveDerivAccessToken(user.id, storedDerivCredential.token, remainingSeconds, identity.externalReferenceId);
+        }
+      } else if (identity.refreshToken) {
+        await saveDerivRefreshToken(user.id, identity.refreshToken, identity.externalReferenceId);
       }
       const response = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
         headers: { Authorization: `Bearer ${identity.accessToken}`, 'Deriv-App-ID': process.env.DERIV_APP_ID!.trim() },
