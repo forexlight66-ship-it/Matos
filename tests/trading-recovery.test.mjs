@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { normalizeProfitTableContract } from '../server/trading/contract-normalization.ts';
 import {
   initialHyperBeenState,
   onHyperBeenClose,
@@ -128,4 +129,46 @@ test('Hypercover alternates OVER 1 / UNDER 8 and pauses after three losses', () 
   }
   assert.equal(state.pauseTicksRemaining, 0);
   assert.equal(transition?.nextAction, 'RECOVER');
+});
+
+test('closed profit_table rows normalize the exact contract id and realised Deriv profit', () => {
+  const normalized = normalizeProfitTableContract({
+    contract_id: '987654',
+    status: 'won',
+    buy_price: 0.35,
+    sell_price: 1.60,
+    profit_loss: 0,
+    profit: 1.25,
+    payout: 1.60,
+    purchase_time: 100,
+    sell_time: 101,
+    contract_type: 'DIGITOVER',
+    barrier: 0,
+    exit_spot: '123.450',
+    exit_tick: 123.45,
+    underlying: 'R_25',
+  }, 'R_10');
+
+  assert.equal(normalized?.contract_id, 987654);
+  assert.equal(normalized?.profit_loss, 1.25);
+  assert.equal(normalized?.symbol, 'R_25');
+  assert.equal(normalized?.barrier, 0);
+  assert.equal(normalized?.is_sold, true);
+});
+
+test('closed profit_table normalization falls back to sell minus buy and rejects non-closed rows', () => {
+  const normalized = normalizeProfitTableContract({
+    contract_id: 123,
+    buy_price: 0.35,
+    sell_price: 0,
+    purchase_time: 100,
+    sell_time: 101,
+    contract_type: 'DIGITMATCH',
+    barrier: 9,
+  }, 'R_25');
+  assert.equal(normalized?.profit_loss, -0.35);
+  assert.equal(normalized?.status, 'lost');
+
+  assert.equal(normalizeProfitTableContract({ contract_id: 123, buy_price: 0.35, sell_time: 0 }, 'R_25'), null);
+  assert.equal(normalizeProfitTableContract({ contract_id: 'not-an-id', sell_time: 101 }, 'R_25'), null);
 });
