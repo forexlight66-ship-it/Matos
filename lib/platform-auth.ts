@@ -19,6 +19,8 @@ async function ensureSchema() {
       password_hash TEXT NOT NULL,
       country TEXT,
       deriv_refresh_ciphertext TEXT,
+      deriv_access_ciphertext TEXT,
+      deriv_access_expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS platform_sessions (
@@ -48,6 +50,8 @@ async function ensureSchema() {
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS country TEXT');
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_external_reference_id TEXT');
   await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_refresh_ciphertext TEXT');
+  await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_access_ciphertext TEXT');
+  await pool.query('ALTER TABLE platform_users ADD COLUMN IF NOT EXISTS deriv_access_expires_at TIMESTAMPTZ');
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deriv_partner_credentials (
       id SMALLINT PRIMARY KEY CHECK (id = 1),
@@ -60,10 +64,25 @@ async function ensureSchema() {
   `);
 }
 
-function derivTokenEncryptionKey() {
+function dedicatedDerivTokenEncryptionKey() {
+  const raw = process.env.DERIV_TOKEN_ENCRYPTION_KEY?.trim();
+  if (!raw) return null;
+  // Accept exactly 32 bytes encoded as 64 hexadecimal characters or base64.
+  const key = /^[0-9a-f]{64}$/i.test(raw) ? Buffer.from(raw, 'hex') : Buffer.from(raw, 'base64');
+  if (key.length !== 32) throw new Error('DERIV_TOKEN_ENCRYPTION_KEY must encode exactly 32 bytes.');
+  return key;
+}
+
+function legacyDerivTokenEncryptionKey() {
   const seed = process.env.DERIV_PAYMENT_AGENT_TOKEN?.trim();
-  if (!seed) throw new Error('DERIV_PAYMENT_AGENT_TOKEN is not configured');
+  if (!seed) throw new Error('DERIV_TOKEN_ENCRYPTION_KEY is required (legacy key is unavailable).');
   return createHash('sha256').update(`matos-deriv-oauth-v1:${seed}`).digest();
+}
+
+function derivTokenEncryptionKey() {
+  // New writes use a dedicated secret. The legacy derivation remains temporarily
+  // available so existing encrypted OAuth credentials can be read during cutover.
+  return dedicatedDerivTokenEncryptionKey() || legacyDerivTokenEncryptionKey();
 }
 
 function encryptDerivRefreshToken(value: string) {
@@ -74,12 +93,22 @@ function encryptDerivRefreshToken(value: string) {
   return [iv.toString('base64url'), tag.toString('base64url'), encrypted.toString('base64url')].join('.');
 }
 
-function decryptDerivRefreshToken(value: string) {
+function decryptWithKey(value: string, key: Buffer) {
   const [ivRaw, tagRaw, encryptedRaw] = value.split('.');
   if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error('Invalid encrypted Deriv refresh token');
-  const decipher = createDecipheriv('aes-256-gcm', derivTokenEncryptionKey(), Buffer.from(ivRaw, 'base64url'));
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivRaw, 'base64url'));
   decipher.setAuthTag(Buffer.from(tagRaw, 'base64url'));
   return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, 'base64url')), decipher.final()]).toString('utf8');
+}
+
+function decryptDerivRefreshToken(value: string): { token: string; needsReencrypt: boolean } {
+  const dedicated = dedicatedDerivTokenEncryptionKey();
+  if (dedicated) {
+    try { return { token: decryptWithKey(value, dedicated), needsReencrypt: false }; }
+    catch { /* Try the legacy key below during the one-time migration. */ }
+  }
+  const token = decryptWithKey(value, legacyDerivTokenEncryptionKey());
+  return { token, needsReencrypt: Boolean(dedicated) };
 }
 
 function normalizeEmail(email: string) {
@@ -219,10 +248,48 @@ export async function createDerivOAuthSession() {
   return createSession(result.rows[0].id);
 }
 
+export async function saveDerivAccessToken(userId: string | number, accessToken: string, expiresIn: number, externalReferenceId?: string) {
+  const value = accessToken.trim();
+  const lifetime = Number(expiresIn);
+  if (!value || !Number.isFinite(lifetime) || lifetime <= 0) throw new Error('Invalid Deriv OAuth access token or lifetime.');
+  await ensureSchema();
+  const externalId = String(externalReferenceId || '').trim().toLowerCase() || null;
+  const expiresAt = new Date(Date.now() + Math.floor(lifetime * 1000));
+  await pool.query(
+    'UPDATE platform_users SET deriv_access_ciphertext=$1, deriv_access_expires_at=$2, deriv_external_reference_id=COALESCE($3, deriv_external_reference_id) WHERE id=$4',
+    [encryptDerivRefreshToken(value), expiresAt, externalId, userId],
+  );
+}
+
+export async function getDerivAccessToken(userId: string | number): Promise<{ token: string; expiresAt: string } | null> {
+  await ensureSchema();
+  const result = await pool.query(
+    'SELECT deriv_access_ciphertext, deriv_access_expires_at FROM platform_users WHERE id=$1',
+    [userId],
+  );
+  const row = result.rows[0];
+  if (!row?.deriv_access_ciphertext || !row?.deriv_access_expires_at) return null;
+  const expiresAt = new Date(row.deriv_access_expires_at);
+  if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now() + 60_000) return null;
+  try {
+    return { token: decryptDerivRefreshToken(String(row.deriv_access_ciphertext)).token, expiresAt: expiresAt.toISOString() };
+  } catch {
+    return null;
+  }
+}
+
 export async function saveDerivRefreshToken(userId: string | number, refreshToken: string, externalReferenceId?: string) {
   const value = refreshToken.trim();
   if (!value) return;
   await ensureSchema();
+  // Do not copy an OAuth access token into the legacy refresh-token column.
+  const current = await pool.query('SELECT deriv_access_ciphertext FROM platform_users WHERE id=$1', [userId]);
+  const encryptedAccess = current.rows[0]?.deriv_access_ciphertext;
+  if (encryptedAccess) {
+    try {
+      if (decryptDerivRefreshToken(String(encryptedAccess)).token === value) return;
+    } catch { /* Continue with the explicit refresh-token write. */ }
+  }
   const externalId = String(externalReferenceId || '').trim().toLowerCase() || null;
   await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1, deriv_external_reference_id=COALESCE($2, deriv_external_reference_id) WHERE id=$3', [encryptDerivRefreshToken(value), externalId, userId]);
 }
@@ -234,17 +301,27 @@ export async function getDerivExternalReferenceId(userId: string | number) {
 }
 
 export async function getDerivRefreshToken(userId: string | number) {
+  // Prefer the current, expiry-checked OAuth access token. The legacy gateway
+  // calls this function using its old refresh-token interface.
+  const access = await getDerivAccessToken(userId);
+  if (access?.token) return access.token;
+
   await ensureSchema();
   const result = await pool.query('SELECT deriv_refresh_ciphertext FROM platform_users WHERE id=$1', [userId]);
   const encrypted = result.rows[0]?.deriv_refresh_ciphertext;
   if (!encrypted) return null;
   try {
-    return decryptDerivRefreshToken(String(encrypted));
+    const decoded = decryptDerivRefreshToken(String(encrypted));
+    if (decoded.needsReencrypt) {
+      await pool.query('UPDATE platform_users SET deriv_refresh_ciphertext=$1 WHERE id=$2 AND deriv_refresh_ciphertext=$3', [
+        encryptDerivRefreshToken(decoded.token), userId, encrypted,
+      ]);
+    }
+    return decoded.token;
   } catch {
     return null;
   }
 }
-
 export type DerivPartnerCredentialMetadata = {
   partnerId: string;
   linkedUserId: string | null;
@@ -281,8 +358,15 @@ export async function getDerivPartnerRefreshCredential(): Promise<{
   if (!row) return null;
 
   try {
+    const decoded = decryptDerivRefreshToken(String(row.deriv_refresh_ciphertext));
+    if (decoded.needsReencrypt) {
+      await pool.query(
+        'UPDATE deriv_partner_credentials SET deriv_refresh_ciphertext=$1, updated_at=NOW() WHERE id=1 AND deriv_refresh_ciphertext=$2',
+        [encryptDerivRefreshToken(decoded.token), row.deriv_refresh_ciphertext],
+      );
+    }
     return {
-      refreshToken: decryptDerivRefreshToken(String(row.deriv_refresh_ciphertext)),
+      refreshToken: decoded.token,
       partnerId: String(row.partner_id),
       linkedUserId: row.linked_user_id == null ? null : String(row.linked_user_id),
     };

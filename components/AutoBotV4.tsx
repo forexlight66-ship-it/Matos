@@ -2179,11 +2179,99 @@ useEffect(()=>{
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),5000);return()=>clearTimeout(timer)},[notice]);
  const togglePower=(enabled:boolean)=>{if(running)return;setIaPower(enabled);setSonic(false);sonicRef.current.reset();setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
  const toggleSonic=(enabled:boolean)=>{if(running)return;setSonic(enabled);setIaPower(false);sonicRef.current=createSonicStakeManager({baseStake:stake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});setSorosEnabled(false);setStakeManagerVersion(v=>v+1)};
- const start=()=>{pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;setExitSpotsMode(false);hyperFlowNormalSignalDisarmedRef.current=false;if(strategy==='HYPERFLOWS'){hyperFlowsAnalysisActiveRef.current=false;hyperFlowsNextDigitRef.current=null;hyperFlowsRecoveryModeRef.current=false;hyperFlowsRecoveryContractRef.current='EVEN';hyperFlowsNextParityRef.current='EVEN';hyperFlowsRecoveryExtraProfitRef.current=1;hyperFlowsRecoveryQuoteRef.current=null;hyperFlowsConsecutiveLossesRef.current=0;hyperFlowsDeficitRef.current=0;hyperFlowsRecoveryAttemptsRef.current=0;hyperFlowsLastTradeModeRef.current=null;hyperFlowsLastEntryTickRef.current=null;hyperFlowsObservedTickRef.current=null;hyperFlowsPostRecoveryResetTickRef.current=null;}if(strategy==='MATCH0'){hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenDeficitRef.current=0;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenLastTradeModeRef.current=null;hyperBeenRecoveryQuoteRef.current=null;hyperFlowOverZeroModeRef.current=false;hyperFlowRetryNormalAfterLossRef.current=false;hyperFlowRecoveryActiveRef.current=false;hyperFlowRecoveryBuyPendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;hyperFlowTargetDigitRef.current=0;hyperFlowNextDigitRef.current=null;hyperFlowWatchRef.current={active:false,symbol,snapshots:[]};}recoveryBalancePauseRef.current=null;const availableBalance=Number(balance?.balance);if(!isConnected||!isAuthorized||!Number.isFinite(availableBalance)||availableBalance<=0)return false;setHypercoverRevision(v=>v+1);botArmedRef.current=true;setSorosEnabled(false);const cappedInitialStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);gestorRef.current=criarGestorStake({stakeBase:cappedInitialStake,payout:lastPayoutRatioRef.current,maxNiveisMartingale:maxMartingale});const sonicBaseStake=Math.min(Math.max(0.35,Number(stake)||0.35),availableBalance);sonicRef.current=createSonicStakeManager({baseStake:sonicBaseStake,payout:lastPayoutRatioRef.current,maxLevel:maxMartingale});processedStakeContractsRef.current.clear();processedSonicContractsRef.current.clear();pendingRiskStakeRef.current=null;for(const tx of profitTransactions){const id=Number(tx.contract_id);if(!Number.isFinite(id)||id<=0)continue;processedStakeContractsRef.current.add(id);processedSonicContractsRef.current.add(id);}lastProcessedStakeResult.current=latest?.contract_id??null;lastProcessedSonicResult.current=latest?.contract_id??null;stakeReadyRef.current=true;riskLockStartedAt.current=0;stopped.current=false;requested.current=false;requestStartedAt.current=0;lastRequestedClose.current=contractClosedSeq;lastActivityAt.current=Date.now();totalTickCountRef.current=0;lastAnalyzerEvalTickRef.current=0;analyzerStableKeyRef.current=null;analyzerStableCountRef.current=0;analyzerLastSwitchTickRef.current=-1000;setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);return true};
- const stop=()=>{saveStakeState();hyperBeenRecoveryQuoteRef.current=null;hyperFlowNormalSignalDisarmedRef.current=false;pendingAutoEntryRef.current=null;iaRecoveryQuotePendingRef.current=false;hyperFlowRecoveryQuoteStageRef.current=null;hyperFlowRecoveryQuoteAttemptsRef.current=0;hyperFlowRecoveryQuoteReadyRef.current=false;hyperFlowRecoveryQuoteTargetRef.current=null;clearProposal();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;riskAwaitingContractRef.current=null;stakeReadyRef.current=true;riskLockStartedAt.current=0;setRunning(false);setSignalNow(null)}; const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
+ const start=async()=>{
+  if(exitSpotsMode||smartAnalyzer){setNotice('AI Analyst e Exit Spots ainda não estão ligados ao executor server-side.');return false}
+  if(account!=='demo'){setNotice('A migração server-side está em validação. Nesta fase só é permitido iniciar em conta Demo.');return false}
+  if(strategy==='HYPERFLOWS'||strategy==='MATCH0'){setNotice('HyperFlows/HyperBeen ainda estão a ser ligados ao motor server-side. Estas estratégias ficam bloqueadas até a recuperação completa estar validada.');return false}
+  try{
+   const response=await fetch('/api/trading/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({strategy,symbol,accountType:'demo',stake,target,lossLimit,recoveryExtraProfit,tickWindow:9,durationTicks:1})});
+   const data=await response.json().catch(()=>null);
+   if(!response.ok)throw new Error(String(data?.error||'Não foi possível iniciar o motor server-side.'));
+   botArmedRef.current=false;stopped.current=false;requested.current=false;requestStartedAt.current=0;
+   setTicks([]);setSignalNow(null);setBotActivity('collectingTicks');setRunning(true);
+   setNotice('Robô Demo iniciado no servidor. O browser já não envia ordens.');
+   return true;
+  }catch(error){setNotice(error instanceof Error?error.message:'Falha ao iniciar o motor server-side.');return false}
+};
+const stop=async()=>{
+  saveStakeState();botArmedRef.current=false;stopped.current=true;requested.current=false;requestStartedAt.current=0;setSignalNow(null);
+  try{
+   const response=await fetch('/api/trading/runtime',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop'})});
+   const result=await response.json().catch(()=>null);
+   if(!response.ok)throw new Error(String(result?.error||'Não foi possível registar a paragem no servidor.'));
+   const statusResponse=await fetch('/api/trading/runtime',{cache:'no-store'});
+   if(!statusResponse.ok)throw new Error('O servidor não confirmou o estado depois do pedido Stop.');
+   const statusData=await statusResponse.json().catch(()=>null);
+   const runtime=statusData?.runtime;
+   const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
+   setRunning(stillActive);
+   setBotActivity(stillActive?'analyzing':'collectingTicks');
+   if(stillActive&&!result?.accepted&&runtime?.status!=='stopping'){
+    setNotice('O servidor ainda indica o robô activo e não confirmou o pedido Stop. Não será feito logout.');
+    return false;
+   }
+   if(result?.accepted)setNotice('Paragem registada no servidor. Se existir contrato aberto, o motor aguarda o fecho antes de terminar.');
+   else setNotice('Não existe um robô activo no servidor.');
+   return true;
+  }catch(error){
+   console.warn('[Trading runtime] Stop request failed:',error);
+   setNotice('Não foi possível confirmar a paragem no servidor. O estado do robô será mantido até nova confirmação.');
+   try{
+    const statusResponse=await fetch('/api/trading/runtime',{cache:'no-store'});
+    if(!statusResponse.ok)return false;
+    const statusData=await statusResponse.json().catch(()=>null);
+    const runtime=statusData?.runtime;
+    const stillActive=Boolean(runtime&&['starting','running','stopping'].includes(String(runtime.status)));
+    setRunning(stillActive);
+    setBotActivity(stillActive?'analyzing':'collectingTicks');
+    if(!stillActive||runtime?.status==='stopping')return true;
+   }catch{}
+   return false;
+  }
+};
+const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetch('/api/ai-analyst/access',{cache:'no-store'});const data=await response.json().catch(()=>null);setAiAnalystActive(Boolean(data?.active));setAiAnalystExpiresAt(data?.expiresAt?String(data.expiresAt):null);return Boolean(data?.active)}catch{setAiAnalystActive(false);setAiAnalystExpiresAt(null);return false}},[]);
  useEffect(()=>{void refreshAiAnalystAccess()},[refreshAiAnalystAccess]);
- const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setSorosEnabled(false);setExitSpotsMode(false);if(running){setSmartAnalyzer(true);return}if(start()){setRunning(false);setSmartAnalyzer(true)}else{setNotice(!isConnected?'A ligar ao Deriv...':!isAuthorized?'Autenticação Deriv necessária':'Saldo indisponível para iniciar o Analyst.')}}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(!running)stop()}},[aiAnalystActive,clientCountryReady,language,running,isConnected,isAuthorized,start,stop,setSorosEnabled,iaPower,sonic]);
- const logout=()=>{stop();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
+ 
+ useEffect(()=>{
+  let alive=true;
+  void fetch('/api/trading/runtime',{cache:'no-store'}).then(response=>response.json()).then(data=>{
+   if(!alive)return;
+   const runtime=data?.runtime;
+   if(runtime&&['starting','running','stopping'].includes(String(runtime.status))){
+    botArmedRef.current=false;stopped.current=false;setRunning(true);
+    setBotActivity('analyzing');
+   }
+  }).catch(error=>console.warn('[Trading runtime] Initial status check failed:',error));
+  return()=>{alive=false};
+ },[]);
+
+ useEffect(()=>{
+  if(!running)return;
+  let alive=true;
+  const poll=async()=>{
+   try{
+    const response=await fetch('/api/trading/runtime',{cache:'no-store'});
+    const data=await response.json().catch(()=>null);
+    if(!alive)return;
+    const runtime=data?.runtime;
+    if(!runtime||['stopped','error','safety_stopped'].includes(String(runtime.status))){
+     setRunning(false);
+     setBotActivity(runtime?.status==='safety_stopped'?'stopped':runtime?.status||'stopped');
+     if(runtime?.status==='safety_stopped')setNotice('O motor server-side parou por segurança. Consulte o estado da conta Demo antes de reiniciar.');
+    }else if(runtime?.status==='stopping'){
+     setBotActivity('analyzing');
+    }else{
+     setBotActivity('analyzing');
+    }
+   }catch(error){console.warn('[Trading runtime] Status polling failed:',error)}
+  };
+  void poll();
+  const timer=window.setInterval(()=>{void poll()},3000);
+  return()=>{alive=false;window.clearInterval(timer)};
+ },[running]);
+
+ const toggleAnalyzer=useCallback((enabled:boolean)=>{if(enabled){if(!aiAnalystActive){if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please try again in a moment.':'A identificar o país do cliente. Aguarde um momento e tente novamente.');return}setCashierAction('ai_analyst');setNotice(clientCountry==='MZ'?(language==='en'?'AI Analyst subscription: 250 MZN for 30 days.':'AI Analyst: assinatura de 250 MZN por 30 dias.'):(language==='en'?'AI Analyst subscription: 3 USDT for 30 days.':'AI Analyst: assinatura de 3 USDT por 30 dias.'));return}setNotice('AI Analyst ainda não foi ligado ao motor server-side. A função fica temporariamente bloqueada para evitar execução pelo browser.');return}else{setExitSpotsMode(false);setSmartAnalyzer(false);setSorosEnabled(false);if(running)void stop()}},[aiAnalystActive,clientCountryReady,language,running,stop,setSorosEnabled]);
+ const logout=async()=>{const stopConfirmed=await stop();if(!stopConfirmed)return;try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k?.startsWith('mozhyper-stake-state-v2:')||k?.startsWith('mozhyper-risk-state-v3:')||k?.startsWith('mozhyper-daily-history-v1:')||k==='mozhyper-active-user-v1')localStorage.removeItem(k)}}catch{}resetTradingSession();setMenu(false);window.location.assign('/api/auth/logout')};
  const iaStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:ia`;
  const sonicStateStorageKey=`mozhyper-risk-state-v3:${account}:${symbol}:${stake.toFixed(2)}:sonic`;
  const saveStakeState=()=>{try{if(iaPower){localStorage.setItem(iaStateStorageKey,JSON.stringify({mode:'ia',state:gestorRef.current.getEstado(),savedAt:Date.now()}))}else if(sonic){localStorage.setItem(sonicStateStorageKey,JSON.stringify({mode:'sonic',state:sonicRef.current.getState(),savedAt:Date.now()}))}}catch{}};
