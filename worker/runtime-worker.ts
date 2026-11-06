@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { DerivGateway, type DerivContractUpdate, type DerivTick } from './deriv-gateway';
 import {
   acquireRuntimeLease, appendRuntimeEvent, createOrderIntent, finishRuntime,
-  heartbeatRuntime, recordTrade, updateOrderIntent, getUnresolvedOrderIntent, type RuntimeRow,
+  heartbeatRuntime, markOrderIntentSent, recordTrade, updateOrderIntent, getUnresolvedOrderIntent, type RuntimeRow,
 } from './repository';
 import { digit, makeSignal, type Strategy } from '../server/trading/strategy-analysis';
 import {
@@ -19,7 +19,7 @@ const HEARTBEAT_MS = 7000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const allowedStrategies = new Set<Strategy>([
   'PAR_IMPAR','ACIMA5_BAIXO4','RISE_FALL','DIFERENTE','HYPERLITE',
-  'HYPERGUARD','HYPERSHIELD','HYPERBREAK','HYPERSWAP','HYPERCOVER','MATCH0','HYPERFLOWS',
+  'HYPERCOVER',
 ]);
 
 function contractType(signal: any): string {
@@ -146,6 +146,8 @@ class RuntimeWorker {
     this.state.tickSequence = Number(this.state.tickSequence || 0) + 1;
     if (this.activeContractId || this.state.pendingIntentId) return;
     const cfg = this.runtime.config;
+    if (cfg.strategy === 'ACIMA5_BAIXO4') signal.barrier = signal.contract === 'OVER' ? 5 : 4;
+    if (cfg.strategy === 'DIFERENTE') signal.barrier = 0;
     if (cfg.strategy === 'HYPERCOVER') {
       const current = this.state.hypercover || initialHypercoverState();
       const transition = onHypercoverTick(current);
@@ -247,7 +249,7 @@ class RuntimeWorker {
     const recoveryTarget = cfg.strategy === 'MATCH0'
       ? Number(this.state.hyperBeen?.deficit || 0) + Math.max(0, Number(cfg.recoveryExtraProfit ?? 5))
       : Number(this.state.hyperFlows?.deficit || 0) + Math.max(0, Number(this.state.hyperFlows?.extraProfit ?? cfg.recoveryExtraProfit ?? 5));
-    const duration = Math.max(1, Math.min(10, Number(cfg.durationTicks) || 1));
+    const duration = isRecoveryTrade ? 5 : Math.max(1, Math.min(10, Number(cfg.durationTicks) || 1));
     let proposal = await this.gateway!.getProposal({
       symbol: cfg.symbol, contractType: type, amount: stake, duration,
       currency: this.currency, barrier: signal.barrier,
@@ -285,7 +287,15 @@ class RuntimeWorker {
     await updateOrderIntent(intentId, 'created');
     try {
       await updateOrderIntent(intentId, 'quoted', { proposalId: proposal.id, maxPrice: proposal.askPrice });
-      await updateOrderIntent(intentId, 'sent');
+      const authorized = await markOrderIntentSent(intentId, this.runtime.id, WORKER_ID);
+      if (!authorized) {
+        await updateOrderIntent(intentId, 'rejected', { errorMessage: 'Runtime parou ou perdeu a lease antes da autorização da compra.' });
+        this.state.pendingIntentId = null;
+        this.activeIntentId = null;
+        this.stopRequested = true;
+        await heartbeatRuntime(this.runtime.id, WORKER_ID, this.snapshot());
+        return;
+      }
       // A timeout after this point is ambiguous. Never retry a buy blindly.
       const bought = await this.gateway!.buy(proposal.id, proposal.askPrice);
       this.activeContractId = bought.contractId;
