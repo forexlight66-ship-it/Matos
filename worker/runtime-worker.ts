@@ -30,6 +30,46 @@ function contractType(signal: any): string {
   return map[String(signal?.contract || '')] || '';
 }
 
+function normalizeProfitTableContract(raw: any, fallbackSymbol: string): DerivContractUpdate | null {
+  const contractId = Number(raw?.contract_id);
+  const sellTime = Number(raw?.sell_time);
+  if (!Number.isSafeInteger(contractId) || contractId <= 0 || !Number.isFinite(sellTime) || sellTime <= 0) return null;
+
+  const explicitProfitLoss = Number(raw?.profit_loss);
+  const apiProfit = Number(raw?.profit);
+  const buyPrice = Number(raw?.buy_price ?? 0);
+  const sellPrice = raw?.sell_price == null ? null : Number(raw.sell_price);
+  const profitLoss = Number.isFinite(explicitProfitLoss) && Math.abs(explicitProfitLoss) > 0.000001
+    ? explicitProfitLoss
+    : Number.isFinite(apiProfit) && Math.abs(apiProfit) > 0.000001
+      ? apiProfit
+      : Number.isFinite(buyPrice) && sellPrice !== null && Number.isFinite(sellPrice)
+        ? Number((sellPrice - buyPrice).toFixed(2))
+        : Number.isFinite(explicitProfitLoss) ? explicitProfitLoss : 0;
+
+  let status = String(raw?.status || '').toLowerCase();
+  if (!['won', 'lost', 'sold', 'expired', 'closed'].includes(status)) {
+    status = profitLoss > 0 ? 'won' : profitLoss < 0 ? 'lost' : 'sold';
+  }
+
+  return {
+    contract_id: contractId,
+    buy_price: Number.isFinite(buyPrice) ? buyPrice : 0,
+    sell_price: sellPrice !== null && Number.isFinite(sellPrice) ? sellPrice : null,
+    payout: Number(raw?.payout || 0),
+    purchase_time: Number(raw?.purchase_time ?? raw?.date_start ?? 0),
+    sell_time: sellTime,
+    contract_type: String(raw?.contract_type || ''),
+    status,
+    profit_loss: profitLoss,
+    exit_tick: raw?.exit_tick ?? null,
+    exit_spot: raw?.exit_spot ?? null,
+    barrier: raw?.barrier == null ? null : Number(raw.barrier),
+    symbol: String(raw?.symbol || raw?.underlying_symbol || raw?.underlying || fallbackSymbol),
+    is_sold: true,
+  };
+}
+
 class RuntimeWorker {
   private gateway: DerivGateway | null = null;
   private stopped = false;
@@ -96,16 +136,37 @@ class RuntimeWorker {
       }
       const recovered = open.find((item: any) => Number(item?.contract_id) === expectedId);
       const recoveredId = Number(recovered?.contract_id);
-      if (!Number.isSafeInteger(recoveredId) || recoveredId !== expectedId) {
-        throw new Error('Existe uma intenção de compra anterior sem a posição exacta correspondente aberta. Resultado incerto: motor bloqueado para evitar compra duplicada.');
-      }
-      this.activeContractId = recoveredId;
       this.activeIntentId = String(unresolvedIntent?.id || this.state.pendingIntentId || '');
-      this.state.activeContractId = recoveredId;
-      this.state.pendingIntentId = this.activeIntentId || null;
-      this.gateway.subscribeContract(recoveredId);
-      if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'confirmed', { contractId: recoveredId });
-      await appendRuntimeEvent(this.runtime, 'open_contract_reconciled', { contractId: recoveredId, intentId: this.activeIntentId || null });
+
+      if (Number.isSafeInteger(recoveredId) && recoveredId === expectedId) {
+        this.activeContractId = recoveredId;
+        this.state.activeContractId = recoveredId;
+        this.state.pendingIntentId = this.activeIntentId || null;
+        this.gateway.subscribeContract(recoveredId);
+        if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'confirmed', { contractId: recoveredId });
+        await appendRuntimeEvent(this.runtime, 'open_contract_reconciled', { contractId: recoveredId, intentId: this.activeIntentId || null });
+      } else {
+        // A one-tick contract may have closed while Render was suspended. Look
+        // up only the exact persisted contract_id in Deriv's closed history;
+        // never infer ownership from a symbol, stake, or a single open position.
+        const historyResponse = await this.gateway.getProfitTable();
+        const transactions = Array.isArray(historyResponse?.profit_table?.transactions)
+          ? historyResponse.profit_table.transactions : [];
+        const closedRaw = transactions.find((item: any) =>
+          Number(item?.contract_id) === expectedId && Number(item?.sell_time) > 0
+        );
+        const closedContract = normalizeProfitTableContract(closedRaw, cfg.symbol);
+        if (!closedContract) {
+          throw new Error('A intenção anterior não aparece na carteira aberta nem no histórico fechado da Deriv. Resultado incerto: motor bloqueado para evitar compra duplicada.');
+        }
+        this.activeContractId = expectedId;
+        this.state.activeContractId = expectedId;
+        this.state.pendingIntentId = this.activeIntentId || null;
+        await appendRuntimeEvent(this.runtime, 'closed_contract_found_in_profit_table', {
+          contractId: expectedId, status: closedContract.status, profitLoss: closedContract.profit_loss,
+        });
+        await this.handleContract(closedContract);
+      }
     }
     await appendRuntimeEvent(this.runtime, 'worker_connected', { accountType: 'demo', symbol: cfg.symbol });
     let lastHeartbeat = 0;
