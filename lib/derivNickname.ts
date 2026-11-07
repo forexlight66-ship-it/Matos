@@ -98,6 +98,18 @@ export async function getAuthenticatedDerivIdentity(input: {
     );
   }
 
+  // Compatibility for the existing worker gateway: until its file can be
+  // migrated, its refreshToken argument may contain the OAuth access token.
+  // Try it as a bearer token first; only use the refresh grant if it is truly
+  // a refresh token. Expired access tokens are rejected and require relinking.
+  try {
+    const identity = await getDerivIdentity(refreshToken, input.appId);
+    return { ...identity, accessToken: refreshToken, refreshed: false };
+  } catch (error) {
+    const status = Number((error as { status?: number })?.status || 0);
+    if (status !== 401 && status !== 403) throw error;
+  }
+
   let refreshed: Awaited<ReturnType<typeof refreshAccessToken>>;
   try {
     refreshed = await refreshAccessToken(input.appId, refreshToken);
