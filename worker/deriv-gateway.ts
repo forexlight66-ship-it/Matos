@@ -1,5 +1,6 @@
 import 'server-only';
 import { getDerivExternalReferenceId, getDerivRefreshToken, saveDerivRefreshToken } from '../lib/platform-auth';
+import { normalizeTickHistory } from '../server/trading/tick-history';
 import { getAuthenticatedDerivIdentity } from '../lib/derivNickname';
 
 const DERIV_API = 'https://api.derivws.com';
@@ -224,8 +225,7 @@ export class DerivGateway {
 
   async getTicksHistory(symbol: string, count: number) {
     const result = await this.request({ ticks_history: symbol, count: Math.max(1, Math.min(500, Math.floor(count))), end: 'latest', style: 'ticks' });
-    const prices = Array.isArray(result?.history?.prices) ? result.history.prices.map(Number).filter(Number.isFinite) : [];
-    return prices;
+    return normalizeTickHistory(result?.history);
   }
 
   async getProposal(input: { symbol: string; contractType: string; amount: number; duration: number; currency: string; barrier?: number }) {
