@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeProfitTableContract } from '../server/trading/contract-normalization.ts';
+import { normalizeTickHistory } from '../server/trading/tick-history.ts';
 import {
   initialHyperBeenState,
   onHyperBeenClose,
@@ -171,4 +172,20 @@ test('closed profit_table normalization falls back to sell minus buy and rejects
 
   assert.equal(normalizeProfitTableContract({ contract_id: 123, buy_price: 0.35, sell_time: 0 }, 'R_25'), null);
   assert.equal(normalizeProfitTableContract({ contract_id: 'not-an-id', sell_time: 101 }, 'R_25'), null);
+});
+
+
+test('Deriv tick history seeds prices and last epoch to suppress duplicate live snapshot ticks', () => {
+  assert.deepEqual(normalizeTickHistory({
+    prices: ['123.450', '123.451', 'invalid'],
+    times: [1794040000, 1794040001, 1794040002],
+  }), {
+    prices: [123.45, 123.451],
+    lastEpoch: 1794040002,
+  });
+
+  assert.deepEqual(normalizeTickHistory({ prices: ['1.20', '1.21'] }), {
+    prices: [1.2, 1.21],
+    lastEpoch: null,
+  });
 });
