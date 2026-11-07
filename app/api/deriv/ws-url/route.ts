@@ -6,6 +6,11 @@ import { rateLimit } from '@/lib/security';
 const DERIV_API_BASE = 'https://api.derivws.com';
 interface DerivAccount { account_id?: string; account_type?: string; status?: string; currency?: string; }
 
+// Account IDs are stable for a signed-in Deriv session. Cache only the non-secret
+// account metadata briefly so reconnects need one Deriv REST call (OTP), not two.
+const ACCOUNT_CACHE_TTL_MS = 60_000;
+const accountCache = new Map<string, { account: DerivAccount; expiresAt: number }>();
+
 function extractAccounts(payload: any): DerivAccount[] {
   const data = payload?.data;
   if (Array.isArray(data)) return data;
@@ -63,24 +68,49 @@ export async function GET(request: NextRequest) {
 
   try {
     const identity = await resolveDerivIdentityForRequest(request, session.id);
-    const accountsResult = await getAccounts(identity.accessToken);
+    const accountCacheKey = `${session.id}:${identity.externalReferenceId}:${accountType}`;
+    const cachedAccount = accountCache.get(accountCacheKey);
+    let account = cachedAccount && cachedAccount.expiresAt > Date.now()
+      ? cachedAccount.account
+      : undefined;
+    // Keep the full list only for the miss path; a cache hit already has the
+    // requested account and must not depend on a block-scoped variable.
+    let accounts: DerivAccount[] = [];
 
-    if (!accountsResult.response.ok) {
-      const status = accountsResult.response.status;
-      const message = accountsResult.payload?.errors?.[0]?.message
-        || accountsResult.payload?.error?.message
-        || `Deriv service is temporarily unavailable (${status}). Please try again.`;
-      return attachDerivIdentityCookies(
-        NextResponse.json(
-          { error: message, code: 'ACCOUNT_LOOKUP_FAILED', reconnect: status === 401 || status === 403 },
-          { status, headers: { 'Cache-Control': 'no-store, private' } },
-        ),
-        identity,
-      );
+    if (!account) {
+      accountCache.delete(accountCacheKey);
+      const accountsResult = await getAccounts(identity.accessToken);
+
+      if (!accountsResult.response.ok) {
+        const status = accountsResult.response.status;
+        const message = accountsResult.payload?.errors?.[0]?.message
+          || accountsResult.payload?.error?.message
+          || `Deriv service is temporarily unavailable (${status}). Please try again.`;
+        return attachDerivIdentityCookies(
+          NextResponse.json(
+            { error: message, code: 'ACCOUNT_LOOKUP_FAILED', reconnect: status === 401 || status === 403 },
+            { status, headers: { 'Cache-Control': 'no-store, private' } },
+          ),
+          identity,
+        );
+      }
+
+      accounts = extractAccounts(accountsResult.payload);
+      account = accounts.find(item => item.account_id && String(item.account_type).toLowerCase() === accountType);
+      if (account?.account_id) {
+        accountCache.set(accountCacheKey, { account, expiresAt: Date.now() + ACCOUNT_CACHE_TTL_MS });
+        // Bound the in-process cache on the existing Free web service.
+        if (accountCache.size > 500) {
+          const now = Date.now();
+          for (const [key, value] of accountCache) if (value.expiresAt <= now) accountCache.delete(key);
+          while (accountCache.size > 500) {
+            const oldestKey = accountCache.keys().next().value;
+            if (!oldestKey) break;
+            accountCache.delete(oldestKey);
+          }
+        }
+      }
     }
-
-    const accounts = extractAccounts(accountsResult.payload);
-    const account = accounts.find(item => item.account_id && String(item.account_type).toLowerCase() === accountType);
     if (!account?.account_id) {
       return attachDerivIdentityCookies(
         NextResponse.json({
