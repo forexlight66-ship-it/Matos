@@ -73,7 +73,8 @@ class RuntimeWorker {
     // the normal strategy's nine-tick rule.
     const initialWindow = cfg.strategy === 'HYPERFLOWS' ? 25 : cfg.strategy === 'MATCH0' ? 10 : 9;
     const history = await this.gateway.getTicksHistory(cfg.symbol, initialWindow);
-    if (history.length) this.ticks = history.slice(-initialWindow);
+    if (history.prices.length) this.ticks = history.prices.slice(-initialWindow);
+    if (history.lastEpoch && history.lastEpoch > this.lastEpoch) this.lastEpoch = history.lastEpoch;
     this.gateway.onBalance(value => { this.balance = value.balance; this.currency = value.currency || this.currency; });
     this.gateway.onTick(tick => {
       this.queue = this.queue.then(() => this.handleTick(tick)).catch(error => this.fail(error));
