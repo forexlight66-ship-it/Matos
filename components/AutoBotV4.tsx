@@ -932,7 +932,7 @@ export default function AutoBotV4(){
        const paidIn=Number(closed?.buy_price);
        if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
        const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
-       const requiredRecoveryProfit=Number((deficitBeforeWin+recoveryExtraProfit).toFixed(2));
+       const requiredRecoveryProfit=Number((deficitBeforeWin+hyperFlowsRecoveryExtraProfit).toFixed(2));
        if(result+0.005>=requiredRecoveryProfit){
         resetHyperFlowsRecovery('HyperFlows: recuperação '+recoveryLabel+' concluída. Défice total recuperado e lucro extra de '+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+' confirmado; a retomar MATCH 9 após um novo tick.');
        }else{
