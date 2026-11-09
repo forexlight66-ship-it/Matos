@@ -25,7 +25,7 @@ export default function LandingPage({ onChoose }: Props) {
     <main className="mh-landing">
       <header className={`mh-nav ${scrolled ? 'mh-nav-scrolled' : ''}`}>
         <a className="mh-brand" href="#inicio" aria-label="MozHyper — início">
-          <img src="/api/public-assets/icon.svg?v=3" alt="" width="44" height="44" />
+          <img src="/api/public-assets/icon.svg?v=4" alt="" width="44" height="44" />
           <span className="mh-brand-copy"><strong>Moz<span>Hyper</span></strong><small>NEGOCIA MAIS RÁPIDO</small></span>
         </a>
         <div className="mh-nav-actions">
