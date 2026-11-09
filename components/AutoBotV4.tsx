@@ -665,7 +665,7 @@ export default function AutoBotV4(){
  const hyperFlowsConsecutiveLossesRef=useRef(0);
  const hyperFlowsDeficitRef=useRef(0);
  const hyperFlowsRecoveryAttemptsRef=useRef(0);
- const hyperFlowsRecoveryExtraProfitRef=useRef(5);
+ const hyperFlowsRecoveryExtraProfitRef=useRef(1);
  const hyperFlowsRecoveryQuoteRef=useRef<{recoveryType:'EVEN'|'ODD'|'OVER0';stage:'seed'|'final';targetNetProfit:number;deficit:number;extraProfit:number;amount:number;attempt:number}|null>(null);
  const hyperFlowsLastTradeModeRef=useRef<'MATCH9'|'ALTERNATE'|'UNDER9'|'EVEN'|'ODD'|'OVER0'|null>(null);
  const hyperFlowsLastEntryTickRef=useRef<{symbol:string;epoch:number}|null>(null);
@@ -825,7 +825,7 @@ export default function AutoBotV4(){
         hyperBeenNextParityRef.current=failedStep===0?'EVEN':'ODD';
         hyperBeenRecoveryModeRef.current=true;
         const nextLabel=hyperBeenNextParityRef.current==='EVEN'?'PAR':'ÍMPAR';
-        setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+' ('+hyperBeenRecoveryAttemptsRef.current+'/'+maxRecoveryTrades+'). Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + $'+hyperFlowsRecoveryExtraProfit.toFixed(2)+' líquidos.');
+        setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+' ('+hyperBeenRecoveryAttemptsRef.current+'/'+maxRecoveryTrades+'). Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + $'+recoveryExtraProfit.toFixed(2)+' líquidos.');
        }
       }
 }else{
@@ -912,7 +912,7 @@ export default function AutoBotV4(){
         }else{
          hyperFlowsRecoveryContractRef.current='EVEN';
          hyperFlowsNextParityRef.current='EVEN';
-         hyperFlowsRecoveryExtraProfitRef.current=recoveryExtraProfit;
+         hyperFlowsRecoveryExtraProfitRef.current=hyperFlowsRecoveryExtraProfit;
          hyperFlowsRecoveryModeRef.current=true;
          setNotice('HyperFlows: ACIMA 0 ganhou, mas não atingiu '+requiredRecoveryProfit.toFixed(2)+' (défice total + '+hyperFlowsRecoveryExtraProfit.toFixed(2)+'). O défice integral mantém-se; a próxima recuperação será PAR.');
         }
