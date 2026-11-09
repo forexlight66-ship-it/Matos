@@ -25,7 +25,7 @@ export default function LandingPage({ onChoose }: Props) {
     <main className="mh-landing">
       <header className={`mh-nav ${scrolled ? 'mh-nav-scrolled' : ''}`}>
         <a className="mh-brand" href="#inicio" aria-label="MozHyper — início">
-          <img src="/api/public-assets/icon.svg?v=4" alt="" width="44" height="44" />
+          <img src="/api/public-assets/icon.svg?v=4" alt="" width="54" height="54" />
           <span className="mh-brand-copy"><strong>Moz<span>Hyper</span></strong><small>NEGOCIA MAIS RÁPIDO</small></span>
         </a>
         <div className="mh-nav-actions">
@@ -110,7 +110,7 @@ export default function LandingPage({ onChoose }: Props) {
         .mh-nav{height:82px;padding:0 clamp(20px,6vw,88px);display:flex;align-items:center;justify-content:space-between;gap:22px;position:sticky;top:0;z-index:50;background:rgba(245,247,251,.96);border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
         .mh-nav-scrolled{border-color:var(--mh-border);box-shadow:0 8px 24px rgba(23,32,51,.05)}
         .mh-brand{display:flex;align-items:center;gap:10px;flex:none;color:var(--mh-text);text-decoration:none}
-        .mh-brand>img{display:block;width:44px;height:44px;border-radius:13px;object-fit:cover}
+        .mh-brand>img{display:block;width:54px;height:54px;border-radius:0;object-fit:contain;background:transparent;flex:none}
         .mh-brand-copy{display:flex;flex-direction:column;gap:2px}
         .mh-brand-copy strong{font:700 22px/1.1 'Space Grotesk',Inter,sans-serif;letter-spacing:-.8px}
         .mh-brand-copy strong span{color:var(--mh-red)}
@@ -302,7 +302,7 @@ export default function LandingPage({ onChoose }: Props) {
         @media(max-width:760px){
           .mh-nav{height:72px;padding:0 12px;gap:6px}
           .mh-brand{gap:7px;min-width:0}
-          .mh-brand>img{width:36px;height:36px;border-radius:11px}
+          .mh-brand>img{width:46px;height:46px;border-radius:0}
           .mh-brand-copy{min-width:0;gap:2px}
           .mh-brand-copy strong{font-size:18px;letter-spacing:-.6px;white-space:nowrap}
           .mh-brand-copy small{font-size:7px;letter-spacing:.3px;white-space:nowrap}
@@ -324,7 +324,7 @@ export default function LandingPage({ onChoose }: Props) {
         @media(max-width:390px){
           .mh-nav{padding-left:9px;padding-right:9px;gap:4px}
           .mh-brand{gap:5px}
-          .mh-brand>img{width:32px;height:32px}
+          .mh-brand>img{width:42px;height:42px}
           .mh-brand-copy strong{font-size:16px;letter-spacing:-.5px}
           .mh-brand-copy small{font-size:6px;letter-spacing:.2px}
           .mh-nav-actions{gap:4px}
