@@ -47,3 +47,31 @@ export function normalizeProfitTableContract(raw: any, fallbackSymbol: string): 
     is_sold: true,
   };
 }
+
+
+/** Read the realised amount from the live Deriv contract payload. The current
+ * proposal_open_contract response uses `profit`; older payloads may only
+ * expose `profit_loss`. Preserve a legitimate zero instead of falling through.
+ */
+export function realizedProfitLoss(contract: { profit?: unknown; profit_loss?: unknown }): number {
+  for (const raw of [contract.profit, contract.profit_loss]) {
+    if (raw === null || raw === undefined || raw === '') continue;
+    const amount = Number(raw);
+    if (Number.isFinite(amount)) return amount;
+  }
+  throw new Error('Deriv contract does not contain a finite realised profit value.');
+}
+
+/** Add one confirmed contract result to the runtime total using the same
+ * authoritative value used for the trade record and recovery state.
+ */
+export function accumulateRealizedProfitLoss(
+  current: unknown,
+  contract: { profit?: unknown; profit_loss?: unknown },
+): number {
+  const currentValue = Number(current);
+  const base = Number.isFinite(currentValue) ? currentValue : 0;
+  const total = base + realizedProfitLoss(contract);
+  if (!Number.isFinite(total)) throw new Error('Runtime profit/loss total is not finite.');
+  return Number(total.toFixed(8));
+}
