@@ -7,7 +7,7 @@ import {
   heartbeatRuntime, markOrderIntentSent, recordTrade, updateOrderIntent, getUnresolvedOrderIntent, type RuntimeRow,
 } from './repository';
 import { digit, makeSignal, type Strategy } from '../server/trading/strategy-analysis';
-import { normalizeProfitTableContract } from '../server/trading/contract-normalization';
+import { accumulateRealizedProfitLoss, normalizeProfitTableContract, realizedProfitLoss } from '../server/trading/contract-normalization';
 import {
   initialHyperBeenState, onHyperBeenClose, onHyperBeenTick,
   initialHyperFlowsState, onHyperFlowsClose, rankHyperFlowsAlternativeDigit,
@@ -349,8 +349,7 @@ class RuntimeWorker {
     // Deriv's current proposal_open_contract payload exposes the realised
     // result as "profit". Keep profit_loss as a compatibility fallback for
     // older payloads, and persist one normalized value throughout the runtime.
-    const pnlRaw = (contract as any).profit ?? contract.profit_loss;
-    const pnl = Number(pnlRaw);
+    const pnl = realizedProfitLoss(contract);
     const normalizedContract = { ...contract, profit_loss: pnl };
     await recordTrade(this.runtime, normalizedContract, this.runtime.config.strategy, this.runtime.config.symbol);
     const rawStatus = String(contract.status || '').toLowerCase();
@@ -423,7 +422,7 @@ class RuntimeWorker {
       exitSpot: contract.exit_spot, exitTick: contract.exit_tick,
     });
     this.state.tradeCount = Number(this.state.tradeCount || 0) + 1;
-    this.state.profitLoss = Number(this.state.profitLoss || 0) + Number(contract.profit_loss || 0);
+    this.state.profitLoss = accumulateRealizedProfitLoss(this.state.profitLoss, contract);
     if (Number.isFinite(pnl) && pnl > 0) this.state.winCount = Number(this.state.winCount || 0) + 1;
     else if (Number.isFinite(pnl) && pnl < 0) this.state.lossCount = Number(this.state.lossCount || 0) + 1;
     if (this.activeIntentId) await updateOrderIntent(this.activeIntentId, 'reconciled', { contractId: contract.contract_id });
