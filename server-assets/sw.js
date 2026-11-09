@@ -1,4 +1,4 @@
-const CACHE = 'matos-pwa-v2';
+const CACHE = 'matos-pwa-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 
