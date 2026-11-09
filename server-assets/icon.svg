@@ -1,12 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 170" role="img" aria-label="MozHyper">
-  <defs>
-    <linearGradient id="mozHyperRed" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#e90000"/>
-      <stop offset="0.55" stop-color="#ff1717"/>
-      <stop offset="1" stop-color="#e90000"/>
-    </linearGradient>
-  </defs>
-  <rect width="230" height="170" fill="#fff"/>
-  <path d="M219 11 161 42 169 49 122 90 76 40 19 159 59 159 78 117 85 105 108 133 115 139 195 66 197 66 205 72 206 71Z" fill="url(#mozHyperRed)"/>
-  <path d="M193 79 148 120 138 159 173 159Z" fill="url(#mozHyperRed)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MozHyper">
+  <rect width="512" height="512" rx="72" fill="#ffffff"/>
+  <g transform="translate(36 97) scale(2)">
+    <path d="M219 11 161 42 169 49 122 90 76 40 19 159 59 159 78 117 85 105 108 133 115 139 195 66 197 66 205 72 206 71Z" fill="#f20b18"/>
+    <path d="M193 79 148 120 138 159 173 159Z" fill="#e90000"/>
+  </g>
 </svg>
