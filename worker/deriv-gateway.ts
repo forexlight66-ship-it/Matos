@@ -1,6 +1,7 @@
 import 'server-only';
 import { getDerivExternalReferenceId, getDerivRefreshToken, saveDerivRefreshToken } from '../lib/platform-auth';
 import { normalizeTickHistory } from '../server/trading/tick-history';
+import { normalizeLiveContractProfitLoss } from '../server/trading/contract-normalization';
 import { getAuthenticatedDerivIdentity } from '../lib/derivNickname';
 
 const DERIV_API = 'https://api.derivws.com';
@@ -172,7 +173,7 @@ export class DerivGateway {
         sell_time: c.sell_time == null ? null : Number(c.sell_time),
         contract_type: String(c.contract_type || ''),
         status: String(c.status || '').toLowerCase(),
-        profit_loss: Number(c.profit_loss ?? (Number(c.sell_price || 0) - Number(c.buy_price || 0))),
+        profit_loss: normalizeLiveContractProfitLoss(c),
         exit_tick: c.exit_tick ?? null,
         exit_spot: c.exit_spot ?? null,
         barrier: c.barrier == null ? null : Number(c.barrier),
