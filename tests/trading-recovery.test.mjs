@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { accumulateRealizedProfitLoss, normalizeProfitTableContract } from '../server/trading/contract-normalization.ts';
+import { accumulateRealizedProfitLoss, normalizeLiveContractProfitLoss, normalizeProfitTableContract } from '../server/trading/contract-normalization.ts';
 import { normalizeTickHistory } from '../server/trading/tick-history.ts';
 import {
   initialHyperBeenState,
@@ -196,4 +196,17 @@ test('runtime cumulative P/L uses the live Deriv profit field and falls back saf
   assert.equal(accumulateRealizedProfitLoss(3.75, { profit: undefined, profit_loss: -0.5 }), 3.25);
   assert.equal(accumulateRealizedProfitLoss(3.25, { profit: 0, profit_loss: 9 }), 3.25);
   assert.throws(() => accumulateRealizedProfitLoss(3.25, { profit: 'invalid', profit_loss: undefined }));
+});
+
+
+test('live Deriv contract normalization does not let a zero profit_loss mask realised profit', () => {
+  assert.equal(normalizeLiveContractProfitLoss({
+    profit: 1.25, profit_loss: 0, buy_price: 0.35, sell_price: 1.60,
+  }), 1.25);
+  assert.equal(normalizeLiveContractProfitLoss({
+    profit: 0, profit_loss: 0, buy_price: 0.35, sell_price: 0,
+  }), -0.35);
+  assert.equal(normalizeLiveContractProfitLoss({
+    profit: 0, profit_loss: -0.2, buy_price: 0.35, sell_price: 0.15,
+  }), -0.2);
 });
