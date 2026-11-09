@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
       ? cachedAccount.account
       : undefined;
 
+    let accounts: DerivAccount[] = [];
     if (!account) {
       accountCache.delete(accountCacheKey);
       const accountsResult = await getAccounts(identity.accessToken);
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const accounts = extractAccounts(accountsResult.payload);
+      accounts = extractAccounts(accountsResult.payload);
       account = accounts.find(item => item.account_id && String(item.account_type).toLowerCase() === accountType);
       if (account?.account_id) {
         accountCache.set(accountCacheKey, { account, expiresAt: Date.now() + ACCOUNT_CACHE_TTL_MS });
