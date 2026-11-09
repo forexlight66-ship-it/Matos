@@ -6,8 +6,8 @@ export default function LoadingScreen() {
       <div style={styles.glow} />
       <div style={styles.cardWrap}>
       <svg style={styles.cardRing} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <rect x="1.5" y="1.5" width="97" height="97" rx="6" fill="none" stroke="#e7ebef" strokeWidth="3" vectorEffect="non-scaling-stroke" />
-        <rect x="1.5" y="1.5" width="97" height="97" rx="6" fill="none" stroke="#ff444f" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength="100" strokeDasharray="22 78" style={{animation:'mh-loading-border 1.6s linear infinite'}} />
+        <rect x="2.5" y="2.5" width="95" height="95" rx="6" fill="none" stroke="#e7ebef" strokeWidth="3.5" vectorEffect="non-scaling-stroke" />
+        <rect className="mh-loading-border-segment" x="2.5" y="2.5" width="95" height="95" rx="6" fill="none" stroke="#ff303f" strokeWidth="3.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength="100" strokeDasharray="26 74" />
       </svg>
       <section style={styles.card}>
         <img src="/api/public-assets/icon.svg?v=5" alt="MozHyper" style={styles.logo} />
@@ -21,7 +21,7 @@ export default function LoadingScreen() {
         <div style={styles.detail}>A verificar a sua sessão...</div>
       </section>
       </div>
-      <style>{`@keyframes mh-loading-spin { to { transform: rotate(360deg); } } @keyframes mh-loading-border { to { stroke-dashoffset: -100; } } @keyframes mh-loading-cardspin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes mh-loading-spin { to { transform: rotate(360deg); } } @keyframes mh-loading-border { to { stroke-dashoffset: -100; } } @keyframes mh-loading-cardspin { to { transform: rotate(360deg); } } .mh-loading-border-segment { animation: mh-loading-border 1.35s linear infinite; } @media (prefers-reduced-motion: reduce) { .mh-loading-border-segment { animation-duration: 3s; } }`}</style>
     </main>
   );
 }
@@ -29,8 +29,8 @@ export default function LoadingScreen() {
 const styles: Record<string, React.CSSProperties> = {
   page:{minHeight:'100dvh',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',overflow:'hidden',background:'#fff',color:'#171717',fontFamily:"'IBM Plex Sans',sans-serif"},
   glow:{position:'absolute',width:260,height:260,borderRadius:'50%',background:'rgba(255,68,79,.07)',filter:'blur(55px)'},
-  cardWrap:{position:'relative',zIndex:1,width:'min(86vw,330px)',borderRadius:19,padding:3,boxSizing:'border-box'},
-  cardRing:{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'},
+  cardWrap:{position:'relative',zIndex:1,width:'min(86vw,330px)',borderRadius:19,padding:5,boxSizing:'border-box'},
+  cardRing:{position:'absolute',inset:0,width:'100%',height:'100%',display:'block',zIndex:2,pointerEvents:'none',overflow:'visible'},
   card:{position:'relative',zIndex:1,width:'100%',padding:'34px 26px',borderRadius:16,textAlign:'center',background:'#fff',boxShadow:'0 20px 60px rgba(20,30,40,.10)'},
   logo:{width:110,height:110,objectFit:'contain',margin:'0 auto 10px',display:'block'},
   brand:{fontSize:25,fontWeight:800,letterSpacing:'-.04em'},
