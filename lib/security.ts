@@ -69,19 +69,66 @@ export async function rateLimit(request: NextRequest, scope: string, maxAttempts
   }
 }
 
-export function sameOriginGuard(request: NextRequest) {
-  if (request.headers.get('sec-fetch-site')?.toLowerCase() === 'cross-site') {
-    return NextResponse.json({ error: 'Origem do pedido não permitida.', code: 'CROSS_SITE_REQUEST_BLOCKED' }, { status: 403 });
-  }
-  const origin = request.headers.get('origin');
-  if (origin) {
+/**
+ * Validate browser-originated POST requests against the public application
+ * origin, not request.nextUrl.origin. Behind Render's reverse proxy the
+ * latter can reflect an internal/proxied host and reject legitimate traffic.
+ *
+ * The public Render hostname is explicit. NEXT_PUBLIC_BASE_URL may add the
+ * configured canonical hostname, but is never taken from the incoming Host
+ * or X-Forwarded-Host headers.
+ */
+function allowedApplicationOrigins() {
+  const origins = new Set<string>(['https://matos-1n.onrender.com']);
+  const configuredBaseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+
+  if (configuredBaseUrl) {
     try {
-      if (new URL(origin).origin !== request.nextUrl.origin) {
-        return NextResponse.json({ error: 'Origem do pedido não permitida.', code: 'ORIGIN_MISMATCH' }, { status: 403 });
+      const configured = new URL(configuredBaseUrl);
+      const isLocalDevelopment = process.env.NODE_ENV !== 'production'
+        && (configured.hostname === 'localhost' || configured.hostname === '127.0.0.1');
+      if (configured.protocol === 'https:' || isLocalDevelopment) {
+        origins.add(configured.origin);
       }
     } catch {
-      return NextResponse.json({ error: 'Origem do pedido inválida.', code: 'INVALID_ORIGIN' }, { status: 403 });
+      console.error('[Security] NEXT_PUBLIC_BASE_URL is not a valid URL; using the fixed production origin.');
     }
   }
+
+  if (process.env.NODE_ENV !== 'production') {
+    origins.add('http://localhost:3000');
+    origins.add('http://127.0.0.1:3000');
+  }
+
+  return origins;
+}
+
+export function sameOriginGuard(request: NextRequest) {
+  const fetchSite = request.headers.get('sec-fetch-site')?.trim().toLowerCase();
+  if (fetchSite === 'cross-site') {
+    return NextResponse.json(
+      { error: 'Origem do pedido não permitida.', code: 'CROSS_SITE_REQUEST_BLOCKED' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
+  const origin = request.headers.get('origin');
+  if (!origin) return null;
+
+  try {
+    const parsedOrigin = new URL(origin);
+    if (parsedOrigin.origin === 'null' || !allowedApplicationOrigins().has(parsedOrigin.origin)) {
+      return NextResponse.json(
+        { error: 'Origem do pedido não permitida.', code: 'ORIGIN_MISMATCH' },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+  } catch {
+    return NextResponse.json(
+      { error: 'Origem do pedido inválida.', code: 'INVALID_ORIGIN' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
   return null;
 }
