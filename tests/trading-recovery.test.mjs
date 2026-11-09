@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeProfitTableContract } from '../server/trading/contract-normalization.ts';
+import { accumulateRealizedProfitLoss, normalizeProfitTableContract } from '../server/trading/contract-normalization.ts';
 import { normalizeTickHistory } from '../server/trading/tick-history.ts';
 import {
   initialHyperBeenState,
@@ -188,4 +188,12 @@ test('Deriv tick history seeds prices and last epoch to suppress duplicate live 
     prices: [1.2, 1.21],
     lastEpoch: null,
   });
+});
+
+
+test('runtime cumulative P/L uses the live Deriv profit field and falls back safely', () => {
+  assert.equal(accumulateRealizedProfitLoss(2.5, { profit: 1.25, profit_loss: 0 }), 3.75);
+  assert.equal(accumulateRealizedProfitLoss(3.75, { profit: undefined, profit_loss: -0.5 }), 3.25);
+  assert.equal(accumulateRealizedProfitLoss(3.25, { profit: 0, profit_loss: 9 }), 3.25);
+  assert.throws(() => accumulateRealizedProfitLoss(3.25, { profit: 'invalid', profit_loss: undefined }));
 });
