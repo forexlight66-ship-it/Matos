@@ -49,6 +49,27 @@ export function normalizeProfitTableContract(raw: any, fallbackSymbol: string): 
 }
 
 
+/** Normalize the live proposal_open_contract payload. Deriv may report the
+ * realised amount in `profit`, while some payloads expose `profit_loss` or
+ * only buy/sell prices. A zero placeholder must not mask a non-zero result.
+ */
+export function normalizeLiveContractProfitLoss(raw: {
+  profit?: unknown; profit_loss?: unknown; buy_price?: unknown; sell_price?: unknown;
+}): number {
+  const profit = Number(raw.profit);
+  const explicit = Number(raw.profit_loss);
+  if (Number.isFinite(profit) && Math.abs(profit) > 0.000001) return profit;
+  if (Number.isFinite(explicit) && Math.abs(explicit) > 0.000001) return explicit;
+  const buyPrice = Number(raw.buy_price);
+  const sellPrice = raw.sell_price == null ? Number.NaN : Number(raw.sell_price);
+  if (Number.isFinite(buyPrice) && Number.isFinite(sellPrice)) {
+    return Number((sellPrice - buyPrice).toFixed(8));
+  }
+  if (Number.isFinite(profit)) return profit;
+  if (Number.isFinite(explicit)) return explicit;
+  throw new Error('Deriv live contract does not contain a finite realised profit value.');
+}
+
 /** Read the realised amount from the live Deriv contract payload. The current
  * proposal_open_contract response uses `profit`; older payloads may only
  * expose `profit_loss`. Preserve a legitimate zero instead of falling through.
