@@ -1,5 +1,6 @@
 import 'server-only';
 import { Pool } from 'pg';
+import { MPESA_NUMBER, EMOLA_NUMBER, BINANCE_USDT_TRC20_ADDRESS } from '@/lib/paymentAgentRequests';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -10,9 +11,9 @@ const API = 'https://api.telegram.org';
 const VIP_GROUP_ID = () => process.env.TELEGRAM_VIP_GROUP_ID?.trim() || '-1004379477378';
 const ADMIN_ID = () => process.env.TELEGRAM_ADMIN_CHAT_ID?.trim() || '';
 const token = () => process.env.TELEGRAM_BOT_TOKEN?.trim() || '';
-const mpesa = () => process.env.MPESA_NUMBER?.trim() || '';
-const emola = () => process.env.EMOLA_NUMBER?.trim() || '';
-const usdtAddress = () => process.env.BINANCE_USDT_ADDRESS?.trim() || '';
+const mpesa = () => process.env.MPESA_NUMBER?.trim() || MPESA_NUMBER;
+const emola = () => process.env.EMOLA_NUMBER?.trim() || EMOLA_NUMBER;
+const usdtAddress = () => process.env.BINANCE_USDT_ADDRESS?.trim() || BINANCE_USDT_TRC20_ADDRESS;
 
 type TelegramUser = { id: number; username?: string; first_name?: string };
 
@@ -225,7 +226,7 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
   if (message.photo?.length || message.document?.file_id) {
     await ensureSchema();
     const pending = await pool.query(
-      `SELECT id FROM telegram_vip_payments WHERE telegram_user_id=$1 AND status='awaiting_proof' ORDER BY id DESC LIMIT 1`,
+      `SELECT id,amount,currency,payment_method FROM telegram_vip_payments WHERE telegram_user_id=$1 AND status='awaiting_proof' ORDER BY id DESC LIMIT 1`,
       [user.id],
     );
     if (!pending.rows[0]) return false;
