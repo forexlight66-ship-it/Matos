@@ -6,7 +6,7 @@ export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const expected = process.env.TELEGRAM_VIP_CRON_SECRET?.trim();
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer\\s+/i, '')
+  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
     || request.nextUrl.searchParams.get('secret')
     || '';
   if (!expected || supplied !== expected) {
