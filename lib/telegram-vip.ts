@@ -207,6 +207,22 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
     await tg('sendMessage', { chat_id: chatId, text: rows.rows.length ? rows.rows.map((r:any)=>`#${r.id} — ${r.first_name||'Cliente'} (@${r.username||'sem username'}) — ${r.amount} ${r.currency} — Telegram ID ${r.telegram_user_id}`).join('\n') : 'Não há pagamentos pendentes.' });
     return true;
   }
+  if (fromAdmin && /^\/vip_registar\s+(\d+)\s+(\d+)/i.test(text)) {
+    await ensureSchema();
+    const match = text.match(/^\/vip_registar\s+(\d+)\s+(\d+)/i);
+    const targetId = match?.[1] || '';
+    const days = Math.max(1, Math.min(365, Number(match?.[2] || 30)));
+    await pool.query(
+      `INSERT INTO telegram_vip_subscriptions (telegram_user_id,status,expires_at)
+       VALUES ($1,'active',NOW()+($2::text || ' days')::interval)
+       ON CONFLICT (telegram_user_id) DO UPDATE SET
+         status='active',expires_at=GREATEST(COALESCE(telegram_vip_subscriptions.expires_at,NOW()),NOW())+($2::text || ' days')::interval,
+         removed_at=NULL,last_reminder_5d_for=NULL,last_reminder_1d_for=NULL,updated_at=NOW()`,
+      [targetId, days],
+    );
+    await tg('sendMessage', { chat_id: chatId, text: `Assinatura registada para Telegram ID ${targetId} por mais ${days} dias.` });
+    return true;
+  }
   if (fromAdmin && /^\/vip_assinatura\s+(\d+)/i.test(text)) {
     await ensureSchema();
     const id = text.match(/^\/vip_assinatura\s+(\d+)/i)?.[1];
