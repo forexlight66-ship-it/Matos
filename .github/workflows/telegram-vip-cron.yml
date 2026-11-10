@@ -1,0 +1,34 @@
+name: MatosFx VIP subscriptions
+
+on:
+  schedule:
+    # 08:00 in Mozambique (UTC+2)
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: matosfx-vip-daily
+  cancel-in-progress: false
+
+jobs:
+  process-vip-subscriptions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Process reminders and expired VIP memberships
+        env:
+          CRON_SECRET: ${{ secrets.TELEGRAM_VIP_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::GitHub Actions secret TELEGRAM_VIP_CRON_SECRET is not configured."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            --max-time 60 \
+            --request GET \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "https://matos-1n.onrender.com/api/cron/telegram-vip"
