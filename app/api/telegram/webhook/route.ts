@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { handleVipTelegramUpdate } from '@/lib/telegram-vip';
 import { getPaymentRequest, transitionPaymentRequest } from '@/lib/paymentAgentRequests';
 import {
   approvePayment,
@@ -208,6 +209,7 @@ export async function POST(request: NextRequest) {
     }
 
     const update = await request.json();
+    if (await handleVipTelegramUpdate(update)) return NextResponse.json({ ok: true });
     if (update.callback_query) {
       await handleCallback(update.callback_query);
       return NextResponse.json({ ok: true });
