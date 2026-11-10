@@ -803,37 +803,37 @@ export default function AutoBotV4(){
      hyperBeenRecoveryAttemptsRef.current+=1;
      const deficitBeforeTrade=Number(Math.max(0,hyperBeenDeficitRef.current).toFixed(2));
      const targetNetProfit=Number((deficitBeforeTrade+recoveryExtraProfit).toFixed(2));
-     if(hyperFlowWon&&result+0.005>=targetNetProfit){
-      // A confirmed settlement covered the entire outstanding deficit plus the configured additional-profit target.
+     const isLowRiskDescending=hyperBeenReverseStakeEnabledRef.current&&hyperBeenStakeDirectionRef.current==='DECREASING';
+     if(isLowRiskDescending){
+      // The descending pass follows the six stored stakes only. Its wins/losses do not change the accumulated deficit.
+      const completedStep=hyperBeenRecoveryStepRef.current;
+      if(completedStep>=5){
+       hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
+       setNotice('HyperBeen Low risk: segunda sequência inversa concluída (6/6). Défice zerado; pausa de 50 ticks e regresso à estratégia normal.');
+      }else{
+       hyperBeenRecoveryStepRef.current=completedStep+1;hyperBeenNextParityRef.current=completedStep<2?'EVEN':'ODD';hyperBeenRecoveryModeRef.current=true;
+       setNotice('HyperBeen Low risk: sequência inversa '+hyperBeenRecoveryStepRef.current+'/6. Stake seguinte conforme a ordem inversa; défice não acumulado nesta fase.');
+      }
+     }else if(hyperFlowWon&&result+0.005>=targetNetProfit){
+      // A confirmed settlement covered the full deficit plus the configured additional-profit target.
       hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
       setNotice('HyperBeen: recuperação concluída. O trade cobriu todo o défice acumulado + $'+recoveryExtraProfit.toFixed(2)+' líquidos. A regressar imediatamente à estratégia normal ACIMA 0.');
      }else if(hyperFlowLost){
       hyperBeenDeficitRef.current=Number((deficitBeforeTrade+Math.abs(Math.min(0,result))).toFixed(2));
       const failedStep=hyperBeenRecoveryStepRef.current;
       if(failedStep>=5){
-       hyperBeenRecoveryStepRef.current=6;
-       hyperBeenPauseTicksRef.current=50;
-       hyperBeenPauseStartEpochRef.current=lastEpoch.current;
-       hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;
-       hyperBeenNextParityRef.current='EVEN';
-       hyperBeenRecoveryModeRef.current=true;
+       hyperBeenRecoveryStepRef.current=6;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=true;
        let nextStakeDirection:'INCREASING'|'DECREASING'='INCREASING';if(hyperBeenReverseStakeEnabledRef.current){nextStakeDirection=hyperBeenStakeDirectionRef.current==='INCREASING'?'DECREASING':'INCREASING';hyperBeenStakeDirectionRef.current=nextStakeDirection;if(nextStakeDirection==='INCREASING')hyperBeenStakeLadderRef.current=[];}
-       setNotice('HyperBeen: sequência PAR ×3 → ÍMPAR ×3 concluída. Pausa de 50 ticks; próximo ciclo '+(hyperBeenReverseStakeEnabledRef.current?(nextStakeDirection==='DECREASING'?'decrescente (ordem inversa)':'crescente'):'normal')+'. Défice: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
+       setNotice('HyperBeen: primeira sequência (6/6) concluída. Pausa de 50 ticks; próxima sequência '+(hyperBeenReverseStakeEnabledRef.current?(nextStakeDirection==='DECREASING'?'decrescente (ordem inversa)':'crescente'):'normal')+'. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
       }else{
-       hyperBeenRecoveryStepRef.current=failedStep+1;
-       // Recovery sequence: PAR x3 -> ÍMPAR x3, then pause 50 ticks.
-       hyperBeenNextParityRef.current=failedStep<2?'EVEN':'ODD';
-       hyperBeenRecoveryModeRef.current=true;
+       hyperBeenRecoveryStepRef.current=failedStep+1;hyperBeenNextParityRef.current=failedStep<2?'EVEN':'ODD';hyperBeenRecoveryModeRef.current=true;
        const nextLabel=hyperBeenNextParityRef.current==='EVEN'?'PAR':'ÍMPAR';
-       setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+' ('+hyperBeenRecoveryStepRef.current+'/6). Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + '+recoveryExtraProfit.toFixed(2)+' USD.');
+       setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+' ('+hyperBeenRecoveryStepRef.current+'/6). Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
       }
-}else{
-      // A positive result below the full target is not partial recovery;
-      // keep the full deficit and retry the same parity with a fresh live quote.
-      hyperBeenDeficitRef.current=deficitBeforeTrade;
-      hyperBeenRecoveryModeRef.current=true;
-      hyperBeenNextParityRef.current=recoveryType;
-      setNotice('HyperBeen: a recuperação ganhou, mas não atingiu o objectivo integral. O défice total de '+deficitBeforeTrade.toFixed(2)+' mantém-se intacto; a repetir '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' para cobrir o défice completo + $'+recoveryExtraProfit.toFixed(2)+' num único trade.');
+     }else{
+      // During the increasing pass, a win below the full target does not erase or reduce the deficit.
+      hyperBeenDeficitRef.current=deficitBeforeTrade;hyperBeenRecoveryModeRef.current=true;hyperBeenNextParityRef.current=recoveryType;
+      setNotice('HyperBeen: ganho abaixo do objectivo integral. O défice de '+deficitBeforeTrade.toFixed(2)+' mantém-se; a repetir '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' para cobrir o défice + $'+recoveryExtraProfit.toFixed(2)+'.');
      }
     }
     console.info('[HyperBeen recovery state]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',mode:isPrimaryOverZero?'OVER0':recoveryType,deficit:hyperBeenDeficitRef.current,target:hyperBeenDeficitRef.current+recoveryExtraProfit,recoveryActive:hyperBeenRecoveryModeRef.current,nextParity:hyperBeenNextParityRef.current});
