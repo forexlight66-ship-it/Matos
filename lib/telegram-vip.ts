@@ -9,8 +9,8 @@ const pool = new Pool({
 
 const API = 'https://api.telegram.org';
 const VIP_GROUP_ID = () => process.env.TELEGRAM_VIP_GROUP_ID?.trim() || '-1004379477378';
-const ADMIN_ID = () => process.env.TELEGRAM_ADMIN_CHAT_ID?.trim() || '';
-const token = () => process.env.TELEGRAM_BOT_TOKEN?.trim() || '';
+const ADMIN_ID = () => process.env.PAYMENT_AGENT_TELEGRAM_CHAT_ID?.trim() || process.env.TELEGRAM_PAYMENT_AGENT_CHAT_ID?.trim() || process.env.TELEGRAM_AGENT_CHAT_ID?.trim() || process.env.TELEGRAM_ADMIN_CHAT_ID?.trim() || '';
+const token = () => process.env.TELEGRAM_BOT_TOKEN2?.trim() || process.env.PAYMENT_AGENT_TELEGRAM_BOT_TOKEN?.trim() || process.env.TELEGRAM_PAYMENT_AGENT_BOT_TOKEN?.trim() || process.env.TELEGRAM_BOT_TOKEN?.trim() || '';
 const mpesa = () => process.env.MPESA_NUMBER?.trim() || MPESA_NUMBER;
 const emola = () => process.env.EMOLA_NUMBER?.trim() || EMOLA_NUMBER;
 const usdtAddress = () => process.env.BINANCE_USDT_ADDRESS?.trim() || BINANCE_USDT_TRC20_ADDRESS;
@@ -339,8 +339,20 @@ export async function processVipSubscriptionReminders() {
     const id = String(row.telegram_user_id);
     try {
       if (row.action === '5d' || row.action === '1d') {
-        const amount = '250 MT (M-Pesa/e-Mola) ou 3 USDT (TRC20)';
-        await tg('sendMessage', { chat_id: id, text: `⏳ MATOSFX VIP — RENOVAÇÃO\n\nA sua assinatura termina em ${row.action === '5d' ? '5 dias' : '1 dia'}.\nValor mensal: ${amount}.\n\nUse /vip neste bot para receber os dados de pagamento e envie o comprovativo. O acesso só é renovado após confirmação manual.` });
+        const reminder = [
+          '⏳ MATOSFX SIGNALS — RENOVAÇÃO MENSAL',
+          '',
+          `A sua assinatura termina em ${row.action === '5d' ? '5 dias' : '1 dia'}.`,
+          '',
+          '🇲🇿 M-Pesa: 250 MT', `Número: ${mpesa()}`, `Titular: ${PAYMENT_RECIPIENT_NAME}`,
+          '',
+          '🇲🇿 e-Mola: 250 MT', `Número: ${emola()}`, `Titular: ${PAYMENT_RECIPIENT_NAME}`,
+          '',
+          '🌍 Internacional: 3 USDT — rede TRC20', `Endereço: ${usdtAddress()}`,
+          '',
+          'Depois de pagar, envie o comprovativo neste bot usando /vip. A renovação só acontece após confirmação manual do administrador.',
+        ].join('\\n');
+        await tg('sendMessage', { chat_id: id, text: reminder });
         await pool.query(row.action === '5d'
           ? 'UPDATE telegram_vip_subscriptions SET last_reminder_5d_for=expires_at,updated_at=NOW() WHERE telegram_user_id=$1'
           : 'UPDATE telegram_vip_subscriptions SET last_reminder_1d_for=expires_at,updated_at=NOW() WHERE telegram_user_id=$1', [id]);
