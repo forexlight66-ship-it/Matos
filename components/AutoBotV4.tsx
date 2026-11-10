@@ -822,7 +822,8 @@ export default function AutoBotV4(){
        hyperBeenRecoveryModeRef.current=true;
        const nextLabel=hyperBeenNextParityRef.current==='EVEN'?'PAR':'ÍMPAR';
        setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+' ('+hyperBeenRecoveryStepRef.current+'/6). Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + '+recoveryExtraProfit.toFixed(2)+' USD.');
-      }else{
+      }
+     }else{
       // A positive result below the full target is not partial recovery;
       // keep the full deficit and retry the same parity with a fresh live quote.
       hyperBeenDeficitRef.current=deficitBeforeTrade;
