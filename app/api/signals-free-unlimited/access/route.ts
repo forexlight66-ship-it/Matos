@@ -7,6 +7,7 @@ import {
 } from '@/lib/platform-auth';
 import { getAuthenticatedDerivNickname } from '@/lib/derivNickname';
 import { getSignalsFreeUnlimitedAccess } from '@/lib/paymentAgentRequests';
+import { getSignalsVipBotUrl } from '@/lib/telegram-vip';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -39,10 +40,15 @@ export async function GET(request: NextRequest) {
       appId,
     });
     const access = await getSignalsFreeUnlimitedAccess(identity.nickname);
+    let telegramBotUrl: string | null = null;
+    try { telegramBotUrl = await getSignalsVipBotUrl(); } catch (error) {
+      console.error('[Signals VIP bot link]', error instanceof Error ? error.message : String(error));
+    }
     const response = NextResponse.json({
       ...access,
       eligibleClient,
       derivNickname: identity.nickname,
+      telegramBotUrl,
     }, { headers: { 'Cache-Control': 'no-store, private' } });
 
     if (identity.refreshed) {
