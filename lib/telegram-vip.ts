@@ -79,7 +79,7 @@ async function sendMethodMenu(chatId: number) {
       '🌍 3 USDT — rede TRC20',
       '',
       'Escolha o método de pagamento. Depois envie o comprovativo neste chat. A confirmação é manual pelo administrador.',
-    ].join('\\n'),
+    ].join('\n'),
     reply_markup: { inline_keyboard: [
       [{ text: '📱 M-Pesa — 250 MT', callback_data: 'vip_method:mpesa' }],
       [{ text: '📱 e-Mola — 250 MT', callback_data: 'vip_method:emola' }],
@@ -115,7 +115,7 @@ async function startPayment(user: TelegramUser, method: string, chatId: number) 
       ...(method === 'usdt' ? ['Rede obrigatória: TRC20'] : ['Titular: Mistério João']),
       '',
       'Após pagar, envie o comprovativo (imagem ou PDF) aqui. O acesso só será renovado depois da confirmação manual do administrador.',
-    ].join('\\n'),
+    ].join('\n'),
   });
 }
 
@@ -155,7 +155,7 @@ async function adminReview(paymentId: number, action: 'approve' | 'reject', admi
       });
       await tg('sendMessage', {
         chat_id: String(payment.telegram_user_id),
-        text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\\n\\nEntre no grupo através deste convite pessoal (válido por 24 horas):\\n${invite.invite_link}`,
+        text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\n\nEntre no grupo através deste convite pessoal (válido por 24 horas):\n${invite.invite_link}`,
       });
     } else {
       await tg('sendMessage', { chat_id: String(payment.telegram_user_id), text: '❌ O comprovativo não foi aprovado. Contacte o administrador para esclarecer ou enviar novo comprovativo.' });
@@ -176,7 +176,7 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
   if (callback) {
     const data = String(callback.data || '');
     const fromId = Number(callback.from?.id || 0);
-    const match = data.match(/^vip_(approve|reject):(\\d+)$/);
+    const match = data.match(/^vip_(approve|reject):(\d+)$/);
     if (match) {
       if (!ADMIN_ID() || String(fromId) !== ADMIN_ID()) {
         await tg('answerCallbackQuery', { callback_query_id: callback.id, text: 'Sem autorização.', show_alert: true });
@@ -200,21 +200,21 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
   const chatId = Number(message.chat.id);
   const fromAdmin = ADMIN_ID() && String(user.id) === ADMIN_ID() && String(chatId) === ADMIN_ID();
 
-  if (fromAdmin && /^\\/vip_pendentes(?:@\\w+)?$/i.test(text)) {
+  if (fromAdmin && /^\/vip_pendentes(?:@\w+)?$/i.test(text)) {
     await ensureSchema();
     const rows = await pool.query(`SELECT id,telegram_user_id,username,first_name,amount,currency,payment_method,created_at FROM telegram_vip_payments WHERE status='pending' AND proof_file_id IS NOT NULL ORDER BY id ASC LIMIT 20`);
-    await tg('sendMessage', { chat_id: chatId, text: rows.rows.length ? rows.rows.map((r:any)=>`#${r.id} — ${r.first_name||'Cliente'} (@${r.username||'sem username'}) — ${r.amount} ${r.currency} — Telegram ID ${r.telegram_user_id}`).join('\\n') : 'Não há pagamentos pendentes.' });
+    await tg('sendMessage', { chat_id: chatId, text: rows.rows.length ? rows.rows.map((r:any)=>`#${r.id} — ${r.first_name||'Cliente'} (@${r.username||'sem username'}) — ${r.amount} ${r.currency} — Telegram ID ${r.telegram_user_id}`).join('\n') : 'Não há pagamentos pendentes.' });
     return true;
   }
-  if (fromAdmin && /^\\/vip_assinatura\\s+(\\d+)/i.test(text)) {
+  if (fromAdmin && /^\/vip_assinatura\s+(\d+)/i.test(text)) {
     await ensureSchema();
-    const id = text.match(/^\\/vip_assinatura\\s+(\\d+)/i)?.[1];
+    const id = text.match(/^\/vip_assinatura\s+(\d+)/i)?.[1];
     const result = await pool.query('SELECT * FROM telegram_vip_subscriptions WHERE telegram_user_id=$1', [id]);
     const row = result.rows[0];
-    await tg('sendMessage', { chat_id: chatId, text: row ? `Telegram ID: ${id}\\nEstado: ${row.status}\\nValidade: ${row.expires_at || 'sem validade'}` : 'Assinatura não encontrada.' });
+    await tg('sendMessage', { chat_id: chatId, text: row ? `Telegram ID: ${id}\nEstado: ${row.status}\nValidade: ${row.expires_at || 'sem validade'}` : 'Assinatura não encontrada.' });
     return true;
   }
-  if (/^\\/vip(?:@\\w+)?$/i.test(text) || /^\\/start(?:@\\w+)?\\s+vip$/i.test(text)) {
+  if (/^\/vip(?:@\w+)?$/i.test(text) || /^\/start(?:@\w+)?\s+vip$/i.test(text)) {
     if (message.chat.type !== 'private') {
       await tg('sendMessage', { chat_id: chatId, text: 'Por segurança, envie /vip em conversa privada com o bot.' });
       return true;
@@ -240,7 +240,7 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
       `Telegram ID: ${user.id}`,
       '',
       'Confirme apenas depois de verificar o recebimento real.',
-    ].join('\\n');
+    ].join('\n');
     const adminId = ADMIN_ID();
     if (adminId) {
       if (message.photo?.length) {
@@ -280,7 +280,7 @@ export async function processVipSubscriptionReminders() {
     try {
       if (row.action === '5d' || row.action === '1d') {
         const amount = '250 MT (M-Pesa/e-Mola) ou 3 USDT (TRC20)';
-        await tg('sendMessage', { chat_id: id, text: `⏳ MATOSFX VIP — RENOVAÇÃO\\n\\nA sua assinatura termina em ${row.action === '5d' ? '5 dias' : '1 dia'}.\\nValor mensal: ${amount}.\\n\\nUse /vip neste bot para receber os dados de pagamento e envie o comprovativo. O acesso só é renovado após confirmação manual.` });
+        await tg('sendMessage', { chat_id: id, text: `⏳ MATOSFX VIP — RENOVAÇÃO\n\nA sua assinatura termina em ${row.action === '5d' ? '5 dias' : '1 dia'}.\nValor mensal: ${amount}.\n\nUse /vip neste bot para receber os dados de pagamento e envie o comprovativo. O acesso só é renovado após confirmação manual.` });
         await pool.query(row.action === '5d'
           ? 'UPDATE telegram_vip_subscriptions SET last_reminder_5d_for=expires_at,updated_at=NOW() WHERE telegram_user_id=$1'
           : 'UPDATE telegram_vip_subscriptions SET last_reminder_1d_for=expires_at,updated_at=NOW() WHERE telegram_user_id=$1', [id]);
