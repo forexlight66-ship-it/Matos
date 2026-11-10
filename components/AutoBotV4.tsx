@@ -796,7 +796,7 @@ export default function AutoBotV4(){
       hyperBeenNextParityRef.current='EVEN';
       setNotice('HyperBeen: ACIMA 0 perdeu. Recuperação iniciada em PAR. Cada operação deve cobrir o défice acumulado + $'+recoveryExtraProfit.toFixed(2)+' líquidos. Défice: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
      }else{
-      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';
+      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
       setNotice('HyperBeen: ACIMA 0 ganhou. Mantém a estratégia principal ACIMA 0.');
      }
     }else{
@@ -805,7 +805,7 @@ export default function AutoBotV4(){
      const targetNetProfit=Number((deficitBeforeTrade+recoveryExtraProfit).toFixed(2));
      if(hyperFlowWon&&result+0.005>=targetNetProfit){
       // A confirmed settlement covered the entire outstanding deficit plus the configured additional-profit target.
-      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';
+      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
       setNotice('HyperBeen: recuperação concluída. O trade cobriu todo o défice acumulado + $'+recoveryExtraProfit.toFixed(2)+' líquidos. A regressar imediatamente à estratégia normal ACIMA 0.');
      }else if(hyperFlowLost){
       hyperBeenDeficitRef.current=Number((deficitBeforeTrade+Math.abs(Math.min(0,result))).toFixed(2));
