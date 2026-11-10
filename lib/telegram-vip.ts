@@ -239,6 +239,8 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
       `Cliente: ${escapeHtml(user.first_name || '—')}`,
       `Telegram: @${escapeHtml(user.username || 'sem username')}`,
       `Telegram ID: ${user.id}`,
+      `Método: ${pending.rows[0].payment_method}`,
+      `Valor: ${pending.rows[0].amount} ${pending.rows[0].currency}`,
       '',
       'Confirme apenas depois de verificar o recebimento real.',
     ].join('\n');
