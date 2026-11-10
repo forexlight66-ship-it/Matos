@@ -157,7 +157,7 @@ async function adminReview(paymentId: number, action: 'approve' | 'reject', admi
         });
         await tg('sendMessage', {
           chat_id: String(payment.telegram_user_id),
-          text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\\n\\nEntre no grupo através deste convite pessoal (válido por 24 horas):\n${invite.invite_link}`,
+          text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\n\nEntre no grupo através deste convite pessoal (válido por 24 horas):\n${invite.invite_link}`,
         });
       } catch (deliveryError) {
         console.error('[MatosFx VIP invite delivery]', paymentId, deliveryError);
