@@ -272,7 +272,7 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
     await tg('sendMessage', { chat_id: chatId, text: row ? `Telegram ID: ${id}\nEstado: ${row.status}\nValidade: ${row.expires_at || 'sem validade'}` : 'Assinatura não encontrada.' });
     return true;
   }
-  if (/^\/vip(?:@\w+)?$/i.test(text) || /^\/start(?:@\w+)?\s+vip$/i.test(text)) {
+  if (/^\/vip(?:@\w+)?$/i.test(text) || /^\/start(?:@\w+)?(?:\s+vip)?$/i.test(text)) {
     if (message.chat.type !== 'private') {
       await tg('sendMessage', { chat_id: chatId, text: 'Por segurança, envie /vip em conversa privada com o bot.' });
       return true;
