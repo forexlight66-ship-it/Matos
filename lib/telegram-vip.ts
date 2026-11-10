@@ -157,7 +157,7 @@ async function adminReview(paymentId: number, action: 'approve' | 'reject', admi
         });
         await tg('sendMessage', {
           chat_id: String(payment.telegram_user_id),
-          text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\\n\\nEntre no grupo através deste convite pessoal (válido por 24 horas):\\n${invite.invite_link}`,
+          text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\\n\\nEntre no grupo através deste convite pessoal (válido por 24 horas):\n${invite.invite_link}`,
         });
       } catch (deliveryError) {
         console.error('[MatosFx VIP invite delivery]', paymentId, deliveryError);
@@ -235,9 +235,9 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
     await tg('sendMessage', { chat_id: chatId, text: `Assinatura registada para Telegram ID ${targetId} por mais ${days} dias.` });
     return true;
   }
-  if (fromAdmin && /^\\/vip_reenviar\\s+(\\d+)/i.test(text)) {
+  if (fromAdmin && /^\/vip_reenviar\s+(\d+)/i.test(text)) {
     await ensureSchema();
-    const paymentId = Number(text.match(/^\\/vip_reenviar\\s+(\\d+)/i)?.[1]);
+    const paymentId = Number(text.match(/^\/vip_reenviar\s+(\d+)/i)?.[1]);
     const result = await pool.query(
       `SELECT p.telegram_user_id, s.status, s.expires_at
        FROM telegram_vip_payments p
@@ -259,7 +259,7 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
     });
     await tg('sendMessage', {
       chat_id: String(row.telegram_user_id),
-      text: `✅ O seu convite MatosFx VIP foi renovado (válido por 24 horas):\\n${invite.invite_link}`,
+      text: `✅ O seu convite MatosFx VIP foi renovado (válido por 24 horas):\n${invite.invite_link}`,
     });
     await tg('sendMessage', { chat_id: chatId, text: `Novo convite enviado ao Telegram ID ${row.telegram_user_id}.` });
     return true;
