@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const GROUP_URL = 'https://t.me/+P8eM0Jtun5tiNjE0';
-
 export function SignalsLogo({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="MetaTrader 5 logo" style={{ display: 'block', width: size, height: size, flexShrink: 0 }}>
@@ -29,10 +27,10 @@ export function SignalsLogo({ size = 24 }: { size?: number }) {
   );
 }
 
-export default function SignalsFree({ light, open, onClose, onPurchase }: { light: boolean; open: boolean; onClose: () => void; onPurchase: () => void }) {
+export default function SignalsFree({ light, open, onClose }: { light: boolean; open: boolean; onClose: () => void; onPurchase: () => void }) {
   const { language } = useLanguage();
   const english = language === 'en';
-  const [subscription, setSubscription] = useState({ loading: true, active: false, eligibleClient: false });
+  const [subscription, setSubscription] = useState({ loading: true, active: false, eligibleClient: false, telegramBotUrl: '' });
 
   useEffect(() => {
     if (!open) return;
@@ -46,10 +44,11 @@ export default function SignalsFree({ light, open, onClose, onPurchase }: { ligh
           loading: false,
           active: response.ok && Boolean(payload.active),
           eligibleClient: Boolean(payload.eligibleClient),
+          telegramBotUrl: String(payload.telegramBotUrl || ''),
         });
       })
       .catch(() => {
-        if (current) setSubscription({ loading: false, active: false, eligibleClient: false });
+        if (current) setSubscription({ loading: false, active: false, eligibleClient: false, telegramBotUrl: '' });
       });
     return () => { current = false; };
   }, [open]);
@@ -113,56 +112,41 @@ export default function SignalsFree({ light, open, onClose, onPurchase }: { ligh
         <p style={{ fontSize: 15, lineHeight: 1.65, margin: '0 0 18px', color: light ? '#5b606b' : '#c8c5cb' }}>
           {english ? <>Get signals for <strong>XAUUSD</strong>, <strong>Boom 1000</strong>, <strong>Volatility 75</strong> and more in our Telegram group.</> : <>Receba sinais para <strong>XAUUSD</strong>, <strong>Boom 1000</strong>, <strong>Volatility 75</strong> e muito mais no nosso grupo do Telegram.</>}
         </p>
-        {subscription.active ? (
-          <a
-            href={GROUP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={onClose}
+        <div style={{
+          marginBottom: 12, padding: '14px', borderRadius: 12,
+          border: '1px solid ' + (light ? '#fecdd3' : '#66313a'),
+          background: light ? '#fff1f2' : '#30151c',
+          color: light ? '#9f1239' : '#ffe4e6',
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', opacity: .8 }}>
+            {english ? 'MONTHLY SUBSCRIPTION — 30 DAYS' : 'ASSINATURA MENSAL — 30 DIAS'}
+          </div>
+          <div style={{ marginTop: 5, fontSize: 23, fontWeight: 900 }}>
+            {subscription.loading ? (english ? 'Checking…' : 'A verificar…') : subscription.eligibleClient ? '250 MT' : '3 USDT'}
+          </div>
+          <div style={{ marginTop: 5, fontSize: 12, opacity: .9 }}>
+            {subscription.loading ? (english ? 'Please wait' : 'Aguarde') : subscription.eligibleClient ? (english ? 'M-Pesa or e-Mola' : 'M-Pesa ou e-Mola') : (english ? 'USDT on TRON (TRC20)' : 'USDT pela rede TRON (TRC20)')}
+          </div>
+        </div>
+        {subscription.active && <p style={{ fontSize: 12, lineHeight: 1.5, margin: '0 0 12px', color: light ? '#5b606b' : '#c8c5cb' }}>
+          {english ? 'To manage renewal and group membership, use Payment Agent 503 in Telegram.' : 'Para renovar e gerir a entrada no grupo, utilize o Payment Agent 503 no Telegram.'}
+        </p>}
+        {subscription.telegramBotUrl ? (
+          <a href={subscription.telegramBotUrl} target="_blank" rel="noopener noreferrer"
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '100%', minHeight: 48, boxSizing: 'border-box', borderRadius: 12,
               background: 'linear-gradient(135deg,#ff5964 0%,#e32942 55%,#c91835 100%)',
               boxShadow: '0 8px 18px rgba(217,31,53,.24)', color: '#ffffff',
               textDecoration: 'none', fontSize: 15, fontWeight: 800,
-            }}
-          >
-            {english ? 'Join the Telegram group' : 'Entrar no grupo do Telegram'}
+              opacity: subscription.loading ? .7 : 1,
+            }}>
+            {english ? 'Open Payment Agent 503' : 'Abrir Payment Agent 503'}
           </a>
         ) : (
-          <>
-            <div style={{
-              marginBottom: 12, padding: '12px 14px', borderRadius: 12,
-              border: '1px solid ' + (light ? '#fecdd3' : '#66313a'),
-              background: light ? '#fff1f2' : '#30151c',
-              color: light ? '#9f1239' : '#ffe4e6',
-            }}>
-              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', opacity: .8 }}>
-                {english ? 'Unlimited access' : 'Acesso ilimitado'}
-              </div>
-              <div style={{ marginTop: 4, fontSize: 20, fontWeight: 900 }}>
-                {subscription.loading ? (english ? 'Checking eligibility…' : 'A verificar elegibilidade…') : subscription.eligibleClient ? '250 MT' : '3 USDT'}
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, opacity: .88 }}>
-                {subscription.loading ? (english ? 'Please wait' : 'Aguarde') : subscription.eligibleClient ? (english ? 'Pay with M-Pesa or e-Mola' : 'Pagamento por M-Pesa ou e-Mola') : (english ? 'Pay with USDT on TRON (TRC20)' : 'Pagamento em USDT pela rede TRON (TRC20)')}
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={subscription.loading}
-              onClick={onPurchase}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: '100%', minHeight: 48, boxSizing: 'border-box', border: 0,
-                borderRadius: 12, background: 'linear-gradient(135deg,#ff5964 0%,#e32942 55%,#c91835 100%)',
-                boxShadow: '0 8px 18px rgba(217,31,53,.24)', color: '#ffffff',
-                fontSize: 15, fontWeight: 800, cursor: subscription.loading ? 'wait' : 'pointer',
-                opacity: subscription.loading ? .7 : 1,
-              }}
-            >
-              {subscription.loading ? (english ? 'Checking…' : 'A verificar…') : english ? 'Continue to payment' : 'Continuar para pagamento'}
-            </button>
-          </>
+          <p style={{ fontSize: 12, lineHeight: 1.5, margin: 0, color: light ? '#5b606b' : '#c8c5cb' }}>
+            {english ? 'Open Payment Agent 503 in Telegram and send /vip.' : 'Abra o Payment Agent 503 no Telegram e envie /vip.'}
+          </p>
         )}
         <button
           type="button"
