@@ -805,14 +805,19 @@ export default function AutoBotV4(){
      const targetNetProfit=Number((deficitBeforeTrade+recoveryExtraProfit).toFixed(2));
      const isLowRiskDescending=hyperBeenReverseStakeEnabledRef.current&&hyperBeenStakeDirectionRef.current==='DECREASING';
      if(isLowRiskDescending){
-      // The descending pass follows the six stored stakes only. Its wins/losses do not change the accumulated deficit.
-      const completedStep=hyperBeenRecoveryStepRef.current;
-      if(completedStep>=5){
-       hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
-       setNotice('HyperBeen Low risk: segunda sequência inversa concluída (6/6). Défice zerado; pausa de 50 ticks e regresso à estratégia normal.');
+      // In the reverse pass, losses never increase the carried deficit. Any confirmed win ends Low risk recovery immediately.
+      if(hyperFlowWon){
+       hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenRecoveryQuoteRef.current=null;
+       setNotice('HyperBeen Low risk: ganho na sequência inversa. Défice zerado, sequência limpa e regresso imediato à estratégia normal.');
       }else{
-       hyperBeenRecoveryStepRef.current=completedStep+1;hyperBeenNextParityRef.current=completedStep<2?'EVEN':'ODD';hyperBeenRecoveryModeRef.current=true;
-       setNotice('HyperBeen Low risk: sequência inversa '+hyperBeenRecoveryStepRef.current+'/6. Stake seguinte conforme a ordem inversa; défice não acumulado nesta fase.');
+       const completedStep=hyperBeenRecoveryStepRef.current;
+       if(completedStep>=5){
+        hyperBeenRecoveryStepRef.current=6;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=true;hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenStakeLadderRef.current=[];
+        setNotice('HyperBeen Low risk: sequência inversa concluída sem ganhos. Pausa de 50 ticks; depois reinicia a sequência crescente. O défice anterior não foi aumentado.');
+       }else{
+        hyperBeenRecoveryStepRef.current=completedStep+1;hyperBeenNextParityRef.current=completedStep<2?'EVEN':'ODD';hyperBeenRecoveryModeRef.current=true;
+        setNotice('HyperBeen Low risk: sequência inversa '+hyperBeenRecoveryStepRef.current+'/6. Próxima Stake pela ordem inversa; défice não acumulado.');
+       }
       }
      }else if(hyperFlowWon&&result+0.005>=targetNetProfit){
       // A confirmed settlement covered the full deficit plus the configured additional-profit target.
