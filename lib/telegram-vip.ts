@@ -371,3 +371,10 @@ export async function processVipSubscriptionReminders() {
   }
   return { reminders, removed, failures };
 }
+
+
+export async function getSignalsVipBotUrl(): Promise<string | null> {
+  const me = await tg('getMe', {});
+  const username = String(me?.username || '').trim();
+  return username ? `https://t.me/${username}?start=vip` : null;
+}
