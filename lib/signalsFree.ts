@@ -5,7 +5,7 @@ import { sendAgentAlert } from '@/lib/telegram';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined });
 
-export const SIGNALS_FREE_GROUP_URL = 'https://t.me/+S4A_5SgZB6x4P_UQ';
+export const SIGNALS_FREE_GROUP_URL = 'https://t.me/+P8eM0Jtun5tiNjE0';
 
 export async function ensureSignalsFreeSchema() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL não está configurado.');
