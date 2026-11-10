@@ -215,6 +215,10 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
     return true;
   }
   if (/^\\/vip(?:@\\w+)?$/i.test(text) || /^\\/start(?:@\\w+)?\\s+vip$/i.test(text)) {
+    if (message.chat.type !== 'private') {
+      await tg('sendMessage', { chat_id: chatId, text: 'Por segurança, envie /vip em conversa privada com o bot.' });
+      return true;
+    }
     await sendMethodMenu(chatId);
     return true;
   }
@@ -261,16 +265,14 @@ export async function processVipSubscriptionReminders() {
   await ensureSchema();
   const due = await pool.query(`
     SELECT telegram_user_id,expires_at,first_name,
-      CASE WHEN expires_at > NOW() AND expires_at <= NOW()+INTERVAL '5 days'
-        AND (last_reminder_5d_for IS NULL OR last_reminder_5d_for<>expires_at) THEN '5d'
-      WHEN expires_at > NOW()+INTERVAL '5 days' AND expires_at <= NOW()+INTERVAL '6 days'
-        AND (last_reminder_5d_for IS NULL OR last_reminder_5d_for<>expires_at) THEN '5d'
-      WHEN expires_at > NOW() AND expires_at <= NOW()+INTERVAL '1 day'
+      CASE WHEN expires_at > NOW() AND expires_at <= NOW()+INTERVAL '1 day'
         AND (last_reminder_1d_for IS NULL OR last_reminder_1d_for<>expires_at) THEN '1d'
+      WHEN expires_at > NOW()+INTERVAL '1 day' AND expires_at <= NOW()+INTERVAL '5 days'
+        AND (last_reminder_5d_for IS NULL OR last_reminder_5d_for<>expires_at) THEN '5d'
       WHEN expires_at <= NOW() AND status='active' THEN 'expired'
       ELSE NULL END AS action
     FROM telegram_vip_subscriptions
-    WHERE status='active' AND expires_at <= NOW()+INTERVAL '6 days'
+    WHERE status='active' AND expires_at <= NOW()+INTERVAL '5 days'
   `);
   let reminders = 0, removed = 0, failures = 0;
   for (const row of due.rows) {
