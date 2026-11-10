@@ -351,7 +351,7 @@ export async function processVipSubscriptionReminders() {
           '🌍 Internacional: 3 USDT — rede TRC20', `Endereço: ${usdtAddress()}`,
           '',
           'Depois de pagar, envie o comprovativo neste bot usando /vip. A renovação só acontece após confirmação manual do administrador.',
-        ].join('\\n');
+        ].join('\n');
         await tg('sendMessage', { chat_id: id, text: reminder });
         await pool.query(row.action === '5d'
           ? 'UPDATE telegram_vip_subscriptions SET last_reminder_5d_for=expires_at,updated_at=NOW() WHERE telegram_user_id=$1'
