@@ -105,7 +105,7 @@ export default function SignalsFree({ light, open, onClose }: { light: boolean; 
           boxShadow: '0 8px 22px rgba(217,31,53,.25)',
           fontSize: 27,
         }} aria-hidden="true">📊</div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 12px', padding: '5px 11px', borderRadius: 999, background: light ? '#fff0f1' : '#3a1c24', color: light ? '#c91f35' : '#ff8792', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }}>{english ? '● UNLIMITED FOREX SIGNALS' : '● SINAIS FOREX ILIMITADOS'}</div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 12px', padding: '5px 11px', borderRadius: 999, background: light ? '#fff0f1' : '#3a1c24', color: light ? '#c91f35' : '#ff8792', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }}>{english ? '● MONTHLY FOREX SIGNALS' : '● SINAIS FOREX MENSAIS'}</div>
         <h2 id="signals-intro-title" style={{ fontSize: 22, lineHeight: 1.28, fontWeight: 850, margin: '0 0 12px', letterSpacing: '-.025em' }}>
           {english ? 'Subscribe to Forex signals' : 'Assine os sinais de Forex'}
         </h2>
