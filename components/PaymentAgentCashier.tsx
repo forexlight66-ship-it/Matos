@@ -799,7 +799,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
           {isSignalsFree ? <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}>
             <div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>Forex Signals — MozHyper</div>
             <div style={{marginTop:5,fontSize:18,fontWeight:950}}>{signalsMznEligible ? '250 MT' : '3 USDT'}</div>
-            <div style={{marginTop:4,fontSize:10,opacity:.7}}>{language === 'en' ? 'Unlimited Telegram access after payment confirmation.' : 'Acesso ilimitado ao Telegram após confirmação do pagamento.'}</div>
+            <div style={{marginTop:4,fontSize:10,opacity:.7}}>{language === 'en' ? '30-day Telegram access after manual payment confirmation.' : 'Acesso ao Telegram válido por 30 dias após confirmação manual do pagamento.'}</div>
           </div> : isCourse ? <div style={{ marginTop:14, padding:13, borderRadius:11, border:'1px solid #ff4654', background:light?'#fff7f7':'#2a1114' }}>
             <div style={{fontSize:10,textTransform:'uppercase',fontWeight:900,color:'#ff4654'}}>Complete Course — MozHyper</div>
             <div style={{marginTop:5,fontSize:18,fontWeight:950}}>{paymentCurrency === 'MZN' ? '999 MZN' : '15 USDT'}</div>
@@ -886,7 +886,7 @@ export default function PaymentAgentCashier({ open, action, currency, agentCurre
             <div style={{ marginTop:8, fontSize:21, fontWeight:950 }}>{language === 'en' ? 'Payment confirmed!' : 'Pagamento confirmado!'}</div>
             <div style={{ marginTop:7, fontSize:13, lineHeight:1.45 }}>{language === 'en' ? 'Your Forex signals access is now active.' : 'O seu acesso aos sinais Forex está activo.'}</div>
             <a href="https://t.me/+P8eM0Jtun5tiNjE0" target="_blank" rel="noopener noreferrer" onClick={onClose} style={{ display:'flex', alignItems:'center', justifyContent:'center', width:'100%', marginTop:18, padding:'14px 12px', borderRadius:12, background:'#ff4654', color:'#fff', textDecoration:'none', fontWeight:900, fontSize:15 }}>{language === 'en' ? 'Join Telegram group' : 'Entrar no grupo do Telegram'}</a>
-            <div style={{ marginTop:8, fontSize:10, opacity:.7 }}>{language === 'en' ? 'Access is unlimited.' : 'O acesso é ilimitado.'}</div>
+            <div style={{ marginTop:8, fontSize:10, opacity:.7 }}>{language === 'en' ? 'Access is valid for 30 days.' : 'O acesso é válido por 30 dias.'}</div>
             <button type="button" onClick={onClose} style={{ width:'100%', marginTop:12, padding:'11px 14px', border:0, borderRadius:12, background:light?'#e2e8f0':'#29313d', color:'inherit', fontWeight:900, fontSize:14, cursor:'pointer' }}>{copy.closeButton}</button>
           </div>
         ) : step === 'result' && action === 'ai_analyst' && depositStatus === 'payment_confirmed' ? (
