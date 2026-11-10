@@ -1,6 +1,6 @@
 import 'server-only';
 import { Pool } from 'pg';
-import { MPESA_NUMBER, EMOLA_NUMBER, BINANCE_USDT_TRC20_ADDRESS } from '@/lib/paymentAgentRequests';
+import { MPESA_NUMBER, EMOLA_NUMBER, BINANCE_USDT_TRC20_ADDRESS, PAYMENT_RECIPIENT_NAME } from '@/lib/paymentAgentRequests';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -113,7 +113,7 @@ async function startPayment(user: TelegramUser, method: string, chatId: number) 
       `Método: ${details.label}`,
       `Valor: ${details.amount} ${details.currency}`,
       `Destino: ${details.destination}`,
-      ...(method === 'usdt' ? ['Rede obrigatória: TRC20'] : ['Titular: Mistério João']),
+      ...(method === 'usdt' ? ['Rede obrigatória: TRC20'] : [`Titular: ${PAYMENT_RECIPIENT_NAME}`]),
       '',
       'Após pagar, envie o comprovativo (imagem ou PDF) aqui. O acesso só será renovado depois da confirmação manual do administrador.',
     ].join('\n'),
@@ -147,17 +147,29 @@ async function adminReview(paymentId: number, action: 'approve' | 'reject', admi
     }
     await client.query('COMMIT');
     if (action === 'approve') {
-      const invite = await tg('createChatInviteLink', {
-        chat_id: VIP_GROUP_ID(),
-        member_limit: 1,
-        expire_date: Math.floor(Date.now()/1000) + 86400,
-        creates_join_request: false,
-        name: `VIP-${payment.telegram_user_id}-${paymentId}`,
-      });
-      await tg('sendMessage', {
-        chat_id: String(payment.telegram_user_id),
-        text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\n\nEntre no grupo através deste convite pessoal (válido por 24 horas):\n${invite.invite_link}`,
-      });
+      try {
+        const invite = await tg('createChatInviteLink', {
+          chat_id: VIP_GROUP_ID(),
+          member_limit: 1,
+          expire_date: Math.floor(Date.now()/1000) + 86400,
+          creates_join_request: false,
+          name: `VIP-${payment.telegram_user_id}-${paymentId}`,
+        });
+        await tg('sendMessage', {
+          chat_id: String(payment.telegram_user_id),
+          text: `✅ Pagamento confirmado! A sua assinatura MatosFx VIP está ativa por 30 dias.\\n\\nEntre no grupo através deste convite pessoal (válido por 24 horas):\\n${invite.invite_link}`,
+        });
+      } catch (deliveryError) {
+        console.error('[MatosFx VIP invite delivery]', paymentId, deliveryError);
+        await tg('sendMessage', {
+          chat_id: ADMIN_ID(),
+          text: `⚠️ Pagamento #${paymentId} aprovado e assinatura ativada, mas não foi possível entregar o convite ao cliente Telegram ID ${payment.telegram_user_id}. Corrija as permissões do bot e execute /vip_reenviar ${paymentId}.`,
+        }).catch(() => undefined);
+        await tg('sendMessage', {
+          chat_id: String(payment.telegram_user_id),
+          text: '✅ O pagamento foi confirmado e a assinatura está ativa. Estamos a resolver a entrega do convite; receberá uma nova mensagem em breve.',
+        }).catch(() => undefined);
+      }
     } else {
       await tg('sendMessage', { chat_id: String(payment.telegram_user_id), text: '❌ O comprovativo não foi aprovado. Contacte o administrador para esclarecer ou enviar novo comprovativo.' });
     }
@@ -221,6 +233,35 @@ export async function handleVipTelegramUpdate(update: any): Promise<boolean> {
       [targetId, days],
     );
     await tg('sendMessage', { chat_id: chatId, text: `Assinatura registada para Telegram ID ${targetId} por mais ${days} dias.` });
+    return true;
+  }
+  if (fromAdmin && /^\\/vip_reenviar\\s+(\\d+)/i.test(text)) {
+    await ensureSchema();
+    const paymentId = Number(text.match(/^\\/vip_reenviar\\s+(\\d+)/i)?.[1]);
+    const result = await pool.query(
+      `SELECT p.telegram_user_id, s.status, s.expires_at
+       FROM telegram_vip_payments p
+       JOIN telegram_vip_subscriptions s ON s.telegram_user_id=p.telegram_user_id
+       WHERE p.id=$1 AND p.status='approved' LIMIT 1`,
+      [paymentId],
+    );
+    const row = result.rows[0];
+    if (!row || row.status !== 'active' || new Date(row.expires_at).getTime() <= Date.now()) {
+      await tg('sendMessage', { chat_id: chatId, text: 'Não existe uma assinatura VIP ativa associada a esse pagamento aprovado.' });
+      return true;
+    }
+    const invite = await tg('createChatInviteLink', {
+      chat_id: VIP_GROUP_ID(),
+      member_limit: 1,
+      expire_date: Math.floor(Date.now()/1000) + 86400,
+      creates_join_request: false,
+      name: `VIP-${row.telegram_user_id}-retry-${paymentId}`,
+    });
+    await tg('sendMessage', {
+      chat_id: String(row.telegram_user_id),
+      text: `✅ O seu convite MatosFx VIP foi renovado (válido por 24 horas):\\n${invite.invite_link}`,
+    });
+    await tg('sendMessage', { chat_id: chatId, text: `Novo convite enviado ao Telegram ID ${row.telegram_user_id}.` });
     return true;
   }
   if (fromAdmin && /^\/vip_assinatura\s+(\d+)/i.test(text)) {
