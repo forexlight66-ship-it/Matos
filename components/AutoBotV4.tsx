@@ -686,12 +686,19 @@ export default function AutoBotV4(){
   const looksLikeHyperFlowContract=(closedBarrier===0&&closedContractType==='DIGITMATCH')||(closedBarrier===0&&closedContractType==='DIGITOVER'&&strategy==='MATCH0');
   const trackedHyperBeenMode=hyperBeenLastTradeModeRef.current;
   const trackedHyperBeenCloseMatches=trackedHyperBeenMode==='OVER0'
-   ?(!closedContractType||closedContractType==='DIGITOVER')&&(!Number.isFinite(closedBarrier)||closedBarrier===0)
+   ?(!closedContractType||closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||closedBarrier===0)
    :trackedHyperBeenMode==='EVEN'
     ?(!closedContractType||closedContractType==='DIGITEVEN')
     :trackedHyperBeenMode==='ODD'
      ?(!closedContractType||closedContractType==='DIGITODD')
      :false;
+  // If Deriv labels the close as unknown, recover HyperBeen attribution from
+  // the active MATCH0 strategy and its contract shape/state. Do not relabel
+  // explicitly named manual trades or trades belonging to another bot.
+  const unknownTrackedHyperBeenClose=unknownClosedBot&&strategy==='MATCH0'&&(
+   ((closedContractType==='DIGITOVER'||closedContractType==='DIGITMATCH')&&(!Number.isFinite(closedBarrier)||closedBarrier===0)&&(!hyperBeenRecoveryModeRef.current||trackedHyperBeenMode==='OVER0'))||
+   (hyperBeenRecoveryModeRef.current&&(closedContractType==='DIGITEVEN'||closedContractType==='DIGITODD'))
+  );
   const looksLikeHyperFlowsContract=strategy==='HYPERFLOWS'&&(closedContractType==='DIGITEVEN'||closedContractType==='DIGITODD'||(closedContractType==='DIGITOVER'&&closedBarrier===0)||(closedContractType==='DIGITMATCH'&&closedBarrier>=0&&closedBarrier<=9)||(closedContractType==='DIGITUNDER'&&closedBarrier===9));
   const knownHyperFlowLabel=rawClosedBotName==='hyperflow'||/^hyperflow(?:\s+|$)/i.test(rawClosedBotLabel);
   const knownHyperBeenLabel=rawClosedBotName==='hyperbeen'||/^hyperbeen(?:\s+|$)/i.test(rawClosedBotLabel);
@@ -714,7 +721,7 @@ export default function AutoBotV4(){
        ?(!closedContractType||closedContractType==='DIGITOVER')&&(!Number.isFinite(closedBarrier)||closedBarrier===0)
       :false;
   const looksLikeTrackedHyperFlowsClose=strategy==='HYPERFLOWS'&&trackedHyperFlowsMode!==null&&trackedHyperFlowsContractMatches&&(knownHyperFlowLabel||knownHyperFlowsLabel||unknownClosedBot);
-  const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperBeenLabel||trackedHyperBeenCloseMatches)?'hyperbeen':(knownHyperFlowLabel||(unknownClosedBot&&looksLikeHyperFlowContract&&strategy!=='MATCH0'))?'hyperflow':rawClosedBotName;
+  const identifiedClosedBotName=(knownHyperFlowsLabel||(strategy==='HYPERFLOWS'&&knownHyperFlowLabel&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose))||(unknownClosedBot&&(looksLikeHyperFlowsContract||looksLikeTrackedHyperFlowsClose)))?'hyperflows':(knownHyperBeenLabel||(unknownClosedBot&&(trackedHyperBeenCloseMatches||unknownTrackedHyperBeenClose)))?'hyperbeen':(knownHyperFlowLabel||(unknownClosedBot&&looksLikeHyperFlowContract&&strategy!=='MATCH0'))?'hyperflow':rawClosedBotName;
   const isManualTrade=String(closed?.bot||'').toLowerCase().startsWith('manual');
    if((!running&&!smartAnalyzer&&!isManualTrade)||!closed?.contract_id)return;
    const id=Number(closed.contract_id);
