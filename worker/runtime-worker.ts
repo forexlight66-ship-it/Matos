@@ -50,7 +50,7 @@ class RuntimeWorker {
   constructor(private runtime: RuntimeRow) {
     this.state = { ...(runtime.state || {}) };
     this.state.hyperBeen ||= initialHyperBeenState();
-    this.state.hyperFlows ||= initialHyperFlowsState(Number(runtime.config.recoveryExtraProfit ?? 5));
+    this.state.hyperFlows ||= initialHyperFlowsState(Number(runtime.config.hyperFlowsRecoveryExtraProfit ?? 1));
     this.state.hypercover ||= initialHypercoverState();
     this.ticks = Array.isArray(this.state.ticks) ? this.state.ticks.slice(-500).map(Number).filter(Number.isFinite) : [];
     this.lastEpoch = Number(this.state.lastEpoch || 0);
@@ -203,7 +203,7 @@ class RuntimeWorker {
         if (signal) signal.barrier = 0;
       }
     } else if (cfg.strategy === 'HYPERFLOWS') {
-      const recovery = this.state.hyperFlows || initialHyperFlowsState(Number(cfg.recoveryExtraProfit ?? 5));
+      const recovery = this.state.hyperFlows || initialHyperFlowsState(Number(cfg.hyperFlowsRecoveryExtraProfit ?? 1));
       if (recovery.recoveryMode) {
         if (recovery.recoveryContract === 'OVER0') {
           signal = { contract: 'OVER', label: 'ACIMA 0 — RECUPERAÇÃO', strength: 100, barrier: 0 };
@@ -250,7 +250,7 @@ class RuntimeWorker {
       this.state.hyperBeen = { ...current, lastTradeMode: current.active ? current.nextParity : 'OVER0' };
     }
     if (cfg.strategy === 'HYPERFLOWS' && hyperFlowsMode) {
-      const current = this.state.hyperFlows || initialHyperFlowsState(Number(cfg.recoveryExtraProfit ?? 5));
+      const current = this.state.hyperFlows || initialHyperFlowsState(Number(cfg.hyperFlowsRecoveryExtraProfit ?? 1));
       this.state.hyperFlows = { ...current, lastTradeMode: hyperFlowsMode as any };
     }
     if (cfg.strategy === 'MATCH0' && !this.state.hyperBeen.active) signal.barrier = 0;
@@ -271,7 +271,7 @@ class RuntimeWorker {
       || (cfg.strategy === 'HYPERFLOWS' && Boolean(this.state.hyperFlows?.recoveryMode));
     const recoveryTarget = cfg.strategy === 'MATCH0'
       ? Number(this.state.hyperBeen?.deficit || 0) + Math.max(0, Number(cfg.recoveryExtraProfit ?? 5))
-      : Number(this.state.hyperFlows?.deficit || 0) + Math.max(0, Number(this.state.hyperFlows?.extraProfit ?? cfg.recoveryExtraProfit ?? 5));
+      : Number(this.state.hyperFlows?.deficit || 0) + Math.max(0, Number(this.state.hyperFlows?.extraProfit ?? cfg.hyperFlowsRecoveryExtraProfit ?? 1));
     const duration = isRecoveryTrade ? 5 : Math.max(1, Math.min(10, Number(cfg.durationTicks) || 1));
     let proposal = await this.gateway!.getProposal({
       symbol: cfg.symbol, contractType: type, amount: stake, duration,
@@ -395,7 +395,7 @@ class RuntimeWorker {
       if (!['won','lost'].includes(outcome) || !Number.isFinite(pnl)) {
         throw new Error('HyperFlows: resultado oficial inválido; robô parado sem avançar a recuperação.');
       }
-      const current = this.state.hyperFlows || initialHyperFlowsState(Number(this.runtime.config.recoveryExtraProfit ?? 5));
+      const current = this.state.hyperFlows || initialHyperFlowsState(Number(this.runtime.config.hyperFlowsRecoveryExtraProfit ?? 1));
       const isPrimaryMatch9 = String(contract.contract_type || '').toUpperCase() === 'DIGITMATCH'
         && Number(contract.barrier) === 9;
       const alternativeDigit = outcome === 'lost' && isPrimaryMatch9

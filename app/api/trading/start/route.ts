@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       target: Math.max(0, Number(body.target) || 0),
       lossLimit: Math.max(0, Number(body.lossLimit) || 0),
       recoveryExtraProfit: Math.max(0, Number(body.recoveryExtraProfit ?? 5)),
+      hyperFlowsRecoveryExtraProfit: Math.max(0, Number(body.hyperFlowsRecoveryExtraProfit ?? 1)),
       maxMartingale: 0,
       iaPower: false, sonic: false, smartAnalyzer: false,
       exitSpotsAutoEnabled: false,

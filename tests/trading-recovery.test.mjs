@@ -13,7 +13,7 @@ import {
   onHypercoverTick,
 } from '../server/trading/recovery.ts';
 
-test('HyperBeen follows PAR → PAR → ÍMPAR → ÍMPAR and then pauses 50 ticks', () => {
+test('HyperBeen follows PAR ×3 → ÍMPAR ×3 and then pauses 50 ticks', () => {
   const primary = onHyperBeenClose(initialHyperBeenState(), {
     status: 'lost', profitLoss: -1, contractType: 'DIGITOVER', barrier: 0,
   }, 5);
@@ -22,7 +22,7 @@ test('HyperBeen follows PAR → PAR → ÍMPAR → ÍMPAR and then pauses 50 tic
 
   let state = primary.state;
   const sequence = [];
-  for (let index = 0; index < 4; index += 1) {
+  for (let index = 0; index < 6; index += 1) {
     const parity = state.nextParity;
     sequence.push(parity);
     state = { ...state, lastTradeMode: parity };
@@ -34,9 +34,9 @@ test('HyperBeen follows PAR → PAR → ÍMPAR → ÍMPAR and then pauses 50 tic
     state = result.state;
   }
 
-  assert.deepEqual(sequence, ['EVEN', 'EVEN', 'ODD', 'ODD']);
+  assert.deepEqual(sequence, ['EVEN', 'EVEN', 'EVEN', 'ODD', 'ODD', 'ODD']);
   assert.equal(state.pauseTicksRemaining, 50);
-  assert.equal(state.deficit, 3);
+  assert.equal(state.deficit, 4);
 
   let transition;
   for (let index = 0; index < 50; index += 1) {
@@ -72,6 +72,11 @@ test('HyperBeen keeps the full deficit after a partial recovery win and resets o
   }, 5);
   assert.equal(complete.state.active, false);
   assert.equal(complete.state.deficit, 0);
+});
+
+test('HyperFlows defaults to $1 additional recovery profit', () => {
+  assert.equal(initialHyperFlowsState().extraProfit, 1);
+  assert.equal(initialHyperFlowsState(2.5).extraProfit, 2.5);
 });
 
 test('HyperFlows enters OVER 0 after five losses and stops on an OVER 0 recovery loss', () => {

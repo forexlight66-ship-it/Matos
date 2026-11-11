@@ -24,6 +24,7 @@ export interface RuntimeConfig {
   target: number;
   lossLimit: number;
   recoveryExtraProfit: number;
+  hyperFlowsRecoveryExtraProfit?: number;
   maxMartingale: number;
   iaPower: boolean;
   sonic: boolean;
@@ -174,7 +175,7 @@ export async function createRuntime(
     lastSignal: null,
     botActivity: 'collectingTicks',
     hyperBeen: { active: false, deficit: 0, nextParity: 'EVEN', recoveryStep: 0, pauseTicksRemaining: 0, lastTradeMode: null },
-    hyperFlows: { analysisActive: false, nextDigit: null, recoveryMode: false, recoveryContract: 'EVEN', nextParity: 'ODD', consecutiveLosses: 0, deficit: 0, recoveryAttempts: 0, extraProfit: config.recoveryExtraProfit, lastTradeMode: null },
+    hyperFlows: { analysisActive: false, nextDigit: null, recoveryMode: false, recoveryContract: 'EVEN', nextParity: 'ODD', consecutiveLosses: 0, deficit: 0, recoveryAttempts: 0, extraProfit: config.hyperFlowsRecoveryExtraProfit ?? 1, lastTradeMode: null },
     hypercover: { forceNextDirection: false, contractType: 'DIGITUNDER', barrier: 8, lastDirection: null, lossStreak: 0, pauseTicksRemaining: 0 },
     risk: { mode: config.iaPower ? 'ia' : config.sonic ? 'sonic' : 'fixed', state: null },
     lastClosedContractIds: [],

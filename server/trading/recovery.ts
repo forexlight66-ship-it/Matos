@@ -61,7 +61,7 @@ export const initialHyperBeenState = (): HyperBeenState => ({
   pauseTicksRemaining: 0, lastTradeMode: null,
 });
 
-export const initialHyperFlowsState = (extraProfit = 5): HyperFlowsState => ({
+export const initialHyperFlowsState = (extraProfit = 1): HyperFlowsState => ({
   analysisActive: true, nextDigit: null, recoveryMode: false, recoveryContract: 'EVEN',
   nextParity: 'ODD', consecutiveLosses: 0, deficit: 0, recoveryAttempts: 0,
   extraProfit: Math.max(0, money(extraProfit)), lastTradeMode: null,
@@ -121,13 +121,13 @@ export function onHyperBeenClose(state: HyperBeenState, close: CloseResult, extr
   if (!won) {
     const nextDeficit = money(deficit + Math.abs(Math.min(0, pnl)));
     const step = Math.max(0, Math.floor(state.recoveryStep));
-    if (step >= 3) {
+    if (step >= 5) {
       return {
-        state: { ...state, active: true, deficit: nextDeficit, recoveryStep: 4, pauseTicksRemaining: 50, nextParity: 'EVEN', lastTradeMode: null },
-        stop: false, notice: 'HyperBeen: PAR → PAR → ÍMPAR → ÍMPAR perdeu. Pausa de 50 ticks; depois reinicia em PAR.', nextAction: 'WAIT',
+        state: { ...state, active: true, deficit: nextDeficit, recoveryStep: 6, pauseTicksRemaining: 50, nextParity: 'EVEN', lastTradeMode: null },
+        stop: false, notice: 'HyperBeen: PAR → PAR → PAR → ÍMPAR → ÍMPAR → ÍMPAR perdeu. Pausa de 50 ticks; depois reinicia em PAR.', nextAction: 'WAIT',
       };
     }
-    const nextParity: Parity = step === 0 ? 'EVEN' : 'ODD';
+    const nextParity: Parity = step < 2 ? 'EVEN' : 'ODD';
     return {
       state: { ...state, active: true, deficit: nextDeficit, recoveryStep: step + 1, pauseTicksRemaining: 0, nextParity, lastTradeMode: null },
       stop: false, notice: 'HyperBeen: recuperação perdeu. Próxima operação ' + (nextParity === 'EVEN' ? 'PAR' : 'ÍMPAR') + '; objectivo défice total + $' + extra.toFixed(2) + '.', nextAction: 'RECOVER',
