@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const identity = await resolveDerivIdentityForRequest(request, session.id);
-    const accountCacheKey = `${session.id}:${accountType}`;
+    const accountCacheKey = `${session.id}:${identity.externalReferenceId}:${accountType}`;
     const cachedAccount = accountCache.get(accountCacheKey);
     let account = cachedAccount && cachedAccount.expiresAt > Date.now()
       ? cachedAccount.account
@@ -97,6 +97,16 @@ export async function GET(request: NextRequest) {
       account = accounts.find(item => item.account_id && String(item.account_type).toLowerCase() === accountType);
       if (account?.account_id) {
         accountCache.set(accountCacheKey, { account, expiresAt: Date.now() + ACCOUNT_CACHE_TTL_MS });
+        // Bound the account metadata cache on the existing Free web service.
+        if (accountCache.size > 500) {
+          const now = Date.now();
+          for (const [key, value] of accountCache) if (value.expiresAt <= now) accountCache.delete(key);
+          while (accountCache.size > 500) {
+            const oldestKey = accountCache.keys().next().value;
+            if (!oldestKey) break;
+            accountCache.delete(oldestKey);
+          }
+        }
       }
     }
     if (!account?.account_id) {
