@@ -1624,7 +1624,7 @@ export default function AutoBotV4(){
     const targetNetProfit=Number((deficit+configuredExtraProfit).toFixed(2));
     if(hyperBeenRecoveryQuoteRef.current){setBotActivity('requestingProposal');return;}
     const seedStake=Math.max(0.35,Math.ceil((Number(stake)||0.35)*100-1e-9)/100);
-    hyperBeenRecoveryQuoteRef.current={recoveryType,stage:'seed',targetNetProfit,deficit,extraProfit:configuredExtraProfit,amount:seedStake,attempt:0,step:hyperBeenThirdPhaseActive?1:hyperBeenRecoveryStepRef.current,direction:hyperBeenThirdPhaseActive?'THIRD':hyperBeenStakeDirectionRef.current};
+    hyperBeenRecoveryQuoteRef.current={recoveryType,stage:'seed',targetNetProfit,deficit,extraProfit:configuredExtraProfit,amount:seedStake,attempt:0,step:hyperBeenThirdPhaseActive?1:hyperBeenRecoveryStepRef.current,direction:hyperBeenThirdPhaseActive?'INCREASING':hyperBeenStakeDirectionRef.current};
     pendingRiskStakeRef.current=null;
     setBotActivity('requestingProposal');lastActivityAt.current=Date.now();
     clearProposal();
