@@ -1,10 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#FF444F"/>
-  <g transform="translate(256 256) scale(0.82) translate(-256 -285)">
-    <path d="M190 249 L190 132 L256 197 L322 132 L322 249" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linejoin="miter" stroke-linecap="butt"/>
-    <polygon points="88,424 146,388 190,406 249,351 300,369 358,322 424,285 424,439 88,439" fill="#FFFFFF" fill-opacity="0.2"/>
-    <polyline points="88,424 146,388 190,406 249,351 300,369 358,322 424,285" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="424" cy="285" r="33" fill="none" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="4"/>
-    <circle cx="424" cy="285" r="20" fill="#FFFFFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MozHyper">
+  <rect width="512" height="512" rx="72" fill="#ffffff"/>
+  <g transform="translate(36 97) scale(2)">
+    <path d="M219 11 161 42 169 49 122 90 76 40 19 159 59 159 78 117 85 105 108 133 115 139 195 66 197 66 205 72 206 71Z" fill="#f20b18"/>
+    <path d="M193 79 148 120 138 159 173 159Z" fill="#e90000"/>
   </g>
 </svg>

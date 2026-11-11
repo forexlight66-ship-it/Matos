@@ -5,7 +5,8 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
-  "orientation": "portrait",
-  "icons": [{"src":"/api/public-assets/icon.svg?v=3","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "theme_color": "#ff444f",
+  "icons": [
+    {"src":"/api/public-assets/icon.svg?v=5","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}
+  ]
 }

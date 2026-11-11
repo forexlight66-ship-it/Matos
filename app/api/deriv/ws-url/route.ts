@@ -73,10 +73,8 @@ export async function GET(request: NextRequest) {
     let account = cachedAccount && cachedAccount.expiresAt > Date.now()
       ? cachedAccount.account
       : undefined;
-    // Keep the full list only for the miss path; a cache hit already has the
-    // requested account and must not depend on a block-scoped variable.
-    let accounts: DerivAccount[] = [];
 
+    let accounts: DerivAccount[] = [];
     if (!account) {
       accountCache.delete(accountCacheKey);
       const accountsResult = await getAccounts(identity.accessToken);
@@ -99,7 +97,7 @@ export async function GET(request: NextRequest) {
       account = accounts.find(item => item.account_id && String(item.account_type).toLowerCase() === accountType);
       if (account?.account_id) {
         accountCache.set(accountCacheKey, { account, expiresAt: Date.now() + ACCOUNT_CACHE_TTL_MS });
-        // Bound the in-process cache on the existing Free web service.
+        // Bound the account metadata cache on the existing Free web service.
         if (accountCache.size > 500) {
           const now = Date.now();
           for (const [key, value] of accountCache) if (value.expiresAt <= now) accountCache.delete(key);
