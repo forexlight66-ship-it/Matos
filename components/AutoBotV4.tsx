@@ -606,7 +606,7 @@ function WhatsAppIcon({ size = 17, color = 'currentColor' }) {
 }
 export default function AutoBotV4(){
  const { t, language, setLanguage }=useLanguage();
- const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('R_25'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('ACIMA5_BAIXO4'),[tickWindow,setTickWindow]=useState(10),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(10),[lossLimit,setLossLimit]=useState(62.50),[recoveryExtraProfit,setRecoveryExtraProfit]=useState(5),[maxRecoveryTrades,setMaxRecoveryTrades]=useState(4),[metas,setMetas]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[botPickerOpen,setBotPickerOpen]=useState(false),[notice,setNotice]=useState<string|null>(null),[botActivity,setBotActivity]=useState<'collectingTicks'|'waitingExitSpots'|'waitingRobotSignal'|'waitingAnalystSignal'|'requestingProposal'|'sendingDirectBuy'|'waitingBuyConfirmation'|'reconcilingBot'|'reconnectingDeriv'|'analyzing'>('analyzing'),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]),[manualPanelOpen,setManualPanelOpen]=useState(false),[manualStatus,setManualStatus]=useState(''),[manualAboveBarrier,setManualAboveBarrier]=useState('5'),[manualBelowBarrier,setManualBelowBarrier]=useState('4');
+ const[userName,setUserName]=useState(''),[onlineUsers,setOnlineUsers]=useState(0),[symbol,setSymbol]=useState('R_25'),[account,setAccount]=useState<'demo'|'real'>('demo'),[stake,setStake]=useState(IA_RISK_STAKE),[strategy,setStrategy]=useState<Strategy>('MATCH0'),[tickWindow,setTickWindow]=useState(10),[running,setRunning]=useState(false),[ticks,setTicks]=useState<number[]>([]),[tickPipSize,setTickPipSize]=useState<number|undefined>(undefined),[signalNow,setSignalNow]=useState<any>(null),[target,setTarget]=useState(30),[lossLimit,setLossLimit]=useState(62.50),[recoveryExtraProfit,setRecoveryExtraProfit]=useState(5),[hyperFlowsRecoveryExtraProfit,setHyperFlowsRecoveryExtraProfit]=useState(1),[maxRecoveryTrades,setMaxRecoveryTrades]=useState(3),[metas,setMetas]=useState(false),[hyperBeenReverseStake,setHyperBeenReverseStake]=useState(false),[mozHyperCourse,setMozHyperCourse]=useState(false),[courseSection,setCourseSection]=useState<'home'|'risk'|'course'>('home'),[riskBalance,setRiskBalance]=useState(200),[riskPercent,setRiskPercent]=useState(2),[riskTrades,setRiskTrades]=useState(10),[maxMartingale,setMaxMartingale]=useState(11),[theme,setTheme]=useState<'dark'|'light'>('light'),[menu,setMenu]=useState(false),[botPickerOpen,setBotPickerOpen]=useState(false),[notice,setNotice]=useState<string|null>(null),[botActivity,setBotActivity]=useState<'collectingTicks'|'waitingExitSpots'|'waitingRobotSignal'|'waitingAnalystSignal'|'requestingProposal'|'sendingDirectBuy'|'waitingBuyConfirmation'|'reconcilingBot'|'reconnectingDeriv'|'analyzing'>('analyzing'),[currency,setCurrency]=useState<Currency>('USD'),[stakeManagerVersion,setStakeManagerVersion]=useState(0),[lastDigitSeen,setLastDigitSeen]=useState<number|null>(null),[digitView,setDigitView]=useState<'bars'|'chart'>('bars'),[historyOpen,setHistoryOpen]=useState(false),[historyDate,setHistoryDate]=useState(localDateValue),[dailyHistoryArchive,setDailyHistoryArchive]=useState<any[]>([]),[manualPanelOpen,setManualPanelOpen]=useState(false),[manualStatus,setManualStatus]=useState(''),[manualAboveBarrier,setManualAboveBarrier]=useState('5'),[manualBelowBarrier,setManualBelowBarrier]=useState('4');
  const [iaPower,setIaPower]=useState(true),[sonic,setSonic]=useState(false),[soundEnabled,setSoundEnabled]=useState(true),[courseCode,setCourseCode]=useState(''),[courseUnlocked,setCourseUnlocked]=useState(false),[courseUnlocking,setCourseUnlocking]=useState(false),[smartAnalyzer,setSmartAnalyzer]=useState(false),[exitSpotsMode,setExitSpotsMode]=useState(false),[exitSpotsAutoEnabled,setExitSpotsAutoEnabled]=useState(true),[exitSpotsMonitorStatus,setExitSpotsMonitorStatus]=useState('A aguardar os primeiros 28 Exit Spots fechados.'),[aiAnalystActive,setAiAnalystActive]=useState(false),[aiAnalystExpiresAt,setAiAnalystExpiresAt]=useState<string|null>(null),[hypercoverRevision,setHypercoverRevision]=useState(0),[smartAdvice,setSmartAdvice]=useState<any>(null),[analyzerNotice,setAnalyzerNotice]=useState<string|null>(null),[analyzerHistory,setAnalyzerHistory]=useState<any[]>([]),[analyzerNoticeColor,setAnalyzerNoticeColor]=useState('#3D7FFF');
  const [currencyOptions,setCurrencyOptions]=useState<Currency[]>(['USD']); const [paymentAgentCurrency,setPaymentAgentCurrency]=useState(''); const [clientCountry,setClientCountry]=useState(''); const [cashierOpen,setCashierOpen]=useState(false),[cashierAction,setCashierAction]=useState<'deposit'|'withdraw'|'ai_analyst'|'course'|'signals_free'|null>(null),[supportOpen,setSupportOpen]=useState(false);
   const [clientCountryReady,setClientCountryReady]=useState(false),[signalsModalOpen,setSignalsModalOpen]=useState(false);
@@ -649,14 +649,17 @@ export default function AutoBotV4(){
   const hyperFlowNormalSignalDisarmedRef=useRef(false);
  const hyperBeenRecoveryModeRef=useRef(false);
  const hyperBeenRecoveryAttemptsRef=useRef(0);
- const hyperBeenDeficitRef=useRef(0);
+ const hyperBeenDeficitRef=useRef(0); const hyperBeenLowRiskPhaseRef=useRef<'INCREASING'|'DECREASING'|'THIRD'>('INCREASING'); const hyperBeenInverseNetRef=useRef(0); const hyperBeenThirdPhaseNetRef=useRef(0); const hyperBeenThirdPhaseTargetRef=useRef(0);
  const hyperBeenNextParityRef=useRef<'EVEN'|'ODD'>('EVEN');
  const hyperBeenRecoveryStepRef=useRef(0);
  const hyperBeenPauseTicksRef=useRef(0);
  const hyperBeenPauseStartEpochRef=useRef<number|null>(null);
  const hyperBeenPauseStartSequenceRef=useRef<number|null>(null);
  const hyperBeenLastTradeModeRef=useRef<'OVER0'|'EVEN'|'ODD'|null>(null);
- const hyperBeenRecoveryQuoteRef=useRef<{recoveryType:'EVEN'|'ODD';stage:'seed'|'final';targetNetProfit:number;deficit:number;amount:number;attempt:number}|null>(null);
+ const hyperBeenRecoveryQuoteRef=useRef<{recoveryType:'EVEN'|'ODD';stage:'seed'|'final';targetNetProfit:number;deficit:number;amount:number;attempt:number;step:number;direction:'INCREASING'|'DECREASING'}|null>(null);
+  const hyperBeenReverseStakeEnabledRef=useRef(false);
+  const hyperBeenStakeLadderRef=useRef<number[]>([]);
+  const hyperBeenStakeDirectionRef=useRef<'INCREASING'|'DECREASING'>('INCREASING');
  const hyperFlowsAnalysisActiveRef=useRef(false);
  const hyperFlowsNextDigitRef=useRef<number|null>(null);
  const hyperFlowsRecoveryModeRef=useRef(false);
@@ -665,7 +668,7 @@ export default function AutoBotV4(){
  const hyperFlowsConsecutiveLossesRef=useRef(0);
  const hyperFlowsDeficitRef=useRef(0);
  const hyperFlowsRecoveryAttemptsRef=useRef(0);
- const hyperFlowsRecoveryExtraProfitRef=useRef(5);
+ const hyperFlowsRecoveryExtraProfitRef=useRef(1);
  const hyperFlowsRecoveryQuoteRef=useRef<{recoveryType:'EVEN'|'ODD'|'OVER0';stage:'seed'|'final';targetNetProfit:number;deficit:number;extraProfit:number;amount:number;attempt:number}|null>(null);
  const hyperFlowsLastTradeModeRef=useRef<'MATCH9'|'ALTERNATE'|'UNDER9'|'EVEN'|'ODD'|'OVER0'|null>(null);
  const hyperFlowsLastEntryTickRef=useRef<{symbol:string;epoch:number}|null>(null);
@@ -780,61 +783,63 @@ export default function AutoBotV4(){
     const savedMode=hyperBeenLastTradeModeRef.current;
     const recoveryType:'EVEN'|'ODD'=closedType==='DIGITEVEN'?'EVEN':closedType==='DIGITODD'?'ODD':savedMode==='ODD'?'ODD':savedMode==='EVEN'?'EVEN':hyperBeenNextParityRef.current;
     const isPrimaryOverZero=(closedType==='DIGITOVER'&&Number.isFinite(closeBarrier)&&closeBarrier===0)||(closedType==='DIGITMATCH'&&Number.isFinite(closeBarrier)&&closeBarrier===0)||savedMode==='OVER0';
-    hyperBeenLastTradeModeRef.current=null;
-    hyperBeenRecoveryQuoteRef.current=null;
-    if(isPrimaryOverZero){
+    hyperBeenLastTradeModeRef.current=null;hyperBeenRecoveryQuoteRef.current=null;
+    if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenLowRiskPhaseRef.current==='THIRD'){
+     hyperBeenThirdPhaseNetRef.current=Number((hyperBeenThirdPhaseNetRef.current+result).toFixed(2));
+     hyperBeenDeficitRef.current=Number(Math.max(0,hyperBeenDeficitRef.current-result).toFixed(2));
+     const thirdNet=hyperBeenThirdPhaseNetRef.current,thirdTarget=hyperBeenThirdPhaseTargetRef.current;
+     if(thirdNet+0.005>=thirdTarget){
+      hyperBeenDeficitRef.current=0;hyperBeenLowRiskPhaseRef.current='INCREASING';hyperBeenThirdPhaseNetRef.current=0;hyperBeenThirdPhaseTargetRef.current=0;hyperBeenInverseNetRef.current=0;
+      hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
+      setNotice('HyperBeen Low risk: objetivo alcançado. Resultado líquido cobriu o défice + $'+recoveryExtraProfit.toFixed(2)+'. Défice zerado; ciclo normal retomado.');
+     }else{hyperBeenRecoveryModeRef.current=false;setNotice('HyperBeen Low risk — terceira sequência normal: resultado líquido $'+thirdNet.toFixed(2)+' / $'+thirdTarget.toFixed(2)+'. Défice partilhado restante: $'+hyperBeenDeficitRef.current.toFixed(2)+'.');}
+    }else if(isPrimaryOverZero){
      if(hyperFlowLost){
       hyperBeenDeficitRef.current=Number((Math.max(0,hyperBeenDeficitRef.current)+Math.abs(Math.min(0,result))).toFixed(2));
-      hyperBeenRecoveryModeRef.current=true;
-      hyperBeenRecoveryAttemptsRef.current=0;
-      hyperBeenRecoveryStepRef.current=0;
-      hyperBeenPauseTicksRef.current=0;
-      hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;
-      hyperBeenNextParityRef.current='EVEN';
-      setNotice('HyperBeen: ACIMA 0 perdeu. Recuperação iniciada em PAR. Cada operação deve cobrir o défice acumulado + $'+recoveryExtraProfit.toFixed(2)+' líquidos. Défice: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
+      hyperBeenRecoveryModeRef.current=true;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';
+      setNotice('HyperBeen: ACIMA 0 perdeu. Recuperação iniciada em PAR. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
      }else{
-      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';
+      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
       setNotice('HyperBeen: ACIMA 0 ganhou. Mantém a estratégia principal ACIMA 0.');
      }
     }else{
      hyperBeenRecoveryAttemptsRef.current+=1;
      const deficitBeforeTrade=Number(Math.max(0,hyperBeenDeficitRef.current).toFixed(2));
      const targetNetProfit=Number((deficitBeforeTrade+recoveryExtraProfit).toFixed(2));
-     if(hyperFlowWon&&result+0.005>=targetNetProfit){
-      // A confirmed settlement covered the entire outstanding deficit plus the configured additional-profit target.
-      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';
-      setNotice('HyperBeen: recuperação concluída. O trade cobriu todo o défice acumulado + $'+recoveryExtraProfit.toFixed(2)+' líquidos. A regressar imediatamente à estratégia normal ACIMA 0.');
+     const isLowRiskDescending=hyperBeenReverseStakeEnabledRef.current&&hyperBeenStakeDirectionRef.current==='DECREASING';
+     if(isLowRiskDescending&&hyperBeenLowRiskPhaseRef.current==='DECREASING'){
+      hyperBeenInverseNetRef.current=Number((hyperBeenInverseNetRef.current+result).toFixed(2));
+      const completedStep=hyperBeenRecoveryStepRef.current;
+      if(hyperFlowWon||completedStep>=5){
+       const deficitBeforeInverse=Number(Math.max(0,hyperBeenDeficitRef.current).toFixed(2));
+       hyperBeenDeficitRef.current=Number(Math.max(0,deficitBeforeInverse-hyperBeenInverseNetRef.current).toFixed(2));
+       hyperBeenLowRiskPhaseRef.current='THIRD';hyperBeenThirdPhaseNetRef.current=0;hyperBeenThirdPhaseTargetRef.current=Number((hyperBeenDeficitRef.current+recoveryExtraProfit).toFixed(2));
+       hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenRecoveryQuoteRef.current=null;
+       setNotice('HyperBeen Low risk: sequência inversa concluída. Resultado líquido: $'+hyperBeenInverseNetRef.current.toFixed(2)+'. Défice atualizado: $'+hyperBeenDeficitRef.current.toFixed(2)+'. Terceira sequência normal até $'+hyperBeenThirdPhaseTargetRef.current+' líquidos.');
+      }else{
+       hyperBeenRecoveryStepRef.current=completedStep+1;hyperBeenNextParityRef.current=completedStep<2?'EVEN':'ODD';hyperBeenRecoveryModeRef.current=true;
+       setNotice('HyperBeen Low risk: sequência inversa '+(completedStep+1)+'/6. Resultado líquido parcial: $'+hyperBeenInverseNetRef.current.toFixed(2)+'. Próxima Stake pela ordem inversa.');
+      }
+     }else if(hyperFlowWon&&result+0.005>=targetNetProfit){
+      hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
+      setNotice('HyperBeen: sequência crescente cobriu o défice + $'+recoveryExtraProfit.toFixed(2)+' líquidos. Défice zerado; ciclo normal retomado.');
      }else if(hyperFlowLost){
       hyperBeenDeficitRef.current=Number((deficitBeforeTrade+Math.abs(Math.min(0,result))).toFixed(2));
-      if(hyperBeenRecoveryAttemptsRef.current>=maxRecoveryTrades){
-       hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryQuoteRef.current=null;
-       setNotice('HyperBeen: limite de '+maxRecoveryTrades+' operações de recuperação atingido após perda. Défice descartado; a estratégia normal ACIMA 0 foi retomada.');
+      const failedStep=hyperBeenRecoveryStepRef.current;
+      if(failedStep>=5){
+       hyperBeenRecoveryStepRef.current=6;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=true;
+       let nextStakeDirection:'INCREASING'|'DECREASING'='INCREASING';
+       if(hyperBeenReverseStakeEnabledRef.current){nextStakeDirection='DECREASING';hyperBeenStakeDirectionRef.current='DECREASING';hyperBeenLowRiskPhaseRef.current='DECREASING';hyperBeenInverseNetRef.current=0;}
+       else{nextStakeDirection=hyperBeenStakeDirectionRef.current==='INCREASING'?'DECREASING':'INCREASING';hyperBeenStakeDirectionRef.current=nextStakeDirection;if(nextStakeDirection==='INCREASING')hyperBeenStakeLadderRef.current=[];}
+       setNotice('HyperBeen: primeira sequência (6/6) concluída. Pausa de 50 ticks; próxima sequência '+(hyperBeenReverseStakeEnabledRef.current?'decrescente pela ordem inversa':(nextStakeDirection==='DECREASING'?'decrescente':'crescente'))+'. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
       }else{
-       const failedStep=hyperBeenRecoveryStepRef.current;
-       if(failedStep>=3){
-        hyperBeenRecoveryStepRef.current=4;
-        hyperBeenPauseTicksRef.current=50;
-        hyperBeenPauseStartEpochRef.current=lastEpoch.current;
-        hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;
-        hyperBeenNextParityRef.current='EVEN';
-        hyperBeenRecoveryModeRef.current=true;
-        setNotice('HyperBeen: quarta recuperação consecutiva perdeu (PAR → PAR → ÍMPAR → ÍMPAR). Pausa de 50 ticks; depois a sequência recomeça em PAR. Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
-       }else{
-        hyperBeenRecoveryStepRef.current=failedStep+1;
-        // Recovery sequence: PAR -> PAR -> ÍMPAR -> ÍMPAR, then pause 50 ticks.
-        hyperBeenNextParityRef.current=failedStep===0?'EVEN':'ODD';
-        hyperBeenRecoveryModeRef.current=true;
-        const nextLabel=hyperBeenNextParityRef.current==='EVEN'?'PAR':'ÍMPAR';
-        setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+' ('+hyperBeenRecoveryAttemptsRef.current+'/'+maxRecoveryTrades+'). Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'. A próxima operação deve cobrir o défice total + $'+recoveryExtraProfit.toFixed(2)+' líquidos.');
-       }
+       hyperBeenRecoveryStepRef.current=failedStep+1;hyperBeenNextParityRef.current=failedStep<2?'EVEN':'ODD';hyperBeenRecoveryModeRef.current=true;
+       const nextLabel=hyperBeenNextParityRef.current==='EVEN'?'PAR':'ÍMPAR';
+       setNotice('HyperBeen: recuperação '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' perdeu. Próxima operação: '+nextLabel+' ('+hyperBeenRecoveryStepRef.current+'/6). Défice acumulado: '+hyperBeenDeficitRef.current.toFixed(2)+'.');
       }
-}else{
-      // A positive result below the full target is not partial recovery;
-      // keep the full deficit and retry the same parity with a fresh live quote.
-      hyperBeenDeficitRef.current=deficitBeforeTrade;
-      hyperBeenRecoveryModeRef.current=true;
-      hyperBeenNextParityRef.current=recoveryType;
-      setNotice('HyperBeen: a recuperação ganhou, mas não atingiu o objectivo integral. O défice total de '+deficitBeforeTrade.toFixed(2)+' mantém-se intacto; a repetir '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' para cobrir o défice completo + $'+recoveryExtraProfit.toFixed(2)+' num único trade.');
+     }else{
+      hyperBeenDeficitRef.current=deficitBeforeTrade;hyperBeenRecoveryModeRef.current=true;hyperBeenNextParityRef.current=recoveryType;
+      setNotice('HyperBeen: ganho abaixo do objectivo integral. O défice de '+deficitBeforeTrade.toFixed(2)+' mantém-se; a repetir '+(recoveryType==='EVEN'?'PAR':'ÍMPAR')+' para cobrir o défice + $'+recoveryExtraProfit.toFixed(2)+'.');
      }
     }
     console.info('[HyperBeen recovery state]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',mode:isPrimaryOverZero?'OVER0':recoveryType,deficit:hyperBeenDeficitRef.current,target:hyperBeenDeficitRef.current+recoveryExtraProfit,recoveryActive:hyperBeenRecoveryModeRef.current,nextParity:hyperBeenNextParityRef.current});
@@ -900,21 +905,21 @@ export default function AutoBotV4(){
         }else{
          hyperFlowsNextParityRef.current='EVEN';
          hyperFlowsRecoveryContractRef.current='EVEN';
-         hyperFlowsRecoveryExtraProfitRef.current=recoveryExtraProfit;
+         hyperFlowsRecoveryExtraProfitRef.current=hyperFlowsRecoveryExtraProfit;
          hyperFlowsRecoveryModeRef.current=true;
          setNotice('HyperFlows: recuperação ACIMA 0 perdeu. Próxima recuperação: NÚMEROS PARES ('+hyperFlowsRecoveryAttemptsRef.current+'/'+maxRecoveryTrades+'). Défice acumulado: '+hyperFlowsDeficitRef.current.toFixed(2)+'.');
         }
        }else{
         const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
-        const requiredRecoveryProfit=Number((deficitBeforeWin+recoveryExtraProfit).toFixed(2));
+        const requiredRecoveryProfit=Number((deficitBeforeWin+hyperFlowsRecoveryExtraProfit).toFixed(2));
         if(result+0.005>=requiredRecoveryProfit){
          resetHyperFlowsRecovery('HyperFlows: recuperação ACIMA 0 concluída. Um único trade cobriu todo o défice e gerou +$'+recoveryExtraProfit.toFixed(2)+' líquidos.');
         }else{
          hyperFlowsRecoveryContractRef.current='EVEN';
          hyperFlowsNextParityRef.current='EVEN';
-         hyperFlowsRecoveryExtraProfitRef.current=recoveryExtraProfit;
+         hyperFlowsRecoveryExtraProfitRef.current=hyperFlowsRecoveryExtraProfit;
          hyperFlowsRecoveryModeRef.current=true;
-         setNotice('HyperFlows: ACIMA 0 ganhou, mas não atingiu '+requiredRecoveryProfit.toFixed(2)+' (défice total + '+recoveryExtraProfit.toFixed(2)+'). O défice integral mantém-se; a próxima recuperação será PAR.');
+         setNotice('HyperFlows: ACIMA 0 ganhou, mas não atingiu '+requiredRecoveryProfit.toFixed(2)+' (défice total + '+hyperFlowsRecoveryExtraProfit.toFixed(2)+'). O défice integral mantém-se; a próxima recuperação será PAR.');
         }
        }
       }else if(hyperFlowLost){
@@ -932,7 +937,7 @@ export default function AutoBotV4(){
        const paidIn=Number(closed?.buy_price);
        if(Number.isFinite(paidIn)&&paidIn>0&&result>0)payoutRatiosByContractRef.current[payoutContractKey(recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD')]=Math.max(0.001,result/paidIn);
        const deficitBeforeWin=Number(Math.max(0,hyperFlowsDeficitRef.current).toFixed(2));
-       const requiredRecoveryProfit=Number((deficitBeforeWin+recoveryExtraProfit).toFixed(2));
+       const requiredRecoveryProfit=Number((deficitBeforeWin+hyperFlowsRecoveryExtraProfit).toFixed(2));
        if(result+0.005>=requiredRecoveryProfit){
         resetHyperFlowsRecovery('HyperFlows: recuperação '+recoveryLabel+' concluída. Défice total recuperado e lucro extra de '+hyperFlowsRecoveryExtraProfitRef.current.toFixed(2)+' confirmado; a retomar MATCH 9 após um novo tick.');
        }else{
@@ -1098,7 +1103,7 @@ export default function AutoBotV4(){
   }else{
    console.warn('[Bot lifecycle] Processed a closed trade without clearing a different active contract lock',{closedContractId:id,trackedActiveId});
   }
- },[running,smartAnalyzer,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,maxMartingale,setManualStatus,recoveryExtraProfit,maxRecoveryTrades]);
+ },[running,smartAnalyzer,iaPower,sonic,soundEnabled,strategy,ticks,tickPipSize,account,symbol,stake,maxMartingale,setManualStatus,recoveryExtraProfit,hyperFlowsRecoveryExtraProfit,maxRecoveryTrades]);
  const{tick,balance,proposal,buy,buyDirect,buying,activeContractId,trackedContractId,getProposal,clearProposal,subscribeTicks,isAuthorized,isConnected,error,profitTransactions,soros,setSorosStake,setSorosEnabled,contractClosedSeq,lastClosedTransaction,contractStage,fetchProfitTable,getTicksHistory,resetTradingSession}=useDeriv(account,processClosedTradeImmediately);activeContractIdForRiskRef.current=trackedContractId;
  const renderedHyperFlowsTickEpoch=Number(tick?.epoch);
  if(Number.isFinite(renderedHyperFlowsTickEpoch))hyperFlowsObservedTickRef.current={symbol,epoch:renderedHyperFlowsTickEpoch};
@@ -1588,11 +1593,12 @@ export default function AutoBotV4(){
     const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD';
     const targetNetProfit=Number((deficit+recoveryExtraProfit).toFixed(2));
     if(hyperBeenRecoveryQuoteRef.current){setBotActivity('requestingProposal');return;}
-    hyperBeenRecoveryQuoteRef.current={recoveryType,stage:'seed',targetNetProfit,deficit,amount:0.35,attempt:0};
+    const seedStake=Math.max(0.35,Math.ceil((Number(stake)||0.35)*100-1e-9)/100);
+    hyperBeenRecoveryQuoteRef.current={recoveryType,stage:'seed',targetNetProfit,deficit,amount:seedStake,attempt:0,step:hyperBeenRecoveryStepRef.current,direction:hyperBeenStakeDirectionRef.current};
     pendingRiskStakeRef.current=null;
     setBotActivity('requestingProposal');lastActivityAt.current=Date.now();
     clearProposal();
-    if(!getProposal(symbol,recoveryContractType,0.35,1,0,false)){
+    if(!getProposal(symbol,recoveryContractType,seedStake,1,0,false)){
      hyperBeenRecoveryQuoteRef.current=null;
      requested.current=false;requestStartedAt.current=0;stakeReadyRef.current=true;riskLockStartedAt.current=0;
      setBotActivity('waitingRobotSignal');
@@ -1606,7 +1612,7 @@ export default function AutoBotV4(){
    const recoveryType=hyperFlowsRecoveryContractRef.current;
    const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':recoveryType==='ODD'?'DIGITODD':'DIGITOVER';
    const recoveryBarrier=recoveryType==='OVER0'?0:undefined;
-   const configuredRecoveryExtraProfit=Number(Math.max(0,recoveryExtraProfit).toFixed(2));
+   const configuredRecoveryExtraProfit=Number(Math.max(0,hyperFlowsRecoveryExtraProfit).toFixed(2));
    const recoveryTargetNetProfit=Number((deficit+configuredRecoveryExtraProfit).toFixed(2));
    if(!hyperFlowsRecoveryQuoteRef.current){
     // Payout for EVEN and OVER 0 varies by symbol/market conditions. Quote
@@ -1768,7 +1774,7 @@ export default function AutoBotV4(){
      return;
     }
     payoutRatiosByContractRef.current[payoutContractKey(expectedType)]=liveRatio;
-    const exactStake=Math.max(0.35,Math.ceil((hyperBeenQuote.targetNetProfit/liveRatio)*100-1e-9)/100);
+     let exactStake:number;if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenQuote.direction==='DECREASING'){const reverseStake=hyperBeenStakeLadderRef.current[5-hyperBeenQuote.step];if(!Number.isFinite(reverseStake)||reverseStake<0.35){abandonHyperBeenQuote('HyperBeen: não existem seis Stakes válidas para inverter. Nenhuma compra foi enviada; reinicia em crescente.');hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenStakeLadderRef.current=[];hyperBeenRecoveryStepRef.current=0;return;}exactStake=reverseStake;}else if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenQuote.step===0){exactStake=Math.max(0.35,hyperBeenQuote.amount);}else{exactStake=Math.max(0.35,Math.ceil((hyperBeenQuote.targetNetProfit/liveRatio)*100-1e-9)/100);}
     if(!Number.isFinite(balanceNow)||exactStake>availableNow+0.005){
      recoveryBalancePauseRef.current=exactStake;
      abandonHyperBeenQuote('HyperBeen: recuperação '+(hyperBeenQuote.recoveryType==='EVEN'?'PAR':'ÍMPAR')+' pausada. A cotação real exige stake '+exactStake.toFixed(2)+' para cobrir o défice total '+hyperBeenQuote.deficit.toFixed(2)+' e obter +$'+recoveryExtraProfit.toFixed(2)+' líquidos; saldo disponível '+Math.max(0,Number.isFinite(balanceNow)?balanceNow:0).toFixed(2)+' '+currencyNow+'. Nenhuma compra foi enviada.');
@@ -1799,6 +1805,7 @@ export default function AutoBotV4(){
     hyperBeenLastTradeModeRef.current=hyperBeenQuote.recoveryType;
     const bought=buy(proposal.id,ask,'HyperBeen',undefined);
     if(bought){
+      if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenQuote.direction==='INCREASING')hyperBeenStakeLadderRef.current[hyperBeenQuote.step]=Number(ask.toFixed(2));
      hyperBeenRecoveryQuoteRef.current=null;
      setBotActivity('waitingBuyConfirmation');lastActivityAt.current=Date.now();
      setNotice('HyperBeen: recuperação '+(hyperBeenQuote.recoveryType==='EVEN'?'PAR':'ÍMPAR')+' enviada com payout confirmado. Stake '+ask.toFixed(2)+'; défice '+hyperBeenQuote.deficit.toFixed(2)+'; lucro líquido estimado '+estimatedNetProfit.toFixed(2)+' (objectivo '+hyperBeenQuote.targetNetProfit.toFixed(2)+').');
@@ -2368,7 +2375,7 @@ const refreshAiAnalystAccess=useCallback(async()=>{try{const response=await fetc
 </div></>}<div className="card ia-power mt-3 p-4"><div><div className="ia-badge" style={{color:smartAnalyzer?'#25D366':(light?'#475569':'#94a3b8')}} >{t('analyzer100Ticks')}</div></div><button className={`ia-toggle ${smartAnalyzer?'on':''}`} type="button" onClick={()=>toggleAnalyzer(!smartAnalyzer)} aria-label={t('analyzer100Ticks')} title={smartAnalyzer?'Desligar AI Analyst':'Ligar AI Analyst — inicia automaticamente'}><span/></button></div>
  <div className="mt-2 flex justify-between text-[9px] muted"><span>{SYMBOLS[symbol]}</span><span>{isConnected&&isAuthorized?t('connected'):t('disconnected')}</span></div>
  {error&&<div className="mt-2 rounded-xl border border-red-800 bg-red-950 p-3 text-xs text-red-300">{error}</div>}
- {mozHyperCourse&&<div className="modal-backdrop" onClick={()=>setMozHyperCourse(false)}><div className="modal" style={{width:'min(94vw,560px)',maxHeight:'88vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between"><b>📚 {t('completeCourse')}</b><button onClick={()=>setMozHyperCourse(false)}>✕</button></div>{courseSection==='home'?<div className="mt-5 grid gap-3 sm:grid-cols-2"><button className="rounded-xl border border-blue-400/50 p-5 text-left" onClick={()=>setCourseSection('risk')}><div className="text-2xl">📊</div><b>{t('riskSheet')}</b><div className="mt-1 text-[10px] muted">{t('riskSheetDesc')}</div></button><button className="rounded-xl border border-emerald-400/50 p-5 text-left" onClick={()=>setCourseSection('course')}><div className="text-2xl">🎓</div><b>{t('course')}</b><div className="mt-1 text-[10px] muted">{t('courseDesc')}</div></button></div>:courseSection==='risk'?<div className="mt-4"><button className="text-xs font-bold text-blue-500" onClick={()=>setCourseSection('home')}>← {t('back')}</button><h3 className="mt-3 font-black">{t('riskSheetTitle')}</h3><div className="mt-3 grid gap-3"><label className="text-xs">{t('riskBalance')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" value={riskBalance} onChange={e=>setRiskBalance(Math.max(0,Number(e.target.value)))}/></label><label className="text-xs">{t('riskPerTrade')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" max="100" step="0.1" value={riskPercent} onChange={e=>setRiskPercent(Math.min(100,Math.max(0,Number(e.target.value))))}/></label><label className="text-xs">{t('numberTrades')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="1" value={riskTrades} onChange={e=>setRiskTrades(Math.max(1,Math.floor(Number(e.target.value)||1)))}/></label></div><div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded-xl border border-slate-300/30 p-3"><div className="text-[9px] muted">{t('riskPerOperation')}</div><b>{(riskBalance*riskPercent/100).toFixed(2)}</b></div><div className="rounded-xl border border-slate-300/30 p-3"><div className="text-[9px] muted">{t('estimatedExposure')}</div><b>{(riskBalance*riskPercent/100*riskTrades).toFixed(2)}</b></div></div><div className="mt-3 rounded-xl border border-red-400/50 p-3 text-[10px] text-red-500">{t('riskWarning')}</div></div>:<div className="mt-4"><button className="text-xs font-bold text-blue-500" onClick={()=>setCourseSection('home')}>← {t('back')}</button><h3 className="mt-3 font-black">🎓 {t('courseMozHyper')}</h3>{!courseUnlocked?<div className="mt-4 rounded-xl border border-blue-400/50 p-4"><b className="text-sm">🔐 {t('accessCourse')}</b><div className="mt-1 text-[10px] muted">{t('accessDesc')}</div><input className="mt-3 w-full rounded-lg border border-slate-300/40 bg-transparent p-3 font-mono text-sm" placeholder="MozHyper-XXXXXXXX" value={courseCode} onChange={e=>setCourseCode(e.target.value)} autoComplete="off"/><button className="mt-2 w-full rounded-lg bg-blue-600 p-3 text-xs font-bold text-white disabled:opacity-50" disabled={courseUnlocking||!courseCode.trim()} onClick={async()=>{setCourseUnlocking(true);try{const r=await fetch('/api/course/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:courseCode})});const data=await r.json().catch(()=>null);if(data?.courseUnlocked){setCourseUnlocked(true);setNotice(t('unlockedNotice'))}else{setNotice(data?.error||t('invalidPassword'))}}catch{setNotice(t('validationError'))}finally{setCourseUnlocking(false)}}}>{courseUnlocking?t('validating'):t('validate')}</button><button className="mt-2 w-full rounded-lg border border-slate-300/30 p-3 text-xs font-bold" disabled={!clientCountryReady} onClick={()=>{if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please wait a moment.':'A identificar o país. Aguarde um momento.');return;}setMozHyperCourse(false);setCashierAction('course')}}>{`${t('buyCourse')} — ${!clientCountryReady?(language==='en'?'Checking…':'A identificar…'):clientCountry === 'MZ' ? '999 MZN' : '15 USDT'}`}</button></div>:<><div className="mt-3 rounded-xl border border-emerald-400/50 p-4"><b className="text-sm text-emerald-500">✅ {t('unlocked')}</b><div className="mt-1 text-[10px] muted">{t('sessionAccess')}</div></div><div className="mt-3 grid gap-2">{[t('module1'),t('module2'),t('module3'),t('module4'),t('module5'),t('module6'),t('module7')].map(m=><div key={m} className="rounded-xl border border-slate-300/30 p-3"><b className="text-xs">{m}</b><div className="mt-1 text-[9px] muted">{t('courseContent')}</div></div>)}</div></>}</div>}</div></div>}{metas&&<div className="modal-backdrop" onClick={()=>setMetas(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between"><b>{t('meta')}</b><button onClick={()=>setMetas(false)}>✕</button></div><label className="mt-4 block text-xs">{t('profit')} (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" step="0.01" min="0" value={target} onChange={e=>setTarget(Math.max(0,Number(e.target.value)))}/></label><label className="mt-3 block text-xs">{t('lossGoal')} (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" step="0.01" min="0" value={lossLimit} onChange={e=>setLossLimit(Math.max(0,Number(e.target.value)))}/></label><label className="mt-3 block text-xs">Lucro adicional por recuperação (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" step="0.01" value={recoveryExtraProfit} onChange={e=>setRecoveryExtraProfit(Math.max(0,Number(e.target.value)||0))} disabled={running||smartAnalyzer||buying||activeContractId!==null||trackedContractId!==null}/><div className="mt-1 text-[9px] muted">Aplicado às recuperações do HyperBeen e HyperFlows: défice total + este valor. Só pode ser alterado com o robô parado e sem contrato activo.</div></label><label className="mt-3 block text-xs">{language==='en'?'Maximum recovery trades':language==='es'?'Máximo de operaciones de recuperación':'Limite de trades de recuperação'}<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="1" max="20" step="1" value={maxRecoveryTrades} onChange={e=>setMaxRecoveryTrades(Math.min(20,Math.max(1,Math.floor(Number(e.target.value)||1))))} disabled={running||smartAnalyzer||buying||activeContractId!==null||trackedContractId!==null}/><div className="mt-1 text-[9px] muted">{language==='en'?'After this many recovery trades, if the next result is a loss, the deficit is cleared and the normal strategy resumes.':language==='es'?'Al alcanzar este límite con una pérdida, se elimina el déficit y se reanuda la estrategia normal.':'Ao atingir este limite com uma perda, o défice é eliminado e a estratégia normal é retomada.'} {language==='en'?'Default: 4.':language==='es'?'Predeterminado: 4.':'Padrão: 4.'}</div></label>
+ {mozHyperCourse&&<div className="modal-backdrop" onClick={()=>setMozHyperCourse(false)}><div className="modal" style={{width:'min(94vw,560px)',maxHeight:'88vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between"><b>📚 {t('completeCourse')}</b><button onClick={()=>setMozHyperCourse(false)}>✕</button></div>{courseSection==='home'?<div className="mt-5 grid gap-3 sm:grid-cols-2"><button className="rounded-xl border border-blue-400/50 p-5 text-left" onClick={()=>setCourseSection('risk')}><div className="text-2xl">📊</div><b>{t('riskSheet')}</b><div className="mt-1 text-[10px] muted">{t('riskSheetDesc')}</div></button><button className="rounded-xl border border-emerald-400/50 p-5 text-left" onClick={()=>setCourseSection('course')}><div className="text-2xl">🎓</div><b>{t('course')}</b><div className="mt-1 text-[10px] muted">{t('courseDesc')}</div></button></div>:courseSection==='risk'?<div className="mt-4"><button className="text-xs font-bold text-blue-500" onClick={()=>setCourseSection('home')}>← {t('back')}</button><h3 className="mt-3 font-black">{t('riskSheetTitle')}</h3><div className="mt-3 grid gap-3"><label className="text-xs">{t('riskBalance')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" value={riskBalance} onChange={e=>setRiskBalance(Math.max(0,Number(e.target.value)))}/></label><label className="text-xs">{t('riskPerTrade')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" max="100" step="0.1" value={riskPercent} onChange={e=>setRiskPercent(Math.min(100,Math.max(0,Number(e.target.value))))}/></label><label className="text-xs">{t('numberTrades')}<input className="mt-1 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="1" value={riskTrades} onChange={e=>setRiskTrades(Math.max(1,Math.floor(Number(e.target.value)||1)))}/></label></div><div className="mt-4 grid grid-cols-2 gap-3"><div className="rounded-xl border border-slate-300/30 p-3"><div className="text-[9px] muted">{t('riskPerOperation')}</div><b>{(riskBalance*riskPercent/100).toFixed(2)}</b></div><div className="rounded-xl border border-slate-300/30 p-3"><div className="text-[9px] muted">{t('estimatedExposure')}</div><b>{(riskBalance*riskPercent/100*riskTrades).toFixed(2)}</b></div></div><div className="mt-3 rounded-xl border border-red-400/50 p-3 text-[10px] text-red-500">{t('riskWarning')}</div></div>:<div className="mt-4"><button className="text-xs font-bold text-blue-500" onClick={()=>setCourseSection('home')}>← {t('back')}</button><h3 className="mt-3 font-black">🎓 {t('courseMozHyper')}</h3>{!courseUnlocked?<div className="mt-4 rounded-xl border border-blue-400/50 p-4"><b className="text-sm">🔐 {t('accessCourse')}</b><div className="mt-1 text-[10px] muted">{t('accessDesc')}</div><input className="mt-3 w-full rounded-lg border border-slate-300/40 bg-transparent p-3 font-mono text-sm" placeholder="MozHyper-XXXXXXXX" value={courseCode} onChange={e=>setCourseCode(e.target.value)} autoComplete="off"/><button className="mt-2 w-full rounded-lg bg-blue-600 p-3 text-xs font-bold text-white disabled:opacity-50" disabled={courseUnlocking||!courseCode.trim()} onClick={async()=>{setCourseUnlocking(true);try{const r=await fetch('/api/course/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:courseCode})});const data=await r.json().catch(()=>null);if(data?.courseUnlocked){setCourseUnlocked(true);setNotice(t('unlockedNotice'))}else{setNotice(data?.error||t('invalidPassword'))}}catch{setNotice(t('validationError'))}finally{setCourseUnlocking(false)}}}>{courseUnlocking?t('validating'):t('validate')}</button><button className="mt-2 w-full rounded-lg border border-slate-300/30 p-3 text-xs font-bold" disabled={!clientCountryReady} onClick={()=>{if(!clientCountryReady){setNotice(language==='en'?'Identifying your country. Please wait a moment.':'A identificar o país. Aguarde um momento.');return;}setMozHyperCourse(false);setCashierAction('course')}}>{`${t('buyCourse')} — ${!clientCountryReady?(language==='en'?'Checking…':'A identificar…'):clientCountry === 'MZ' ? '999 MZN' : '15 USDT'}`}</button></div>:<><div className="mt-3 rounded-xl border border-emerald-400/50 p-4"><b className="text-sm text-emerald-500">✅ {t('unlocked')}</b><div className="mt-1 text-[10px] muted">{t('sessionAccess')}</div></div><div className="mt-3 grid gap-2">{[t('module1'),t('module2'),t('module3'),t('module4'),t('module5'),t('module6'),t('module7')].map(m=><div key={m} className="rounded-xl border border-slate-300/30 p-3"><b className="text-xs">{m}</b><div className="mt-1 text-[9px] muted">{t('courseContent')}</div></div>)}</div></>}</div>}</div></div>}{metas&&<div className="modal-backdrop" onClick={()=>setMetas(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between"><b>{t('meta')}</b><button onClick={()=>setMetas(false)}>✕</button></div><label className="mt-4 block text-xs">{t('profit')} (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" step="0.01" min="0" value={target} onChange={e=>setTarget(Math.max(0,Number(e.target.value)))}/></label><label className="mt-3 block text-xs">{t('lossGoal')} (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" step="0.01" min="0" value={lossLimit} onChange={e=>setLossLimit(Math.max(0,Number(e.target.value)))}/></label><label className="mt-3 block text-xs">Lucro adicional por recuperação (US$)<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="0" step="0.01" value={strategy==='HYPERFLOWS'?hyperFlowsRecoveryExtraProfit:recoveryExtraProfit} onChange={e=>strategy==='HYPERFLOWS'?setHyperFlowsRecoveryExtraProfit(Math.max(0,Number(e.target.value)||0)):setRecoveryExtraProfit(Math.max(0,Number(e.target.value)||0))} disabled={running||smartAnalyzer||buying||activeContractId!==null||trackedContractId!==null}/><div className="mt-1 text-[9px] muted">{strategy==='HYPERFLOWS'?'Aplicado apenas ao HyperFlows: défice total + este valor. Padrão: $1.00.':'Aplicado ao HyperBeen: défice total + este valor. Padrão: $5.00.'} Só pode ser alterado com o robô parado e sem contrato activo.</div></label>{strategy==='MATCH0'&&<label className="mt-3 flex items-start gap-2 text-xs"><input type="checkbox" checked={hyperBeenReverseStake} disabled={running||smartAnalyzer||buying||activeContractId!==null||trackedContractId!==null} onChange={e=>{const enabled=e.target.checked;setHyperBeenReverseStake(enabled);hyperBeenReverseStakeEnabledRef.current=enabled;hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenRecoveryStepRef.current=0;if(enabled){setTarget(30);setLossLimit(203);setRecoveryExtraProfit(5);setMaxRecoveryTrades(12);setMaxMartingale(11);hyperBeenLowRiskPhaseRef.current='INCREASING';hyperBeenInverseNetRef.current=0;hyperBeenThirdPhaseNetRef.current=0;hyperBeenThirdPhaseTargetRef.current=0;}}}/><span><b>{language==='en'?'Low risk':language==='es'?'Bajo riesgo':'Baixo risco'}</b></span></label>}<label className="mt-3 block text-xs">{language==='en'?'Maximum recovery trades':language==='es'?'Máximo de operaciones de recuperación':'Limite de trades de recuperação'}<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="1" max="20" step="1" value={maxRecoveryTrades} onChange={e=>setMaxRecoveryTrades(Math.min(20,Math.max(1,Math.floor(Number(e.target.value)||1))))} disabled={running||smartAnalyzer||buying||activeContractId!==null||trackedContractId!==null}/><div className="mt-1 text-[9px] muted">{language==='en'?'After this many recovery trades, if the next result is a loss, the deficit is cleared and the normal strategy resumes.':language==='es'?'Al alcanzar este límite con una pérdida, se elimina el déficit y se reanuda la estrategia normal.':'Ao atingir este limite com uma perda, o défice é eliminado e a estratégia normal é retomada.'} {language==='en'?'Default: 3.':language==='es'?'Predeterminado: 3.':'Padrão: 3.'}</div></label>
 <label className="mt-3 block text-xs">{t('maxMartingale')}<input className="mt-2 w-full rounded-lg border border-slate-600 bg-transparent p-2" type="number" min="1" max="20" step="1" value={maxMartingale} onChange={e=>setMaxMartingale(Math.min(20,Math.max(1,Math.floor(Number(e.target.value)||1))))}/><div className="mt-1 text-[9px] muted">{t('maxMartingaleHelp')}</div></label><button className="mt-4 w-full rounded-lg bg-blue-600 p-3 font-bold text-white" onClick={()=>setMetas(false)}>{t('save')}</button></div></div>}
  </div></div>
-}
+ }
