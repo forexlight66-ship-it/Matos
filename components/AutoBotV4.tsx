@@ -843,7 +843,7 @@ export default function AutoBotV4(){
      }
     }
     console.info('[HyperBeen recovery state]',{symbol:tradeSymbol,closedProfitLoss:result,outcome:hyperFlowWon?'won':'lost',mode:isPrimaryOverZero?'OVER0':recoveryType,deficit:hyperBeenDeficitRef.current,target:hyperBeenDeficitRef.current+recoveryExtraProfit,recoveryActive:hyperBeenRecoveryModeRef.current,nextParity:hyperBeenNextParityRef.current});
-   }   }else if(isHyperBeenTrade){
+   }else if(isHyperBeenTrade){
     // Do not infer a win or loss from an ambiguous close result.
     hyperBeenLastTradeModeRef.current=null;
     hyperBeenRecoveryQuoteRef.current=null;
