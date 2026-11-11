@@ -817,6 +817,9 @@ export default function AutoBotV4(){
         setNotice('HyperBeen Low risk: sequência inversa '+(completedStep+1)+'/6. Resultado líquido parcial: $'+hyperBeenInverseNetRef.current.toFixed(2)+'. Próxima Stake pela ordem inversa.');
        }
       }else if(hyperFlowWon&&result+0.005>=targetNetProfit){
+       // Increasing sequence can finish only when this settled trade covers the whole deficit plus the configured take profit.
+       hyperBeenDeficitRef.current=0;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
+       setNotice('HyperBeen: sequência crescente cobriu o défice + $'+recoveryExtraProfit.toFixed(2)+' líquidos. Défice zerado; ciclo normal retomado.');
      }else if(hyperFlowLost){
       hyperBeenDeficitRef.current=Number((deficitBeforeTrade+Math.abs(Math.min(0,result))).toFixed(2));
       const failedStep=hyperBeenRecoveryStepRef.current;
