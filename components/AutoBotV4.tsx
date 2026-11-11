@@ -803,7 +803,7 @@ export default function AutoBotV4(){
       setNotice('HyperBeen Low risk: target de $'+thirdTarget.toFixed(2)+' alcançado. Resultado da segunda + terceira sequência: $'+secondAndThirdNet.toFixed(2)+'. Défice encerrado; ciclo normal retomado.');
      }else if(savedMode==='OVER0'){
       hyperBeenThirdPhaseStartedRef.current=true;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryStepRef.current=0;hyperBeenNextParityRef.current='EVEN';
-      setNotice('HyperBeen Low risk: ACIMA 0 da terceira sequência concluído. A seguir: PAR × 3, depois ÍMPAR × 3. Cada trade calcula a stake para recuperar o défice actual + 
+      setNotice('HyperBeen Low risk: ACIMA 0 da terceira sequência concluído. A seguir: PAR × 3, depois ÍMPAR × 3. Monitorização combinada: $'+secondAndThirdNet.toFixed(2)+' / $'+thirdTarget.toFixed(2)+'.');
      }else{
       const completedStep=hyperBeenRecoveryStepRef.current;
       if(completedStep>=5){
