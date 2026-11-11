@@ -226,10 +226,14 @@ export class DerivWebSocket {
     if (handlers.size === 0) this.handlers.delete(msgType);
   }
 
-  subscribeBalance() {
+  subscribeBalance(force = false) {
+    // The authenticated OTP socket can finish authorization after its first
+    // open event. If the early balance request was rejected, force a fresh
+    // subscription as soon as the authorize response arrives.
+    if (force) this.balanceSubscribed = false;
     if (this.balanceSubscribed) return;
     const now = Date.now();
-    if (now - this.lastBalanceRequest < 5000) return;
+    if (!force && now - this.lastBalanceRequest < 5000) return;
     this.lastBalanceRequest = now;
     if (this.send({ balance: 1, subscribe: 1 })) this.balanceSubscribed = true;
   }
