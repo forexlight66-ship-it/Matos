@@ -1254,19 +1254,24 @@ export default function AutoBotV4(){
  const resetAppStateForNewUser=useCallback((userKey:string)=>{
   const normalized=String(userKey||'').trim().toLowerCase();
   if(!normalized)return;
+  let isDifferentUser=true;
   try{
    const previous=localStorage.getItem('mozhyper-active-user-v1');
-   if(previous===normalized)return;
-   // Never carry another user's trading/risk state into this session.
-   for(let i=localStorage.length-1;i>=0;i--){
-    const key=localStorage.key(i)||'';
-    if(
-      key.startsWith('mozhyper-stake-state-v2:')||
-      key.startsWith('mozhyper-risk-state-v3:')
-    ) localStorage.removeItem(key);
+   isDifferentUser=previous!==normalized;
+   // Clear user-specific risk settings only when the authenticated account changes.
+   if(isDifferentUser){
+    for(let i=localStorage.length-1;i>=0;i--){
+     const key=localStorage.key(i)||'';
+     if(
+       key.startsWith('mozhyper-stake-state-v2:')||
+       key.startsWith('mozhyper-risk-state-v3:')
+     ) localStorage.removeItem(key);
+    }
+    localStorage.setItem('mozhyper-active-user-v1',normalized);
    }
-   localStorage.setItem('mozhyper-active-user-v1',normalized);
   }catch{}
+  // Every authenticated page session starts with fresh session metrics, even
+  // when the same user returns. The permanent daily archive is intentionally kept.
   stopped.current=true;
   botArmedRef.current=false;
   requested.current=false;
@@ -1285,7 +1290,6 @@ export default function AutoBotV4(){
   setSignalNow(null);
   setLastDigitSeen(null);
   setTickPipSize(undefined);
-  setDailyHistoryArchive([]);
   setHistoryOpen(false);
   setSmartAdvice(null);
   setAnalyzerNotice(null);
