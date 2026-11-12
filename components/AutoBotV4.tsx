@@ -808,7 +808,11 @@ export default function AutoBotV4(){
       const completedStep=hyperBeenRecoveryStepRef.current;
       if(completedStep>=2){
        hyperBeenRecoveryStepRef.current=3;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=false;
-       setNotice('HyperBeen Low risk: 3 trades de recuperação concluídos. Pausa de 50 ticks; depois reinicia em PAR. Resultado combinado: 
+       setNotice('HyperBeen Low risk: 3 trades de recuperação concluídos. Pausa de 50 ticks; depois reinicia em PAR. Resultado combinado: $'+secondAndThirdNet.toFixed(2)+' / $'+thirdTarget.toFixed(2)+'.');
+      }else{
+       hyperBeenRecoveryStepRef.current=completedStep+1;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=true;
+       setNotice('HyperBeen Low risk: recuperação PAR '+(completedStep+1)+'/3. Resultado combinado: $'+secondAndThirdNet.toFixed(2)+' / $'+thirdTarget.toFixed(2)+'.');
+      }
      }
     }else if(isPrimaryOverZero){
      if(hyperFlowLost){
