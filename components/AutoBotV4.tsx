@@ -797,7 +797,7 @@ export default function AutoBotV4(){
      const thirdNet=hyperBeenThirdPhaseNetRef.current;
      const secondAndThirdNet=Number((hyperBeenInverseNetRef.current+thirdNet).toFixed(2));
      const thirdTarget=hyperBeenThirdPhaseTargetRef.current;
-     if(secondAndThirdNet+0.005>=thirdTarget){
+     if(savedMode!=='OVER0'&&secondAndThirdNet+0.005>=thirdTarget){
       hyperBeenDeficitRef.current=0;hyperBeenLowRiskPhaseRef.current='INCREASING';hyperBeenThirdPhaseNetRef.current=0;hyperBeenThirdPhaseTargetRef.current=0;hyperBeenInverseNetRef.current=0;hyperBeenThirdPhaseStartedRef.current=false;
       hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
       setNotice('HyperBeen Low risk: target de $'+thirdTarget.toFixed(2)+' alcançado. Resultado da segunda + terceira sequência: $'+secondAndThirdNet.toFixed(2)+'. Défice encerrado; ciclo normal retomado.');
