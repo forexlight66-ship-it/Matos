@@ -802,7 +802,7 @@ export default function AutoBotV4(){
       setNotice('HyperBeen Low risk: target de $'+thirdTarget.toFixed(2)+' alcançado. Resultado da segunda + terceira sequência: $'+secondAndThirdNet.toFixed(2)+'. Défice encerrado; ciclo normal retomado.');
      }else if(savedMode==='OVER0'&&hyperFlowLost){
       hyperBeenThirdPhaseStartedRef.current=true;hyperBeenRecoveryModeRef.current=true;hyperBeenRecoveryStepRef.current=0;hyperBeenNextParityRef.current='EVEN';
-      setNotice('HyperBeen Low risk: ACIMA 0 perdeu na terceira sequência. A seguir: PAR × 3 com stake normal + 
+      setNotice('HyperBeen Low risk: ACIMA 0 perdeu na terceira sequência. A seguir: PAR × 3 com stake normal + adicional configurado.');
       const completedStep=hyperBeenRecoveryStepRef.current;
       if(completedStep>=2){
        hyperBeenRecoveryStepRef.current=3;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=false;
