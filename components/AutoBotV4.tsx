@@ -826,8 +826,7 @@ export default function AutoBotV4(){
     }else{
      hyperBeenRecoveryAttemptsRef.current+=1;
      const deficitBeforeTrade=Number(Math.max(0,hyperBeenDeficitRef.current).toFixed(2));
-     const selectedExtraProfit=hyperBeenReverseStakeEnabledRef.current&&hyperBeenLowRiskPhaseRef.current==='THIRD'?thirdSequenceExtraProfit:recoveryExtraProfit;
-     const targetNetProfit=Number((deficitBeforeTrade+selectedExtraProfit).toFixed(2));
+     const targetNetProfit=Number((deficitBeforeTrade+recoveryExtraProfit).toFixed(2));
      const isLowRiskDescending=hyperBeenReverseStakeEnabledRef.current&&hyperBeenStakeDirectionRef.current==='DECREASING';
      if(isLowRiskDescending&&hyperBeenLowRiskPhaseRef.current==='DECREASING'){
       hyperBeenInverseNetRef.current=Number((hyperBeenInverseNetRef.current+result).toFixed(2));
@@ -1621,7 +1620,8 @@ export default function AutoBotV4(){
     const deficit=Number(Math.max(0,Number(hyperBeenDeficitRef.current)||0).toFixed(2));
     const recoveryType=hyperBeenNextParityRef.current;
     const recoveryContractType=recoveryType==='EVEN'?'DIGITEVEN':'DIGITODD';
-    const targetNetProfit=Number((deficit+recoveryExtraProfit).toFixed(2));
+    const selectedExtraProfit=hyperBeenReverseStakeEnabledRef.current&&hyperBeenLowRiskPhaseRef.current==='THIRD'?thirdSequenceExtraProfit:recoveryExtraProfit;
+    const targetNetProfit=Number((deficit+selectedExtraProfit).toFixed(2));
     if(hyperBeenRecoveryQuoteRef.current){setBotActivity('requestingProposal');return;}
     const seedStake=Math.max(0.35,Math.ceil((Number(stake)||0.35)*100-1e-9)/100);
     hyperBeenRecoveryQuoteRef.current={recoveryType,stage:'seed',targetNetProfit,deficit,extraProfit:selectedExtraProfit,amount:seedStake,attempt:0,step:hyperBeenRecoveryStepRef.current,direction:hyperBeenStakeDirectionRef.current};
