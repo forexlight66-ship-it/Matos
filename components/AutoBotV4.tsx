@@ -802,7 +802,7 @@ export default function AutoBotV4(){
       hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeLadderRef.current=[];hyperBeenStakeDirectionRef.current='INCREASING';
       setNotice('HyperBeen Low risk: target de $'+thirdTarget.toFixed(2)+' alcançado. Resultado da segunda + terceira sequência: $'+secondAndThirdNet.toFixed(2)+'. Défice encerrado; ciclo normal retomado.');
      }else if(savedMode==='OVER0'){
-      hyperBeenThirdPhaseStartedRef.current=true;hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryStepRef.current=0;hyperBeenNextParityRef.current='EVEN';
+      hyperBeenThirdPhaseStartedRef.current=true;hyperBeenRecoveryModeRef.current=true;hyperBeenRecoveryStepRef.current=0;hyperBeenNextParityRef.current='EVEN';
       setNotice('HyperBeen Low risk: ACIMA 0 da terceira sequência concluído. A seguir: PAR × 3, depois ÍMPAR × 3. Monitorização combinada: $'+secondAndThirdNet.toFixed(2)+' / $'+thirdTarget.toFixed(2)+'.');
      }else{
       const completedStep=hyperBeenRecoveryStepRef.current;
@@ -810,7 +810,7 @@ export default function AutoBotV4(){
        hyperBeenRecoveryStepRef.current=3;hyperBeenPauseTicksRef.current=50;hyperBeenPauseStartEpochRef.current=lastEpoch.current;hyperBeenPauseStartSequenceRef.current=lastProcessedTickSequenceRef.current;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=false;
        setNotice('HyperBeen Low risk: 3 trades de recuperação concluídos. Pausa de 50 ticks; depois reinicia em PAR. Resultado combinado: $'+secondAndThirdNet.toFixed(2)+' / $'+thirdTarget.toFixed(2)+'.');
       }else{
-       hyperBeenRecoveryStepRef.current=completedStep+1;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=false;
+       hyperBeenRecoveryStepRef.current=completedStep+1;hyperBeenNextParityRef.current='EVEN';hyperBeenRecoveryModeRef.current=true;
        setNotice('HyperBeen Low risk: recuperação PAR ('+hyperBeenRecoveryStepRef.current+'/3). Resultado combinado: $'+secondAndThirdNet.toFixed(2)+' / $'+thirdTarget.toFixed(2)+'.');
       }
      }
