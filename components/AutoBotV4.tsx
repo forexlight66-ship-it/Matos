@@ -1806,10 +1806,10 @@ export default function AutoBotV4(){
      return;
     }
     payoutRatiosByContractRef.current[payoutContractKey(expectedType)]=liveRatio;
-     let exactStake:number;if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenQuote.direction==='DECREASING'){const reverseStake=hyperBeenStakeLadderRef.current[5-hyperBeenQuote.step];if(!Number.isFinite(reverseStake)||reverseStake<0.35){abandonHyperBeenQuote('HyperBeen: não existem seis Stakes válidas para inverter. Nenhuma compra foi enviada; reinicia em crescente.');hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenStakeLadderRef.current=[];hyperBeenRecoveryStepRef.current=0;return;}exactStake=reverseStake;}else if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenQuote.step===0){exactStake=Math.max(0.35,hyperBeenQuote.amount);}else{exactStake=Math.max(0.35,Math.ceil((hyperBeenQuote.targetNetProfit/liveRatio)*100-1e-9)/100);}
+     let exactStake:number;if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenQuote.direction==='DECREASING'){const reverseStake=hyperBeenStakeLadderRef.current[5-hyperBeenQuote.step];if(!Number.isFinite(reverseStake)||reverseStake<0.35){abandonHyperBeenQuote('HyperBeen: não existem seis Stakes válidas para inverter. Nenhuma compra foi enviada; reinicia em crescente.');hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenStakeLadderRef.current=[];hyperBeenRecoveryStepRef.current=0;return;}exactStake=reverseStake;}else if(hyperBeenReverseStakeEnabledRef.current&&hyperBeenQuote.step===0&&hyperBeenLowRiskPhaseRef.current!=='THIRD'){exactStake=Math.max(0.35,hyperBeenQuote.amount);}else{exactStake=Math.max(0.35,Math.ceil((hyperBeenQuote.targetNetProfit/liveRatio)*100-1e-9)/100);}
     if(!Number.isFinite(balanceNow)||exactStake>availableNow+0.005){
      recoveryBalancePauseRef.current=exactStake;
-     abandonHyperBeenQuote('HyperBeen: recuperação '+(hyperBeenQuote.recoveryType==='EVEN'?'PAR':'ÍMPAR')+' pausada. A cotação real exige stake '+exactStake.toFixed(2)+' para cobrir o défice total '+hyperBeenQuote.deficit.toFixed(2)+' e obter +$'+recoveryExtraProfit.toFixed(2)+' líquidos; saldo disponível '+Math.max(0,Number.isFinite(balanceNow)?balanceNow:0).toFixed(2)+' '+currencyNow+'. Nenhuma compra foi enviada.');
+     abandonHyperBeenQuote('HyperBeen: recuperação '+(hyperBeenQuote.recoveryType==='EVEN'?'PAR':'ÍMPAR')+' pausada. A cotação real exige stake '+exactStake.toFixed(2)+' para cobrir o défice total '+hyperBeenQuote.deficit.toFixed(2)+' e obter +$'+hyperBeenQuote.extraProfit.toFixed(2)+' líquidos; saldo disponível '+Math.max(0,Number.isFinite(balanceNow)?balanceNow:0).toFixed(2)+' '+currencyNow+'. Nenhuma compra foi enviada.');
      return;
     }
     if(!Number.isFinite(ask)||ask<=0||ask>availableNow+0.005){
@@ -1819,7 +1819,7 @@ export default function AutoBotV4(){
     }
     if(ask+0.005<exactStake){
      if(hyperBeenQuote.attempt>=3){
-      abandonHyperBeenQuote('HyperBeen: payout mudou durante as cotações. Não foi enviada stake inferior à necessária de '+exactStake.toFixed(2)+' para recuperar o défice total + $'+recoveryExtraProfit.toFixed(2)+'.');
+      abandonHyperBeenQuote('HyperBeen: payout mudou durante as cotações. Não foi enviada stake inferior à necessária de '+exactStake.toFixed(2)+' para recuperar o défice total + $'+hyperBeenQuote.extraProfit.toFixed(2)+'.');
       return;
      }
      hyperBeenQuote.stage='final';hyperBeenQuote.amount=exactStake;hyperBeenQuote.attempt+=1;
