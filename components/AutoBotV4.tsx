@@ -843,7 +843,7 @@ export default function AutoBotV4(){
       if(hyperFlowWon||completedStep>=5){
        const deficitBeforeInverse=Number(Math.max(0,hyperBeenDeficitRef.current).toFixed(2));
        hyperBeenDeficitRef.current=Number(Math.max(0,deficitBeforeInverse-hyperBeenInverseNetRef.current).toFixed(2));
-       hyperBeenLowRiskPhaseRef.current='THIRD';hyperBeenThirdPhaseNetRef.current=0;hyperBeenThirdPhaseTargetRef.current=Number((Math.max(0,hyperBeenDeficitRef.current+hyperBeenInverseNetRef.current)+Math.max(0,Number(target)||30)).toFixed(2));hyperBeenThirdPhaseStartedRef.current=false;
+       hyperBeenLowRiskPhaseRef.current='THIRD';hyperBeenThirdPhaseNetRef.current=0;hyperBeenThirdPhasePendingLossRef.current=0;hyperBeenThirdPhaseHadParityLossRef.current=false;hyperBeenThirdPhaseTargetRef.current=Number((Math.max(0,hyperBeenDeficitRef.current+hyperBeenInverseNetRef.current)+Math.max(0,Number(target)||30)).toFixed(2));hyperBeenThirdPhaseStartedRef.current=false;
        hyperBeenRecoveryModeRef.current=false;hyperBeenRecoveryAttemptsRef.current=0;hyperBeenRecoveryStepRef.current=0;hyperBeenPauseTicksRef.current=0;hyperBeenPauseStartEpochRef.current=null;hyperBeenPauseStartSequenceRef.current=null;hyperBeenNextParityRef.current='EVEN';hyperBeenStakeDirectionRef.current='INCREASING';hyperBeenRecoveryQuoteRef.current=null;
        setNotice('HyperBeen Low risk: sequência inversa concluída. Resultado líquido: $'+hyperBeenInverseNetRef.current.toFixed(2)+'. Défice atualizado: $'+hyperBeenDeficitRef.current.toFixed(2)+'. Terceira sequência normal até $'+hyperBeenThirdPhaseTargetRef.current+' líquidos.');
       }else{
